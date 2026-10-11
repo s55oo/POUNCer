@@ -277,6 +277,10 @@ serves the same needed spots as tap tiles. Page layout, top to bottom:
    (`calc(2 * var(--row) + var(--gap))`, CSS vars shared with the grid), sticky
    under the header (`--hdr` set from JS), and shrinks only when the window is
    too short for all keys.
+6. **Footer** (fixed, bottom) - thirds: **WPM − / WPM +** left (`/api/key`
+   PgDn / PgUp → N1MM CW speed), **−/+ `tune_step_hz` Hz** middle
+   (`/api/tune`), right empty. `--ftr` (its height, set from JS) keeps the list
+   and the key column clear of it.
 
 | Route | Returns |
 | --- | --- |
