@@ -1,5 +1,19 @@
 # POUNCer — Changelog
 
+## v0.2.0 — 2026-10-11 — first GitHub release
+
+- Code published at **https://github.com/s55oo/POUNCer** (AGPL-3.0), first
+  commit `07f46ae`. Scanned before publishing: no passwords, tokens or keys
+  (config holds only the callsign, skimmer and RBN host).
+- First Actions build (run 38150237295) passed: tests, bootloader compiled
+  from source, build, SHA-256, Defender scan, artifact.
+- The workflow now also publishes a **GitHub Release** (POUNCer.exe +
+  config.ini, SHA-256 in the notes) when a `v*` tag is pushed. Release
+  ritual: bump `__version__` + `pyproject.toml`, CHANGELOG, commit,
+  `git tag vX.Y.Z`, push the tag.
+- README: new **Download** section (Releases page).
+- Version 0.2.0.
+
 ## 2026-10-11 — log detection, reconnect, QSO counts, phone layout
 
 Work done after taking the project over from the earlier OpenCode sessions.

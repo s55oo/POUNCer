@@ -421,7 +421,17 @@ copied to another PC. Fix, same as Callbooker 1.11 (`s55oo/N1MM_callbook`):
   runner, runs the tests, compiles the bootloader from source
   (`pip install --no-binary pyinstaller --no-deps pyinstaller==6.22.2`, MSVC on
   the runner), builds the spec, prints the SHA-256 and a Defender scan, and
-  uploads `POUNCer.exe` + `config.ini` as the `POUNCer` artifact.
+  uploads `POUNCer.exe` + `config.ini` as the `POUNCer` artifact. On a `v*`
+  tag it also creates the **GitHub Release** with both files and the SHA-256.
+- **Release ritual:** bump `__version__` (`pouncer/__init__.py`) and
+  `pyproject.toml`, add a CHANGELOG section, commit, then
+  `git tag v0.2.0 && git push origin main v0.2.0`. The workflow builds,
+  tests and publishes https://github.com/s55oo/POUNCer/releases/tag/v0.2.0.
+  A build without a release: Actions tab → *Build POUNCer.exe* → *Run
+  workflow* (download from the run's Artifacts).
+- **Repo:** https://github.com/s55oo/POUNCer (AGPL-3.0). Only source goes in
+  - `build/`, `dist/`, `__pycache__/` are git-ignored; `config.ini` holds no
+  secrets (RBN login is the callsign only).
 - `upx=False` in the spec (packing is another common trigger).
 - A local `build.bat` exe is for quick tests only, unless PyInstaller was
   installed with `--no-binary pyinstaller` (needs Visual Studio Build Tools).

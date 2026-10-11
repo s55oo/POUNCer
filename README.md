@@ -85,6 +85,15 @@ spotted callsign into the N1MM Entry Window.
 Only the Python standard library is used (tkinter for the GUI). No pip install
 is required.
 
+## Download
+
+Get **POUNCer.exe** and **config.ini** from the
+[Releases page](https://github.com/s55oo/POUNCer/releases) and put both in the
+same folder. Release builds come from GitHub Actions with the PyInstaller
+bootloader compiled from source, so Windows Defender doesn't flag them
+(locally built exes can be flagged `Trojan:Win32/Wacatac.B!ml` - a false
+positive). Each release lists the exe's SHA-256.
+
 ## N1MM Logger+ setup
 
 1. Open N1MM Logger+.
