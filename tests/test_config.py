@@ -87,6 +87,15 @@ class FilterStartTests(unittest.TestCase):
     def test_default_narrow(self):
         self.assertEqual(self._load("[ui]\n").filter_start, "narrow")
 
+    def test_filter_cat_strings(self):
+        cfg = self._load("[ui]\nfilter_narrow_cat = ZZFI05;\nfilter_wide_cat = ZZFI02;\n")
+        self.assertEqual((cfg.filter_narrow_cat, cfg.filter_wide_cat), ("ZZFI05;", "ZZFI02;"))
+        self.assertEqual(self._load("[ui]\n").filter_narrow_cat, "")
+
+    def test_shipped_config_uses_flex_cat(self):
+        cfg = load_config(os.path.join(os.path.dirname(__file__), "..", "config.ini"))
+        self.assertTrue(cfg.filter_narrow_cat and cfg.filter_wide_cat)
+
     def test_wide_and_unknown(self):
         self.assertEqual(self._load("[ui]\nfilter_start = WIDE\n").filter_start, "wide")
         self.assertEqual(self._load("[ui]\nfilter_start =\n").filter_start, "")

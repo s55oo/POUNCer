@@ -7,6 +7,7 @@ import socket
 import threading
 import time
 import xml.etree.ElementTree as ET
+from xml.sax.saxutils import escape as xml_escape
 
 from .bands import band_from_khz, tens_of_hz_to_khz
 
@@ -101,6 +102,12 @@ class RadioState:
                 self._active = info["active_radio"]
             self._last = time.time()
 
+    def active_radio_nr(self) -> int:
+        with self._lock:
+            if not self._radios:
+                return 1
+            return self._active if self._active in self._radios else max(self._radios)
+
     def entry_window_hwnd(self) -> int | None:
         with self._lock:
             if not self._radios:
@@ -176,6 +183,26 @@ class RadioListener(threading.Thread):
             pass
 
 
+def radio_command_xml(command: str, radio_nr: int = 1, focus_hwnd: int | None = None) -> str:
+    """N1MM ``<RadioCmd>`` packet: run ``command`` (macros like
+    ``{CAT1ASC ZZFI05;}``) as if typed in that radio's Entry Window.
+
+    Not in N1MM's UDP docs, but accepted on the control port (13064) and
+    used by other N1MM control apps (e.g. the TouchPortal N1MM plugin).
+    ``focus_hwnd`` is the Entry Window handle from RadioInfo.
+    """
+    return (
+        f"<RadioCmd><RadioNr>{int(radio_nr or 1)}</RadioNr>"
+        f"<FocusEntry>{int(focus_hwnd or 0)}</FocusEntry>"
+        f"<RadioCommand>{xml_escape(command)}</RadioCommand></RadioCmd>"
+    )
+
+
+def cat_macro(cat: str, radio_nr: int = 1) -> str:
+    """N1MM macro sending a raw ASCII CAT string to the radio: {CAT1ASC ...}."""
+    return f"{{CAT{int(radio_nr or 1)}ASC {cat.strip()}}}"
+
+
 class N1MMController:
     """Sends control packets (QSY) to N1MM on UDP 13064. Never transmits."""
 
@@ -192,6 +219,12 @@ class N1MMController:
 
     def _send(self, payload: str) -> None:
         self._sock.sendto(payload.encode("utf-8"), self.addr)
+
+    def send_radio_command(
+        self, command: str, radio_nr: int | None = None, focus_hwnd: int | None = None
+    ) -> None:
+        """Run an N1MM macro / command for a radio (see ``radio_command_xml``)."""
+        self._send(radio_command_xml(command, radio_nr or self.radionr, focus_hwnd))
 
     def set_frequency(self, freq_khz: float, mousebutton: str = "Left") -> None:
         payload = (

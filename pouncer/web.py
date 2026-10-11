@@ -421,6 +421,7 @@ INDEX_HTML = """<!doctype html>
     renderFkeys(data.fkeys);
     if (data.tune_step && data.tune_step !== tuneStep) { tuneStep = data.tune_step; labelTune(); }
     if ('filter' in data && data.filter !== filterWidth) showFilter(data.filter);
+    if (data.filter_mode) filterMode = data.filter_mode;
     syncHeaderHeight();
     lastData = data;
     // Radio frequency in kHz (falls back to the band, then "ALL band").
@@ -640,6 +641,7 @@ INDEX_HTML = """<!doctype html>
   // width (nothing is sent if it is already lit). Hold 1 s = toggle the
   // radio but keep the label - use it when the radio and the label differ.
   let filterWidth = null;
+  let filterMode = 'toggle';  // 'cat': NAR/WIDE set the filter, always sent
   function showFilter(w) {
     filterWidth = w || null;
     document.querySelectorAll('.footbar [data-filter]').forEach(b => {
@@ -666,7 +668,7 @@ INDEX_HTML = """<!doctype html>
     const start = () => {
       held = false;
       clearTimeout(timer);
-      timer = setTimeout(() => { held = true; sendFilter(b, true); }, 1000);
+      timer = setTimeout(() => { held = true; sendFilter(b, filterMode !== 'cat'); }, 1000);
     };
     const stop = () => { clearTimeout(timer); timer = null; };
     b.addEventListener('pointerdown', start);
@@ -676,7 +678,7 @@ INDEX_HTML = """<!doctype html>
     b.addEventListener('contextmenu', e => e.preventDefault());
     b.onclick = () => {
       if (held) { held = false; return; }
-      if (b.dataset.filter === filterWidth) {
+      if (filterMode !== 'cat' && b.dataset.filter === filterWidth) {
         flash(b);
         toast(b.dataset.filter === 'narrow' ? 'Already narrow' : 'Already wide');
         return;

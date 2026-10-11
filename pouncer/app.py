@@ -13,7 +13,9 @@ from .bands import CONTEST_BANDS, DEFAULT_BAND_KHZ, band_from_khz
 from .config import Config
 from .flow import flow_positions
 from .cty import Entity, load_cty, wpx_prefix
-from .n1mm import N1MMController, RadioListener, RadioState, next_tune_khz
+from .n1mm import (
+    N1MMController, RadioListener, RadioState, cat_macro, next_tune_khz,
+)
 from .rbn import RBNClient, Spot, is_beacon, ports_for_modes
 from .web import WebServer, pick_web_address
 from .win32 import (
@@ -424,6 +426,11 @@ class PouncerApp:
             "contest_bands": list(CONTEST_BANDS),
             "tune_step": self.cfg.tune_step_hz,
             "filter": self._filter_width,
+            # "cat": NAR/WIDE set the filter (always send); "toggle": Alt+'
+            "filter_mode": (
+                "cat" if self.cfg.filter_narrow_cat and self.cfg.filter_wide_cat
+                else "toggle"
+            ),
             "modes": list(self.cfg.follow_modes),
             "worked": self.worked.status,
             "qsos": {
@@ -635,13 +642,32 @@ class PouncerApp:
         self._tune_target, self._tune_time = khz, now
         self.status_label.configure(text=f"Tune {hz:+d} Hz -> {khz:.3f} kHz")
 
-    def _set_filter(self, width: str, fix: bool = False) -> None:
-        """Footer NAR/WIDE: switch the radio filter via N1MM's Alt+' toggle.
+    def _filter_cat(self, width: str) -> str:
+        return self.cfg.filter_narrow_cat if width == "narrow" else self.cfg.filter_wide_cat
 
-        N1MM only toggles, so we remember the width we set and send the
-        toggle only when it changes. ``fix`` toggles the radio without
-        changing the remembered width (resync after the Bandmap button).
+    def _set_filter(self, width: str, fix: bool = False) -> None:
+        """Footer NAR/WIDE: set the radio's RX filter.
+
+        With ``[ui] filter_narrow_cat`` / ``filter_wide_cat`` set, the CAT
+        string is sent through N1MM (``{CATnASC ...}`` in a RadioCmd packet):
+        an absolute setting, sent on every tap. Otherwise N1MM's Alt+'
+        wide/narrow toggle is pressed: we remember the width we set and send
+        the toggle only when it changes; ``fix`` toggles the radio without
+        changing the remembered width (resync).
         """
+        cat = self._filter_cat(width)
+        if cat:
+            nr = self.state.active_radio_nr()
+            try:
+                self.controller.send_radio_command(
+                    cat_macro(cat, nr), nr, self.state.entry_window_hwnd()
+                )
+            except OSError as exc:
+                self.status_label.configure(text=f"Filter: N1MM send failed: {exc}")
+                return
+            self._filter_width = width
+            self.status_label.configure(text=f"Filter {width} (CAT {cat} via N1MM)")
+            return
         if not fix and width == self._filter_width:
             self.status_label.configure(text=f"Filter already {width}")
             return

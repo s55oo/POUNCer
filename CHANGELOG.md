@@ -1,5 +1,24 @@
 # POUNCer — Changelog
 
+## v0.2.10 — 2026-10-11 — NAR / WIDE set the filter by CAT (Flex)
+
+- NAR / WIDE no longer use N1MM's Alt+' **toggle** (POUNCer could never know
+  which width the radio was on, so the buttons kept ending up reversed).
+  They now send an absolute CAT command to the radio through N1MM: the
+  undocumented N1MM `<RadioCmd>` UDP packet (port 13064, as other N1MM
+  control apps use) carrying the macro `{CAT1ASC <cmd>}`. NAR always sets
+  narrow, WIDE always sets wide, and every tap is sent.
+- New `[ui] filter_narrow_cat` / `filter_wide_cat`. `config.ini` ships with
+  FLEX-6000 (SmartSDR CAT) values: `ZZFI05;` (narrow) and `ZZFI02;` (wide)
+  = filter preset 05 / 02 of the current mode (00 widest .. 07 narrowest).
+  Change the numbers to the presets you like; Kenwood-style radios can use
+  e.g. `FW0250;`. Both empty = the old Alt+' toggle behaviour.
+- `n1mm.radio_command_xml`, `n1mm.cat_macro`,
+  `N1MMController.send_radio_command`, `RadioState.active_radio_nr`;
+  `/api/spots` gives `filter_mode` (`cat` / `toggle`).
+- Note: N1MM's Bandmap Wide/Narrow indicator follows only its own button,
+  not the CAT commands.
+
 ## v0.2.9 — 2026-10-11 — Windows window: nothing cut off when narrow
 
 - Main (Tk) window, top part: when the window was made narrower, the end of
