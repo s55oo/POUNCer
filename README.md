@@ -69,7 +69,8 @@ spotted callsign into the N1MM Entry Window.
   left (N1MM PgDn / PgUp = CW speed) and **−25 Hz / +25 Hz** in the middle
   (move the VFO via N1MM; step = `[ui] tune_step_hz`), and **NAR / WIDE** on
   the right (RX filter via N1MM's Alt+' wide/narrow toggle, like the Bandmap's
-  Wide/Narrow button; the width POUNCer set is lit amber, hold 1 s to toggle
+  Wide/Narrow button; the width POUNCer set is lit amber - it starts as
+  narrow, `[ui] filter_start` - hold 1 s to toggle
   the radio without changing the label if they differ); none of them transmit. On a phone the tiles are compact one-line rows (callsign left,
   details right) so about 10 fit on screen; wider screens get two columns of
   big tiles. The TX/log key buttons sit in a column on the right of the list

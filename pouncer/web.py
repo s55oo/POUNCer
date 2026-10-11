@@ -131,10 +131,10 @@ INDEX_HTML = """<!doctype html>
   .footbar button:active, .footbar button.sel { background: #c62828; color: #fff; }
   @media (max-width: 619px) { .footbar button { font-size: 14px; } }
   body { padding-bottom: var(--ftr, 0px); }
-  /* pop-up message: two tile rows above the footer, faded out when hidden
+  /* pop-up message: three tile rows above the footer, faded out when hidden
      (never left lying over the footer buttons); 5 s, tap to close */
   #toast { position: fixed; left: 50%;
-    bottom: calc(18px + var(--ftr, 0px) + 2 * (var(--row) + var(--gap)));
+    bottom: calc(18px + var(--ftr, 0px) + 3 * (var(--row) + var(--gap)));
     transform: translateX(-50%) translateY(12px); opacity: 0; visibility: hidden;
     pointer-events: none; max-width: calc(100vw - 32px);
     background: #2e7d32; color: #fff; padding: 12px 18px; border-radius: 12px;
