@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **Footer** on the phone page with four buttons (none of them transmit):
+  - **−25 Hz / +25 Hz**: move the VFO via N1MM (`radio_setfrequency`, same as
+    a spot click). Steps from the last target it set, so repeated taps don't
+    drift on N1MM's 10 Hz RadioInfo resolution (3 x +25 = exactly +75 Hz);
+    after tuning by hand it steps from the radio again. Step size:
+    `[ui] tune_step_hz = 25`. New `GET /api/tune?hz=±N`,
+    `n1mm.next_tune_khz`.
+  - **WPM − / WPM +**: press PgDn / PgUp in the N1MM Entry Window = N1MM's
+    CW speed down / up (by the step in N1MM's Configurer). `/api/key` now
+    also takes `PgUp` / `PgDn`; `win32.send_cw_speed`.
+  The key column and the list keep clear of the footer.
+
 - Phone page: the station you tap keeps its **yellow border** until you tap
   another one (or it leaves the list - worked, aged out, removed); before, the
   border vanished after 0.9 s. It stays yellow when it is also the tuned-to

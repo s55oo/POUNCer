@@ -15,6 +15,7 @@ class WebServerTests(unittest.TestCase):
         self.reconnects = 0
         self.bands: list[str] = []
         self.hides: list[tuple[str, float, bool]] = []
+        self.tunes: list[int] = []
         self.payload = {
             "band": "20m",
             "modes": ["CW"],
@@ -31,6 +32,7 @@ class WebServerTests(unittest.TestCase):
             self._on_reconnect,
             self.bands.append,
             lambda call, freq, hide: self.hides.append((call, freq, hide)),
+            self.tunes.append,
         )
         self.web.start()
         self.url = f"http://127.0.0.1:{self.web.port}"
@@ -56,6 +58,25 @@ class WebServerTests(unittest.TestCase):
             self.assertIn(f'data-sort="{key}"', body)
         self.assertIn('id="logwarn"', body)
         self.assertIn("/api/reconnect", body)
+
+    def test_tune_steps(self) -> None:
+        for q in ("25", "-25"):
+            with self._get("/api/tune?hz=" + q) as resp:
+                self.assertTrue(json.load(resp)["ok"])
+        self.assertEqual(self.tunes, [25, -25])
+
+    def test_tune_rejects_bad_step(self) -> None:
+        for q in ("", "0", "abc", "20000"):
+            with self.assertRaises(urllib.error.HTTPError) as ctx:
+                self._get("/api/tune?hz=" + q)
+            self.assertEqual(ctx.exception.code, 400)
+        self.assertEqual(self.tunes, [])
+
+    def test_cw_speed_keys(self) -> None:
+        for key in ("PgUp", "pgdn"):
+            with self._get("/api/key?key=" + key) as resp:
+                self.assertTrue(json.load(resp)["ok"])
+        self.assertEqual(self.keys, ["PgUp", "PgDn"])
 
     def test_hide_and_unhide(self) -> None:
         with self._get("/api/hide?call=k1abc&freq=14015.5") as resp:

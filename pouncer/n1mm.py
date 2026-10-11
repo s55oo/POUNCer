@@ -57,6 +57,32 @@ def parse_radio_info(data: bytes) -> dict | None:
     }
 
 
+def next_tune_khz(
+    reported_khz: float | None,
+    last_target_khz: float | None,
+    seconds_since_last: float,
+    step_hz: float,
+) -> float | None:
+    """Frequency for one +/-step of the VFO (step_hz may be negative).
+
+    N1MM reports the radio in 10 Hz units, so after setting 14011.625 it may
+    report 14011.62 - stepping from that would drift. Step from our own last
+    target when it was set moments ago (the RadioInfo may not be back yet)
+    or still matches the radio; otherwise (tuned by hand since) from the
+    reported frequency.
+    """
+    base = reported_khz
+    if last_target_khz is not None and (
+        seconds_since_last < 3.0
+        or reported_khz is None
+        or abs(last_target_khz - reported_khz) < 0.015
+    ):
+        base = last_target_khz
+    if not base:
+        return None
+    return round(base + step_hz / 1000.0, 3)
+
+
 class RadioState:
     """Thread-safe holder for the most recent N1MM radio information."""
 

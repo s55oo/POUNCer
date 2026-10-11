@@ -11,11 +11,12 @@ from tkinter import ttk
 from .bands import CONTEST_BANDS, DEFAULT_BAND_KHZ, band_from_khz
 from .config import Config
 from .cty import Entity, load_cty, wpx_prefix
-from .n1mm import N1MMController, RadioListener, RadioState
+from .n1mm import N1MMController, RadioListener, RadioState, next_tune_khz
 from .rbn import RBNClient, Spot, is_beacon, ports_for_modes
 from .web import WebServer, pick_web_address
 from .win32 import (
-    force_foreground, is_n1mm_running, send_enter, send_fkey, type_text,
+    force_foreground, is_n1mm_running, send_cw_speed, send_enter, send_fkey,
+    type_text,
     wipe_callsign,
 )
 from .worked import WorkedLog
@@ -84,7 +85,9 @@ class PouncerApp:
         self._last_radio_khz: float | None = None
         # Calls removed from the list by hand (long-press on the phone page),
         # per band; they stay hidden until POUNCer restarts.
-        self._removed: set[tuple[str, str]] = set()  # last radio kHz per band
+        self._removed: set[tuple[str, str]] = set()
+        self._tune_target: float | None = None  # last -/+ step we sent
+        self._tune_time = 0.0  # last radio kHz per band
         self._web_queue: "queue.Queue[tuple]" = queue.Queue()
         self._web_cache: dict = {}
         self._build_ui()
@@ -362,6 +365,7 @@ class PouncerApp:
             "freq": self._radio_khz(),
             "home_cont": self.home_cont,
             "contest_bands": list(CONTEST_BANDS),
+            "tune_step": self.cfg.tune_step_hz,
             "modes": list(self.cfg.follow_modes),
             "worked": self.worked.status,
             "qsos": {
@@ -405,6 +409,9 @@ class PouncerApp:
     def _web_band(self, band: str) -> None:
         self._web_queue.put(("band", band))
 
+    def _web_tune(self, hz: int) -> None:
+        self._web_queue.put(("tune", int(hz)))
+
     def _web_hide(self, call: str, freq: float, hide: bool) -> None:
         self._web_queue.put(("hide", call, float(freq), hide))
 
@@ -422,6 +429,9 @@ class PouncerApp:
                 continue
             if item[0] == "band":
                 self._qsy_band(item[1])
+                continue
+            if item[0] == "tune":
+                self._tune(item[1])
                 continue
             if item[0] == "hide":
                 self._set_removed(item[1], item[2], item[3])
@@ -462,7 +472,11 @@ class PouncerApp:
             self.status_label.configure(text=f"Unknown key: {key}")
             return
         msg = f"Sent {key} to N1MM"
-        if key != "Enter":
+        if key == "PgUp":
+            msg = "CW speed up (PgUp)"
+        elif key == "PgDn":
+            msg = "CW speed down (PgDn)"
+        elif key != "Enter":
             msg += " (transmitting)"
         if self.cfg.focus_n1mm and hwnd and not focused:
             msg += " [N1MM focus failed]"
@@ -474,6 +488,10 @@ class PouncerApp:
             return send_fkey(int(key[1:]))
         if key.lower() in ("enter", "return", "cr"):
             return send_enter()
+        if key == "PgUp":
+            return send_cw_speed(True)
+        if key == "PgDn":
+            return send_cw_speed(False)
         return False
 
     def _drain_status(self) -> None:
@@ -535,6 +553,23 @@ class PouncerApp:
         """DX = a known continent other than ours (EU for S5)."""
         cont = self._continent(call)
         return cont is not None and cont != self.home_cont
+
+    def _tune(self, hz: int) -> None:
+        """Footer -/+ buttons: move the VFO by hz via N1MM (no TX)."""
+        now = time.time()
+        khz = next_tune_khz(
+            self._radio_khz(), self._tune_target, now - self._tune_time, hz,
+        )
+        if khz is None:
+            self.status_label.configure(text="Tune: no radio frequency from N1MM yet")
+            return
+        try:
+            self.controller.set_frequency(khz)
+        except OSError as exc:
+            self.status_label.configure(text=f"N1MM QSY failed: {exc}")
+            return
+        self._tune_target, self._tune_time = khz, now
+        self.status_label.configure(text=f"Tune {hz:+d} Hz -> {khz:.3f} kHz")
 
     def _set_removed(self, call: str, freq_khz: float, removed: bool) -> None:
         """Remove a call from the list on that band (or bring it back)."""
@@ -806,6 +841,7 @@ class PouncerApp:
                 self.cfg.web_host, self.cfg.web_port,
                 self._web_spots, self._web_qsy, self._web_key,
                 self._web_reconnect, self._web_band, self._web_hide,
+                self._web_tune,
             )
             self.web.start()
         except OSError as exc:
