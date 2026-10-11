@@ -10,7 +10,7 @@ spotted callsign into the N1MM Entry Window.
 ## How it works
 
 * **RBN** - a telnet client connects to `telnet.reversebeacon.net:7000`, logs in
-  with your callsign, and keeps only the spots whose spotting node matches the
+  with your callsign (from N1MM unless `[rbn] callsign` is set), and keeps only the spots whose spotting node matches the
   configured `spotter` (e.g. `S53WW`). By default it is **CW only**; the
   `[rbn] follow_modes` option can additionally show RTTY (port 7000) and
   FT8/FT4 (port 7001).

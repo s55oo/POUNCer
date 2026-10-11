@@ -330,7 +330,7 @@ LAN/VPN-only and unauthenticated.
 | --- | --- | --- |
 | `host` | `telnet.reversebeacon.net` | RBN telnet host. |
 | `port` | `7000` | CW/RTTY port. |
-| `callsign` | `S55OO` | Login callsign sent to RBN. |
+| `callsign` | *(empty)* | Login callsign sent to RBN (also gives the home continent for EU/DX). Commented out by default: then `worked.n1mm_station_call()` reads it from `N1MM Logger.ini` - `[Packet] Logon Callsign`, else `[EntryWindow] Operator` (`DEFAULT` ignored). None found: RBN login is skipped with a status message. |
 | `spotter` | `S53WW` | Keep only spots whose spotter starts with this. |
 | `follow_modes` | `CW` | Comma list of `CW, RTTY, FT8, FT4` (default CW only). |
 | `ft8_port` | `7001` | FT8/FT4 port. |

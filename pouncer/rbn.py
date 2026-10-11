@@ -266,6 +266,9 @@ class RBNClient(threading.Thread):
         return buf
 
     def _send_login(self, sock: socket.socket) -> None:
+        if not self.callsign:
+            self._status("no callsign: set [rbn] callsign in config.ini")
+            return
         try:
             sock.sendall((self.callsign + "\r\n").encode("ascii", "ignore"))
             self._status(f"logged in as {self.callsign}")

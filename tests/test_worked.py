@@ -325,5 +325,27 @@ class MultiplierTests(unittest.TestCase):
         self.assertEqual(wl.new_mults(14010, "K", 5, "K1"), 0)
 
 
+class StationCallTests(unittest.TestCase):
+    def _call(self, text: str) -> str:
+        from pouncer.worked import n1mm_station_call
+        with tempfile.TemporaryDirectory() as d:
+            ini = os.path.join(d, "N1MM Logger.ini")
+            with open(ini, "w", encoding="utf-8") as fh:
+                fh.write(text)
+            return n1mm_station_call(ini)
+
+    def test_packet_logon_callsign_first(self) -> None:
+        text = "[EntryWindow]\nOperator=S50XX\n[Packet]\nLogon Callsign=s55oo\n"
+        self.assertEqual(self._call(text), "S55OO")
+
+    def test_operator_when_logon_is_default(self) -> None:
+        text = "[EntryWindow]\nOperator=S50XX\n[Packet]\nLogon Callsign=DEFAULT\n"
+        self.assertEqual(self._call(text), "S50XX")
+
+    def test_nothing_usable(self) -> None:
+        self.assertEqual(self._call("[Packet]\nLogon Callsign=DEFAULT\n"), "")
+        self.assertEqual(self._call("[Other]\nOperator=S55OO\n"), "")
+
+
 if __name__ == "__main__":
     unittest.main()

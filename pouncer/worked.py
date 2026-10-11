@@ -129,6 +129,45 @@ def inspect_active(ini_path: str | None = None) -> dict:
     return result
 
 
+_CALL_RE = re.compile(r"^(?=.*\d)(?=.*[A-Z])[A-Z0-9/]{3,15}$")
+
+
+def n1mm_station_call(ini_path: str | None = None) -> str:
+    """Your callsign as N1MM Logger+ has it, or "" if not found.
+
+    Read from ``N1MM Logger.ini``: ``[Packet] Logon Callsign`` (the call N1MM
+    logs into telnet clusters with) first, then ``[EntryWindow] Operator``.
+    Placeholders such as ``DEFAULT`` are ignored.
+    """
+    found: dict[tuple[str, str], str] = {}
+    dirs = [os.path.dirname(ini_path)] if ini_path else default_n1mm_dirs()
+    for base in dirs:
+        candidate = ini_path or os.path.join(base, "N1MM Logger.ini")
+        if not os.path.exists(candidate):
+            continue
+        section = ""
+        try:
+            with open(candidate, encoding="utf-8", errors="replace") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if line.startswith("[") and line.endswith("]"):
+                        section = line[1:-1].strip().lower()
+                        continue
+                    key, sep, value = line.partition("=")
+                    if sep:
+                        found.setdefault(
+                            (section, key.strip().lower()), value.strip().upper()
+                        )
+        except OSError:
+            continue
+        for want in (("packet", "logon callsign"), ("entrywindow", "operator")):
+            call = found.get(want, "")
+            if call and call != "DEFAULT" and _CALL_RE.match(call):
+                return call
+        found.clear()
+    return ""
+
+
 def read_active(ini_path: str | None = None) -> dict | None:
     """Return info about the log N1MM currently has open, or None.
 
