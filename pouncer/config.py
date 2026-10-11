@@ -76,6 +76,7 @@ class Config:
         ("Enter", "Enter"),
     )
 
+    tune_step_hz: int = 25
     sort: str = "snr"
     max_age_minutes: int = 10
     trigger: str = "single"
@@ -139,6 +140,7 @@ def load_config(path: str) -> Config:
 
     cfg.sort = s("ui", "sort", cfg.sort).strip().lower()
     cfg.max_age_minutes = i("ui", "max_age_minutes", cfg.max_age_minutes)
+    cfg.tune_step_hz = max(1, i("ui", "tune_step_hz", cfg.tune_step_hz))
     cfg.trigger = s("ui", "trigger", cfg.trigger).strip().lower()
     cfg.touch_view = b("ui", "touch_view", cfg.touch_view)
     cfg.touch_columns = i("ui", "touch_columns", cfg.touch_columns)

@@ -31,14 +31,27 @@ KeyHandler = Callable[[str], None]
 ReconnectHandler = Callable[[], None]
 BandHandler = Callable[[str], None]
 HideHandler = Callable[[str, float, bool], None]  # (call, freq kHz, hide?)
+TuneHandler = Callable[[int], None]  # VFO step in Hz (+/-)
 
 
 def is_send_key(key: str) -> bool:
-    """True for keys the phone page may send: F1-F12 or Enter."""
+    """True for keys the phone page may send: F1-F12, Enter, PgUp, PgDn."""
+    return normalize_key(key) is not None
+
+
+def normalize_key(key: str) -> str | None:
+    """Canonical key name (F4 / Enter / PgUp / PgDn) or None if not allowed."""
     key = (key or "").strip()
     if re.fullmatch(r"F([1-9]|1[0-2])", key.upper()):
-        return True
-    return key.lower() in ("enter", "return", "cr")
+        return key.upper()
+    low = key.lower()
+    if low in ("enter", "return", "cr"):
+        return "Enter"
+    if low in ("pgup", "pageup", "prior"):
+        return "PgUp"
+    if low in ("pgdn", "pagedown", "next"):
+        return "PgDn"
+    return None
 
 
 INDEX_HTML = """<!doctype html>
@@ -94,7 +107,19 @@ INDEX_HTML = """<!doctype html>
     button.tile .detail > span { display: block; }
   }
   .empty { padding: 24px; opacity: .6; font-size: 16px; }
-  #toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%) translateY(80px);
+  /* footer: VFO -/+ step and CW speed -/+ (none of them transmit) */
+  .footbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 3;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); background: #0b0f12;
+    border-top: 1px solid #223; }
+  .footbar button { border: 0; border-radius: 10px; color: #fff; font: inherit;
+    font-size: 17px; font-weight: 700; padding: 12px 0; cursor: pointer;
+    transition: background .12s ease; }
+  .footbar .tune { background: #1565c0; }
+  .footbar .wpm { background: #6a1b9a; }
+  .footbar button:active, .footbar button.sel { background: #c62828; }
+  body { padding-bottom: var(--ftr, 0px); }
+  #toast { position: fixed; left: 50%; bottom: calc(18px + var(--ftr, 0px)); transform: translateX(-50%) translateY(80px);
     background: #2e7d32; color: #fff; padding: 12px 18px; border-radius: 12px;
     font-size: 16px; transition: transform .15s ease; z-index: 10; }
   #toast.show { transform: translateX(-50%) translateY(0); }
@@ -161,7 +186,8 @@ INDEX_HTML = """<!doctype html>
   .fkeys { flex: 0 0 var(--kw); width: var(--kw); display: flex;
     flex-direction: column; gap: var(--gap); padding: var(--gap) var(--gap) var(--gap) 0;
     position: sticky; top: var(--hdr, 0px); box-sizing: border-box;
-    max-height: calc(100vh - var(--hdr, 0px)); max-height: calc(100dvh - var(--hdr, 0px)); }
+    max-height: calc(100vh - var(--hdr, 0px) - var(--ftr, 0px));
+    max-height: calc(100dvh - var(--hdr, 0px) - var(--ftr, 0px)); }
   .fkeys:empty { display: none; }
   /* two spot rows tall; shrinks only if the window is too short for all keys */
   .fkeys button { flex: 0 1 calc(2 * var(--row) + var(--gap)); min-height: 44px; width: 100%;
@@ -208,6 +234,12 @@ INDEX_HTML = """<!doctype html>
   <div class="grid" id="grid"></div>
   <aside class="fkeys" id="fkeys"></aside>
 </main>
+<footer class="footbar" id="footbar">
+  <button class="tune" data-tune="-1" title="Move the VFO down (no TX)">&minus;25 Hz</button>
+  <button class="tune" data-tune="1" title="Move the VFO up (no TX)">+25 Hz</button>
+  <button class="wpm" data-key="PgDn" title="CW speed down (N1MM PgDn)">WPM &minus;</button>
+  <button class="wpm" data-key="PgUp" title="CW speed up (N1MM PgUp)">WPM +</button>
+</footer>
 <div id="toast"></div>
 <div id="rmsheet" class="sheetwrap"><div class="sheet">
   <div class="sheet-title" id="rmtitle">Remove from the list?</div>
@@ -330,6 +362,7 @@ INDEX_HTML = """<!doctype html>
   }
   function render(data) {
     renderFkeys(data.fkeys);
+    if (data.tune_step && data.tune_step !== tuneStep) { tuneStep = data.tune_step; labelTune(); }
     syncHeaderHeight();
     lastData = data;
     // Radio frequency in kHz (falls back to the band, then "ALL band").
@@ -507,7 +540,46 @@ INDEX_HTML = """<!doctype html>
   bandEl.onclick = openBands;
   document.getElementById('bandclose').onclick = closeBands;
   bandSheet.onclick = (e) => { if (e.target === bandSheet) closeBands(); };
+  // Footer: -/+ VFO step (Hz from config, shown on the buttons) and WPM -/+.
+  let tuneStep = 25;
+  function labelTune() {
+    document.querySelectorAll('.footbar [data-tune]').forEach(b => {
+      b.innerHTML = (b.dataset.tune === '1' ? '+' : '&minus;') + tuneStep + ' Hz';
+    });
+  }
+  function flash(btn) {
+    btn.classList.add('sel');
+    setTimeout(() => btn.classList.remove('sel'), 500);
+  }
+  document.querySelectorAll('.footbar [data-tune]').forEach(b => {
+    b.onclick = async () => {
+      flash(b);
+      const hz = Number(b.dataset.tune) * tuneStep;
+      try {
+        const r = await fetch('/api/tune?' + new URLSearchParams({hz: hz}));
+        const j = await r.json();
+        if (!j.ok) toast('Failed: ' + (j.error || 'error'));
+      } catch (e) {
+        toast('Failed: ' + e);
+      }
+    };
+  });
+  document.querySelectorAll('.footbar [data-key]').forEach(b => {
+    b.onclick = async () => {
+      flash(b);
+      try {
+        const r = await fetch('/api/key?' + new URLSearchParams({key: b.dataset.key}));
+        const j = await r.json();
+        toast(j.ok ? (b.dataset.key === 'PgUp' ? 'CW faster' : 'CW slower')
+                   : ('Failed: ' + (j.error || 'error')));
+      } catch (e) {
+        toast('Failed: ' + e);
+      }
+    };
+  });
   function syncHeaderHeight() {
+    const f = document.getElementById('footbar');
+    document.documentElement.style.setProperty('--ftr', (f ? f.offsetHeight : 0) + 'px');
     const h = document.querySelector('header').offsetHeight;
     document.documentElement.style.setProperty('--hdr', h + 'px');
   }
@@ -655,8 +727,10 @@ class _Server(ThreadingHTTPServer):
         on_reconnect: ReconnectHandler | None = None,
         on_band: BandHandler | None = None,
         on_hide: HideHandler | None = None,
+        on_tune: TuneHandler | None = None,
     ):
         super().__init__(address, _Handler)
+        self.on_tune = on_tune
         self.on_band = on_band
         self.on_hide = on_hide
         self.get_spots = get_spots
@@ -718,13 +792,32 @@ class _Handler(BaseHTTPRequestHandler):
             if not is_send_key(key):
                 self._send_json({"ok": False, "error": "bad key"}, 400)
                 return
-            norm = key.upper() if key.upper().startswith("F") else "Enter"
+            norm = normalize_key(key)
             try:
                 self.server.on_key(norm)
             except Exception as exc:
                 self._send_json({"ok": False, "error": str(exc)}, 500)
                 return
             self._send_json({"ok": True, "key": norm})
+            return
+        if parsed.path == "/api/tune":
+            raw = (parse_qs(parsed.query).get("hz") or [""])[0].strip()
+            try:
+                hz = int(raw)
+            except ValueError:
+                hz = 0
+            if not hz or abs(hz) > 10000:
+                self._send_json({"ok": False, "error": "hz must be +/-1..10000"}, 400)
+                return
+            if self.server.on_tune is None:
+                self._send_json({"ok": False, "error": "not supported"}, 404)
+                return
+            try:
+                self.server.on_tune(hz)
+            except Exception as exc:
+                self._send_json({"ok": False, "error": str(exc)}, 500)
+                return
+            self._send_json({"ok": True, "hz": hz})
             return
         if parsed.path in ("/api/hide", "/api/unhide"):
             q = parse_qs(parsed.query)
@@ -788,9 +881,11 @@ class WebServer:
         on_reconnect: ReconnectHandler | None = None,
         on_band: BandHandler | None = None,
         on_hide: HideHandler | None = None,
+        on_tune: TuneHandler | None = None,
     ) -> None:
         self._httpd = _Server(
-            (host, port), get_spots, on_qsy, on_key, on_reconnect, on_band, on_hide
+            (host, port), get_spots, on_qsy, on_key, on_reconnect, on_band, on_hide,
+            on_tune,
         )
         self._thread: threading.Thread | None = None
 

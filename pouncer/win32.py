@@ -24,11 +24,14 @@ except (AttributeError, OSError):
 _SW_RESTORE = 9
 
 _INPUT_KEYBOARD = 1
+_KEYEVENTF_EXTENDEDKEY = 0x0001
 _KEYEVENTF_KEYUP = 0x0002
 _KEYEVENTF_UNICODE = 0x0004
 _VK_MENU = 0x12
 _VK_W = 0x57
 _VK_RETURN = 0x0D
+_VK_PRIOR = 0x21  # Page Up   - N1MM: CW speed up
+_VK_NEXT = 0x22   # Page Down - N1MM: CW speed down
 _VK_F1 = 0x70
 
 
@@ -204,6 +207,21 @@ def send_fkey(n: int) -> bool:
         return False
     vk = _VK_F1 + (n - 1)
     _send([_key(vk=vk), _key(vk=vk, flags=_KEYEVENTF_KEYUP)])
+    return True
+
+
+def send_cw_speed(up: bool) -> bool:
+    """Press PgUp (faster) / PgDn (slower) in the focused N1MM Entry Window.
+
+    N1MM changes the CW speed by the step set in its Configurer (usually
+    2 WPM). Does not transmit.
+    """
+    if not _WIN:
+        return False
+    vk = _VK_PRIOR if up else _VK_NEXT
+    # extended key: PgUp/PgDn on the navigation block, not the numpad
+    _send([_key(vk=vk, flags=_KEYEVENTF_EXTENDEDKEY),
+           _key(vk=vk, flags=_KEYEVENTF_EXTENDEDKEY | _KEYEVENTF_KEYUP)])
     return True
 
 
