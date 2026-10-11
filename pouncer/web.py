@@ -68,7 +68,9 @@ INDEX_HTML = """<!doctype html>
     border-radius: 14px; background: #263238; color: #fff; font: inherit;
     padding: 12px 10px; cursor: pointer; }
   button.tile.strong { background: #1b5e20; }
-  button.tile.sel { outline: 3px solid #ffeb3b; }
+  /* the station you tapped: yellow border until you tap another one (or it
+     leaves the list); wins over the blue "tuned to" outline */
+  button.tile.sel, button.tile.sel.onfreq { outline: 3px solid #ffeb3b; outline-offset: -3px; }
   /* the station the radio is tuned to (spot within 0.5 kHz of the radio) */
   button.tile.onfreq { outline: 3px solid #4fc3f7; outline-offset: -3px;
     box-shadow: 0 0 0 2px #4fc3f7, 0 0 14px rgba(79,195,247,.55); }
@@ -377,7 +379,8 @@ INDEX_HTML = """<!doctype html>
       const b = document.createElement('button');
       b.className = 'tile' + (snrVal(s) >= 20 ? ' strong' : '') +
         (s.mult >= 2 ? ' m2' : (s.mult === 1 ? ' m1' : '')) +
-        (s === tuned ? ' onfreq' : '');
+        (s === tuned ? ' onfreq' : '') +
+        (spotKey(s) === selKey ? ' sel' : '');
       // DX (outside our continent): callsign in yellow; EU stays white
       if (s.country) b.title = s.country + (s.cont ? ' (' + s.cont + ')' : '');
       const len = (s.call || '').length;
@@ -446,7 +449,12 @@ INDEX_HTML = """<!doctype html>
   };
   document.getElementById('rmno').onclick = () => rmSheet.classList.remove('show');
   rmSheet.onclick = (e) => { if (e.target === rmSheet) rmSheet.classList.remove('show'); };
+  // Selected (last tapped) station, kept across the 1 s redraws.
+  let selKey = '';
+  const spotKey = s => s.call + '|' + Number(s.freq).toFixed(1);
   async function qsy(s, btn) {
+    selKey = spotKey(s);
+    document.querySelectorAll('button.tile.sel').forEach(t => t.classList.remove('sel'));
     btn.classList.add('sel');
     try {
       const r = await fetch('/api/qsy?' + new URLSearchParams(
@@ -456,7 +464,6 @@ INDEX_HTML = """<!doctype html>
     } catch (e) {
       toast('Failed: ' + e);
     }
-    setTimeout(() => btn.classList.remove('sel'), 900);
   }
   async function reconnect() {
     toast('Reconnecting to the N1MM log...');

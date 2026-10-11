@@ -264,7 +264,9 @@ serves the same needed spots as tap tiles. Page layout, top to bottom:
    band in the open contest (current band yellow) · total · log name (`.s3db`
    dropped; the `#contest` number hidden on phones).
 3. **No-log banner** (orange, only when no log is open) with **Reconnect**.
-4. **Spot tiles** (left) - the tile within 0.5 kHz of the radio (`freq`) gets a
+4. **Spot tiles** (left) - the last tapped tile keeps a yellow border (`sel`,
+   client-side `selKey` = call + freq) until another is tapped or it leaves
+   the list; the tile within 0.5 kHz of the radio (`freq`) gets a
    light-blue outline ("tuned to"; also a light-blue table row / blue touch
    tile via `_on_freq_spot`, `ON_FREQ_KHZ`). under 620 px wide: one column of half-height (46 px)
    tiles, callsign left / details right on two lines (`freq mode`, `SNR
