@@ -109,15 +109,19 @@ INDEX_HTML = """<!doctype html>
   .empty { padding: 24px; opacity: .6; font-size: 16px; }
   /* footer: VFO -/+ step and CW speed -/+ (none of them transmit) */
   .footbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 3;
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+    /* thirds: CW speed left, VFO step in the middle, right side free */
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
     padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); background: #0b0f12;
     border-top: 1px solid #223; }
+  .footbar .fgroup { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   .footbar button { border: 0; border-radius: 10px; color: #fff; font: inherit;
-    font-size: 17px; font-weight: 700; padding: 12px 0; cursor: pointer;
+    font-size: 16px; font-weight: 700; padding: 12px 0; cursor: pointer;
+    white-space: nowrap;
     transition: background .12s ease; }
   .footbar .tune { background: #1565c0; }
   .footbar .wpm { background: #6a1b9a; }
   .footbar button:active, .footbar button.sel { background: #c62828; }
+  @media (max-width: 619px) { .footbar button { font-size: 14px; } }
   body { padding-bottom: var(--ftr, 0px); }
   #toast { position: fixed; left: 50%; bottom: calc(18px + var(--ftr, 0px)); transform: translateX(-50%) translateY(80px);
     background: #2e7d32; color: #fff; padding: 12px 18px; border-radius: 12px;
@@ -235,10 +239,15 @@ INDEX_HTML = """<!doctype html>
   <aside class="fkeys" id="fkeys"></aside>
 </main>
 <footer class="footbar" id="footbar">
-  <button class="tune" data-tune="-1" title="Move the VFO down (no TX)">&minus;25 Hz</button>
-  <button class="tune" data-tune="1" title="Move the VFO up (no TX)">+25 Hz</button>
-  <button class="wpm" data-key="PgDn" title="CW speed down (N1MM PgDn)">WPM &minus;</button>
-  <button class="wpm" data-key="PgUp" title="CW speed up (N1MM PgUp)">WPM +</button>
+  <div class="fgroup">
+    <button class="wpm" data-key="PgDn" title="CW speed down (N1MM PgDn)">WPM &minus;</button>
+    <button class="wpm" data-key="PgUp" title="CW speed up (N1MM PgUp)">WPM +</button>
+  </div>
+  <div class="fgroup">
+    <button class="tune" data-tune="-1" title="Move the VFO down (no TX)">&minus;25 Hz</button>
+    <button class="tune" data-tune="1" title="Move the VFO up (no TX)">+25 Hz</button>
+  </div>
+  <div></div>
 </footer>
 <div id="toast"></div>
 <div id="rmsheet" class="sheetwrap"><div class="sheet">

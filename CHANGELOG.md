@@ -12,7 +12,9 @@
   - **WPM − / WPM +**: press PgDn / PgUp in the N1MM Entry Window = N1MM's
     CW speed down / up (by the step in N1MM's Configurer). `/api/key` now
     also takes `PgUp` / `PgDn`; `win32.send_cw_speed`.
-  The key column and the list keep clear of the footer.
+  Layout: **WPM − / WPM +** on the left, **−25 / +25 Hz** in the middle,
+  right side (under the key column) left free. The key column and the list
+  keep clear of the footer.
 
 - Phone page: the station you tap keeps its **yellow border** until you tap
   another one (or it leaves the list - worked, aged out, removed); before, the
