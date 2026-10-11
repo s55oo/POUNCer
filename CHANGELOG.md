@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.2.8 — 2026-10-11 — pop-up hides completely
+
+- The pop-up message could stay on screen after hiding (seen on the
+  iPhone): it was only faded out (opacity / visibility). Now, after the
+  fade, it is taken out of the page completely (`hidden` attribute ->
+  `display: none`), both after the 5 s timeout and when tapped; it starts
+  hidden too. New `hideToast()` in the page script.
+
 ## v0.2.7 — 2026-10-11 — pop-up message at the top
 
 - The pop-up message (toast) now appears at the **top**, just under the
