@@ -51,5 +51,37 @@ class TuneStepTests(unittest.TestCase):
         self.assertIsNone(next_tune_khz(None, None, 99, 25))
 
 
+class RadioCommandTests(unittest.TestCase):
+    def test_cat_macro_and_packet(self) -> None:
+        from pouncer.n1mm import cat_macro, radio_command_xml
+
+        self.assertEqual(cat_macro(" ZZFI05; ", 1), "{CAT1ASC ZZFI05;}")
+        self.assertEqual(cat_macro("FW0500;", 2), "{CAT2ASC FW0500;}")
+        self.assertEqual(
+            radio_command_xml("{CAT1ASC ZZFI05;}", 1, 12345),
+            "<RadioCmd><RadioNr>1</RadioNr><FocusEntry>12345</FocusEntry>"
+            "<RadioCommand>{CAT1ASC ZZFI05;}</RadioCommand></RadioCmd>",
+        )
+        self.assertIn("<RadioCommand>a &amp; &lt;b&gt;</RadioCommand>",
+                      radio_command_xml("a & <b>", None, None))
+
+    def test_controller_sends_packet(self) -> None:
+        import socket
+        from pouncer.n1mm import N1MMController
+
+        rx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        rx.bind(("127.0.0.1", 0))
+        rx.settimeout(2)
+        ctl = N1MMController("127.0.0.1", rx.getsockname()[1])
+        try:
+            ctl.send_radio_command("{CAT1ASC ZZFI02;}", 1, 77)
+            data = rx.recv(2048).decode("utf-8")
+        finally:
+            ctl.close()
+            rx.close()
+        self.assertIn("<FocusEntry>77</FocusEntry>", data)
+        self.assertIn("{CAT1ASC ZZFI02;}", data)
+
+
 if __name__ == "__main__":
     unittest.main()
