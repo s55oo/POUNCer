@@ -76,5 +76,22 @@ class LoadConfigTests(unittest.TestCase):
             self.assertEqual((cfg.touch_columns, cfg.touch_rows, cfg.touch_font), (5, 4, 34))
 
 
+class FilterStartTests(unittest.TestCase):
+    def _load(self, text: str):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "config.ini")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(text)
+            return load_config(path)
+
+    def test_default_narrow(self):
+        self.assertEqual(self._load("[ui]\n").filter_start, "narrow")
+
+    def test_wide_and_unknown(self):
+        self.assertEqual(self._load("[ui]\nfilter_start = WIDE\n").filter_start, "wide")
+        self.assertEqual(self._load("[ui]\nfilter_start =\n").filter_start, "")
+        self.assertEqual(self._load("[ui]\nfilter_start = x\n").filter_start, "")
+
+
 if __name__ == "__main__":
     unittest.main()

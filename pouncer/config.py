@@ -77,6 +77,8 @@ class Config:
     )
 
     tune_step_hz: int = 25
+    # RX filter width assumed at start (N1MM only toggles): narrow/wide/""
+    filter_start: str = "narrow"
     sort: str = "snr"
     max_age_minutes: int = 10
     trigger: str = "single"
@@ -141,6 +143,8 @@ def load_config(path: str) -> Config:
     cfg.sort = s("ui", "sort", cfg.sort).strip().lower()
     cfg.max_age_minutes = i("ui", "max_age_minutes", cfg.max_age_minutes)
     cfg.tune_step_hz = max(1, i("ui", "tune_step_hz", cfg.tune_step_hz))
+    fs = s("ui", "filter_start", cfg.filter_start).strip().lower()
+    cfg.filter_start = fs if fs in ("narrow", "wide") else ""
     cfg.trigger = s("ui", "trigger", cfg.trigger).strip().lower()
     cfg.touch_view = b("ui", "touch_view", cfg.touch_view)
     cfg.touch_columns = i("ui", "touch_columns", cfg.touch_columns)

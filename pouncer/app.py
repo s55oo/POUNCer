@@ -98,7 +98,7 @@ class PouncerApp:
         self._tune_target: float | None = None  # last -/+ step we sent
         self._tune_time = 0.0  # last radio kHz per band
         # RX filter width POUNCer last set via Alt+' (None = unknown)
-        self._filter_width: str | None = None
+        self._filter_width: str | None = config.filter_start or None
         self._web_queue: "queue.Queue[tuple]" = queue.Queue()
         self._web_cache: dict = {}
         self._build_ui()

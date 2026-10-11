@@ -1,5 +1,18 @@
 # POUNCer — Changelog
 
+## v0.2.6 — 2026-10-11 — NAR/WIDE no longer reversed, pop-up higher
+
+- **NAR / WIDE were reversed**: POUNCer started with the filter width
+  "unknown", so the first tap always sent N1MM's Alt+' toggle - with the
+  radio already narrow, NAR made it wide, and from then on every button did
+  the opposite. POUNCer now starts assuming **narrow** (NAR lit), so NAR
+  does nothing and WIDE switches to wide. Set by the new
+  `[ui] filter_start = narrow` (`wide`, or empty = unknown). Holding a
+  button 1 s still toggles the radio without changing the lit button, to
+  resync if they ever differ.
+- Pop-up message raised one more row: now **three** tile rows above the
+  footer (still 5 s, tap to close).
+
 ## v0.2.5 — 2026-10-11 — callsign from N1MM, none in config.ini
 
 - `config.ini`: `callsign = S55OO` is now commented out, so the file can be
