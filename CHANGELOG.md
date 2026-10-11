@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## v0.2.2 — 2026-10-11 — rounded selection ring, version shown
+
+- The selected (tapped) station's yellow border is now drawn as a rounded
+  ring (box-shadow) instead of an outline - older iOS draws outlines with
+  square corners. It combines with the magenta mult bar and the blue
+  tuned-to glow.
+- The version is shown in the page title (browser tab) and the main window
+  title, e.g. "POUNCer 0.2.2", so an old copy still running on port 8080 is
+  easy to spot.
+
 ## v0.2.1 — 2026-10-11 — footer (VFO step, CW speed), sticky selection
 
 - **Footer** on the phone page with four buttons (none of them transmit):

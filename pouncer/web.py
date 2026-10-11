@@ -21,6 +21,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Callable
 from urllib.parse import parse_qs, urlparse
 
+from . import __version__
 from .bands import CONTEST_BANDS
 
 log = logging.getLogger(__name__)
@@ -60,7 +61,7 @@ INDEX_HTML = """<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#101418">
-<title>POUNCer</title>
+<title>POUNCer __VERSION__</title>
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -83,7 +84,9 @@ INDEX_HTML = """<!doctype html>
   button.tile.strong { background: #1b5e20; }
   /* the station you tapped: yellow border until you tap another one (or it
      leaves the list); wins over the blue "tuned to" outline */
-  button.tile.sel, button.tile.sel.onfreq { outline: 3px solid #ffeb3b; outline-offset: -3px; }
+  /* selection ring is drawn with box-shadow (always follows the rounded
+     corners, also on older iOS where outlines are square) - see the
+     combined rules after the mult bars below */
   /* the station the radio is tuned to (spot within 0.5 kHz of the radio) */
   button.tile.onfreq { outline: 3px solid #4fc3f7; outline-offset: -3px;
     box-shadow: 0 0 0 2px #4fc3f7, 0 0 14px rgba(79,195,247,.55); }
@@ -185,6 +188,17 @@ INDEX_HTML = """<!doctype html>
     0 0 14px rgba(79,195,247,.55); }
   button.tile.onfreq.m2 { box-shadow: inset 12px 0 0 #ec407a, 0 0 0 2px #4fc3f7,
     0 0 14px rgba(79,195,247,.55); }
+  /* the station you tapped: rounded yellow ring (+ mult bar / tuned glow) */
+  button.tile.sel { outline: none;
+    box-shadow: inset 0 0 0 3px #ffeb3b; }
+  button.tile.sel.m1 { box-shadow: inset 6px 0 0 #ec407a, inset 0 0 0 3px #ffeb3b; }
+  button.tile.sel.m2 { box-shadow: inset 12px 0 0 #ec407a, inset 0 0 0 3px #ffeb3b; }
+  button.tile.sel.onfreq { box-shadow: inset 0 0 0 3px #ffeb3b, 0 0 0 2px #4fc3f7,
+    0 0 14px rgba(79,195,247,.55); }
+  button.tile.sel.onfreq.m1 { box-shadow: inset 6px 0 0 #ec407a, inset 0 0 0 3px #ffeb3b,
+    0 0 0 2px #4fc3f7, 0 0 14px rgba(79,195,247,.55); }
+  button.tile.sel.onfreq.m2 { box-shadow: inset 12px 0 0 #ec407a, inset 0 0 0 3px #ffeb3b,
+    0 0 0 2px #4fc3f7, 0 0 14px rgba(79,195,247,.55); }
   /* TX / log keys: a column on the right, F2 at the top; each key is two
      spot rows tall. Sticky, so it stays put while the list scrolls. */
   .fkeys { flex: 0 0 var(--kw); width: var(--kw); display: flex;
@@ -772,7 +786,8 @@ class _Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         if parsed.path in ("/", "/index.html"):
-            self._send(200, INDEX_HTML.encode("utf-8"), "text/html; charset=utf-8")
+            page = INDEX_HTML.replace("__VERSION__", __version__)
+            self._send(200, page.encode("utf-8"), "text/html; charset=utf-8")
             return
         if parsed.path == "/api/spots":
             self._send_json(self.server.get_spots())
