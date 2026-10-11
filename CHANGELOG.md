@@ -1,5 +1,21 @@
 # POUNCer — Changelog
 
+## v0.2.3 — 2026-10-11 — RX filter NAR / WIDE in the footer
+
+- Right third of the footer: **NAR** and **WIDE** buttons for the radio's
+  receive filter, like the Wide/Narrow button on N1MM's Bandmap. N1MM has
+  only a toggle for it (**Alt+'** in the Entry Window, using the filter
+  codes set in the Bandmap's "Set Transceiver Filter Codes"), so POUNCer
+  remembers which width it set and lights that button amber:
+  - tap the dark button: Alt+' is sent and that button lights up;
+  - tap the lit one: nothing is sent ("Already narrow");
+  - **hold 1 s**: Alt+' is sent but the label stays - use it if the radio
+    and the lit button differ (after the Bandmap button was used, or at
+    start, when neither is lit).
+  New `GET /api/filter?w=narrow|wide[&fix=1]`, `win32.send_filter_toggle`
+  (virtual key VK_OEM_7, works with a Slovenian keyboard too), `filter` in
+  `/api/spots`. Does not transmit.
+
 ## v0.2.2 — 2026-10-11 — rounded selection ring, version shown
 
 - The selected (tapped) station's yellow border is now drawn as a rounded

@@ -26,5 +26,13 @@ class N1MMRunningTests(unittest.TestCase):
         self.assertIsNone(self._check(set()))
 
 
+class FilterToggleTests(unittest.TestCase):
+    def test_no_op_off_windows(self) -> None:
+        if win32._WIN:
+            self.skipTest("would press Alt+' on this machine")
+        self.assertFalse(win32.send_filter_toggle())
+        self.assertEqual(win32._VK_OEM_7, 0xDE)
+
+
 if __name__ == "__main__":
     unittest.main()

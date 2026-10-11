@@ -279,17 +279,19 @@ serves the same needed spots as tap tiles. Page layout, top to bottom:
    too short for all keys.
 6. **Footer** (fixed, bottom) - thirds: **WPM − / WPM +** left (`/api/key`
    PgDn / PgUp → N1MM CW speed), **−/+ `tune_step_hz` Hz** middle
-   (`/api/tune`), right empty. `--ftr` (its height, set from JS) keeps the list
+   (`/api/tune`), **NAR / WIDE** right (`/api/filter` → Alt+' = N1MM's
+   wide/narrow toggle; the page lights `filter` from `/api/spots`). `--ftr` (its height, set from JS) keeps the list
    and the key column clear of it.
 
 | Route | Returns |
 | --- | --- |
 | `GET /` | Mobile HTML page (polls `/api/spots` every 1 s; layout above). |
-| `GET /api/spots` | JSON `{band, freq, home_cont, modes, worked, qsos:{total, bands:[{band,count}]}, log:{open,state,message,name}, fkeys:[{key,label}], spots:[{call,freq,mode,snr,wpm,time,cont,country,dx,mult}]}`. `mult` = new multipliers on that band (0/1/2) from `WorkedLog.new_mults` (contest's `Contest.MultiplierNName` → `ZN` / `CountryPrefix` per band, `WPXPrefix` per contest). `dx` = continent known and ≠ `home_cont` (from `[rbn] callsign`). When `log.open` is false (and state ≠ `unknown`) the page shows an orange banner with `log.message` and a **Reconnect** button. |
+| `GET /api/spots` | JSON `{band, freq, home_cont, tune_step, filter, modes, worked, qsos:{total, bands:[{band,count}]}, log:{open,state,message,name}, fkeys:[{key,label}], spots:[{call,freq,mode,snr,wpm,time,cont,country,dx,mult}]}`. `mult` = new multipliers on that band (0/1/2) from `WorkedLog.new_mults` (contest's `Contest.MultiplierNName` → `ZN` / `CountryPrefix` per band, `WPXPrefix` per contest). `dx` = continent known and ≠ `home_cont` (from `[rbn] callsign`). When `log.open` is false (and state ≠ `unknown`) the page shows an orange banner with `log.message` and a **Reconnect** button. |
 | `GET /api/qsy?call=&freq=&mode=` | Enqueues a QSY action; returns `{"ok": …}`. |
 | `GET /api/key?key=F4` | Enqueues a keystroke (`F1`-`F12`, `Enter`, or `PgUp`/`PgDn` = CW speed, else 400); returns `{"ok": …}`. |
 | `GET /api/hide?call=&freq=` / `/api/unhide` | Long-press remove: enqueues `("hide", call, freq, bool)` → `_set_removed()`; `(call, band)` in `_removed` is filtered out of `_visible_spots` until restart. |
 | `GET /api/tune?hz=25` | Footer −/+: enqueues `("tune", hz)` → `_tune()` → `set_frequency(next_tune_khz(...))` (steps from the last own target if recent / still matching, else from RadioInfo). |
+| `GET /api/filter?w=narrow\|wide[&fix=1]` | Footer NAR/WIDE: enqueues `("filter", w, fix)` → `_set_filter()`. N1MM only has a toggle (Alt+', `win32.send_filter_toggle`, VK_OEM_7 so any keyboard layout works), so the app remembers `_filter_width` (None at start) and sends the toggle only when it changes; `fix=1` (1 s hold) toggles the radio but keeps the remembered width, to resync after the Bandmap button was used. Never transmits. |
 | `GET /api/band?band=40m` | Band picker: enqueues `("band", band)` → `_qsy_band()` - QSY to the last frequency used on that band (remembered each tick from RadioInfo) or `DEFAULT_BAND_KHZ`. Only `CONTEST_BANDS` (160/80/40/20/15/10 m), else 400. Never transmits. |
 | `GET /api/reconnect` | Enqueues `("reconnect",)` → `_reconnect_log()` (re-read which log N1MM has open). |
 

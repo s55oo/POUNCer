@@ -16,7 +16,8 @@ from .n1mm import N1MMController, RadioListener, RadioState, next_tune_khz
 from .rbn import RBNClient, Spot, is_beacon, ports_for_modes
 from .web import WebServer, pick_web_address
 from .win32 import (
-    force_foreground, is_n1mm_running, send_cw_speed, send_enter, send_fkey,
+    force_foreground, is_n1mm_running, send_cw_speed, send_enter, send_filter_toggle,
+    send_fkey,
     type_text,
     wipe_callsign,
 )
@@ -89,6 +90,8 @@ class PouncerApp:
         self._removed: set[tuple[str, str]] = set()
         self._tune_target: float | None = None  # last -/+ step we sent
         self._tune_time = 0.0  # last radio kHz per band
+        # RX filter width POUNCer last set via Alt+' (None = unknown)
+        self._filter_width: str | None = None
         self._web_queue: "queue.Queue[tuple]" = queue.Queue()
         self._web_cache: dict = {}
         self._build_ui()
@@ -367,6 +370,7 @@ class PouncerApp:
             "home_cont": self.home_cont,
             "contest_bands": list(CONTEST_BANDS),
             "tune_step": self.cfg.tune_step_hz,
+            "filter": self._filter_width,
             "modes": list(self.cfg.follow_modes),
             "worked": self.worked.status,
             "qsos": {
@@ -413,6 +417,9 @@ class PouncerApp:
     def _web_tune(self, hz: int) -> None:
         self._web_queue.put(("tune", int(hz)))
 
+    def _web_filter(self, width: str, fix: bool) -> None:
+        self._web_queue.put(("filter", width, bool(fix)))
+
     def _web_hide(self, call: str, freq: float, hide: bool) -> None:
         self._web_queue.put(("hide", call, float(freq), hide))
 
@@ -433,6 +440,9 @@ class PouncerApp:
                 continue
             if item[0] == "tune":
                 self._tune(item[1])
+                continue
+            if item[0] == "filter":
+                self._set_filter(item[1], item[2])
                 continue
             if item[0] == "hide":
                 self._set_removed(item[1], item[2], item[3])
@@ -571,6 +581,28 @@ class PouncerApp:
             return
         self._tune_target, self._tune_time = khz, now
         self.status_label.configure(text=f"Tune {hz:+d} Hz -> {khz:.3f} kHz")
+
+    def _set_filter(self, width: str, fix: bool = False) -> None:
+        """Footer NAR/WIDE: switch the radio filter via N1MM's Alt+' toggle.
+
+        N1MM only toggles, so we remember the width we set and send the
+        toggle only when it changes. ``fix`` toggles the radio without
+        changing the remembered width (resync after the Bandmap button).
+        """
+        if not fix and width == self._filter_width:
+            self.status_label.configure(text=f"Filter already {width}")
+            return
+        hwnd = self.state.entry_window_hwnd()
+        if self.cfg.focus_n1mm and hwnd and force_foreground(hwnd):
+            time.sleep(0.15)
+        if not send_filter_toggle():
+            self.status_label.configure(text="Filter toggle needs Windows")
+            return
+        if fix:
+            self.status_label.configure(text="Filter toggled (Alt+'), label kept")
+            return
+        self._filter_width = width
+        self.status_label.configure(text=f"Filter {width} (Alt+')")
 
     def _set_removed(self, call: str, freq_khz: float, removed: bool) -> None:
         """Remove a call from the list on that band (or bring it back)."""
@@ -842,7 +874,7 @@ class PouncerApp:
                 self.cfg.web_host, self.cfg.web_port,
                 self._web_spots, self._web_qsy, self._web_key,
                 self._web_reconnect, self._web_band, self._web_hide,
-                self._web_tune,
+                self._web_tune, self._web_filter,
             )
             self.web.start()
         except OSError as exc:

@@ -33,6 +33,8 @@ ReconnectHandler = Callable[[], None]
 BandHandler = Callable[[str], None]
 HideHandler = Callable[[str, float, bool], None]  # (call, freq kHz, hide?)
 TuneHandler = Callable[[int], None]  # VFO step in Hz (+/-)
+# filter width ("narrow"/"wide"), fix=True: toggle the radio, keep the label
+FilterHandler = Callable[[str, bool], None]
 
 
 def is_send_key(key: str) -> bool:
@@ -110,9 +112,9 @@ INDEX_HTML = """<!doctype html>
     button.tile .detail > span { display: block; }
   }
   .empty { padding: 24px; opacity: .6; font-size: 16px; }
-  /* footer: VFO -/+ step and CW speed -/+ (none of them transmit) */
+  /* footer: CW speed -/+, VFO -/+ step, RX filter NAR/WIDE (no TX) */
   .footbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 3;
-    /* thirds: CW speed left, VFO step in the middle, right side free */
+    /* thirds: CW speed left, VFO step in the middle, RX filter right */
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
     padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); background: #0b0f12;
     border-top: 1px solid #223; }
@@ -123,7 +125,10 @@ INDEX_HTML = """<!doctype html>
     transition: background .12s ease; }
   .footbar .tune { background: #1565c0; }
   .footbar .wpm { background: #6a1b9a; }
-  .footbar button:active, .footbar button.sel { background: #c62828; }
+  /* RX filter: the width POUNCer last set is lit amber */
+  .footbar .filt { background: #37474f; color: #cfd8dc; }
+  .footbar .filt.on { background: #ff8f00; color: #111; }
+  .footbar button:active, .footbar button.sel { background: #c62828; color: #fff; }
   @media (max-width: 619px) { .footbar button { font-size: 14px; } }
   body { padding-bottom: var(--ftr, 0px); }
   #toast { position: fixed; left: 50%; bottom: calc(18px + var(--ftr, 0px)); transform: translateX(-50%) translateY(80px);
@@ -133,7 +138,7 @@ INDEX_HTML = """<!doctype html>
   #toast button { margin-left: 12px; background: #fff; color: #1b5e20; border: 0;
     border-radius: 8px; padding: 6px 12px; font: inherit; font-weight: 700; }
   /* long-press on a tile: no iOS text selection / callout menu */
-  button.tile { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+  button.tile, .footbar .filt { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
   button.tile.holding { filter: brightness(.7); transition: filter 2s linear; }
   #rmsheet .rm { background: #c62828; }
   .top { display: flex; align-items: center; gap: 10px; }
@@ -261,7 +266,10 @@ INDEX_HTML = """<!doctype html>
     <button class="tune" data-tune="-1" title="Move the VFO down (no TX)">&minus;25 Hz</button>
     <button class="tune" data-tune="1" title="Move the VFO up (no TX)">+25 Hz</button>
   </div>
-  <div></div>
+  <div class="fgroup">
+    <button class="filt" data-filter="narrow" title="Narrow RX filter (N1MM Alt+'). Hold 1 s: toggle the radio only, to resync">NAR</button>
+    <button class="filt" data-filter="wide" title="Wide RX filter (N1MM Alt+'). Hold 1 s: toggle the radio only, to resync">WIDE</button>
+  </div>
 </footer>
 <div id="toast"></div>
 <div id="rmsheet" class="sheetwrap"><div class="sheet">
@@ -386,6 +394,7 @@ INDEX_HTML = """<!doctype html>
   function render(data) {
     renderFkeys(data.fkeys);
     if (data.tune_step && data.tune_step !== tuneStep) { tuneStep = data.tune_step; labelTune(); }
+    if ('filter' in data && data.filter !== filterWidth) showFilter(data.filter);
     syncHeaderHeight();
     lastData = data;
     // Radio frequency in kHz (falls back to the band, then "ALL band").
@@ -600,6 +609,55 @@ INDEX_HTML = """<!doctype html>
       }
     };
   });
+  // RX filter: N1MM only has a wide/narrow toggle (Alt+'), so POUNCer
+  // remembers the width it set and lights that button. Tap = switch to that
+  // width (nothing is sent if it is already lit). Hold 1 s = toggle the
+  // radio but keep the label - use it when the radio and the label differ.
+  let filterWidth = null;
+  function showFilter(w) {
+    filterWidth = w || null;
+    document.querySelectorAll('.footbar [data-filter]').forEach(b => {
+      b.classList.toggle('on', b.dataset.filter === filterWidth);
+    });
+  }
+  async function sendFilter(b, fix) {
+    flash(b);
+    try {
+      const q = {w: b.dataset.filter};
+      if (fix) q.fix = 1;
+      const r = await fetch('/api/filter?' + new URLSearchParams(q));
+      const j = await r.json();
+      if (!j.ok) { toast('Failed: ' + (j.error || 'error')); return; }
+      if (fix) { toast('Filter toggled, label kept'); return; }
+      showFilter(j.w);
+      toast(j.w === 'narrow' ? 'Narrow filter' : 'Wide filter');
+    } catch (e) {
+      toast('Failed: ' + e);
+    }
+  }
+  document.querySelectorAll('.footbar [data-filter]').forEach(b => {
+    let timer = null, held = false;
+    const start = () => {
+      held = false;
+      clearTimeout(timer);
+      timer = setTimeout(() => { held = true; sendFilter(b, true); }, 1000);
+    };
+    const stop = () => { clearTimeout(timer); timer = null; };
+    b.addEventListener('pointerdown', start);
+    b.addEventListener('pointerup', stop);
+    b.addEventListener('pointerleave', stop);
+    b.addEventListener('pointercancel', stop);
+    b.addEventListener('contextmenu', e => e.preventDefault());
+    b.onclick = () => {
+      if (held) { held = false; return; }
+      if (b.dataset.filter === filterWidth) {
+        flash(b);
+        toast(b.dataset.filter === 'narrow' ? 'Already narrow' : 'Already wide');
+        return;
+      }
+      sendFilter(b, false);
+    };
+  });
   function syncHeaderHeight() {
     const f = document.getElementById('footbar');
     document.documentElement.style.setProperty('--ftr', (f ? f.offsetHeight : 0) + 'px');
@@ -751,9 +809,11 @@ class _Server(ThreadingHTTPServer):
         on_band: BandHandler | None = None,
         on_hide: HideHandler | None = None,
         on_tune: TuneHandler | None = None,
+        on_filter: FilterHandler | None = None,
     ):
         super().__init__(address, _Handler)
         self.on_tune = on_tune
+        self.on_filter = on_filter
         self.on_band = on_band
         self.on_hide = on_hide
         self.get_spots = get_spots
@@ -843,6 +903,23 @@ class _Handler(BaseHTTPRequestHandler):
                 return
             self._send_json({"ok": True, "hz": hz})
             return
+        if parsed.path == "/api/filter":
+            q = parse_qs(parsed.query)
+            width = (q.get("w") or [""])[0].strip().lower()
+            fix = (q.get("fix") or ["0"])[0].strip() in ("1", "true", "yes")
+            if width not in ("narrow", "wide"):
+                self._send_json({"ok": False, "error": "w must be narrow or wide"}, 400)
+                return
+            if self.server.on_filter is None:
+                self._send_json({"ok": False, "error": "not supported"}, 404)
+                return
+            try:
+                self.server.on_filter(width, fix)
+            except Exception as exc:
+                self._send_json({"ok": False, "error": str(exc)}, 500)
+                return
+            self._send_json({"ok": True, "w": width, "fix": fix})
+            return
         if parsed.path in ("/api/hide", "/api/unhide"):
             q = parse_qs(parsed.query)
             call = (q.get("call") or [""])[0].strip().upper()
@@ -906,10 +983,11 @@ class WebServer:
         on_band: BandHandler | None = None,
         on_hide: HideHandler | None = None,
         on_tune: TuneHandler | None = None,
+        on_filter: FilterHandler | None = None,
     ) -> None:
         self._httpd = _Server(
             (host, port), get_spots, on_qsy, on_key, on_reconnect, on_band, on_hide,
-            on_tune,
+            on_tune, on_filter,
         )
         self._thread: threading.Thread | None = None
 
