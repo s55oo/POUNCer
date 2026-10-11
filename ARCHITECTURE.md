@@ -424,9 +424,11 @@ copied to another PC. Fix, same as Callbooker 1.11 (`s55oo/N1MM_callbook`):
   uploads `POUNCer.exe` + `config.ini` as the `POUNCer` artifact. On a `v*`
   tag it also creates the **GitHub Release** with both files and the SHA-256.
 - **Release ritual:** bump `__version__` (`pouncer/__init__.py`) and
-  `pyproject.toml`, add a CHANGELOG section, commit, then
-  `git tag v0.2.0 && git push origin main v0.2.0`. The workflow builds,
-  tests and publishes https://github.com/s55oo/POUNCer/releases/tag/v0.2.0.
+  `pyproject.toml`, add a CHANGELOG section, commit and push, then either
+  push a tag (`git tag v0.2.0 && git push origin v0.2.0`) or - Actions tab →
+  *Build POUNCer.exe* → *Run workflow* with **release** = `v0.2.0` (the
+  workflow creates the tag). It builds, tests and publishes
+  https://github.com/s55oo/POUNCer/releases/tag/v0.2.0.
   A build without a release: Actions tab → *Build POUNCer.exe* → *Run
   workflow* (download from the run's Artifacts).
 - **Repo:** https://github.com/s55oo/POUNCer (AGPL-3.0). Only source goes in

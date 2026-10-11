@@ -10,6 +10,11 @@ name: Build POUNCer.exe
 
 on:
   workflow_dispatch:
+    inputs:
+      release:
+        description: "Publish a GitHub Release with this tag (e.g. v0.2.0); blank = build only"
+        required: false
+        default: ""
   push:
     tags: ["v*"]
 
@@ -60,14 +65,17 @@ jobs:
           $t = Get-MpThreatDetection
           if ($t) { $t | Format-List ThreatID, Resources; "Defender flagged the build" } else { "Defender: clean" }
 
-      - name: GitHub release (v* tags only)
-        if: startsWith(github.ref, 'refs/tags/v')
+      # Release: on a pushed v* tag, or when "Run workflow" is given a tag.
+      # In the second case the tag is created here, on the built commit.
+      - name: GitHub release
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release != ''
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release != '' && inputs.release || github.ref_name }}
         run: |
           $h = (Get-FileHash dist\POUNCer.exe -Algorithm SHA256).Hash
-          $notes = "POUNCer $env:GITHUB_REF_NAME - built by GitHub Actions run $env:GITHUB_RUN_ID with the PyInstaller bootloader compiled from source.`n`n**POUNCer.exe** SHA-256: ``$h```n`nPut POUNCer.exe and config.ini in the same folder; see CHANGELOG.md for what's new."
-          gh release create "$env:GITHUB_REF_NAME" dist\POUNCer.exe dist\config.ini --title "POUNCer $env:GITHUB_REF_NAME" --notes "$notes"
+          $notes = "POUNCer $env:TAG - built by GitHub Actions run $env:GITHUB_RUN_ID with the PyInstaller bootloader compiled from source.`n`n**POUNCer.exe** SHA-256: ``$h```n`nPut POUNCer.exe and config.ini in the same folder; see CHANGELOG.md for what's new."
+          gh release create "$env:TAG" dist\POUNCer.exe dist\config.ini --target "$env:GITHUB_SHA" --title "POUNCer $env:TAG" --notes "$notes"
 
       - uses: actions/upload-artifact@v6
         with:
