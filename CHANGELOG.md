@@ -1,5 +1,23 @@
 # POUNCer — Changelog
 
+## v0.2.9 — 2026-10-11 — Windows window: nothing cut off when narrow
+
+- Main (Tk) window, top part: when the window was made narrower, the end of
+  the long status line and the row of buttons were cut off at the right.
+  Now:
+  - the status is three lines: **N1MM** (frequency, band, mode), **RBN**
+    (status, spotter, mode, band, spots, hidden) and **Log** (log name,
+    worked, QSOs per band) - the log info used to be on the end of the RBN
+    line;
+  - every text line (also the phone-view and status lines at the bottom)
+    wraps onto more lines instead of being clipped;
+  - Sort, the two checkboxes, the F-keys and Clear spots / Reconnect log /
+    Touch view flow left to right and move onto a second / third row as
+    the window gets narrower (new `pouncer/flow.py` + `app.FlowFrame`);
+  - the window can be made narrower: minimum width 420 px (was 720).
+- Build: a real-Tk layout test (`tests/test_tk_layout.py`) runs on the
+  Windows runner; its result is written into the release notes.
+
 ## v0.2.8 — 2026-10-11 — pop-up hides completely
 
 - The pop-up message could stay on screen after hiding (seen on the

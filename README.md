@@ -40,7 +40,7 @@ spotted callsign into the N1MM Entry Window.
   and whenever you switch contests - so changes take effect quickly.
 * **No log open** - if N1MM Logger+ is not running, its ini names no log, or the
   named `.s3db` is missing, the phone page shows an orange **"open a log in
-  N1MM"** banner (and the main window says so in its RBN line). Spots are still
+  N1MM"** banner (and the main window says so in its Log line). Spots are still
   shown, but nothing can be hidden as worked. POUNCer looks again every 2 s, so
   the banner clears on its own once you open a log; the **Reconnect** button
   (banner, the **Log** button next to Sort, or *Reconnect log* in the main
