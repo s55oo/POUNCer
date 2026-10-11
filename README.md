@@ -64,7 +64,9 @@ spotted callsign into the N1MM Entry Window.
   order, and **MLT** puts new multipliers on top (double, then single; magenta
   bar on the tile - thick = double). The station your radio is tuned to
   (within 0.5 kHz) has a light-blue outline. **Hold a tile for 2 s** to remove
-  that call from the list (with Undo). On a phone the tiles are compact one-line rows (callsign left,
+  that call from the list (with Undo). The **footer** has **−25 Hz / +25 Hz**
+  (move the VFO via N1MM; step = `[ui] tune_step_hz`) and **WPM − / WPM +**
+  (N1MM PgDn / PgUp = CW speed); none of them transmit. On a phone the tiles are compact one-line rows (callsign left,
   details right) so about 10 fit on screen; wider screens get two columns of
   big tiles. The TX/log key buttons sit in a column on the right of the list
   (F2 at the top, each key two rows tall); they are green and turn red when
