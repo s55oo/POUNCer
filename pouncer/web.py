@@ -141,6 +141,7 @@ INDEX_HTML = """<!doctype html>
     font-size: 16px; z-index: 10; border: 1px solid #81c784;
     box-shadow: 0 6px 24px rgba(0, 0, 0, .7);
     transition: transform .15s ease, opacity .15s ease, visibility 0s linear .15s; }
+  #toast[hidden] { display: none !important; }
   #toast.show { transform: translateX(-50%) translateY(0); opacity: 1;
     visibility: visible; pointer-events: auto;
     transition: transform .15s ease, opacity .15s ease, visibility 0s; }
@@ -280,7 +281,7 @@ INDEX_HTML = """<!doctype html>
     <button class="filt" data-filter="wide" title="Wide RX filter (N1MM Alt+'). Hold 1 s: toggle the radio only, to resync">WIDE</button>
   </div>
 </footer>
-<div id="toast"></div>
+<div id="toast" hidden></div>
 <div id="rmsheet" class="sheetwrap"><div class="sheet">
   <div class="sheet-title" id="rmtitle">Remove from the list?</div>
   <div class="bandgrid" style="grid-template-columns: 1fr">
@@ -322,12 +323,25 @@ INDEX_HTML = """<!doctype html>
       u.onclick = undo;
       toastEl.appendChild(u);
     }
-    toastEl.classList.add('show');
+    // Shown: put it back in the page, then fade in on the next frame.
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 5000);
+    clearTimeout(toastGone);
+    toastEl.hidden = false;
+    void toastEl.offsetWidth;
+    toastEl.classList.add('show');
+    toastTimer = setTimeout(hideToast, 5000);
+  }
+  // Hidden: fade out, then take it out of the page completely (display:none),
+  // so no box or ghost can stay on screen (iOS kept one before).
+  let toastGone = null;
+  function hideToast() {
+    clearTimeout(toastTimer);
+    toastEl.classList.remove('show');
+    clearTimeout(toastGone);
+    toastGone = setTimeout(() => { toastEl.hidden = true; }, 200);
   }
   toastEl.addEventListener('click', (e) => {
-    if (e.target === toastEl) { clearTimeout(toastTimer); toastEl.classList.remove('show'); }
+    if (e.target === toastEl) hideToast();
   });
   function columns() {
     return window.innerWidth >= 620 ? 2 : 1;
