@@ -16,6 +16,7 @@ class WebServerTests(unittest.TestCase):
         self.bands: list[str] = []
         self.hides: list[tuple[str, float, bool]] = []
         self.tunes: list[int] = []
+        self.filters: list[tuple[str, bool]] = []
         self.payload = {
             "band": "20m",
             "modes": ["CW"],
@@ -33,6 +34,7 @@ class WebServerTests(unittest.TestCase):
             self.bands.append,
             lambda call, freq, hide: self.hides.append((call, freq, hide)),
             self.tunes.append,
+            lambda w, fix: self.filters.append((w, fix)),
         )
         self.web.start()
         self.url = f"http://127.0.0.1:{self.web.port}"
@@ -66,6 +68,24 @@ class WebServerTests(unittest.TestCase):
             with self._get("/api/tune?hz=" + q) as resp:
                 self.assertTrue(json.load(resp)["ok"])
         self.assertEqual(self.tunes, [25, -25])
+
+    def test_filter_buttons(self) -> None:
+        with self._get("/") as resp:
+            body = resp.read().decode("utf-8")
+        self.assertIn('data-filter="narrow"', body)
+        self.assertIn('data-filter="wide"', body)
+        for q in ("w=narrow", "w=WIDE", "w=wide&fix=1"):
+            with self._get("/api/filter?" + q) as resp:
+                self.assertTrue(json.loads(resp.read())["ok"])
+        self.assertEqual(
+            self.filters, [("narrow", False), ("wide", False), ("wide", True)]
+        )
+
+    def test_filter_rejects_bad_width(self) -> None:
+        for q in ("", "w=medium"):
+            with self.assertRaises(urllib.error.HTTPError):
+                self._get("/api/filter?" + q)
+        self.assertEqual(self.filters, [])
 
     def test_tune_rejects_bad_step(self) -> None:
         for q in ("", "0", "abc", "20000"):

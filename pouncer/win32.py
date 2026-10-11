@@ -33,6 +33,7 @@ _VK_RETURN = 0x0D
 _VK_PRIOR = 0x21  # Page Up   - N1MM: CW speed up
 _VK_NEXT = 0x22   # Page Down - N1MM: CW speed down
 _VK_F1 = 0x70
+_VK_OEM_7 = 0xDE  # ' key (US layout) - N1MM Alt+': wide/narrow filter
 
 
 class _KEYBDINPUT(ctypes.Structure):
@@ -222,6 +223,25 @@ def send_cw_speed(up: bool) -> bool:
     # extended key: PgUp/PgDn on the navigation block, not the numpad
     _send([_key(vk=vk, flags=_KEYEVENTF_EXTENDEDKEY),
            _key(vk=vk, flags=_KEYEVENTF_EXTENDEDKEY | _KEYEVENTF_KEYUP)])
+    return True
+
+
+def send_filter_toggle() -> bool:
+    """Press Alt+' in the focused N1MM Entry Window.
+
+    N1MM toggles the radio between its wide and narrow filter for the
+    current mode (same as the Wide/Narrow button on the Bandmap title bar).
+    Sent as a virtual key, so it works whatever the keyboard layout. Does
+    not transmit.
+    """
+    if not _WIN:
+        return False
+    _send([
+        _key(vk=_VK_MENU),
+        _key(vk=_VK_OEM_7),
+        _key(vk=_VK_OEM_7, flags=_KEYEVENTF_KEYUP),
+        _key(vk=_VK_MENU, flags=_KEYEVENTF_KEYUP),
+    ])
     return True
 
 
