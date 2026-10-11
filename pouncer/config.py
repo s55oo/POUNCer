@@ -50,7 +50,7 @@ def parse_fkeys(text: str) -> tuple[tuple[str, str], ...]:
 class Config:
     rbn_host: str = "telnet.reversebeacon.net"
     rbn_port: int = 7000
-    rbn_callsign: str = "S55OO"
+    rbn_callsign: str = ""  # empty: taken from N1MM (see app)
     rbn_spotter: str = "S53WW"
     cty_file: str = ""
     hide_beacons: bool = True
@@ -115,7 +115,7 @@ def load_config(path: str) -> Config:
 
     cfg.rbn_host = s("rbn", "host", cfg.rbn_host)
     cfg.rbn_port = i("rbn", "port", cfg.rbn_port)
-    cfg.rbn_callsign = s("rbn", "callsign", cfg.rbn_callsign)
+    cfg.rbn_callsign = s("rbn", "callsign", cfg.rbn_callsign).strip().upper()
     cfg.rbn_spotter = s("rbn", "spotter", cfg.rbn_spotter)
     cfg.cty_file = s("rbn", "cty", cfg.cty_file).strip()
     cfg.hide_beacons = b("rbn", "hide_beacons", cfg.hide_beacons)

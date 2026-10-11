@@ -21,7 +21,7 @@ from .win32 import (
     type_text,
     wipe_callsign,
 )
-from .worked import WorkedLog
+from .worked import WorkedLog, n1mm_station_call
 
 log = logging.getLogger(__name__)
 
@@ -48,6 +48,13 @@ class PouncerApp:
             n1mm_running=self._n1mm_running,
         )
         self._worked_hidden = 0
+        # No [rbn] callsign in config.ini: use the one N1MM has.
+        if not config.rbn_callsign:
+            config.rbn_callsign = n1mm_station_call(config.n1mm_ini or None)
+            if config.rbn_callsign:
+                log.info("callsign %s taken from N1MM", config.rbn_callsign)
+            else:
+                log.warning("no callsign: set [rbn] callsign in config.ini")
         # Callsign -> continent (N1MM's wl_cty.dat) for EU / DX marking.
         self.cty = load_cty(config.cty_file, config.n1mm_ini)
         self.home_cont = (

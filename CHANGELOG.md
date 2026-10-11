@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## v0.2.5 — 2026-10-11 — callsign from N1MM, none in config.ini
+
+- `config.ini`: `callsign = S55OO` is now commented out, so the file can be
+  given to others as is. With no `[rbn] callsign`, POUNCer uses the call N1MM
+  has in `N1MM Logger.ini` (`[Packet] Logon Callsign`, else the Entry Window
+  `Operator`) for the RBN login and the home continent. If none is found,
+  the status says "no callsign: set [rbn] callsign in config.ini". New
+  `worked.n1mm_station_call()`; the built-in default is now empty (was
+  S55OO).
+
 ## v0.2.4 — 2026-10-11 — pop-up message higher, 5 s
 
 - The pop-up message (toast) now shows two tile rows above the footer, so it
