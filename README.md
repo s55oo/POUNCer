@@ -71,7 +71,9 @@ spotted callsign into the N1MM Entry Window.
   the right (RX filter via N1MM's Alt+' wide/narrow toggle, like the Bandmap's
   Wide/Narrow button; the width POUNCer set is lit amber - it starts as
   narrow, `[ui] filter_start` - hold 1 s to toggle
-  the radio without changing the label if they differ); none of them transmit. On a phone the tiles are compact one-line rows (callsign left,
+  the radio without changing the label if they differ); none of them transmit.
+  Confirmations ("Wide filter", "CW faster", Undo after a remove) pop up at
+  the top, just under the header, for 5 s (tap to close). On a phone the tiles are compact one-line rows (callsign left,
   details right) so about 10 fit on screen; wider screens get two columns of
   big tiles. The TX/log key buttons sit in a column on the right of the list
   (F2 at the top, each key two rows tall); they are green and turn red when
