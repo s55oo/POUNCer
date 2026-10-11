@@ -8,9 +8,10 @@
 - First Actions build (run 38150237295) passed: tests, bootloader compiled
   from source, build, SHA-256, Defender scan, artifact.
 - The workflow now also publishes a **GitHub Release** (POUNCer.exe +
-  config.ini, SHA-256 in the notes) when a `v*` tag is pushed. Release
-  ritual: bump `__version__` + `pyproject.toml`, CHANGELOG, commit,
-  `git tag vX.Y.Z`, push the tag.
+  config.ini, SHA-256 in the notes) when a `v*` tag is pushed, or when
+  *Run workflow* is given a **release** tag (the workflow then creates the
+  tag itself). Release ritual: bump `__version__` + `pyproject.toml`,
+  CHANGELOG, commit, push, then tag or *Run workflow* with the tag.
 - README: new **Download** section (Releases page).
 - Version 0.2.0.
 
