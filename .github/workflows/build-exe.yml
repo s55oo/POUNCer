@@ -1,0 +1,67 @@
+name: Build POUNCer.exe
+
+# Builds the standalone exe on a clean GitHub Windows runner, with the
+# PyInstaller bootloader compiled from source (the prebuilt one is what
+# antivirus engines fingerprint - Trojan:Win32/Wacatac.B!ml false positives).
+# Same approach as s55oo/N1MM_callbook (Callbooker 1.11).
+# Result: the "POUNCer" artifact of the run (POUNCer.exe + config.ini).
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+env:
+  PYINSTALLER_VERSION: "6.22.2"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      # POUNCer is stdlib-only, so there are no runtime dependencies.
+      - name: Tests
+        run: python -m unittest discover -s tests -v
+
+      # PyInstaller's own deps first, then PyInstaller itself from the sdist:
+      # pip compiles the bootloader with the runner's MSVC.
+      - name: Install PyInstaller (bootloader compiled from source)
+        run: |
+          python -m pip install altgraph packaging pefile pyinstaller-hooks-contrib pywin32-ctypes setuptools
+          python -m pip install --no-binary pyinstaller --no-deps "pyinstaller==$env:PYINSTALLER_VERSION"
+          python -m PyInstaller --version
+
+      - name: Build
+        run: |
+          python -m PyInstaller --noconfirm POUNCer.spec
+          Copy-Item config.ini dist\config.ini
+
+      - name: SHA-256
+        run: |
+          $h = (Get-FileHash dist\POUNCer.exe -Algorithm SHA256).Hash
+          "SHA-256 $h"
+          "**POUNCer.exe** SHA-256: ``$h``" >> $env:GITHUB_STEP_SUMMARY
+
+      # Informational: does Defender flag the fresh build? Never fails the job.
+      - name: Defender scan
+        continue-on-error: true
+        run: |
+          Start-MpScan -ScanType CustomScan -ScanPath "$PWD\dist\POUNCer.exe"
+          $t = Get-MpThreatDetection
+          if ($t) { $t | Format-List ThreatID, Resources; "Defender flagged the build" } else { "Defender: clean" }
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: POUNCer
+          path: |
+            dist/POUNCer.exe
+            dist/config.ini
+          if-no-files-found: error
