@@ -38,6 +38,15 @@ jobs:
       - name: Tests
         run: python -m unittest discover -s tests -v
 
+      # The Windows window layout (buttons flow onto more rows, text wraps)
+      # checked on a real Tk window; the result goes into the release notes.
+      - name: Window layout test (real Tk)
+        run: |
+          python -m unittest -v tests.test_tk_layout 2> tk-test.txt
+          $code = $LASTEXITCODE
+          Get-Content tk-test.txt
+          exit $code
+
       # PyInstaller's own deps first, then PyInstaller itself from the sdist:
       # pip compiles the bootloader with the runner's MSVC.
       - name: Install PyInstaller (bootloader compiled from source)
@@ -74,7 +83,8 @@ jobs:
           TAG: ${{ inputs.release != '' && inputs.release || github.ref_name }}
         run: |
           $h = (Get-FileHash dist\POUNCer.exe -Algorithm SHA256).Hash
-          $notes = "POUNCer $env:TAG - built by GitHub Actions run $env:GITHUB_RUN_ID with the PyInstaller bootloader compiled from source.`n`n**POUNCer.exe** SHA-256: ``$h```n`nPut POUNCer.exe and config.ini in the same folder; see CHANGELOG.md for what's new."
+          $tk = if (Select-String -Path tk-test.txt -Pattern "skipped" -Quiet) { "skipped (no Tk display on the runner)" } else { "passed on a real Tk window" }
+          $notes = "POUNCer $env:TAG - built by GitHub Actions run $env:GITHUB_RUN_ID with the PyInstaller bootloader compiled from source.`n`n**POUNCer.exe** SHA-256: ``$h```n`nWindow layout test: $tk.`n`nPut POUNCer.exe and config.ini in the same folder; see CHANGELOG.md for what's new."
           gh release create "$env:TAG" dist\POUNCer.exe dist\config.ini --target "$env:GITHUB_SHA" --title "POUNCer $env:TAG" --notes "$notes"
 
       - uses: actions/upload-artifact@v6

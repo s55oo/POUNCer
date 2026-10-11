@@ -11,6 +11,7 @@ from tkinter import ttk
 from . import __version__
 from .bands import CONTEST_BANDS, DEFAULT_BAND_KHZ, band_from_khz
 from .config import Config
+from .flow import flow_positions
 from .cty import Entity, load_cty, wpx_prefix
 from .n1mm import N1MMController, RadioListener, RadioState, next_tune_khz
 from .rbn import RBNClient, Spot, is_beacon, ports_for_modes
@@ -33,6 +34,51 @@ ON_FREQ_KHZ = 0.5  # a spot this close to the radio frequency = "tuned to it"
 ON_FREQ_BG = "#0277bd"  # touch board: tile of the station we are tuned to  # RadioInfo newer than this => N1MM is running
 FKEY_BG = "#2e7d32"          # key buttons: green at rest
 FKEY_PRESSED_BG = "#c62828"  # ... red while / just after being pressed
+
+
+class FlowFrame(ttk.Frame):
+    """Frame that lays its children out left to right, wrapping onto new
+    rows when the window gets narrow (see ``flow.flow_positions``).
+
+    Children must be created with this frame as master and added with
+    ``add()``; the frame sets its own height to fit the rows.
+    """
+
+    def __init__(self, master, padx: int = 6, pady: int = 4, **kw) -> None:
+        super().__init__(master, **kw)
+        self._items: list[tuple[tk.Widget, int]] = []
+        self._padx, self._pady = padx, pady
+        self._pending = False
+        self._last: tuple | None = None
+        self.bind("<Configure>", lambda e: self._schedule())
+
+    def add(self, widget, gap: int = 0):
+        """Add a child; ``gap`` = extra space before it inside a row."""
+        self._items.append((widget, gap))
+        # A child that changes size (e.g. a sort arrow) re-flows the rows.
+        widget.bind("<Configure>", lambda e: self._schedule(), add="+")
+        self._schedule()
+        return widget
+
+    def _schedule(self) -> None:
+        if not self._pending:
+            self._pending = True
+            self.after_idle(self._layout)
+
+    def _layout(self) -> None:
+        self._pending = False
+        width = max(self.winfo_width(), 1)
+        sizes = [(w.winfo_reqwidth(), w.winfo_reqheight()) for w, _ in self._items]
+        pos, height = flow_positions(
+            sizes, width, self._padx, self._pady, [g for _, g in self._items]
+        )
+        key = (width, tuple(sizes), tuple(pos), height)
+        if key == self._last:
+            return
+        self._last = key
+        for (widget, _), (x, y) in zip(self._items, pos):
+            widget.place(x=x, y=y)
+        self.configure(height=max(height, 1))
 
 
 class PouncerApp:
@@ -107,61 +153,52 @@ class PouncerApp:
         self.root = tk.Tk()
         self.root.title(f"POUNCer {__version__} - RBN band follower for N1MM")
         self.root.geometry("940x520")
-        self.root.minsize(720, 360)
+        # Narrow windows are fine: text lines wrap and the buttons flow onto
+        # more rows instead of being cut off at the right edge.
+        self.root.minsize(420, 300)
 
         header = ttk.Frame(self.root, padding=(8, 6, 8, 2))
         header.pack(fill="x")
-        self.n1mm_label = ttk.Label(header, text="N1MM: waiting for radio info...")
-        self.n1mm_label.pack(anchor="w")
-        self.rbn_label = ttk.Label(header, text="RBN: starting...")
-        self.rbn_label.pack(anchor="w")
+        self.n1mm_label = self._wrap_label(header, "N1MM: waiting for radio info...")
+        self.rbn_label = self._wrap_label(header, "RBN: starting...")
+        self.log_label = self._wrap_label(header, "Log: -")
 
-        sortbar = ttk.Frame(header, padding=(0, 4, 0, 0))
-        sortbar.pack(anchor="w")
-        ttk.Label(sortbar, text="Sort:").pack(side="left", padx=(0, 6))
+        # Sort, options, keys and actions: one flowing block of controls.
+        outer = ttk.Frame(self.root, padding=(8, 4))
+        outer.pack(fill="x")
+        flow = FlowFrame(outer)
+        flow.pack(fill="x")
+        flow.add(ttk.Label(flow, text="Sort:"))
         for col in ("time", "freq", "snr"):
-            btn = ttk.Button(
-                sortbar, text=self._sort_labels[col],
+            btn = flow.add(ttk.Button(
+                flow, text=self._sort_labels[col],
                 command=lambda c=col: self._set_sort(c),
-            )
-            btn.pack(side="left", padx=3)
+            ))
             self._sort_buttons[col] = btn
         self._update_sort_buttons()
 
-        controls = ttk.Frame(self.root, padding=(8, 4))
-        controls.pack(fill="x")
-        ttk.Label(
-            controls, text="Click a column heading to sort:"
-        ).pack(side="left", padx=(0, 12))
-
         self.set_call_var = tk.BooleanVar(value=self.cfg.set_callsign)
-        ttk.Checkbutton(
-            controls, text="Also enter callsign in N1MM", variable=self.set_call_var
-        ).pack(side="left", padx=(0, 12))
+        flow.add(ttk.Checkbutton(
+            flow, text="Also enter callsign in N1MM", variable=self.set_call_var
+        ), gap=12)
 
         self.hide_worked_var = tk.BooleanVar(value=self.cfg.worked_hide)
-        ttk.Checkbutton(
-            controls, text="Hide worked (same band+mode)",
+        flow.add(ttk.Checkbutton(
+            flow, text="Hide worked (same band+mode)",
             variable=self.hide_worked_var, command=self._on_toggle_worked,
-        ).pack(side="left", padx=(0, 12))
+        ), gap=12)
 
         if self.cfg.fkeys:
-            fkeys = ttk.Frame(controls)
-            fkeys.pack(side="left")
-            ttk.Label(fkeys, text="Keys:").pack(side="left", padx=(0, 4))
+            flow.add(ttk.Label(flow, text="Keys:"), gap=12)
             for key, label in self.cfg.fkeys:
-                ttk.Button(
-                    fkeys, text=self._key_text(key, label, " "),
+                flow.add(ttk.Button(
+                    flow, text=self._key_text(key, label, " "),
                     command=lambda k=key: self._press_key(k),
-                ).pack(side="left", padx=2)
+                ))
 
-        ttk.Button(
-            controls, text="Touch view", command=self._toggle_touch_view
-        ).pack(side="right", padx=(0, 6))
-        ttk.Button(
-            controls, text="Reconnect log", command=self._reconnect_log
-        ).pack(side="right", padx=(0, 6))
-        ttk.Button(controls, text="Clear spots", command=self._clear_spots).pack(side="right")
+        flow.add(ttk.Button(flow, text="Clear spots", command=self._clear_spots), gap=12)
+        flow.add(ttk.Button(flow, text="Reconnect log", command=self._reconnect_log))
+        flow.add(ttk.Button(flow, text="Touch view", command=self._toggle_touch_view))
 
         widths = {
             "time": 70, "freq": 90, "snr": 70, "wpm": 60,
@@ -190,12 +227,21 @@ class PouncerApp:
         else:
             self.tree.bind("<ButtonRelease-1>", self._on_qsy)
 
-        self.web_label = ttk.Label(
-            self.root, text="Phone view: starting...", anchor="w", padding=(8, 2)
+        bottom = ttk.Frame(self.root, padding=(8, 2))
+        bottom.pack(fill="x")
+        self.web_label = self._wrap_label(bottom, "Phone view: starting...")
+        self.status_label = self._wrap_label(bottom, "")
+
+    @staticmethod
+    def _wrap_label(parent, text: str) -> ttk.Label:
+        """A full-width label that wraps onto more lines when the window is narrow."""
+        label = ttk.Label(parent, text=text, anchor="w", justify="left")
+        label.pack(fill="x")
+        label.bind(
+            "<Configure>",
+            lambda e, lbl=label: lbl.configure(wraplength=max(e.width - 4, 60)),
         )
-        self.web_label.pack(fill="x")
-        self.status_label = ttk.Label(self.root, text="", anchor="w", padding=(8, 2))
-        self.status_label.pack(fill="x")
+        return label
 
     def _on_sort(self, col: str) -> None:
         self._set_sort(col)
@@ -671,23 +717,21 @@ class PouncerApp:
             )
         band = self._current_band()
         if self.worked.log_open or self.worked.log_state == "unknown":
-            worked = f"   worked: {self.worked.status}"
-            if self.worked.db_name:
-                worked += f" ({self.worked.db_name})"
+            worked = f"Log: {self.worked.db_name or '-'}   worked: {self.worked.status}"
             if self.worked.log_open:
                 per_band = " ".join(f"{b} {n}" for b, n in self.worked.band_qsos())
                 worked += f"   QSOs: {per_band or '-'} (total {self.worked.qso_count})"
         else:
-            worked = f"   LOG: {self.worked.log_message}"
+            worked = f"LOG: {self.worked.log_message}"
         self.rbn_label.configure(
             text=(
                 f"RBN: {self.rbn_status}   spotter={self.cfg.rbn_spotter or 'ALL'}"
                 f"   mode={','.join(self.cfg.follow_modes)}"
                 f"   band={band or 'ALL'}   spots={len(self.displayed)}/{len(self.spots)}"
-                f"{worked}   hidden={self._worked_hidden}"
-
+                f"   hidden={self._worked_hidden}"
             )
         )
+        self.log_label.configure(text=worked)
 
     def _visible_spots(self) -> list[Spot]:
         """Spots matching the current band, modes and worked filter."""

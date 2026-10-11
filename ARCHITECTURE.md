@@ -101,6 +101,7 @@ drain web actions → refresh the cached web payload.
 | `pouncer/win32.py` | `force_foreground`, `wipe_callsign` (Alt+W), `type_text` (unicode `SendInput`), `send_fkey` (F1-F12 - transmits in N1MM), `send_enter` (logs the QSO), `is_n1mm_running` (process scan). |
 | `pouncer/web.py` | `WebServer` + mobile page + `/api/spots`, `/api/qsy`; `local_ipv4s`. |
 | `pouncer/app.py` | `PouncerApp`: GUI, filters, tick loop, table, touch view, web wiring, `_act_on_spot`. |
+| `pouncer/flow.py` | `flow_positions`: pure flow-layout geometry (items left to right, wrapping onto rows) for `app.FlowFrame`, which holds the main window's sort / option / key / action controls. |
 
 ---
 
@@ -470,6 +471,8 @@ python -m unittest discover -s tests -v
 | `test_web.py` | HTTP endpoints (spots/qsy/key/reconnect), handler marshalling, error containment. |
 | `test_cty.py` | CTY parsing (N1MM `#` comments), longest prefix, exact calls, `{CONT}` overrides, portable calls. |
 | `test_win32.py` | N1MM process-name matching (process list faked). |
+| `test_flow.py` | Flow-layout geometry (wrapping, wide items, group gaps). |
+| `test_tk_layout.py` | Real Tk window (Windows build only, skipped without Tk): controls wrap instead of clipping, text labels wrap to the width. |
 
 The RBN and email/network paths are tested with fakes; the GUI itself is not
 unit-tested (verified manually / by smoke runs).
