@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.2.4 — 2026-10-11 — pop-up message higher, 5 s
+
+- The pop-up message (toast) now shows two tile rows above the footer, so it
+  never covers the footer buttons. Before, a "hidden" toast was only slid
+  80 px down - right onto the footer; now it fades out completely.
+- Every message stays 5 s (was 1.2 s; Undo was already 5 s); tap it to close
+  it sooner.
+
 ## v0.2.3 — 2026-10-11 — RX filter NAR / WIDE in the footer
 
 - Right third of the footer: **NAR** and **WIDE** buttons for the radio's
