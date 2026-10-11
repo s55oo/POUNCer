@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## Unreleased
+
+- Phone page: the station you tap keeps its **yellow border** until you tap
+  another one (or it leaves the list - worked, aged out, removed); before, the
+  border vanished after 0.9 s. It stays yellow when it is also the tuned-to
+  station (blue glow around it).
+
 ## v0.2.0 — 2026-10-11 — first GitHub release
 
 - Code published at **https://github.com/s55oo/POUNCer** (AGPL-3.0), first
