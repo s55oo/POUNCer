@@ -1,6 +1,6 @@
 # POUNCer — Changelog
 
-## Unreleased
+## v0.2.1 — 2026-10-11 — footer (VFO step, CW speed), sticky selection
 
 - **Footer** on the phone page with four buttons (none of them transmit):
   - **−25 Hz / +25 Hz**: move the VFO via N1MM (`radio_setfrequency`, same as
