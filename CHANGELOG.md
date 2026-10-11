@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.2.7 — 2026-10-11 — pop-up message at the top
+
+- The pop-up message (toast) now appears at the **top**, just under the
+  header (`top: --hdr + 12px`), instead of above the footer - well clear of
+  the footer buttons. Dark shadow and a light edge so it stands out over
+  the spot tiles. Still 5 s, tap to close.
+
 ## v0.2.6 — 2026-10-11 — NAR/WIDE no longer reversed, pop-up higher
 
 - **NAR / WIDE were reversed**: POUNCer started with the filter width

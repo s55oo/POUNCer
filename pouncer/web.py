@@ -131,14 +131,15 @@ INDEX_HTML = """<!doctype html>
   .footbar button:active, .footbar button.sel { background: #c62828; color: #fff; }
   @media (max-width: 619px) { .footbar button { font-size: 14px; } }
   body { padding-bottom: var(--ftr, 0px); }
-  /* pop-up message: three tile rows above the footer, faded out when hidden
-     (never left lying over the footer buttons); 5 s, tap to close */
+  /* pop-up message: at the top, just under the sticky header (far from the
+     footer buttons); faded out when hidden; 5 s, tap to close */
   #toast { position: fixed; left: 50%;
-    bottom: calc(18px + var(--ftr, 0px) + 3 * (var(--row) + var(--gap)));
-    transform: translateX(-50%) translateY(12px); opacity: 0; visibility: hidden;
+    top: calc(var(--hdr, 0px) + 12px);
+    transform: translateX(-50%) translateY(-12px); opacity: 0; visibility: hidden;
     pointer-events: none; max-width: calc(100vw - 32px);
     background: #2e7d32; color: #fff; padding: 12px 18px; border-radius: 12px;
-    font-size: 16px; z-index: 10;
+    font-size: 16px; z-index: 10; border: 1px solid #81c784;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, .7);
     transition: transform .15s ease, opacity .15s ease, visibility 0s linear .15s; }
   #toast.show { transform: translateX(-50%) translateY(0); opacity: 1;
     visibility: visible; pointer-events: auto;
