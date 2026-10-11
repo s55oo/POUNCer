@@ -131,10 +131,18 @@ INDEX_HTML = """<!doctype html>
   .footbar button:active, .footbar button.sel { background: #c62828; color: #fff; }
   @media (max-width: 619px) { .footbar button { font-size: 14px; } }
   body { padding-bottom: var(--ftr, 0px); }
-  #toast { position: fixed; left: 50%; bottom: calc(18px + var(--ftr, 0px)); transform: translateX(-50%) translateY(80px);
+  /* pop-up message: two tile rows above the footer, faded out when hidden
+     (never left lying over the footer buttons); 5 s, tap to close */
+  #toast { position: fixed; left: 50%;
+    bottom: calc(18px + var(--ftr, 0px) + 2 * (var(--row) + var(--gap)));
+    transform: translateX(-50%) translateY(12px); opacity: 0; visibility: hidden;
+    pointer-events: none; max-width: calc(100vw - 32px);
     background: #2e7d32; color: #fff; padding: 12px 18px; border-radius: 12px;
-    font-size: 16px; transition: transform .15s ease; z-index: 10; }
-  #toast.show { transform: translateX(-50%) translateY(0); }
+    font-size: 16px; z-index: 10;
+    transition: transform .15s ease, opacity .15s ease, visibility 0s linear .15s; }
+  #toast.show { transform: translateX(-50%) translateY(0); opacity: 1;
+    visibility: visible; pointer-events: auto;
+    transition: transform .15s ease, opacity .15s ease, visibility 0s; }
   #toast button { margin-left: 12px; background: #fff; color: #1b5e20; border: 0;
     border-radius: 8px; padding: 6px 12px; font: inherit; font-weight: 700; }
   /* long-press on a tile: no iOS text selection / callout menu */
@@ -315,8 +323,11 @@ INDEX_HTML = """<!doctype html>
     }
     toastEl.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toastEl.classList.remove('show'), undo ? 5000 : 1200);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 5000);
   }
+  toastEl.addEventListener('click', (e) => {
+    if (e.target === toastEl) { clearTimeout(toastTimer); toastEl.classList.remove('show'); }
+  });
   function columns() {
     return window.innerWidth >= 620 ? 2 : 1;
   }
