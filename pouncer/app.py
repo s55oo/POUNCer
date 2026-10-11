@@ -8,6 +8,7 @@ import time
 import tkinter as tk
 from tkinter import ttk
 
+from . import __version__
 from .bands import CONTEST_BANDS, DEFAULT_BAND_KHZ, band_from_khz
 from .config import Config
 from .cty import Entity, load_cty, wpx_prefix
@@ -94,7 +95,7 @@ class PouncerApp:
 
     def _build_ui(self) -> None:
         self.root = tk.Tk()
-        self.root.title("POUNCer - RBN band follower for N1MM")
+        self.root.title(f"POUNCer {__version__} - RBN band follower for N1MM")
         self.root.geometry("940x520")
         self.root.minsize(720, 360)
 

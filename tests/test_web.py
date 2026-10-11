@@ -57,6 +57,8 @@ class WebServerTests(unittest.TestCase):
         for key in ("time", "freq", "snr"):
             self.assertIn(f'data-sort="{key}"', body)
         self.assertIn('id="logwarn"', body)
+        from pouncer import __version__
+        self.assertIn(f"<title>POUNCer {__version__}</title>", body)
         self.assertIn("/api/reconnect", body)
 
     def test_tune_steps(self) -> None:
