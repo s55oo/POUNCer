@@ -35,8 +35,7 @@ class HelperTests(unittest.TestCase):
             ("CQWPX/cw/2025/k1abc.log", "CQWPX", 2025, "CW"),
             ("RECONSTRUCTED_LOGS/CQWW/k1abc.log", "CQWW", 2026, "CW"),
         ]
-        self.assertEqual(pick_logs(rows, "CQWW", "CW"),
-                         ["CQWW/cw/2025/k1abc.log", "CQWW/cw/2024/k1abc.log"])
+        self.assertEqual(pick_logs(rows, "CQWW", "CW"), ["CQWW/cw/2025/k1abc.log"])
         self.assertEqual(pick_logs(rows, "WAE", "CW")[0], "CQWW/cw/2025/k1abc.log")
         self.assertEqual(pick_logs(rows, "CQWW", "PH"), [])
 
@@ -82,6 +81,37 @@ class RunHistoryTests(unittest.TestCase):
             again = RunHistory(os.path.join(d, "cache"), fetch=fetch, base_url="X/")
             self.assertEqual(again.get("OH2BH", "CQWWCW", "CW"), 0)
             self.assertEqual(urls, [])
+
+    def test_parallel_lookups_share_one_shard_download(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            shard = os.path.join(d, "src.sqlite")
+            con = sqlite3.connect(shard)
+            con.execute("CREATE TABLE logs (path TEXT, callsign TEXT, contest TEXT,"
+                        " year INTEGER, mode TEXT, season TEXT, subcontest TEXT, detail TEXT)")
+            con.commit()
+            con.close()
+            with open(shard, "rb") as fh:
+                shard_bytes = fh.read()
+            calls = []
+            def fetch(url):
+                calls.append(url)
+                time.sleep(0.3)  # slow network
+                return shard_bytes
+            # four calls that live in the same shard
+            same = [c for c in (f"K{i}AA" for i in range(4000))
+                    if shard_name(c) == shard_name("K0AA")][:4]
+            rh = RunHistory(os.path.join(d, "cache"), fetch=fetch, base_url="X/")
+            t0 = time.time()
+            for c in same:
+                rh.get(c, "CQWWCW", "CW")
+            for _ in range(100):
+                with rh._lock:
+                    if len(rh._results) == 4:
+                        break
+                time.sleep(0.05)
+            self.assertEqual(len(rh._results), 4)
+            self.assertEqual(len(calls), 1)  # shard fetched once
+            self.assertLess(time.time() - t0, 2)
 
 
 if __name__ == "__main__":

@@ -185,8 +185,15 @@ INDEX_HTML = """<!doctype html>
     header .sorts button.reconnect { margin-left: 2px; padding: 7px 9px; }
     header .top { gap: 6px; }
   }
+  @media (max-width: 400px) {
+    header .sorts { gap: 2px; }
+    header .sorts button { padding: 7px 4px; font-size: 13px; }
+    header .sorts button.reconnect { padding: 7px 7px; }
+    header .top { gap: 4px; }
+  }
   @media (max-width: 370px) {
     button.band::after { display: none; }
+    header .sorts button { padding: 6px 3px; font-size: 12px; }
   }
   .sorts > span { opacity: .55; margin-right: 2px; }
   .sorts button { white-space: nowrap; background: #263238; color: #fff; border: 0; padding: 7px 14px;
@@ -198,6 +205,8 @@ INDEX_HTML = """<!doctype html>
   /* MLT toggle and multiplier marks: magenta */
   .sorts button.multfirst { color: #f48fb1; font-weight: 700; }
   .sorts button.multfirst.on { background: #d81b60; color: #fff; }
+  .sorts button.rarefirst { color: #ffd54f; font-weight: 700; }
+  .sorts button.rarefirst.on { background: #6d4c41; color: #fff; }
   button.tile.m1 { box-shadow: inset 6px 0 0 #ec407a; }
   button.tile.m2 { box-shadow: inset 12px 0 0 #ec407a; }
   button.tile.onfreq.m1 { box-shadow: inset 6px 0 0 #ec407a, 0 0 0 2px #4fc3f7,
@@ -257,6 +266,7 @@ INDEX_HTML = """<!doctype html>
     <button data-sort="snr">SNR</button>
     <button class="dxfirst" id="dxfirst" title="DX (outside your continent) on top">DX</button>
     <button class="multfirst" id="multfirst" title="New multipliers on top: double, then single">MLT</button>
+    <button class="rarefirst" id="rarefirst" title="Rarely-running stations on top (lowest run % from past logs first)">\u26a1</button>
     <button class="reconnect" id="reconnect" title="Re-read which log N1MM has open">&#x21bb;<span class="lbl"> Log</span></button>
   </div>
   </div>
@@ -310,6 +320,8 @@ INDEX_HTML = """<!doctype html>
   let multFirst = false;
   try { dxFirst = localStorage.getItem('pouncer.dxfirst') === '1'; } catch (e) {}
   try { multFirst = localStorage.getItem('pouncer.multfirst') === '1'; } catch (e) {}
+  let rareFirst = false;
+  try { rareFirst = localStorage.getItem('pouncer.rarefirst') === '1'; } catch (e) {}
 
   function esc(s) {
     return String(s).replace(/[&<>"']/g, c => ({
@@ -359,6 +371,9 @@ INDEX_HTML = """<!doctype html>
     if (sortKey === 'freq') a.sort((x, y) => x.freq - y.freq);
     else if (sortKey === 'time') a.sort((x, y) => timeVal(y) - timeVal(x));
     else a.sort((x, y) => snrVal(y) - snrVal(x));
+    // \u26a1 button: lowest run % first (rarely runs = won't stay on that
+    // frequency), unknown run % last. DX / MLT still group on top of it.
+    if (rareFirst) a.sort((x, y) => (x.run == null ? 999 : x.run) - (y.run == null ? 999 : y.run));
     // DX button: DX spots first, each group keeping the chosen sort order
     // (Array.sort is stable, so this only moves DX ahead of EU).
     if (dxFirst) a.sort((x, y) => (y.dx ? 1 : 0) - (x.dx ? 1 : 0));
@@ -372,7 +387,13 @@ INDEX_HTML = """<!doctype html>
       b.classList.toggle('active', b.dataset.sort === sortKey));
     document.getElementById('dxfirst').classList.toggle('on', dxFirst);
     document.getElementById('multfirst').classList.toggle('on', multFirst);
+    document.getElementById('rarefirst').classList.toggle('on', rareFirst);
   }
+  document.getElementById('rarefirst').onclick = () => {
+    rareFirst = !rareFirst;
+    try { localStorage.setItem('pouncer.rarefirst', rareFirst ? '1' : '0'); } catch (e) {}
+    render(lastData);
+  };
   document.getElementById('multfirst').onclick = () => {
     multFirst = !multFirst;
     try { localStorage.setItem('pouncer.multfirst', multFirst ? '1' : '0'); } catch (e) {}

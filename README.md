@@ -77,7 +77,9 @@ spotted callsign into the N1MM Entry Window.
   **Run history:** each tile shows `R81%` = how often that station ran (called
   CQ) in its past logs of the same contest, from S53ZO's public contest-log
   archive; **⚡** = runs under 30% - a CQ from it won't last, work it now
-  (`[ui] run_history`, cached in a `cache` folder).
+  (`[ui] run_history`, cached in a `cache` folder). The **⚡** header button
+  sorts the rarely-running stations to the top. A new call is known in about
+  a second (8 looked up at a time; instant once cached).
   Confirmations ("Wide filter", "CW faster", Undo after a remove) pop up at
   the top, just under the header, for 5 s (tap to close). On a phone the tiles are compact one-line rows (callsign left,
   details right) so about 10 fit on screen; wider screens get two columns of
