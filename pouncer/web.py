@@ -266,7 +266,7 @@ INDEX_HTML = """<!doctype html>
     <button data-sort="snr">SNR</button>
     <button class="dxfirst" id="dxfirst" title="DX (outside your continent) on top">DX</button>
     <button class="multfirst" id="multfirst" title="New multipliers on top: double, then single">MLT</button>
-    <button class="rarefirst" id="rarefirst" title="Rarely-running stations on top (lowest run % from past logs first)">\u26a1</button>
+    <button class="rarefirst" id="rarefirst" title="Rare CQ on top: stations that rarely run or are on only a few hours (from past logs)">\u26a1</button>
     <button class="reconnect" id="reconnect" title="Re-read which log N1MM has open">&#x21bb;<span class="lbl"> Log</span></button>
   </div>
   </div>
@@ -366,14 +366,26 @@ INDEX_HTML = """<!doctype html>
     const m = /([0-9]{2})([0-9]{2})Z/.exec(s.time || '');
     return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : -1;
   }
+  // Rare CQ: runs under rare_run % of its QSOs, or on the air under
+  // rare_hours hours, in its last log of this contest (run history).
+  function isRare(s) {
+    const d = lastData || {};
+    return (s.run != null && s.run < (d.rare_run || 30)) ||
+           (s.hours != null && s.hours < (d.rare_hours || 6));
+  }
+  // \u26a1 sort: rare first, then lowest run %, then fewest hours; unknown last.
+  function rareKey(s) {
+    if (s.run == null) return 1e6;
+    return (isRare(s) ? 0 : 1e4) + s.run * 10 + Math.min(s.hours == null ? 99 : s.hours, 99) / 10;
+  }
   function sorted(spots) {
     const a = spots.slice();
     if (sortKey === 'freq') a.sort((x, y) => x.freq - y.freq);
     else if (sortKey === 'time') a.sort((x, y) => timeVal(y) - timeVal(x));
     else a.sort((x, y) => snrVal(y) - snrVal(x));
-    // \u26a1 button: lowest run % first (rarely runs = won't stay on that
-    // frequency), unknown run % last. DX / MLT still group on top of it.
-    if (rareFirst) a.sort((x, y) => (x.run == null ? 999 : x.run) - (y.run == null ? 999 : y.run));
+    // \u26a1 button: rare CQ first (see rareKey), unknown last. DX / MLT still
+    // group on top of it.
+    if (rareFirst) a.sort((x, y) => rareKey(x) - rareKey(y));
     // DX button: DX spots first, each group keeping the chosen sort order
     // (Array.sort is stable, so this only moves DX ahead of EU).
     if (dxFirst) a.sort((x, y) => (y.dx ? 1 : 0) - (x.dx ? 1 : 0));
@@ -499,15 +511,18 @@ INDEX_HTML = """<!doctype html>
       if (s.country) b.title = s.country + (s.cont ? ' (' + s.cont + ')' : '');
       // Run history (past logs): R = % of QSOs made running; ⚡ = rarely
       // runs, so a CQ from it won't last - work it now.
-      const rare = s.run != null && s.run < (lastData && lastData.rare_run || 30);
+      const rare = isRare(s);
       if (s.run != null) b.title = (b.title ? b.title + ' - ' : '') +
-        'runs ' + s.run + '% of QSOs in past logs' + (rare ? ' (rarely runs: work it now)' : '');
+        'runs ' + s.run + '% of QSOs' + (s.hours != null ? ', on air ' + s.hours + ' h' : '') +
+        ' in its last log' + (s.rec ? ' (reconstructed from other logs: a minimum)' : '') +
+        (rare ? ' - rare CQ: work it now' : '');
       const len = (s.call || '').length;
       const size = len > 10 ? ' xlong' : (len > 8 ? ' long' : '');
       b.innerHTML = '<span class="call' + size + (s.dx ? ' dx' : '') + '">' +
         esc(s.call) + (rare ? '<span class="rare">\u26a1</span>' : '') + '</span>' +
         '<span class="detail"><span>' + s.freq.toFixed(1) + ' ' + esc(s.mode) +
-        (s.run != null ? ' R' + s.run + '%' : '') +
+        (s.run != null ? ' R' + s.run + '%' + (s.rec ? '*' : '') : '') +
+        (s.hours != null ? ' ' + Math.round(s.hours) + 'h' : '') +
         '</span> <span>' + (s.snr == null ? '--' : s.snr + ' dB') +
         (s.time ? ' ' + esc(s.time) : '') + '</span></span>';
       attachPress(b, s);

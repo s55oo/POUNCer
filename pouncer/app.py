@@ -17,7 +17,7 @@ from .n1mm import (
     N1MMController, RadioListener, RadioState, cat_macro, next_tune_khz,
 )
 from .rbn import RBNClient, Spot, is_beacon, ports_for_modes
-from .runhist import RARE_RUN_PCT, RunHistory
+from .runhist import RARE_HOURS, RARE_RUN_PCT, RunHistory
 from .web import WebServer, pick_web_address
 from .win32 import (
     force_foreground, is_n1mm_running, send_cw_speed, send_enter, send_filter_toggle,
@@ -433,6 +433,7 @@ class PouncerApp:
             "contest_bands": list(CONTEST_BANDS),
             "tune_step": self.cfg.tune_step_hz,
             "rare_run": RARE_RUN_PCT,
+            "rare_hours": RARE_HOURS,
             "filter": self._filter_width,
             # "cat": NAR/WIDE set the filter (always send); "toggle": Alt+'
             "filter_mode": (
@@ -462,7 +463,7 @@ class PouncerApp:
                     "country": self._country(s.dxcall),
                     "dx": self._is_dx(s.dxcall),
                     "mult": self._mults(s),
-                    "run": self._run_pct(s),
+                    **self._run_fields(s),
                 }
                 for s in spots
             ],
@@ -629,11 +630,15 @@ class PouncerApp:
             s.freq_khz, ent.prefix if ent else None, zone, wpx_prefix(s.dxcall),
         )
 
-    def _run_pct(self, s: Spot) -> int | None:
-        """% of past QSOs (same contest + mode) this call made running."""
-        if self.runhist is None:
-            return None
-        return self.runhist.get(s.dxcall, self.worked.contest_name, s.mode)
+    def _run_fields(self, s: Spot) -> dict:
+        """From the call's past log (same contest + mode): % of QSOs made
+        running, hours on the air, and whether the log was reconstructed."""
+        info = None
+        if self.runhist is not None:
+            info = self.runhist.get(s.dxcall, self.worked.contest_name, s.mode)
+        info = info or {}
+        return {"run": info.get("run"), "hours": info.get("hours"),
+                "rec": bool(info.get("rec"))}
 
     def _is_dx(self, call: str) -> bool:
         """DX = a known continent other than ours (EU for S5)."""

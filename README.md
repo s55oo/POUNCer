@@ -74,9 +74,11 @@ spotted callsign into the N1MM Entry Window.
   Wide/Narrow button; the width POUNCer set is lit amber - it starts as
   narrow, `[ui] filter_start` - hold 1 s to toggle
   the radio without changing the label if they differ); none of them transmit.
-  **Run history:** each tile shows `R81%` = how often that station ran (called
-  CQ) in its past logs of the same contest, from S53ZO's public contest-log
-  archive; **⚡** = runs under 30% - a CQ from it won't last, work it now
+  **Run history:** each tile shows `R81% 23h` = how often that station ran
+  (called CQ) and how many hours it was on the air in its last log of the same
+  contest, from S53ZO's public contest-log archive (`*` = reconstructed log,
+  for stations that never sent one); **⚡** = rare CQ (runs under 30% or on
+  under 6 h) - it won't last, work it now
   (`[ui] run_history`, cached in a `cache` folder). The **⚡** header button
   sorts the rarely-running stations to the top. A new call is known in about
   a second (8 looked up at a time; instant once cached).
