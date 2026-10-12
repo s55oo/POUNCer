@@ -89,6 +89,7 @@ class Config:
     run_list: str = "runlist.sqlite"  # ready-made run list file (next to config.ini)
     team: bool = True       # work together with other POUNCers on the network
     team_port: int = 12079
+    team_peers: tuple[str, ...] = ()  # extra POUNCer IPs (networks without broadcast)
     sort: str = "snr"
     max_age_minutes: int = 10
     trigger: str = "single"
@@ -162,6 +163,9 @@ def load_config(path: str) -> Config:
     cfg.run_list = s("ui", "run_list", cfg.run_list).strip()
     cfg.team = b("team", "enabled", cfg.team)
     cfg.team_port = i("team", "port", cfg.team_port)
+    cfg.team_peers = tuple(
+        p for p in s("team", "peers", "").replace(";", ",").replace(" ", ",").split(",") if p
+    )
     cfg.trigger = s("ui", "trigger", cfg.trigger).strip().lower()
     cfg.touch_view = b("ui", "touch_view", cfg.touch_view)
     cfg.touch_columns = i("ui", "touch_columns", cfg.touch_columns)

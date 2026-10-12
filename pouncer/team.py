@@ -1,7 +1,9 @@
 """POUNCer team: several POUNCers on one network work together.
 
-Each POUNCer announces itself on the LAN (UDP broadcast, port 12079) every
-2 s. The one running longest - and with a working RBN connection - is the
+Each POUNCer announces itself (UDP, port 12079) every 2 s: a broadcast out
+of **every** network adapter (LAN, ZeroTier, ...), plus directly to every
+POUNCer it already knows and to any ``[team] peers`` IPs (for networks that
+drop broadcasts). The one running longest - and with a working RBN connection - is the
 **master**: it alone keeps the RBN connection and passes its (already
 S53WW-filtered) spots to the others, the **slaves**. Run-history results
 learned by any of them are sent to all, and a POUNCer that joins later
@@ -32,6 +34,15 @@ RBN_SICK_S = 60.0     # master whose RBN is down this long steps aside
 MAX_DATAGRAM = 60000
 
 
+def local_ipv4s_all() -> list[str]:
+    """Every IPv4 of this PC: all adapters on Windows (ipconfig), else what
+    the hostname / default route give."""
+    from .web import adapter_ipv4s, local_ipv4s  # local: avoid import cycle
+
+    ips = [ip for _, ip in adapter_ipv4s()]
+    return sorted(set(ips) | set(local_ipv4s()))
+
+
 def elect(nodes: dict[str, dict], now: float) -> str | None:
     """Master id: earliest started among the alive, healthy nodes (id breaks
     ties); if none is healthy, among all alive ones."""
@@ -55,6 +66,7 @@ class Team:
         port: int = TEAM_PORT,
         send_to: list[tuple[str, int]] | None = None,
         version: str = "",
+        peers: list[str] | None = None,
     ) -> None:
         self.id = uuid.uuid4().hex[:12]
         self.started = time.time()
@@ -65,7 +77,10 @@ class Team:
         self._on_runhist = on_runhist
         self._get_runhist = get_runhist
         self._rbn_ok = rbn_ok or (lambda: True)
-        self._send_to = send_to or [("255.255.255.255", port)]
+        self._fixed_targets = send_to  # tests: only these
+        self._manual_peers = [p.strip() for p in (peers or []) if p.strip()]
+        self._if_socks: dict[str, socket.socket] = {}  # local IP -> socket bound to it
+        self._if_checked = 0.0
         self._lock = threading.Lock()
         self.peers: dict[str, dict] = {}   # id -> {ip, web, started, healthy, seen, ver}
         self._master_since: float | None = None
@@ -85,10 +100,11 @@ class Team:
 
     def stop(self) -> None:
         self._stop.set()
-        try:
-            self._sock.close()
-        except OSError:
-            pass
+        for sk in [self._sock, *self._if_socks.values()]:
+            try:
+                sk.close()
+            except OSError:
+                pass
 
     # --- state -----------------------------------------------------------
     def _healthy(self, now: float) -> bool:
@@ -134,16 +150,56 @@ class Team:
         return p["ip"] if p else ""
 
     # --- sending ---------------------------------------------------------
-    def _send(self, msg: dict) -> None:
+    def _interface_sockets(self) -> dict[str, socket.socket]:
+        """One broadcast socket bound to each local IPv4 (refreshed every
+        60 s, e.g. ZeroTier coming up later): Windows sends a broadcast only
+        out of the adapter the socket is bound to."""
+        now = time.time()
+        if now - self._if_checked < 60:
+            return self._if_socks
+        self._if_checked = now
+        ips = set(local_ipv4s_all())
+        for ip in list(self._if_socks):
+            if ip not in ips:
+                self._if_socks.pop(ip).close()
+        for ip in ips:
+            if ip in self._if_socks or ip.startswith(("127.", "169.254.")):
+                continue
+            try:
+                sk = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                sk.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+                sk.bind((ip, 0))
+                self._if_socks[ip] = sk
+            except OSError as exc:
+                log.debug("team: no broadcast on %s: %s", ip, exc)
+        return self._if_socks
+
+    def _send(self, msg: dict, broadcast: bool = True) -> None:
         msg["id"] = self.id
         data = json.dumps(msg, separators=(",", ":")).encode()
         if len(data) > MAX_DATAGRAM:
             return
-        for addr in self._send_to:
+
+        def send(sock, addr) -> None:
             try:
-                self._sock.sendto(data, addr)
+                sock.sendto(data, addr)
             except OSError as exc:
                 log.debug("team send to %s: %s", addr, exc)
+
+        if self._fixed_targets is not None:
+            for addr in self._fixed_targets:
+                send(self._sock, addr)
+            return
+        # directly to every POUNCer we know (+ manual ones): works even where
+        # broadcasts are dropped
+        with self._lock:
+            known = {p["ip"] for p in self.peers.values()}
+        for ip in known | set(self._manual_peers):
+            send(self._sock, (ip, self.port))
+        if broadcast:
+            send(self._sock, ("255.255.255.255", self.port))
+            for sk in self._interface_sockets().values():
+                send(sk, ("255.255.255.255", self.port))
 
     def _announce_loop(self) -> None:
         while not self._stop.is_set():
@@ -157,12 +213,12 @@ class Team:
     def send_spot(self, spot: dict) -> None:
         """Master: pass one RBN spot on to the slaves."""
         if self.alive_peers():
-            self._send({"t": "spot", "s": spot})
+            self._send({"t": "spot", "s": spot}, broadcast=False)
 
     def send_runhist(self, key: str, value) -> None:
         """Tell everyone what we just learned about a call."""
         if self.alive_peers():
-            self._send({"t": "rh", "d": {key: value}})
+            self._send({"t": "rh", "d": {key: value}}, broadcast=False)
 
     # --- receiving -------------------------------------------------------
     def _listen(self) -> None:

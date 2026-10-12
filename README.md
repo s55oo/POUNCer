@@ -118,8 +118,10 @@ is required.
 
 ## Several POUNCers (team)
 
-Running one POUNCer per band / PC on the same network? They find each other
-by themselves (UDP broadcast, port 12079) and work as a **team**:
+Running one POUNCer per band / PC on the same network - LAN or ZeroTier? They
+find each other by themselves (UDP broadcast on every network adapter, port
+12079; `[team] peers` = extra IPs if a network drops broadcasts) and work as
+a **team**:
 
 - the one **running longest** (with a working RBN connection) is the
   **master** - the only one connected to RBN; it passes the spots to the
