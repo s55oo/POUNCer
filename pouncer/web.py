@@ -1002,7 +1002,9 @@ open one and tap <b>Reconnect</b>.</p>
     isn't CW (e.g. RTTY).</dd>
   <dt>R81%</dt>
   <dd><b>Run history</b>: in its logs of the last 6 years of this contest (from S53ZO's
-    public log archive), 81% of its QSOs were made calling CQ.</dd>
+    public log archive), 81% of its QSOs were made calling CQ. For CQWW CW, ARRL DX CW
+    and CQ WPX CW about 46 000 stations are known in advance (warm-up list loaded at
+    start); others appear about a second after they are spotted.</dd>
   <dt>~23h</dt><dd>About how many hours it is usually on the air in this contest
     (average of its logs).</dd>
   <dt>*</dt>

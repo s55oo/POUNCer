@@ -1,5 +1,20 @@
 # POUNCer — Changelog
 
+## v0.7.1 — 2026-10-13 — warm-up list
+
+- **Warm-up**: POUNCer downloads at start (once into `cache/warm.sqlite`,
+  refreshed after 30 days) the run history of **46 044 stations** from
+  CQWW CW, ARRL DX CW and CQ WPX CW 2021-2026 - submitted logs, and
+  reconstructed logs for stations that never sent one. The R% / ~h / ⚡
+  marks are there the moment a call is spotted, no per-call lookup wait.
+  Calls not in the list are still looked up live. Main window shows
+  `warm-up: N stations known in advance`. `[ui] warmup = true` (false =
+  off); no download if the file is already there and fresh; harmless
+  offline.
+- `server/warmlist.py` builds the list from S53ZO's archive (sparse
+  checkout); `.github/workflows/build-warmup.yml` (manual) publishes it as
+  the `warmup` pre-release.
+
 ## v0.7.0 — 2026-10-12 — fade, alert, backup skimmers
 
 - **Fade**: a tile whose station hasn't been re-spotted for 5 min

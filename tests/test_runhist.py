@@ -203,5 +203,62 @@ class RunHistoryTests(unittest.TestCase):
             self.assertEqual(learned, [])  # merged results aren't re-broadcast
 
 
+    def _warm_db(self, path):
+        con = sqlite3.connect(path)
+        con.execute("CREATE TABLE warm (call TEXT, contest TEXT, mode TEXT, run INTEGER,"
+                    " hours REAL, rec INTEGER, logs INTEGER, newest INTEGER)")
+        con.executemany("INSERT INTO warm VALUES (?,?,?,?,?,?,?,?)", [
+            ("M0KTZ", "CQWW", "CW", 6, 3.5, 1, 2, 2025),
+            ("S50R", "ARRL", "CW", 80, 20.0, 0, 5, 2026),
+        ])
+        con.commit()
+        con.close()
+
+    def test_warm_up_downloads_once_and_loads(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            src = os.path.join(d, "src.sqlite")
+            self._warm_db(src)
+            with open(src, "rb") as fh:
+                blob = fh.read()
+            urls = []
+
+            def fetch(url):
+                urls.append(url)
+                return blob
+
+            rh = RunHistory(os.path.join(d, "cache"), fetch=fetch)
+            rh.warm_up("http://x/warm.sqlite")
+            for _ in range(100):
+                if rh.get("M0KTZ", "CQWWCW", "CW") is not None:
+                    break
+                time.sleep(0.05)
+            self.assertEqual(rh.get("M0KTZ", "CQWWCW", "CW"),
+                             {"run": 6, "hours": 3.5, "rec": True})
+            self.assertEqual(rh.get("S50R", "ARRLDXCW", "CW")["run"], 80)
+            self.assertIn("2 stations", rh.warm_status)
+            # fresh copy in the cache: a new start loads it without downloading
+            urls.clear()
+            rh2 = RunHistory(os.path.join(d, "cache"), fetch=fetch)
+            rh2.warm_up("http://x/warm.sqlite")
+            for _ in range(100):
+                if rh2.get("M0KTZ", "CQWWCW", "CW") is not None:
+                    break
+                time.sleep(0.05)
+            self.assertEqual(rh2.get("M0KTZ", "CQWWCW", "CW")["hours"], 3.5)
+            self.assertEqual(urls, [])
+
+    def test_warm_up_offline_is_harmless(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            def fetch(url):
+                raise OSError("offline")
+            rh = RunHistory(os.path.join(d, "cache"), fetch=fetch)
+            rh.warm_up("http://x/warm.sqlite")
+            for _ in range(100):
+                if rh.warm_status:
+                    break
+                time.sleep(0.05)
+            self.assertIn("failed", rh.warm_status)
+
+
 if __name__ == "__main__":
     unittest.main()
