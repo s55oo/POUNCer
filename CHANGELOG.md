@@ -1,5 +1,10 @@
 # POUNCer — Changelog
 
+## v0.5.7 — 2026-10-12 — "17dB"
+
+- Signal strength written without a space: `17dB` (phone tiles, help page,
+  touch view).
+
 ## v0.5.6 — 2026-10-12 — pop-up next to ENTER
 
 - The pop-up message now appears **level with the ENTER key** (the last
