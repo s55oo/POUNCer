@@ -1,5 +1,26 @@
 # POUNCer — Changelog
 
+## v0.7.0 — 2026-10-12 — fade, alert, backup skimmers
+
+- **Fade**: a tile whose station hasn't been re-spotted for 5 min
+  (`[ui] fade_minutes`) is dimmed - it has probably stopped calling there.
+- **One tile per station and band** (the newest spot) - no doubles from
+  drift or several skimmers.
+- **Alert** on the phone when a rare CQ (⚡) that is also a new multiplier
+  appears on the band: beep (+ vibrate where the phone can; iPhone has no
+  web vibration) and a pop-up "⚡ rare CQ + new mult: M0KTZ 7003.1". Once
+  per station and band; not for what is listed when the page opens. On /
+  off in the band menu (saved per phone). Sound needs one tap on the page
+  first (browser rule).
+- **Backup skimmers**: if the chosen skimmer (S53WW) sends nothing for 5 min
+  (`[rbn] backup_after_minutes`), spots from `[rbn] backup_spotters` (call
+  prefixes) or - if empty - every skimmer on your continent are used until
+  it spots again. Main window: `BACKUP: S53WW quiet - using skimmers in EU`;
+  phone: "⚠ backup skimmers" in the status line. In a team the master
+  decides and passes the spots on. `rbn.SpotterFilter`.
+- Help page and README updated; `/api/spots` gives `age`, `fade_s`,
+  `backup`.
+
 ## v0.6.2 — 2026-10-12 — team over ZeroTier too
 
 - The team announcement now goes out of **every network adapter** (LAN,

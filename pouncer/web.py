@@ -149,6 +149,8 @@ INDEX_HTML = """<!doctype html>
     transition: transform .15s ease, opacity .15s ease, visibility 0s linear .15s; }
   .call .rare { font-size: .8em; margin-left: 4px; }
   .detail .fq { font-weight: 800; color: #fff; }  /* spot frequency stands out */
+  button.tile.stale { opacity: .42; }  /* not re-spotted lately: probably gone */
+  .meta .warn { color: #ffb74d; font-weight: 700; }
   button.tile.tight .call { font-size: 18px; }
   button.tile.tight .call.long, button.tile.tight .call.xlong { font-size: 15px; }
   button.tile.tight .detail { font-size: 11px; }
@@ -326,6 +328,7 @@ INDEX_HTML = """<!doctype html>
 <div id="bandsheet"><div class="sheet">
   <div class="sheet-title">Change band <span>(QSY the radio)</span></div>
   <div class="bandgrid" id="bandgrid"></div>
+  <button class="sheet-close" id="alertbtn">Alerts: on</button>
   <a class="sheet-close helplink" href="/help">Help: what every button does</a>
   <button class="sheet-close" id="bandclose">Cancel</button>
 </div></div>
@@ -422,6 +425,47 @@ INDEX_HTML = """<!doctype html>
     if (s.run == null) return 1e6;
     return (isRare(s) ? 0 : 1e4) + s.run * 10 + Math.min(s.hours == null ? 99 : s.hours, 99) / 10;
   }
+  // Alert: a rare CQ (\u26a1) that is also a new multiplier appears on the
+  // band -> beep (+ vibrate where the phone can) and a pop-up. Once per
+  // station and band; nothing for what is already listed when the page opens.
+  let alertsOn = true;
+  try { alertsOn = localStorage.getItem('pouncer.alerts') !== '0'; } catch (e) {}
+  const alerted = new Set();
+  let alertsReady = false;
+  let audioCtx = null;
+  function unlockAudio() {  // browsers allow sound only after a tap
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    } catch (e) {}
+  }
+  document.addEventListener('pointerdown', unlockAudio, {passive: true});
+  function beep() {
+    if (!audioCtx) return;
+    try {
+      [0, 0.22].forEach(t => {
+        const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.frequency.value = 1000; g.gain.value = 0.15;
+        o.connect(g); g.connect(audioCtx.destination);
+        o.start(audioCtx.currentTime + t); o.stop(audioCtx.currentTime + t + 0.12);
+      });
+    } catch (e) {}
+  }
+  function checkAlerts(spots) {
+    const fresh = [];
+    spots.forEach(s => {
+      if (!(isRare(s) && (s.mult || 0) >= 1)) return;
+      const k = s.call + '|' + bandOf(s.freq);
+      if (!alerted.has(k)) { alerted.add(k); fresh.push(s); }
+    });
+    if (!alertsReady) { alertsReady = true; return; }  // page just opened
+    if (!fresh.length || !alertsOn) return;
+    beep();
+    if (navigator.vibrate) { try { navigator.vibrate([120, 60, 120]); } catch (e) {} }
+    const s = fresh[0];
+    toast('\u26a1 rare CQ + new mult: ' + s.call + ' ' + s.freq.toFixed(1));
+  }
+  function bandOf(khz) { return Math.round(khz / 1000); }
   function cqText(m) {
     return m < 60 ? m + 'm' : Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0');
   }
@@ -466,6 +510,18 @@ INDEX_HTML = """<!doctype html>
     }
   }
   document.getElementById('clr').onclick = () => clearSpots(false);
+  const alertBtn = document.getElementById('alertbtn');
+  function labelAlerts() {
+    alertBtn.textContent = 'Alerts (rare CQ + new mult): ' + (alertsOn ? 'on' : 'off');
+  }
+  labelAlerts();
+  alertBtn.onclick = () => {
+    alertsOn = !alertsOn;
+    try { localStorage.setItem('pouncer.alerts', alertsOn ? '1' : '0'); } catch (e) {}
+    labelAlerts();
+    unlockAudio();
+    if (alertsOn) beep();
+  };
   document.getElementById('rarefirst').onclick = () => {
     rareFirst = !rareFirst;
     try { localStorage.setItem('pouncer.rarefirst', rareFirst ? '1' : '0'); } catch (e) {}
@@ -550,6 +606,7 @@ INDEX_HTML = """<!doctype html>
       meta += ' &middot; ' + nm;
     }
     else if (!logBad) meta += ' &middot; ' + esc(data.worked || '');
+    if (data.backup) meta = '<span class="warn" title="' + esc(data.backup) + '">\u26a0 backup skimmers</span> &middot; ' + meta;
     // team: M = this POUNCer is the team master (RBN), S = slave of it
     if (data.team && data.team.indexOf('master') >= 0) meta = '<b title="' + esc(data.team) + '">M</b> &middot; ' + meta;
     else if (data.team && data.team.indexOf('slave') >= 0) meta = '<b title="' + esc(data.team) + '">S</b> &middot; ' + meta;
@@ -574,6 +631,8 @@ INDEX_HTML = """<!doctype html>
       b.className = 'tile' + (snrVal(s) >= 20 ? ' strong' : '') +
         (s.mult >= 2 ? ' m2' : (s.mult === 1 ? ' m1' : '')) +
         (s === tuned ? ' onfreq' : '') +
+        // not re-spotted for a while: probably gone - fade it
+        (s.age != null && data.fade_s && s.age >= data.fade_s ? ' stale' : '') +
         (spotKey(s) === selKey ? ' sel' : '');
       // DX (outside our continent): callsign in yellow; EU stays white
       if (s.country) b.title = s.country + (s.cont ? ' (' + s.cont + ')' : '');
@@ -606,6 +665,7 @@ INDEX_HTML = """<!doctype html>
       // still too wide (long call + every mark)? slightly smaller text
       if (b.scrollWidth > b.clientWidth + 1) b.classList.add('tight');
     });
+    checkAlerts(spots);
     if (!spots.length) {
       const d = document.createElement('div');
       d.className = 'empty';
@@ -910,6 +970,9 @@ spots you still need there. Nothing here transmits except the F-keys.</p>
   <dt><span class="k">&#8635;</span></dt>
   <dd>Re-read which log N1MM has open (after you open another log).</dd>
 </dl>
+<p><span style="color:#ffb74d;font-weight:700">&#9888; backup skimmers</span> at the start
+of the small line: your skimmer (S53WW) has sent nothing for 5 minutes, so spots from
+other skimmers on your continent are shown until it is back.</p>
 <p>The small line under it starts with <b>M</b> or <b>S</b> when several POUNCers
 work as a team on your network: M = this one is the master (keeps the RBN
 connection), S = it gets its spots from the master. Then: how many needed spots, your QSOs per band and in total, and
@@ -953,8 +1016,13 @@ open one and tap <b>Reconnect</b>.</p>
   <dt>cq3m</dt>
   <dd>Calling on this frequency for 3 minutes (learned live from the RBN spots).</dd>
 </dl>
-<p>Not shown: stations you already worked on this band and mode, your own call, and
-beacons.</p>
+<p>A <b>faded</b> tile has not been re-spotted for 5 minutes - the station has probably
+stopped calling there. Not shown: stations you already worked on this band and mode,
+your own call, and beacons. One tile per station and band (the newest spot).</p>
+<p><b>Alert</b>: when a rare CQ (&#9889;) that is also a new multiplier appears on your
+band, the phone beeps (and vibrates where it can) and shows it in a pop-up. Turn it
+on/off in the band menu (tap the frequency). Sound works after your first tap on the
+page.</p>
 
 <h2>Keys on the right</h2>
 <dl>

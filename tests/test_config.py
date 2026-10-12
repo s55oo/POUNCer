@@ -96,6 +96,14 @@ class FilterStartTests(unittest.TestCase):
         cfg = load_config(os.path.join(os.path.dirname(__file__), "..", "config.ini"))
         self.assertTrue(cfg.filter_narrow_cat and cfg.filter_wide_cat)
 
+    def test_backup_and_fade(self):
+        cfg = self._load("[rbn]\nbackup_spotters = OE9GHV, S50ARX\nbackup_after_minutes = 3\n"
+                         "[ui]\nfade_minutes = 4\n")
+        self.assertEqual(cfg.backup_spotters, ("OE9GHV", "S50ARX"))
+        self.assertEqual((cfg.backup_after_minutes, cfg.fade_minutes), (3, 4))
+        d = self._load("[ui]\n")
+        self.assertEqual((d.backup_spotters, d.backup_after_minutes, d.fade_minutes), ((), 5, 5))
+
     def test_wide_and_unknown(self):
         self.assertEqual(self._load("[ui]\nfilter_start = WIDE\n").filter_start, "wide")
         self.assertEqual(self._load("[ui]\nfilter_start =\n").filter_start, "")
