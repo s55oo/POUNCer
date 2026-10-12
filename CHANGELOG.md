@@ -1,5 +1,25 @@
 # POUNCer — Changelog
 
+## v0.4.0 — 2026-10-12 — run list server (Docker), live re-sort
+
+- New **run list server** (`server/`: `runlist.py`, `Dockerfile`,
+  `docker-compose.yml`, README) for a Docker host on ZeroTier / LAN. First
+  start downloads only CQWW CW + SSB logs of the last 3 years from S53ZO's
+  archive (partial clone + sparse checkout) and computes every station's
+  run %: measured 47 879 logs, 3.3 GB, 3.5 min -> 2.6 MB `runlist.sqlite`,
+  12 190 CW calls (OH2BH 9 %, K3LR 65 %, S50R 82 %). Serves
+  `/runs?contest=&mode=` (whole list, 130 KB in 0.09 s), `/run?call=`,
+  `/status`.
+- POUNCer: `[ui] run_server = http://<host>:8077` - loads the whole list for
+  N1MM's contest + mode once, so R% / ⚡ show the moment a call is spotted;
+  calls not in the list (e.g. S53CC: last CQWW CW log 2020) still come from
+  GitHub one by one. Server down = GitHub as before.
+- Phone page: the list re-sorts live as run % arrives (every 1 s poll, ⚡
+  sort on); it stays still while a tile is touched and 0.4 s after, so a
+  re-sort can't swap the tile under your finger.
+- `.dockerignore`; tests for the server (HTTP, newest year, header call)
+  and for the list mode (no GitHub when the server knows the call).
+
 ## v0.3.1 — 2026-10-12 — run history fast, ⚡ sort
 
 - Run history is looked up **8 calls at a time** (was one by one) and from

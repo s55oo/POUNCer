@@ -1,0 +1,7 @@
+.git
+dist
+build
+cache
+tests
+*.exe
+__pycache__

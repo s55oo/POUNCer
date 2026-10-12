@@ -1,0 +1,19 @@
+# POUNCer run list server (CQWW run % per station, for POUNCer over ZeroTier/LAN).
+#   docker compose -f server/docker-compose.yml up -d --build      # start (first start builds the list)
+#   docker compose -f server/docker-compose.yml run --rm runlist python server/runlist.py build   # rebuild
+services:
+  runlist:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    container_name: pouncer-runlist
+    environment:
+      CONTEST: CQWW
+      YEARS: "3"
+    ports:
+      - "8077:8077"
+    volumes:
+      - runlist-data:/data
+    restart: unless-stopped
+volumes:
+  runlist-data:

@@ -80,6 +80,9 @@ spotted callsign into the N1MM Entry Window.
   (`[ui] run_history`, cached in a `cache` folder). The **⚡** header button
   sorts the rarely-running stations to the top. A new call is known in about
   a second (8 looked up at a time; instant once cached).
+  With the optional **run list server** (`server/`, Docker, e.g. on ZeroTier;
+  `[ui] run_server`) the whole CQWW list is loaded at start, so the marks
+  are there the moment a call is spotted. See `server/README.md`.
   Confirmations ("Wide filter", "CW faster", Undo after a remove) pop up at
   the top, just under the header, for 5 s (tap to close). On a phone the tiles are compact one-line rows (callsign left,
   details right) so about 10 fit on screen; wider screens get two columns of

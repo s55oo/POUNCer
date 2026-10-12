@@ -102,6 +102,7 @@ drain web actions → refresh the cached web payload.
 | `pouncer/web.py` | `WebServer` + mobile page + `/api/spots`, `/api/qsy`; `local_ipv4s`. |
 | `pouncer/app.py` | `PouncerApp`: GUI, filters, tick loop, table, touch view, web wiring, `_act_on_spot`. |
 | `pouncer/runhist.py` | `RunHistory`: background, disk-cached run/S&P share per call from the public contest-log archive (`SH6/logs_XX.sqlite` shard, XX = crc32(CALL)&0xff → newest log of the same contest+mode from raw.githubusercontent.com → `run_share`: QSO on the same kHz (±0.3) as one of the last 2 on that band). `get()` never blocks (None until known); `WORKERS = 8` threads, one download per shard (per-shard lock). Page: ⚡ toggle = sort by `run` ascending, unknown last. |
+| `server/runlist.py` | Run list server (Docker, `server/README.md`): `build` = partial clone + sparse checkout of `<CONTEST>/{cw,ph,...}/<last N years>` of the archive, `run_share` per log → `runlist.sqlite` (call, contest, mode, year, run, qsos); `serve` = `/runs`, `/run`, `/status` on 8077. POUNCer's `RunHistory(server=...)` loads `/runs` once per (contest, mode); workers wait for it (≤15 s) before per-call GitHub lookups. |
 | `pouncer/flow.py` | `flow_positions`: pure flow-layout geometry (items left to right, wrapping onto rows) for `app.FlowFrame`, which holds the main window's sort / option / key / action controls. |
 
 ---
@@ -473,6 +474,7 @@ python -m unittest discover -s tests -v
 | `test_cty.py` | CTY parsing (N1MM `#` comments), longest prefix, exact calls, `{CONT}` overrides, portable calls. |
 | `test_win32.py` | N1MM process-name matching (process list faked). |
 | `test_runhist.py` | Shard name, contest mapping, log choice, run share (incl. two stations interleaved), background lookup + disk cache (fake downloads). |
+| `test_runlist_server.py` | Run list server: `CALLSIGN:` header, HTTP endpoints, newest year per call. |
 | `test_flow.py` | Flow-layout geometry (wrapping, wide items, group gaps). |
 | `test_tk_layout.py` | Real Tk window (Windows build only, skipped without Tk): controls wrap instead of clipping, text labels wrap to the width. |
 

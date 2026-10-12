@@ -85,6 +85,7 @@ class Config:
     # Run/S&P history from the public contest-log archive (runhist.py)
     run_history: bool = True
     run_history_dir: str = ""  # default: "cache" next to config.ini
+    run_server: str = ""  # optional run list server URL (server/runlist.py)
     sort: str = "snr"
     max_age_minutes: int = 10
     trigger: str = "single"
@@ -154,6 +155,7 @@ def load_config(path: str) -> Config:
     cfg.filter_narrow_cat = s("ui", "filter_narrow_cat", cfg.filter_narrow_cat).strip()
     cfg.filter_wide_cat = s("ui", "filter_wide_cat", cfg.filter_wide_cat).strip()
     cfg.run_history = b("ui", "run_history", cfg.run_history)
+    cfg.run_server = s("ui", "run_server", cfg.run_server).strip()
     cfg.trigger = s("ui", "trigger", cfg.trigger).strip().lower()
     cfg.touch_view = b("ui", "touch_view", cfg.touch_view)
     cfg.touch_columns = i("ui", "touch_columns", cfg.touch_columns)

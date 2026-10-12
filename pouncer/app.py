@@ -106,7 +106,8 @@ class PouncerApp:
                 log.warning("no callsign: set [rbn] callsign in config.ini")
         # How often each spotted call runs, from past contest logs.
         self.runhist = (
-            RunHistory(config.run_history_dir or "cache") if config.run_history else None
+            RunHistory(config.run_history_dir or "cache", server=config.run_server)
+            if config.run_history else None
         )
         # Callsign -> continent (N1MM's wl_cty.dat) for EU / DX marking.
         self.cty = load_cty(config.cty_file, config.n1mm_ini)
