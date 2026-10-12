@@ -137,14 +137,14 @@ INDEX_HTML = """<!doctype html>
   .footbar button:active, .footbar button.sel { background: #c62828; color: #fff; }
   @media (max-width: 619px) { .footbar button { font-size: 14px; } }
   body { padding-bottom: var(--ftr, 0px); }
-  /* pop-up message: at the top, just under the sticky header (far from the
-     footer buttons); faded out when hidden; 5 s, tap to close */
+  /* pop-up message: level with the ENTER key, over the spot list (set from
+     JS, placeToast); faded out when hidden; 5 s, tap to close */
   #toast { position: fixed; left: 50%;
     top: calc(var(--hdr, 0px) + 12px);
     transform: translateX(-50%) translateY(-12px); opacity: 0; visibility: hidden;
     pointer-events: none; max-width: calc(100vw - 32px);
-    background: #2e7d32; color: #fff; padding: 12px 18px; border-radius: 12px;
-    font-size: 16px; z-index: 10; border: 1px solid #81c784;
+    background: #37474f; color: #fff; padding: 12px 18px; border-radius: 12px;
+    font-size: 16px; font-weight: 600; z-index: 10; border: 2px solid #cfd8dc;
     box-shadow: 0 6px 24px rgba(0, 0, 0, .7);
     transition: transform .15s ease, opacity .15s ease, visibility 0s linear .15s; }
   .call .rare { font-size: .8em; margin-left: 4px; }
@@ -152,7 +152,7 @@ INDEX_HTML = """<!doctype html>
   #toast.show { transform: translateX(-50%) translateY(0); opacity: 1;
     visibility: visible; pointer-events: auto;
     transition: transform .15s ease, opacity .15s ease, visibility 0s; }
-  #toast button { margin-left: 12px; background: #fff; color: #1b5e20; border: 0;
+  #toast button { margin-left: 12px; background: #fff; color: #263238; border: 0;
     border-radius: 8px; padding: 6px 12px; font: inherit; font-weight: 700; }
   /* long-press on a tile: no iOS text selection / callout menu */
   button.tile, .footbar .filt { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
@@ -341,6 +341,25 @@ INDEX_HTML = """<!doctype html>
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
     }[c]));
   }
+  // Pop-up level with the ENTER key (the last key on the right), centred over
+  // the spot list so it never covers the keys; no keys: just above the footer.
+  function placeToast() {
+    const keys = document.querySelectorAll('#fkeys button');
+    const grid = document.getElementById('grid').getBoundingClientRect();
+    const h = toastEl.offsetHeight;
+    let top;
+    if (keys.length) {
+      const k = keys[keys.length - 1].getBoundingClientRect();
+      top = k.top + k.height / 2 - h / 2;
+    } else {
+      const f = document.getElementById('footbar').getBoundingClientRect();
+      top = f.top - h - 12;
+    }
+    top = Math.max(8, Math.min(top, window.innerHeight - h - 8));
+    toastEl.style.top = top + 'px';
+    toastEl.style.left = ((grid.left + grid.right) / 2) + 'px';
+    toastEl.style.maxWidth = Math.max(160, grid.width - 16) + 'px';
+  }
   function toast(msg, undo) {
     toastEl.textContent = msg;
     if (undo) {
@@ -353,6 +372,7 @@ INDEX_HTML = """<!doctype html>
     clearTimeout(toastTimer);
     clearTimeout(toastGone);
     toastEl.hidden = false;
+    placeToast();
     void toastEl.offsetWidth;
     toastEl.classList.add('show');
     toastTimer = setTimeout(hideToast, 5000);
@@ -935,8 +955,8 @@ beacons.</p>
     last one set.</dd>
 </dl>
 
-<div class="note">Messages (e.g. "Cleared 12 spots", "CW faster") pop up at the top for
-5 s - tap to close them. The page refreshes every second; while you touch a tile the
+<div class="note">Messages (e.g. "Cleared 12 spots", "CW faster") pop up level with the
+ENTER key for 5 s - tap to close them. The page refreshes every second; while you touch a tile the
 list holds still.</div>
 <p><a class="back" href="/">&larr; Back to the spots</a></p>
 </main></body>
