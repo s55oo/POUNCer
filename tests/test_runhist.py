@@ -7,7 +7,9 @@ import time
 import unittest
 import zlib
 
-from pouncer.runhist import RunHistory, archive_target, pick_logs, run_share, shard_name
+from pouncer.runhist import (
+    RunHistory, archive_target, on_air_hours, pick_logs, run_share, shard_name,
+)
 
 
 def cabrillo(freqs):
@@ -35,9 +37,25 @@ class HelperTests(unittest.TestCase):
             ("CQWPX/cw/2025/k1abc.log", "CQWPX", 2025, "CW"),
             ("RECONSTRUCTED_LOGS/CQWW/k1abc.log", "CQWW", 2026, "CW"),
         ]
-        self.assertEqual(pick_logs(rows, "CQWW", "CW"), ["CQWW/cw/2025/k1abc.log"])
-        self.assertEqual(pick_logs(rows, "WAE", "CW")[0], "CQWW/cw/2025/k1abc.log")
-        self.assertEqual(pick_logs(rows, "CQWW", "PH"), [])
+        self.assertEqual(pick_logs(rows, "CQWW", "CW"), (["CQWW/cw/2025/k1abc.log"], False))
+        self.assertEqual(pick_logs(rows, "WAE", "CW")[0], ["CQWW/cw/2025/k1abc.log"])
+        self.assertEqual(pick_logs(rows, "CQWW", "PH"), ([], False))
+
+    def test_reconstructed_only_when_no_real_log(self) -> None:
+        rows = [("RECONSTRUCTED_LOGS/CQWW/cw/2025/M0KTZ.log", "CQWW", 2025, "CW"),
+                ("RECONSTRUCTED_LOGS/CQWPX/cw/2025/M0KTZ.log", "CQWPX", 2025, "CW")]
+        self.assertEqual(pick_logs(rows, "CQWW", "CW"),
+                         (["RECONSTRUCTED_LOGS/CQWW/cw/2025/M0KTZ.log"], True))
+
+    def test_on_air_hours(self) -> None:
+        log = "\n".join([
+            "QSO: 7001 CW 2025-11-29 1200 S55OO 599 15 K1ABC 599 05",
+            "QSO: 7002 CW 2025-11-29 1210 S55OO 599 15 K1ABD 599 05",
+            "QSO: 7003 CW 2025-11-29 1230 S55OO 599 15 K1ABE 599 05",   # +20 min
+            "QSO: 7004 CW 2025-11-29 1400 S55OO 599 15 K1ABF 599 05",   # 90 min off
+            "QSO: 7005 CW 2025-11-29 1430 S55OO 599 15 K1ABG 599 05",   # +30 min
+        ])
+        self.assertEqual(on_air_hours(log), 1.0)  # 10 + 20 + 30 minutes
 
     def test_run_share(self) -> None:
         self.assertEqual(run_share(cabrillo([14025.0] * 10)), (9, 10))           # runner
@@ -74,12 +92,12 @@ class RunHistoryTests(unittest.TestCase):
                 if rh.get("OH2BH", "CQWWCW", "CW") is not None:
                     break
                 time.sleep(0.05)
-            self.assertEqual(rh.get("OH2BH", "CQWWCW", "CW"), 0)
+            self.assertEqual(rh.get("OH2BH", "CQWWCW", "CW")["run"], 0)
             self.assertEqual(urls, ["X/SH6/" + shard_name("OH2BH"), "X/CQWW/cw/2025/oh2bh.log"])
             # a new instance reads the disk cache: no downloads
             urls.clear()
             again = RunHistory(os.path.join(d, "cache"), fetch=fetch, base_url="X/")
-            self.assertEqual(again.get("OH2BH", "CQWWCW", "CW"), 0)
+            self.assertEqual(again.get("OH2BH", "CQWWCW", "CW")["run"], 0)
             self.assertEqual(urls, [])
 
     def test_parallel_lookups_share_one_shard_download(self) -> None:
@@ -131,8 +149,8 @@ class RunHistoryTests(unittest.TestCase):
                 if rh.get("S53CC", "CQWWCW", "CW") is not None:
                     break
                 time.sleep(0.05)
-            self.assertEqual(rh.get("S53CC", "CQWWCW", "CW"), 77)
-            self.assertEqual(rh.get("OH2BH", "CQWWCW", "CW"), 8)  # never asked, known
+            self.assertEqual(rh.get("S53CC", "CQWWCW", "CW"), {"run": 77})
+            self.assertEqual(rh.get("OH2BH", "CQWWCW", "CW"), {"run": 8})  # never asked, known
             self.assertEqual(urls[0], "http://srv/runs?contest=CQWW&mode=CW")
             self.assertFalse(any(u.startswith("X/") for u in urls))  # no GitHub
 
@@ -150,7 +168,7 @@ class RunHistoryTests(unittest.TestCase):
             def fetch(url):
                 raise OSError("no network")
             rh = RunHistory(os.path.join(d, "cache"), fetch=fetch, run_list=db)
-            self.assertEqual(rh.get("S53CC", "CQWWCW", "CW"), 77)  # instant, newest year
+            self.assertEqual(rh.get("S53CC", "CQWWCW", "CW"), {"run": 77})  # instant, newest
             self.assertIsNone(RunHistory(os.path.join(d, "c2"), fetch=fetch,
                                          run_list=os.path.join(d, "missing.sqlite"))
                               .get("X1X", "CQWWCW", "CW"))

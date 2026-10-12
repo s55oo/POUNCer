@@ -1,5 +1,24 @@
 # POUNCer — Changelog
 
+## v0.5.0 — 2026-10-12 — rare CQ: run % + hours on air, reconstructed logs
+
+- Run history also measures **hours on the air** in the station's last log
+  of the contest (time between QSOs; a pause over 30 min = off time). Tiles
+  show e.g. `R11%* 4h`.
+- **⚡ = rare CQ**: runs under 30 % of its QSOs **or** on the air under 6 h.
+  The ⚡ sort puts rare ones first (then lowest run %, then fewest hours),
+  unknown last.
+- Stations that never sent a log now use the archive's **reconstructed
+  logs** (rebuilt from other stations' logs), marked `*`: a minimum - only
+  QSOs with stations that sent logs. Example M0KTZ (8 logs, all
+  reconstructed): CQWW CW 2025 = 75 QSOs, 11 % run, 4.1 h -> `R11%* 4h ⚡`
+  (was no info). Submitted logs are always preferred.
+- Real archive check: OH2BH R9% 15h ⚡, S50R R82% 23h, K3LR R65% 48h,
+  S53CC R77% 15h, 9A1A R84% 48h.
+- Cache file is now `cache/runhist2.json` (old "no info" entries would
+  have hidden the reconstructed results). `/api/spots` gives `run`,
+  `hours`, `rec` per spot and `rare_hours`.
+
 ## v0.4.1 — 2026-10-12 — run list file on Windows (no server needed)
 
 - POUNCer reads a ready-made **`runlist.sqlite`** (built by

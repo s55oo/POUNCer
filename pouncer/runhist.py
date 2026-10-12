@@ -2,12 +2,15 @@
 
 Uses S53ZO's public Hamradio-Contest-logs-Archives on GitHub: the ``SH6``
 shards (``logs_XX.sqlite``, XX = crc32(CALL) & 0xff) index every log by
-callsign; the newest logs of the same contest and mode are downloaded and
-their frequencies looked at. A station that rarely runs but is spotted
-calling CQ won't be there long - work it now.
+callsign; the newest log of the same contest and mode is downloaded and
+its frequencies and times looked at: how much of it was RUN, and how many
+hours the station was on the air. A station that rarely runs, or is only on
+for a few hours, but is spotted calling CQ won't be there long - work it now.
+Stations that never sent a log are covered by the archive's reconstructed
+logs (built from other stations' logs; a lower bound, marked ``rec``).
 
-Everything runs in one background thread and is cached on disk, so each
-shard and each call is fetched only once. No internet / no logs = no info.
+Lookups run in background threads and are cached on disk, so each shard and
+each call is fetched only once. No internet / no logs = no info.
 """
 
 from __future__ import annotations
@@ -30,6 +33,8 @@ WORKERS = 8           # lookups in parallel (a new band = many new calls)
 MIN_QSOS = 30         # fewer QSOs than this = not enough to tell
 RUN_KHZ = 0.3         # same frequency (kHz) as one of the last 2 QSOs = running
 RARE_RUN_PCT = 30     # runs less than this % of QSOs = "rarely runs" (marked)
+RARE_HOURS = 6        # on the air less than this many hours = rare (marked)
+OFF_MINUTES = 30      # a pause longer than this between QSOs = off time
 
 # N1MM contest name prefix -> archive contest folder.
 CONTESTS = {
@@ -53,18 +58,42 @@ def archive_target(n1mm_contest: str, mode: str) -> tuple[str | None, str]:
     return contest, _MODES.get((mode or "CW").upper(), "CW")
 
 
-def pick_logs(rows: list[tuple], contest: str | None, mode: str) -> list[str]:
-    """Newest paths: same contest+mode first, else same mode, any contest.
+def pick_logs(rows: list[tuple], contest: str | None, mode: str) -> tuple[list[str], bool]:
+    """(newest paths, reconstructed?): same contest+mode first, else same
+    mode, any contest. Submitted logs only; reconstructed logs (built from
+    other stations' logs) only when the station never sent one.
 
     ``rows`` = (path, contest, year, mode) from a shard.
     """
     real = [r for r in rows if not r[0].startswith("RECONSTRUCTED_LOGS/")]
-    for want in ((lambda r: r[1] == contest and r[3] == mode),
-                 (lambda r: r[3] == mode)):
-        hits = sorted((r for r in real if want(r)), key=lambda r: r[2] or 0, reverse=True)
-        if hits:
-            return [r[0] for r in hits[:MAX_LOGS]]
-    return []
+    rebuilt = [r for r in rows if r[0].startswith("RECONSTRUCTED_LOGS/")]
+    for pool, rec in ((real, False), (rebuilt, True)):
+        for want in ((lambda r: r[1] == contest and r[3] == mode),
+                     (lambda r: r[3] == mode)):
+            hits = sorted((r for r in pool if want(r)), key=lambda r: r[2] or 0, reverse=True)
+            if hits:
+                return [r[0] for r in hits[:MAX_LOGS]], rec
+    return [], False
+
+
+def on_air_hours(cabrillo: str) -> float:
+    """Hours on the air: time between QSOs, pauses over OFF_MINUTES = off."""
+    import datetime
+
+    times = []
+    for line in cabrillo.splitlines():
+        if line.startswith("QSO:"):
+            parts = line.split()
+            try:
+                times.append(datetime.datetime.strptime(parts[3] + parts[4], "%Y-%m-%d%H%M"))
+            except (IndexError, ValueError):
+                continue
+    times.sort()
+    minutes = sum(
+        gap for gap in ((b - a).total_seconds() / 60 for a, b in zip(times, times[1:]))
+        if gap <= OFF_MINUTES
+    )
+    return round(minutes / 60, 1)
 
 
 def run_share(cabrillo: str) -> tuple[int, int]:
@@ -103,14 +132,19 @@ class RunHistory:
         self.cache_dir = cache_dir
         self.base_url = base_url
         self._fetch = fetch or self._http_get
-        self._file = os.path.join(cache_dir, "runhist.json")
+        # v2: + hours and reconstructed logs (older "no info" entries are stale)
+        self._file = os.path.join(cache_dir, "runhist2.json")
         self._lock = threading.Lock()
-        self._results: dict[str, int | None] = {}  # "CALL|CONTEST|MODE" -> run %
+        # "CALL|CONTEST|MODE" -> {"run": %, "hours": h, "rec": bool} or None
+        self._results: dict[str, dict | None] = {}
         self._asked: set[str] = set()
         self._queue: queue.Queue = queue.Queue()
         try:
             with open(self._file, encoding="utf-8") as fh:
-                self._results = json.load(fh)
+                self._results = {  # older caches stored just the run %
+                    k: ({"run": v} if isinstance(v, int) else v)
+                    for k, v in json.load(fh).items()
+                }
         except (OSError, ValueError):
             pass
         # Optional run list server (server/runlist.py): whole contest list in
@@ -145,12 +179,13 @@ class RunHistory:
             return 0
         with self._lock:
             for call, contest, mode, pct in rows:
-                self._results[f"{call.upper()}|{contest}|{mode}"] = pct
+                self._results[f"{call.upper()}|{contest}|{mode}"] = {"run": pct}
         log.info("run list %s: %d entries", path, len(rows))
         return len(rows)
 
-    def get(self, call: str, n1mm_contest: str, mode: str) -> int | None:
-        """Run % for the call (None = unknown / not looked up yet)."""
+    def get(self, call: str, n1mm_contest: str, mode: str) -> dict | None:
+        """{"run": %, "hours": h or None, "rec": bool} (None = unknown / not
+        looked up yet)."""
         contest, amode = archive_target(n1mm_contest, mode)
         key = f"{call.upper()}|{contest or '*'}|{amode}"
         with self._lock:
@@ -173,7 +208,7 @@ class RunHistory:
             ))
             with self._lock:
                 for call, pct in data.items():
-                    self._results[f"{call.upper()}|{contest}|{mode}"] = pct
+                    self._results[f"{call.upper()}|{contest}|{mode}"] = {"run": pct}
             log.info("run list %s %s: %d calls from %s", contest, mode, len(data), self.server)
             self._save()
         except Exception as exc:  # server down: per-call lookups still work
@@ -213,7 +248,7 @@ class RunHistory:
             except OSError:
                 pass
 
-    def _lookup(self, call: str, contest: str | None, mode: str) -> int | None:
+    def _lookup(self, call: str, contest: str | None, mode: str) -> dict | None:
         name = shard_name(call)
         shard = os.path.join(self.cache_dir, "SH6", name)
         with self._lock:
@@ -232,11 +267,17 @@ class RunHistory:
             ).fetchall()
         finally:
             con.close()
+        paths, rec = pick_logs(rows, contest, mode)
         run = total = 0
-        for path in pick_logs(rows, contest, mode):
-            r, t = run_share(self._fetch(self.base_url + quote(path)).decode("latin-1", "replace"))
-            run, total = run + r, total + t
-        return round(100 * run / total) if total >= MIN_QSOS else None
+        hours = 0.0
+        for path in paths:
+            text = self._fetch(self.base_url + quote(path)).decode("latin-1", "replace")
+            r, t = run_share(text)
+            run, total, hours = run + r, total + t, hours + on_air_hours(text)
+        if total < MIN_QSOS:
+            return None
+        return {"run": round(100 * run / total), "hours": round(hours / len(paths), 1),
+                "rec": rec}
 
     @staticmethod
     def _http_get(url: str) -> bytes:
