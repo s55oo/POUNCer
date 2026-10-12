@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.6.1 — 2026-10-12 — MASTER / SLAVE in the Windows window
+
+- The main window shows the team role at the top in a coloured bar:
+  **MASTER** (green: this one talks to RBN for the team), **SLAVE** (blue:
+  spots come from the master at <IP>), **ALONE** (grey: no other POUNCer on
+  the network) or "Team off". The window title says `POUNCer 0.6.1 -
+  MASTER` / `- SLAVE` too.
+
 ## v0.6.0 — 2026-10-12 — POUNCer team (several on one network)
 
 - **Team mode** (`pouncer/team.py`, `[team] enabled = true`, UDP port
