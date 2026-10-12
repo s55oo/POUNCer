@@ -148,6 +148,17 @@ INDEX_HTML = """<!doctype html>
     box-shadow: 0 6px 24px rgba(0, 0, 0, .7);
     transition: transform .15s ease, opacity .15s ease, visibility 0s linear .15s; }
   .call .rare { font-size: .8em; margin-left: 4px; }
+  .detail .fq { font-weight: 800; color: #fff; }  /* spot frequency stands out */
+  button.tile.tight .call { font-size: 18px; }
+  button.tile.tight .call.long, button.tile.tight .call.xlong { font-size: 15px; }
+  button.tile.tight .detail { font-size: 11px; }
+  /* narrow phones: a bit smaller details + padding so long rows still fit */
+  @media (max-width: 380px) {
+    button.tile { padding: 4px 8px; gap: 6px; }
+    button.tile .detail { font-size: 12px; }
+    button.tile .call { font-size: 22px; }
+    button.tile .call .rare { margin-left: 2px; }
+  }
   #toast[hidden] { display: none !important; }
   #toast.show { transform: translateX(-50%) translateY(0); opacity: 1;
     visibility: visible; pointer-events: auto;
@@ -576,16 +587,20 @@ INDEX_HTML = """<!doctype html>
       const size = len > 10 ? ' xlong' : (len > 8 ? ' long' : '');
       b.innerHTML = '<span class="call' + size + (s.dx ? ' dx' : '') + '">' +
         esc(s.call) + (rare ? '<span class="rare">\u26a1</span>' : '') + '</span>' +
-        '<span class="detail"><span>' + s.freq.toFixed(1) + ' ' + esc(s.mode) +
+        '<span class="detail"><span><b class="fq">' + s.freq.toFixed(1) + '</b>' +
+        // mode only when it isn't CW (in a CW contest it always is)
+        (s.mode && s.mode.toUpperCase() !== 'CW' ? ' ' + esc(s.mode) : '') +
         (s.run != null ? ' R' + s.run + '%' + (s.rec ? '*' : '') : '') +
         (s.hours != null ? ' ' + Math.round(s.hours) + 'h' : '') +
         '</span> <span>' + (s.snr == null ? '--' : s.snr + 'dB') +
-        // CQ 3m = heard calling on this frequency for 3 minutes (RBN);
+        // cq3m = heard calling on this frequency for 3 minutes (RBN);
         // the spot time moves to the tile's tooltip then.
-        (s.cq_min != null ? ' CQ ' + cqText(s.cq_min) : (s.time ? ' ' + esc(s.time) : '')) +
+        (s.cq_min != null ? ' cq' + cqText(s.cq_min) : (s.time ? ' ' + esc(s.time) : '')) +
         '</span></span>';
       attachPress(b, s);
       grid.appendChild(b);
+      // still too wide (long call + every mark)? slightly smaller text
+      if (b.scrollWidth > b.clientWidth + 1) b.classList.add('tight');
     });
     if (!spots.length) {
       const d = document.createElement('div');
@@ -912,9 +927,10 @@ open one and tap <b>Reconnect</b>.</p>
   <dt><span class="sky">Blue</span> outline</dt>
   <dd>Your radio is on that spot's frequency (within 0.5 kHz).</dd>
 </dl>
-<p>Right side of a tile, e.g. <b>7003.1 CW R6%* 4h</b> / <b>22dB CQ 3m</b>:</p>
+<p>Right side of a tile, e.g. <b>7003.1 R6%* 4h</b> / <b>22dB cq3m</b>:</p>
 <dl>
-  <dt>7003.1 CW</dt><dd>Spot frequency (kHz) and mode.</dd>
+  <dt><b>7003.1</b></dt><dd>Spot frequency (kHz), in bold. The mode is shown only when it
+    isn't CW (e.g. RTTY).</dd>
   <dt>R81%</dt>
   <dd><b>Run history</b>: in its logs of the last 6 years of this contest (from S53ZO's
     public log archive), 81% of its QSOs were made calling CQ.</dd>
@@ -926,7 +942,7 @@ open one and tap <b>Reconnect</b>.</p>
   <dd><b>Rare CQ</b>: runs under 30% or is on under 6 h. A CQ from it won't last -
     work it now.</dd>
   <dt>22dB</dt><dd>Signal-to-noise on the skimmer.</dd>
-  <dt>CQ 3m</dt>
+  <dt>cq3m</dt>
   <dd>Calling on this frequency for 3 minutes (learned live from the RBN spots). Without
     it, the time of the last spot (UTC).</dd>
 </dl>

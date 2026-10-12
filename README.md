@@ -79,7 +79,7 @@ spotted callsign into the N1MM Entry Window.
   the radio without changing the label if they differ); none of them transmit.
   The **?** at the end of the status line opens a help page explaining
   every button.
-  **CQ 3m** on a tile = how long that station has been calling on that
+  **cq3m** on a tile = how long that station has been calling on that
   frequency (from the RBN spots, live).
   **Run history:** each tile shows `R81% 23h` = how often that station ran
   (called CQ) and how many hours it was on the air in its logs of the last 6 years of
