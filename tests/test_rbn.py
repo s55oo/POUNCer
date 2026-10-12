@@ -69,5 +69,32 @@ class BeaconTests(unittest.TestCase):
         self.assertFalse(is_beacon(spot))
 
 
+class OnFreqTrackerTests(unittest.TestCase):
+    def _spot(self, freq, t, call="M0KTZ", kind="CQ"):
+        from pouncer.rbn import Spot
+        return Spot(dxcall=call, freq_khz=freq, mode="CW", snr=10, wpm=25,
+                    spot_type=kind, spotter="S53WW-#", time_utc="1200Z", received=t)
+
+    def test_time_on_frequency(self) -> None:
+        from pouncer.rbn import OnFreqTracker
+        tr = OnFreqTracker(stay_khz=0.5, gap_s=600)
+        tr.add(self._spot(7012.0, 1000), "40m")
+        tr.add(self._spot(7012.1, 1240), "40m")   # drift 0.1 kHz: still there
+        self.assertEqual(tr.minutes("M0KTZ", "40m", 7012.1, 1300), 5)
+        tr.add(self._spot(7018.0, 1400), "40m")   # moved: starts again
+        self.assertIsNone(tr.minutes("M0KTZ", "40m", 7012.1, 1500))
+        self.assertEqual(tr.minutes("m0ktz", "40m", 7018.0, 1520), 2)
+        tr.add(self._spot(7018.0, 2500), "40m")   # silent > 10 min: new start
+        self.assertEqual(tr.minutes("M0KTZ", "40m", 7018.0, 2560), 1)
+        tr.prune(3200)
+        self.assertIsNone(tr.minutes("M0KTZ", "40m", 7018.0, 3300))
+
+    def test_beacons_ignored(self) -> None:
+        from pouncer.rbn import OnFreqTracker
+        tr = OnFreqTracker()
+        tr.add(self._spot(14100.0, 0, call="4U1UN", kind="NCDXF"), "20m")
+        self.assertIsNone(tr.minutes("4U1UN", "20m", 14100.0, 60))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -274,3 +274,41 @@ class RBNClient(threading.Thread):
             self._status(f"logged in as {self.callsign}")
         except OSError as exc:
             log.warning("failed to send RBN login: %s", exc)
+
+
+class OnFreqTracker:
+    """How long each station has been calling on one frequency (from RBN).
+
+    Same call and band, re-spotted within ``stay_khz`` of where it was and
+    within ``gap_s`` of the last spot = still there; otherwise it moved or
+    came back = a new start.
+    """
+
+    def __init__(self, stay_khz: float = 0.5, gap_s: float = 600) -> None:
+        self.stay_khz = stay_khz
+        self.gap_s = gap_s
+        # (call, band) -> [freq kHz, first heard there, last heard there]
+        self._d: dict[tuple[str, str], list[float]] = {}
+
+    def add(self, spot: "Spot", band: str | None) -> None:
+        if not band or is_beacon(spot):
+            return
+        key = (spot.dxcall.upper(), band)
+        now = spot.received
+        e = self._d.get(key)
+        if e and abs(e[0] - spot.freq_khz) <= self.stay_khz and now - e[2] <= self.gap_s:
+            e[0], e[2] = spot.freq_khz, now
+        else:
+            self._d[key] = [spot.freq_khz, now, now]
+
+    def minutes(self, call: str, band: str | None, freq_khz: float, now: float) -> int | None:
+        """Minutes on this frequency (None: not tracked / it moved away)."""
+        e = self._d.get((call.upper(), band))
+        if not e or abs(e[0] - freq_khz) > self.stay_khz:
+            return None
+        return int((now - e[1]) // 60)
+
+    def prune(self, cutoff: float) -> None:
+        for key in [k for k, e in self._d.items() if e[2] < cutoff]:
+            del self._d[key]
+

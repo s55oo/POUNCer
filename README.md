@@ -77,6 +77,8 @@ spotted callsign into the N1MM Entry Window.
   Wide/Narrow button; the width POUNCer set is lit amber - it starts as
   narrow, `[ui] filter_start` - hold 1 s to toggle
   the radio without changing the label if they differ); none of them transmit.
+  **CQ 3m** on a tile = how long that station has been calling on that
+  frequency (from the RBN spots, live).
   **Run history:** each tile shows `R81% 23h` = how often that station ran
   (called CQ) and how many hours it was on the air in its logs of the last 6 years of
   the same contest (else its other contests in that mode), from S53ZO's public contest-log archive (`*` = reconstructed log,
