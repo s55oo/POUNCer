@@ -1,5 +1,27 @@
 # POUNCer — Changelog
 
+## v0.6.0 — 2026-10-12 — POUNCer team (several on one network)
+
+- **Team mode** (`pouncer/team.py`, `[team] enabled = true`, UDP port
+  12079): POUNCers on the same network (e.g. one per band / PC) find each
+  other by UDP broadcast every 2 s - nothing to configure.
+- **Master / slaves**: the one running longest - with a working RBN
+  connection - is the master. Only the master connects to RBN; it passes
+  its (S53WW-filtered) spots to the slaves, which don't connect at all.
+  Master gone (6 s without a sign) or its RBN down over a minute -> the
+  next longest-running one takes over. A new POUNCer waits 3 s before
+  connecting to RBN so it doesn't log in just to hand over.
+- **Shared learning**: every run-history result one learns is sent to all;
+  a POUNCer that joins later fetches everything known from the master
+  (`GET /api/runhist`). Each call is downloaded from GitHub only once for
+  the whole station. The cq-minutes come from the same spots everywhere.
+- Shown as `team: master (3 POUNCers)` / `team: slave of 192.168.1.10` in
+  the main window's RBN line, and **M** / **S** at the start of the phone's
+  status line (help page explains it).
+- `RunHistory.merge` / `snapshot` / `on_learn`, `WebServer.set_runhist_provider`.
+  Tests: election, spot relay only from the master, sharing, joining
+  later, failover - two real teams on one machine.
+
 ## v0.5.12 — 2026-10-12 — "~7h"
 
 - Hours on the air shown as an approximation: `~7h` (tiles, tooltip, help,

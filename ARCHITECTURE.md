@@ -105,6 +105,7 @@ drain web actions → refresh the cached web payload.
 | `server/runlist.py` | Run list server (Docker, `server/README.md`): `build` = partial clone + sparse checkout of `<CONTEST>/{cw,ph,...}/<last N years>` of the archive, `run_share` per log → `runlist.sqlite` (call, contest, mode, year, run, qsos); `serve` = `/runs`, `/run`, `/status` on 8077. POUNCer's `RunHistory(run_list=...)` loads a local `runlist.sqlite` at start (newest year per call/contest/mode; `[ui] run_list`, default next to config.ini), and `RunHistory(server=...)` loads `/runs` once per (contest, mode); workers wait for it (≤15 s) before per-call GitHub lookups. |
 | own call | `WorkedLog.station_call` = `SELECT Call FROM Station` of the open log (Change Your Station Data) → `PouncerApp.own_call()` (fallback `[rbn] callsign` / ini) → `home_cont` property (cty continent, re-evaluated when the call changes) and `_visible_spots` drops `same_station(dxcall, own)` (exact, or same longest part: S55OO/P, 9A/S55OO). |
 | CQ time | `rbn.OnFreqTracker` (in `PouncerApp._on_freq`): per (call, band) [freq, first, last]; a spot within 0.5 kHz and 20 min of the last = same stay, else a new start; beacons ignored; `cq_min` in `/api/spots`. |
+| `pouncer/team.py` | `Team`: UDP broadcast on 12079 (`{t: hi|spot|rh, id, ...}` JSON), announce every 2 s, peers alive 6 s; `elect()` = earliest `started` among alive + healthy (master with RBN down > 60 s is unhealthy). App: slaves (and anyone in its first 3 s) run no RBN clients; the master's `_drain_spots` sends each own spot to the team; slaves feed received spots through `_team_queue`; `RunHistory.on_learn` → `send_runhist`, received → `merge`; a joining slave GETs the master's `/api/runhist` (`snapshot`). |
 | `pouncer/flow.py` | `flow_positions`: pure flow-layout geometry (items left to right, wrapping onto rows) for `app.FlowFrame`, which holds the main window's sort / option / key / action controls. |
 
 ---
@@ -480,6 +481,7 @@ python -m unittest discover -s tests -v
 | `test_win32.py` | N1MM process-name matching (process list faked). |
 | `test_runhist.py` | Shard name, contest mapping, log choice, run share (incl. two stations interleaved), background lookup + disk cache (fake downloads). |
 | `test_runlist_server.py` | Run list server: `CALLSIGN:` header, HTTP endpoints, newest year per call. |
+| `test_team.py` | Election, discovery, master-only spot relay, sharing, joiner sync over HTTP, failover - two `Team`s on localhost ports. |
 | `test_flow.py` | Flow-layout geometry (wrapping, wide items, group gaps). |
 | `test_tk_layout.py` | Real Tk window (Windows build only, skipped without Tk): controls wrap instead of clipping, text labels wrap to the width. |
 

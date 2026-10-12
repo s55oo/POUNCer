@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import dataclasses
 import queue
 import time
 import tkinter as tk
@@ -18,6 +19,7 @@ from .n1mm import (
 )
 from .rbn import OnFreqTracker, RBNClient, Spot, is_beacon, ports_for_modes
 from .runhist import RARE_HOURS, RARE_RUN_PCT, RunHistory
+from .team import Team
 from .web import WebServer, pick_web_address
 from .win32 import (
     force_foreground, is_n1mm_running, send_cw_speed, send_enter, send_filter_toggle,
@@ -141,6 +143,9 @@ class PouncerApp:
         self.sort_col = config.sort if config.sort in self.columns else "snr"
         self.sort_reverse = self.sort_col == "snr"
         self.rbn_status = "starting"
+        self.team: Team | None = None  # other POUNCers on the network
+        self._team_queue: "queue.Queue[Spot]" = queue.Queue(maxsize=5000)
+        self._last_own_spot = 0.0
         self._rbn_clients: dict[int, RBNClient] = {}
         self._listener: RadioListener | None = None
         self._dirty = True
@@ -354,6 +359,11 @@ class PouncerApp:
 
     def _ensure_rbn_clients(self) -> None:
         desired = self._desired_rbn_ports()
+        if self.team is not None:
+            # Team: only the master talks to RBN; give discovery 3 s at start
+            # so a later POUNCer doesn't log in just to hand over at once.
+            if time.time() - self.team.started < 3 or self.team.role() == "slave":
+                desired = set()
         for port in [p for p in self._rbn_clients if p not in desired]:
             self._rbn_clients.pop(port).stop()
         for port in sorted(desired):
@@ -458,6 +468,7 @@ class PouncerApp:
             "freq": self._radio_khz(),
             "home_cont": self.home_cont,
             "station": self.own_call(),
+            "team": self._team_text(),
             "contest_bands": list(CONTEST_BANDS),
             "tune_step": self.cfg.tune_step_hz,
             "rare_run": RARE_RUN_PCT,
@@ -628,6 +639,18 @@ class PouncerApp:
             self.spots[spot.key] = spot
             self._track_on_freq(spot)
             got += 1
+            self._last_own_spot = time.time()
+            if self.team is not None and self.team.is_master():
+                self.team.send_spot(self._spot_dict(spot))
+        # spots passed on by the team master (slave): use, don't pass on
+        while got < 1000:
+            try:
+                spot = self._team_queue.get_nowait()
+            except queue.Empty:
+                break
+            self.spots[spot.key] = spot
+            self._track_on_freq(spot)
+            got += 1
         if got:
             self._dirty = True
 
@@ -643,6 +666,59 @@ class PouncerApp:
         """UTC time it was first spotted on this frequency (e.g. 1132Z)."""
         t = self._on_freq.first_heard(s.dxcall, band_from_khz(s.freq_khz), s.freq_khz)
         return time.strftime("%H%MZ", time.gmtime(t)) if t else (s.time_utc or "")
+
+    @staticmethod
+    def _spot_dict(spot: Spot) -> dict:
+        d = dataclasses.asdict(spot)
+        d.pop("received", None)
+        return d
+
+    def _team_spot(self, d: dict) -> None:
+        """A spot passed on by the team master (slave side; any thread)."""
+        names = {f.name for f in dataclasses.fields(Spot)} - {"received"}
+        try:
+            spot = Spot(**{k: d.get(k) for k in names}, received=time.time())
+            spot.freq_khz = float(spot.freq_khz)
+            spot.dxcall = str(spot.dxcall)
+        except (TypeError, ValueError):
+            return
+        self._team_queue.put(spot)
+
+    def _rbn_ok(self) -> bool:
+        """Our own RBN connection works (logged in or spots lately)."""
+        return (self.rbn_status.startswith("logged in")
+                or time.time() - self._last_own_spot < 120)
+
+    def _start_team(self) -> None:
+        try:
+            self.team = Team(
+                web_port=self.cfg.web_port if self.cfg.web_enabled else 0,
+                on_spot=self._team_spot,
+                on_runhist=(self.runhist.merge if self.runhist else None),
+                rbn_ok=self._rbn_ok,
+                port=self.cfg.team_port,
+                version=__version__,
+            )
+            self.team.start()
+        except OSError as exc:
+            log.warning("team disabled: %s", exc)
+            self.team = None
+            return
+        if self.runhist is not None:
+            self.runhist.on_learn = self.team.send_runhist
+            if self.web is not None:
+                self.web.set_runhist_provider(self.runhist.snapshot)
+
+    def _team_text(self) -> str:
+        if self.team is None:
+            return ""
+        role = self.team.role()
+        n = len(self.team.alive_peers())
+        if role == "slave":
+            return f"team: slave of {self.team.master_ip()} ({n + 1} POUNCers)"
+        if role == "master":
+            return f"team: master ({n + 1} POUNCers)"
+        return "team: alone"
 
     def _prune(self) -> None:
         cutoff = time.time() - self.cfg.max_age_minutes * 60
@@ -837,7 +913,8 @@ class PouncerApp:
             worked = f"LOG: {self.worked.log_message}"
         self.rbn_label.configure(
             text=(
-                f"RBN: {self.rbn_status}   spotter={self.cfg.rbn_spotter or 'ALL'}"
+                f"RBN: {self.rbn_status if not (self.team and self.team.role() == 'slave') else 'via team master'}"
+                f"   {self._team_text()}   spotter={self.cfg.rbn_spotter or 'ALL'}"
                 f"   mode={','.join(self.cfg.follow_modes)}"
                 f"   band={band or 'ALL'}   spots={len(self.displayed)}/{len(self.spots)}"
                 f"   hidden={self._worked_hidden}"
@@ -1022,11 +1099,13 @@ class PouncerApp:
             self.cfg.n1mm_listen_ip, self.cfg.n1mm_listen_port, self.state
         )
         self._listener.start()
-        self._ensure_rbn_clients()
         if self.cfg.web_enabled:
             self._start_web()
         else:
             self.web_label.configure(text="Phone view: disabled ([web] enabled = false)")
+        if self.cfg.team:
+            self._start_team()
+        self._ensure_rbn_clients()
         self.root.after(REFRESH_MS, self._tick)
         try:
             self.root.mainloop()
@@ -1073,6 +1152,8 @@ class PouncerApp:
         self._web_addr_checked = time.time()
 
     def _shutdown(self) -> None:
+        if self.team is not None:
+            self.team.stop()
         if self.web is not None:
             self.web.stop()
             self.web = None
