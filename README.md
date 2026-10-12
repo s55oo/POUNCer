@@ -89,7 +89,7 @@ spotted callsign into the N1MM Entry Window.
   (`[ui] run_history`, cached in a `cache` folder). The **⚡** header button
   sorts the rarely-running stations to the top. A new call is known in about
   a second (8 looked up at a time; instant once cached).
-  **Warm-up:** at start POUNCer downloads (once, ~1 MB, refreshed after 30
+  **Warm-up:** at start POUNCer downloads (once, ~3 MB, refreshed after 30
   days) a ready list of **46 044 stations** from CQWW CW, ARRL DX CW and
   CQ WPX CW 2021-2026 (submitted + reconstructed logs), so those marks are
   there the moment a call is spotted (`[ui] warmup`; built by
