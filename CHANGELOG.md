@@ -1,5 +1,10 @@
 # POUNCer — Changelog
 
+## Unreleased — docs
+
+- README: "Reading a tile" table (colours, marks, line format); tile layout
+  in ARCHITECTURE.
+
 ## v0.5.9 — 2026-10-12 — first-heard time on the tiles
 
 - Tile line 2 starts with the **UTC time the station was first spotted on

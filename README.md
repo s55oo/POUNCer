@@ -116,6 +116,30 @@ spotted callsign into the N1MM Entry Window.
 Only the Python standard library is used (tkinter for the GUI). No pip install
 is required.
 
+## Reading a tile (phone view)
+
+```
+ M0KTZ ⚡          7003.1 R6%* 4h
+                   1132Z 22dB cq3m
+```
+
+| Part | Meaning |
+| --- | --- |
+| **Green** tile | strong on the skimmer: 20dB or more; **grey** = weaker |
+| **Yellow** call | DX (outside your continent); white = your own continent |
+| **Magenta** bar on the left | new multiplier on this band (thin = single, thick = double) |
+| **Blue** outline | your radio is on that frequency (within 0.5 kHz) |
+| **Yellow** ring | the tile you tapped last |
+| **7003.1** (bold) | spot frequency, kHz; the mode is shown only when it isn't CW |
+| R6% / 4h / `*` | run history: % of QSOs made running and hours on the air in its logs of the last 6 years of this contest; `*` = reconstructed log |
+| ⚡ | rare CQ: runs under 30 % or on under 6 h - work it now |
+| 1132Z | first spotted on this frequency (UTC) |
+| 22dB | skimmer SNR |
+| cq3m | calling on this frequency for 3 minutes (from RBN) |
+
+Tap = QSY + call into N1MM (no TX); hold 2 s = remove from the list. The
+**?** after the status line opens the same explanation on the phone.
+
 ## Download
 
 Get **POUNCer.exe** and **config.ini** from the
