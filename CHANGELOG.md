@@ -1,5 +1,17 @@
 # POUNCer — Changelog
 
+## v0.5.1 — 2026-10-12 — own call from Change Your Station Data, never listed
+
+- POUNCer's own call is now the **open log's station call** (N1MM Config >
+  Change Your Station Data = the log's `Station` table), read with the log
+  and re-read when another log is opened (e.g. a CR3A log -> CR3A, home
+  continent AF). Fallback: `[rbn] callsign`, then N1MM's ini (as before).
+- **Your own station is never in the list** (bug seen in the contest: own
+  RBN spots showed up). Also `/P`, `9A/S55OO` style variants.
+- Home continent (EU/DX colouring) follows that call; the main window's Log
+  line shows `station: S55OO (EU)`; `/api/spots` gives `station`.
+- `worked.same_station`, `WorkedLog.station_call`.
+
 ## v0.5.0 — 2026-10-12 — rare CQ: run % + hours on air, reconstructed logs
 
 - Run history also measures **hours on the air** in the station's last log

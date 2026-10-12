@@ -68,6 +68,27 @@ class WorkedLogTests(unittest.TestCase):
         self.assertFalse(wl.is_worked("K1ABC", 14015.0, "RTTY"))
         self.assertFalse(wl.is_worked("N0CALL", 14015.0, "CW"))
 
+    def test_station_call_from_log(self) -> None:
+        wl = WorkedLog("", self.ini, refresh_seconds=1)
+        wl.maybe_reload()
+        self.assertEqual(wl.station_call, "")  # no Station table: empty
+        con = sqlite3.connect(self.db)
+        con.execute("CREATE TABLE Station (Call TEXT, Name TEXT)")
+        con.execute("INSERT INTO Station VALUES ('cr3a', 'x')")
+        con.commit()
+        con.close()
+        wl2 = WorkedLog("", self.ini, refresh_seconds=1)
+        wl2.maybe_reload()
+        self.assertEqual(wl2.station_call, "CR3A")
+
+    def test_same_station(self) -> None:
+        from pouncer.worked import same_station
+        self.assertTrue(same_station("S55OO", "S55OO"))
+        self.assertTrue(same_station("s55oo/p", "S55OO"))
+        self.assertTrue(same_station("9A/S55OO", "S55OO"))
+        self.assertFalse(same_station("S55O", "S55OO"))
+        self.assertFalse(same_station("S55OO", ""))
+
     def test_band_qso_counts(self) -> None:
         _make_db(self.db, [
             ("K1ABC", 14.0, "CW"), ("K1ABC", 21.0, "CW"),

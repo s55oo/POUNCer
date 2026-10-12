@@ -9,6 +9,9 @@ spotted callsign into the N1MM Entry Window.
 
 ## How it works
 
+* **Own call** - taken from the open N1MM log's *Change Your Station Data*
+  (follows the log you open); your own spots are never listed, and EU/DX
+  colouring is from that call's continent.
 * **RBN** - a telnet client connects to `telnet.reversebeacon.net:7000`, logs in
   with your callsign (from N1MM unless `[rbn] callsign` is set), and keeps only the spots whose spotting node matches the
   configured `spotter` (e.g. `S53WW`). By default it is **CW only**; the

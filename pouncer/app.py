@@ -25,7 +25,7 @@ from .win32 import (
     type_text,
     wipe_callsign,
 )
-from .worked import WorkedLog, n1mm_station_call
+from .worked import WorkedLog, n1mm_station_call, same_station
 
 log = logging.getLogger(__name__)
 
@@ -112,9 +112,8 @@ class PouncerApp:
         )
         # Callsign -> continent (N1MM's wl_cty.dat) for EU / DX marking.
         self.cty = load_cty(config.cty_file, config.n1mm_ini)
-        self.home_cont = (
-            self.cty.continent(config.rbn_callsign) if self.cty else None
-        ) or "EU"
+        self._home_call: str | None = None
+        self._home_cont = "EU"
         self._cty_cache: dict[str, Entity | None] = {}
         self.controller = N1MMController(
             config.n1mm_control_ip,
@@ -430,6 +429,7 @@ class PouncerApp:
             "band": self._current_band(),
             "freq": self._radio_khz(),
             "home_cont": self.home_cont,
+            "station": self.own_call(),
             "contest_bands": list(CONTEST_BANDS),
             "tune_step": self.cfg.tune_step_hz,
             "rare_run": RARE_RUN_PCT,
@@ -640,6 +640,20 @@ class PouncerApp:
         return {"run": info.get("run"), "hours": info.get("hours"),
                 "rec": bool(info.get("rec"))}
 
+    def own_call(self) -> str:
+        """Our call: the open log's station call (N1MM Config > Change Your
+        Station Data), else [rbn] callsign / N1MM's ini."""
+        return self.worked.station_call or self.cfg.rbn_callsign
+
+    @property
+    def home_cont(self) -> str:
+        """Our continent, from our call (follows the log: CR3A -> AF)."""
+        call = self.own_call()
+        if call != self._home_call:
+            self._home_call = call
+            self._home_cont = (self.cty.continent(call) if self.cty and call else None) or "EU"
+        return self._home_cont
+
     def _is_dx(self, call: str) -> bool:
         """DX = a known continent other than ours (EU for S5)."""
         cont = self._continent(call)
@@ -763,7 +777,8 @@ class PouncerApp:
             )
         band = self._current_band()
         if self.worked.log_open or self.worked.log_state == "unknown":
-            worked = f"Log: {self.worked.db_name or '-'}   worked: {self.worked.status}"
+            worked = f"Log: {self.worked.db_name or '-'}   station: {self.own_call() or '?'}" \
+                f" ({self.home_cont})   worked: {self.worked.status}"
             if self.worked.log_open:
                 per_band = " ".join(f"{b} {n}" for b, n in self.worked.band_qsos())
                 worked += f"   QSOs: {per_band or '-'} (total {self.worked.qso_count})"
@@ -785,12 +800,14 @@ class PouncerApp:
         if band != self._last_band:
             self._last_band = band
         modes = {m.upper() for m in self.cfg.follow_modes}
+        own = self.own_call()
         items = [
             s for s in self.spots.values()
             if (band is None or band_from_khz(s.freq_khz) == band)
             and s.mode.upper() in modes
             and not (self.cfg.hide_beacons and is_beacon(s))
             and (s.dxcall.upper(), band_from_khz(s.freq_khz)) not in self._removed
+            and not same_station(s.dxcall, own)  # never list ourselves
         ]
         if self.hide_worked_var.get():
             kept = []

@@ -168,6 +168,18 @@ def n1mm_station_call(ini_path: str | None = None) -> str:
     return ""
 
 
+def same_station(call: str, station_call: str) -> bool:
+    """True when ``call`` is our own station (also S55OO/P, 9A/S55OO)."""
+    if not call or not station_call:
+        return False
+
+    def core(c: str) -> str:
+        parts = [p for p in c.strip().upper().split("/") if p]
+        return max(parts, key=len) if parts else ""
+
+    return call.strip().upper() == station_call.strip().upper() or core(call) == core(station_call)
+
+
 def read_active(ini_path: str | None = None) -> dict | None:
     """Return info about the log N1MM currently has open, or None.
 
@@ -238,6 +250,8 @@ class WorkedLog:
         self._last_check = 0.0
         self.status = "not loaded"
         self.db_name = ""
+        # Our call in the open log (N1MM Config > Change Your Station Data)
+        self.station_call = ""
         self.call_count = 0
         self.qso_count = 0
         self._band_qsos: dict[str, int] = {}
@@ -303,6 +317,7 @@ class WorkedLog:
         self.mult_types = ()
         self._mult_worked = {}
         self.db_name = ""
+        self.station_call = ""
         self.log_open = False
         self.log_state = state
         self.log_message = message
@@ -400,9 +415,15 @@ class WorkedLog:
         band_qsos: dict[str, int] = {}
         total = 0
         mult_worked: dict[str, dict[str, set]] = {}
+        station = ""
         try:
             con = self._connect(path)
             try:
+                try:  # Change Your Station Data: our call in this log
+                    row = con.execute("SELECT Call FROM Station LIMIT 1").fetchone()
+                    station = str(row[0] or "").strip().upper() if row else ""
+                except sqlite3.Error:
+                    station = ""
                 cols = {r[1] for r in con.execute("PRAGMA table_info(DXLOG)")}
                 mult_types = tuple(
                     f for f in self._read_mult_types(con, contest_name) if f in cols
@@ -439,6 +460,7 @@ class WorkedLog:
             log.warning("worked-log read failed for %s: %s", path, exc)
             return
         self._keys = keys
+        self.station_call = station
         self.mult_types = tuple(mult_worked)
         self._mult_worked = mult_worked
         self.call_count = len(calls)
