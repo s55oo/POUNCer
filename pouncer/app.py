@@ -117,6 +117,8 @@ class PouncerApp:
                        run_list=config.run_list)
             if config.run_history else None
         )
+        if self.runhist is not None and config.warmup:
+            self.runhist.warm_up()  # every station of CQWW / ARRL DX / WPX CW
         # Callsign -> continent (N1MM's wl_cty.dat) for EU / DX marking.
         self.cty = load_cty(config.cty_file, config.n1mm_ini)
         self._home_call: str | None = None
@@ -957,6 +959,7 @@ class PouncerApp:
                 f"   mode={','.join(self.cfg.follow_modes)}"
                 f"   band={band or 'ALL'}   spots={len(self.displayed)}/{len(self.spots)}"
                 f"   hidden={self._worked_hidden}"
+                f"{'   warm-up: ' + self.runhist.warm_status if self.runhist and self.runhist.warm_status else ''}"
             )
         )
         self.log_label.configure(text=worked)

@@ -89,8 +89,13 @@ spotted callsign into the N1MM Entry Window.
   (`[ui] run_history`, cached in a `cache` folder). The **⚡** header button
   sorts the rarely-running stations to the top. A new call is known in about
   a second (8 looked up at a time; instant once cached).
-  Simplest: put the ready-made **`runlist.sqlite`** next to `config.ini`
-  (`[ui] run_list`) - the whole CQWW list loads at start, no server needed.
+  **Warm-up:** at start POUNCer downloads (once, ~1 MB, refreshed after 30
+  days) a ready list of **46 044 stations** from CQWW CW, ARRL DX CW and
+  CQ WPX CW 2021-2026 (submitted + reconstructed logs), so those marks are
+  there the moment a call is spotted (`[ui] warmup`; built by
+  `server/warmlist.py`, release `warmup`). Calls not in it are looked up live.
+  Or put a ready-made **`runlist.sqlite`** next to `config.ini`
+  (`[ui] run_list`) - loads at start, no download.
   Or with the optional **run list server** (`server/`, Docker, e.g. on ZeroTier;
   `[ui] run_server`) the whole CQWW list is loaded at start, so the marks
   are there the moment a call is spotted. See `server/README.md`.

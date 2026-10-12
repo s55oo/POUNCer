@@ -22,6 +22,7 @@ import os
 import queue
 import sqlite3
 import threading
+import time
 import urllib.request
 import zlib
 from concurrent.futures import ThreadPoolExecutor
@@ -29,6 +30,8 @@ from urllib.parse import quote
 
 log = logging.getLogger(__name__)
 
+# Warm-up list (server/warmlist.py, built by GitHub Actions in POUNCer's repo)
+WARMUP_URL = "https://github.com/s55oo/POUNCer/releases/download/warmup/warm.sqlite"
 ARCHIVE_URL = "https://raw.githubusercontent.com/s53zo/Hamradio-Contest-logs-Archives/main/"
 YEARS_BACK = 6        # logs of the last 6 years (+ this year) are used
 MAX_LOGS = 6          # at most this many logs per call (downloaded in parallel)
@@ -164,6 +167,7 @@ class RunHistory:
         # one request, so most calls are known before they are ever spotted.
         self.server = server.rstrip("/")
         self.on_learn = None  # callback(key, value) after a lookup (team sharing)
+        self.warm_status = ""  # e.g. "23456 stations known in advance"
         self._lists: dict[tuple, threading.Event] = {}
         self._save_lock = threading.Lock()
         self._fetch_slots = threading.BoundedSemaphore(FETCH_PARALLEL)
@@ -172,6 +176,35 @@ class RunHistory:
             self.load_run_list(run_list)
         for i in range(WORKERS):
             threading.Thread(target=self._worker, name=f"runhist{i}", daemon=True).start()
+
+    def warm_up(self, url: str = WARMUP_URL, max_age_days: float = 30) -> None:
+        """In the background: load the ready-made warm-up list (run % and hours
+        for every station of the big CW contests, built on GitHub) from the
+        cache, and download a fresh one if it is missing or older than
+        ``max_age_days``."""
+        def run() -> None:
+            path = os.path.join(self.cache_dir, "warm.sqlite")
+            if os.path.exists(path):
+                self.load_run_list(path)
+            fresh = os.path.exists(path) and (
+                time.time() - os.path.getmtime(path) < max_age_days * 86400)
+            if fresh:
+                return
+            try:
+                data = self._fetch(url)
+                if not data.startswith(b"SQLite format 3"):
+                    raise ValueError("not a SQLite file")
+                os.makedirs(self.cache_dir, exist_ok=True)
+                with open(path + ".part", "wb") as fh:
+                    fh.write(data)
+                os.replace(path + ".part", path)
+            except Exception as exc:  # offline etc.: keep what we have
+                self.warm_status = f"warm-up download failed: {exc}"
+                log.info("warm-up download from %s failed: %s", url, exc)
+                return
+            self.load_run_list(path)
+
+        threading.Thread(target=run, name="warmup", daemon=True).start()
 
     def load_run_list(self, path: str) -> int:
         """Load a ready-made run list (runlist.sqlite from server/runlist.py):
@@ -182,19 +215,26 @@ class RunHistory:
         try:
             con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
             try:
-                rows = con.execute(
-                    "SELECT call, contest, mode, run FROM runs r WHERE year ="
-                    " (SELECT MAX(year) FROM runs WHERE call = r.call"
-                    " AND contest = r.contest AND mode = r.mode)"
-                ).fetchall()
+                tables = {r[0] for r in con.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'")}
+                if "warm" in tables:  # warm-up list: aggregated, with hours
+                    rows = [(c, ct, m, {"run": r, "hours": h, "rec": bool(rec)})
+                            for c, ct, m, r, h, rec in con.execute(
+                                "SELECT call, contest, mode, run, hours, rec FROM warm")]
+                else:                 # runlist.sqlite (server/runlist.py)
+                    rows = [(c, ct, m, {"run": r}) for c, ct, m, r in con.execute(
+                        "SELECT call, contest, mode, run FROM runs r WHERE year ="
+                        " (SELECT MAX(year) FROM runs WHERE call = r.call"
+                        " AND contest = r.contest AND mode = r.mode)")]
             finally:
                 con.close()
         except sqlite3.Error as exc:
             log.warning("run list %s unreadable: %s", path, exc)
             return 0
         with self._lock:
-            for call, contest, mode, pct in rows:
-                self._results[f"{call.upper()}|{contest}|{mode}"] = {"run": pct}
+            for call, contest, mode, value in rows:
+                self._results.setdefault(f"{call.upper()}|{contest}|{mode}", value)
+        self.warm_status = f"{len(rows)} stations known in advance"
         log.info("run list %s: %d entries", path, len(rows))
         return len(rows)
 
