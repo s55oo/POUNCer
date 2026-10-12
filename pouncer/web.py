@@ -580,7 +580,7 @@ INDEX_HTML = """<!doctype html>
       if (s.cq_min != null) b.title = (b.title ? b.title + ' - ' : '') +
         'calling on this frequency for ' + cqText(s.cq_min) + (s.first ? ' (since ' + s.first + ')' : '') + (s.time ? ', last spot ' + s.time : '');
       if (s.run != null) b.title = (b.title ? b.title + ' - ' : '') +
-        'runs ' + s.run + '% of QSOs' + (s.hours != null ? ', on air ' + s.hours + ' h' : '') +
+        'runs ' + s.run + '% of QSOs' + (s.hours != null ? ', on air ~' + s.hours + ' h' : '') +
         ' in its last log' + (s.rec ? ' (reconstructed from other logs: a minimum)' : '') +
         (rare ? ' - rare CQ: work it now' : '');
       const len = (s.call || '').length;
@@ -591,7 +591,7 @@ INDEX_HTML = """<!doctype html>
         // mode only when it isn't CW (in a CW contest it always is)
         (s.mode && s.mode.toUpperCase() !== 'CW' ? ' ' + esc(s.mode) : '') +
         (s.run != null ? ' R' + s.run + '%' + (s.rec ? '*' : '') : '') +
-        (s.hours != null ? ' ' + Math.round(s.hours) + 'h' : '') +
+        (s.hours != null ? ' ~' + Math.round(s.hours) + 'h' : '') +
         '</span> <span>' +
         // first spotted on this frequency (UTC), SNR, time calling there
         (s.first ? esc(s.first) + ' ' : (s.time ? esc(s.time) + ' ' : '')) +
@@ -928,14 +928,15 @@ open one and tap <b>Reconnect</b>.</p>
   <dt><span class="sky">Blue</span> outline</dt>
   <dd>Your radio is on that spot's frequency (within 0.5 kHz).</dd>
 </dl>
-<p>Right side of a tile, e.g. <b>7003.1 R6%* 4h</b> / <b>1132Z 22dB cq3m</b>:</p>
+<p>Right side of a tile, e.g. <b>7003.1 R6%* ~4h</b> / <b>1132Z 22dB cq3m</b>:</p>
 <dl>
   <dt><b>7003.1</b></dt><dd>Spot frequency (kHz), in bold. The mode is shown only when it
     isn't CW (e.g. RTTY).</dd>
   <dt>R81%</dt>
   <dd><b>Run history</b>: in its logs of the last 6 years of this contest (from S53ZO's
     public log archive), 81% of its QSOs were made calling CQ.</dd>
-  <dt>23h</dt><dd>Hours it was usually on the air in this contest.</dd>
+  <dt>~23h</dt><dd>About how many hours it is usually on the air in this contest
+    (average of its logs).</dd>
   <dt>*</dt>
   <dd>From a reconstructed log (the station never sent one; built from other stations'
     logs - a minimum).</dd>

@@ -81,7 +81,7 @@ spotted callsign into the N1MM Entry Window.
   every button.
   **cq3m** on a tile = how long that station has been calling on that
   frequency (from the RBN spots, live).
-  **Run history:** each tile shows `R81% 23h` = how often that station ran
+  **Run history:** each tile shows `R81% ~23h` = how often that station ran
   (called CQ) and how many hours it was on the air in its logs of the last 6 years of
   the same contest (else its other contests in that mode), from S53ZO's public contest-log archive (`*` = reconstructed log,
   for stations that never sent one); **⚡** = rare CQ (runs under 30% or on
@@ -119,7 +119,7 @@ is required.
 ## Reading a tile (phone view)
 
 ```
- M0KTZ ⚡          7003.1 R6%* 4h
+ M0KTZ ⚡          7003.1 R6%* ~4h
                    1132Z 22dB cq3m
 ```
 
@@ -131,7 +131,7 @@ is required.
 | **Blue** outline | your radio is on that frequency (within 0.5 kHz) |
 | **Yellow** ring | the tile you tapped last |
 | **7003.1** (bold) | spot frequency, kHz; the mode is shown only when it isn't CW |
-| R6% / 4h / `*` | run history: % of QSOs made running and hours on the air in its logs of the last 6 years of this contest; `*` = reconstructed log |
+| R6% / ~4h / `*` | run history: % of QSOs made running and hours on the air in its logs of the last 6 years of this contest; `*` = reconstructed log |
 | ⚡ | rare CQ: runs under 30 % or on under 6 h - work it now |
 | 1132Z | first spotted on this frequency (UTC) |
 | 22dB | skimmer SNR |

@@ -1,5 +1,10 @@
 # POUNCer — Changelog
 
+## v0.5.12 — 2026-10-12 — "~7h"
+
+- Hours on the air shown as an approximation: `~7h` (tiles, tooltip, help,
+  README).
+
 ## v0.5.11 — 2026-10-12 — N1MM's own {WIPE} before every call
 
 - Tapping a spot now first sends N1MM its own **`{WIPE}`** command (RadioCmd
