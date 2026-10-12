@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## v0.4.1 — 2026-10-12 — run list file on Windows (no server needed)
+
+- POUNCer reads a ready-made **`runlist.sqlite`** (built by
+  `server/runlist.py`) straight from its folder: `[ui] run_list =
+  runlist.sqlite` (default; missing file = ignored). The whole list (CQWW
+  CW+SSB 2023-2025, 47 879 logs) loads in 0.16 s at start, so the R% / ⚡
+  marks are there at once with no Docker, server or network. Calls not in
+  the list still come from GitHub. `RunHistory.load_run_list`.
+- The Docker server (`run_server`) stays optional, e.g. for several PCs.
+
 ## v0.4.0 — 2026-10-12 — run list server (Docker), live re-sort
 
 - New **run list server** (`server/`: `runlist.py`, `Dockerfile`,

@@ -1,5 +1,10 @@
 # POUNCer run list server
 
+> Simplest: no server at all - copy `runlist.sqlite` (from a build, or the
+> one shipped with a POUNCer release) next to POUNCer's `config.ini`
+> (`[ui] run_list`). The server is only needed to share one list with
+> several PCs or to rebuild it on a schedule.
+
 Small Docker service that knows, for every station in a contest, how often
 it **runs** (calls CQ) - from S53ZO's public
 [Hamradio-Contest-logs-Archives](https://github.com/s53zo/Hamradio-Contest-logs-Archives).

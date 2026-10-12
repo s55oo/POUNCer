@@ -34,6 +34,9 @@ def main(argv: list[str] | None = None) -> int:
         logging.warning("config file not found: %s (using defaults)", args.config)
 
     config = load_config(args.config)
+    cfg_dir = os.path.dirname(os.path.abspath(args.config))
+    if config.run_list and not os.path.isabs(config.run_list):
+        config.run_list = os.path.join(cfg_dir, config.run_list)
     if not config.run_history_dir:
         config.run_history_dir = os.path.join(
             os.path.dirname(os.path.abspath(args.config)), "cache"

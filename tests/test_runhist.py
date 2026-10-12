@@ -136,5 +136,25 @@ class RunHistoryTests(unittest.TestCase):
             self.assertEqual(urls[0], "http://srv/runs?contest=CQWW&mode=CW")
             self.assertFalse(any(u.startswith("X/") for u in urls))  # no GitHub
 
+    def test_local_run_list_file(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            db = os.path.join(d, "runlist.sqlite")
+            con = sqlite3.connect(db)
+            con.execute("CREATE TABLE runs (call TEXT, contest TEXT, mode TEXT, year INTEGER,"
+                        " run INTEGER, qsos INTEGER)")
+            con.executemany("INSERT INTO runs VALUES (?,?,?,?,?,?)", [
+                ("S53CC", "CQWW", "CW", 2024, 70, 900), ("S53CC", "CQWW", "CW", 2025, 77, 1200),
+            ])
+            con.commit()
+            con.close()
+            def fetch(url):
+                raise OSError("no network")
+            rh = RunHistory(os.path.join(d, "cache"), fetch=fetch, run_list=db)
+            self.assertEqual(rh.get("S53CC", "CQWWCW", "CW"), 77)  # instant, newest year
+            self.assertIsNone(RunHistory(os.path.join(d, "c2"), fetch=fetch,
+                                         run_list=os.path.join(d, "missing.sqlite"))
+                              .get("X1X", "CQWWCW", "CW"))
+
+
 if __name__ == "__main__":
     unittest.main()
