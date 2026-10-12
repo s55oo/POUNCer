@@ -2,8 +2,9 @@
 
 Uses S53ZO's public Hamradio-Contest-logs-Archives on GitHub: the ``SH6``
 shards (``logs_XX.sqlite``, XX = crc32(CALL) & 0xff) index every log by
-callsign; the newest log of the same contest and mode is downloaded and
-its frequencies and times looked at: how much of it was RUN, and how many
+callsign; its logs of the last 6 years of the same contest and mode (else
+its other contests in that mode) are downloaded and their frequencies and
+times looked at: how much of it was RUN, and how many
 hours the station was on the air. A station that rarely runs, or is only on
 for a few hours, but is spotted calling CQ won't be there long - work it now.
 Stations that never sent a log are covered by the archive's reconstructed
@@ -23,12 +24,15 @@ import sqlite3
 import threading
 import urllib.request
 import zlib
+from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import quote
 
 log = logging.getLogger(__name__)
 
 ARCHIVE_URL = "https://raw.githubusercontent.com/s53zo/Hamradio-Contest-logs-Archives/main/"
-MAX_LOGS = 1          # newest log looked at per call (speed: one download)
+YEARS_BACK = 6        # logs of the last 6 years (+ this year) are used
+MAX_LOGS = 6          # at most this many logs per call (downloaded in parallel)
+FETCH_PARALLEL = 12   # downloads at once over all lookups
 WORKERS = 8           # lookups in parallel (a new band = many new calls)
 MIN_QSOS = 30         # fewer QSOs than this = not enough to tell
 RUN_KHZ = 0.3         # same frequency (kHz) as one of the last 2 QSOs = running
@@ -58,15 +62,24 @@ def archive_target(n1mm_contest: str, mode: str) -> tuple[str | None, str]:
     return contest, _MODES.get((mode or "CW").upper(), "CW")
 
 
-def pick_logs(rows: list[tuple], contest: str | None, mode: str) -> tuple[list[str], bool]:
-    """(newest paths, reconstructed?): same contest+mode first, else same
-    mode, any contest. Submitted logs only; reconstructed logs (built from
-    other stations' logs) only when the station never sent one.
+def pick_logs(
+    rows: list[tuple], contest: str | None, mode: str, this_year: int | None = None
+) -> tuple[list[str], bool]:
+    """(paths, reconstructed?) of the logs to measure, newest first.
+
+    Only the last YEARS_BACK years. Same contest + mode first (e.g. CQWW CW
+    2020-2025, up to MAX_LOGS); if the station has none, its other contests
+    in the same mode (other CW contests). Submitted logs only; reconstructed
+    logs (built from other stations' logs) only when it never sent one.
 
     ``rows`` = (path, contest, year, mode) from a shard.
     """
-    real = [r for r in rows if not r[0].startswith("RECONSTRUCTED_LOGS/")]
-    rebuilt = [r for r in rows if r[0].startswith("RECONSTRUCTED_LOGS/")]
+    import datetime
+
+    first = (this_year or datetime.date.today().year) - YEARS_BACK
+    recent = [r for r in rows if (r[2] or 0) >= first]
+    real = [r for r in recent if not r[0].startswith("RECONSTRUCTED_LOGS/")]
+    rebuilt = [r for r in recent if r[0].startswith("RECONSTRUCTED_LOGS/")]
     for pool, rec in ((real, False), (rebuilt, True)):
         for want in ((lambda r: r[1] == contest and r[3] == mode),
                      (lambda r: r[3] == mode)):
@@ -132,8 +145,8 @@ class RunHistory:
         self.cache_dir = cache_dir
         self.base_url = base_url
         self._fetch = fetch or self._http_get
-        # v2: + hours and reconstructed logs (older "no info" entries are stale)
-        self._file = os.path.join(cache_dir, "runhist2.json")
+        # v3: last 6 years of logs (older entries were from one log only)
+        self._file = os.path.join(cache_dir, "runhist3.json")
         self._lock = threading.Lock()
         # "CALL|CONTEST|MODE" -> {"run": %, "hours": h, "rec": bool} or None
         self._results: dict[str, dict | None] = {}
@@ -152,6 +165,7 @@ class RunHistory:
         self.server = server.rstrip("/")
         self._lists: dict[tuple, threading.Event] = {}
         self._save_lock = threading.Lock()
+        self._fetch_slots = threading.BoundedSemaphore(FETCH_PARALLEL)
         self._shard_locks: dict[str, threading.Lock] = {}
         if run_list:
             self.load_run_list(run_list)
@@ -268,16 +282,25 @@ class RunHistory:
         finally:
             con.close()
         paths, rec = pick_logs(rows, contest, mode)
-        run = total = 0
-        hours = 0.0
-        for path in paths:
-            text = self._fetch(self.base_url + quote(path)).decode("latin-1", "replace")
+        if not paths:
+            return None
+
+        def measure(path: str) -> tuple[int, int, float]:
+            with self._fetch_slots:
+                text = self._fetch(self.base_url + quote(path)).decode("latin-1", "replace")
             r, t = run_share(text)
-            run, total, hours = run + r, total + t, hours + on_air_hours(text)
+            return r, t, on_air_hours(text)
+
+        with ThreadPoolExecutor(max_workers=len(paths)) as pool:
+            stats = [st for st in pool.map(measure, paths) if st[1] > 0]
+        run = sum(st[0] for st in stats)
+        total = sum(st[1] for st in stats)
         if total < MIN_QSOS:
             return None
-        return {"run": round(100 * run / total), "hours": round(hours / len(paths), 1),
-                "rec": rec}
+        # run %: over all QSOs of those logs; hours: average per contest
+        return {"run": round(100 * run / total),
+                "hours": round(sum(st[2] for st in stats) / len(stats), 1),
+                "rec": rec, "logs": len(stats)}
 
     @staticmethod
     def _http_get(url: str) -> bytes:

@@ -1,5 +1,19 @@
 # POUNCer — Changelog
 
+## v0.5.3 — 2026-10-12 — run history over the last 6 years
+
+- Run history now uses the station's logs of the **last 6 years** of the
+  same contest + mode (e.g. CQWW CW 2020-2025, up to 6 logs; was only the
+  newest log). Run % is over all their QSOs, hours = average per contest.
+  No log of this contest: its **other contests in the same mode** (CW
+  contest open in N1MM -> CW contests) of those 6 years. Reconstructed logs
+  still only for stations that never sent one.
+- A call's logs download in parallel (12 downloads at a time overall).
+  Real archive (CQWW CW): S50R R82% 24h (6 logs), K3LR R68% 46h (6),
+  9A1A R85% 48h (4), S53M R81% 45h (6), S53CC R77% 15h (1), OH2BH R41% 13h
+  (2: 9 % in 2025, more in 2020 - no longer marked), M0KTZ R6%* 3.5h ⚡.
+- Cache file `cache/runhist3.json` (older entries were from one log only).
+
 ## v0.5.2 — 2026-10-12 — CLR on the phone
 
 - Phone header: **CLR** button in front of Time clears every spot from the

@@ -37,14 +37,27 @@ class HelperTests(unittest.TestCase):
             ("CQWPX/cw/2025/k1abc.log", "CQWPX", 2025, "CW"),
             ("RECONSTRUCTED_LOGS/CQWW/k1abc.log", "CQWW", 2026, "CW"),
         ]
-        self.assertEqual(pick_logs(rows, "CQWW", "CW"), (["CQWW/cw/2025/k1abc.log"], False))
-        self.assertEqual(pick_logs(rows, "WAE", "CW")[0], ["CQWW/cw/2025/k1abc.log"])
-        self.assertEqual(pick_logs(rows, "CQWW", "PH"), ([], False))
+        self.assertEqual(pick_logs(rows, "CQWW", "CW", 2026),
+                         (["CQWW/cw/2025/k1abc.log", "CQWW/cw/2024/k1abc.log",
+                           "CQWW/cw/2023/k1abc.log"], False))
+        # no WAE log: its other CW contests of the last 6 years, newest first
+        self.assertEqual(pick_logs(rows, "WAE", "CW", 2026)[0][:2],
+                         ["CQWW/cw/2025/k1abc.log", "CQWPX/cw/2025/k1abc.log"])
+        self.assertEqual(pick_logs(rows, "CQWW", "PH", 2026), ([], False))
+
+    def test_pick_logs_only_last_6_years(self) -> None:
+        rows = [(f"CQWW/cw/{y}/k1abc.log", "CQWW", y, "CW") for y in range(2010, 2026)]
+        paths, _ = pick_logs(rows, "CQWW", "CW", 2026)
+        self.assertEqual(paths[0], "CQWW/cw/2025/k1abc.log")
+        self.assertEqual(paths[-1], "CQWW/cw/2020/k1abc.log")  # 2026 - 6
+        self.assertEqual(len(paths), 6)
+        self.assertEqual(pick_logs([("CQWW/cw/2015/x.log", "CQWW", 2015, "CW")],
+                                   "CQWW", "CW", 2026), ([], False))
 
     def test_reconstructed_only_when_no_real_log(self) -> None:
         rows = [("RECONSTRUCTED_LOGS/CQWW/cw/2025/M0KTZ.log", "CQWW", 2025, "CW"),
                 ("RECONSTRUCTED_LOGS/CQWPX/cw/2025/M0KTZ.log", "CQWPX", 2025, "CW")]
-        self.assertEqual(pick_logs(rows, "CQWW", "CW"),
+        self.assertEqual(pick_logs(rows, "CQWW", "CW", 2026),
                          (["RECONSTRUCTED_LOGS/CQWW/cw/2025/M0KTZ.log"], True))
 
     def test_on_air_hours(self) -> None:
