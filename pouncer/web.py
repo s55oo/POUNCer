@@ -578,7 +578,7 @@ INDEX_HTML = """<!doctype html>
       // runs, so a CQ from it won't last - work it now.
       const rare = isRare(s);
       if (s.cq_min != null) b.title = (b.title ? b.title + ' - ' : '') +
-        'calling on this frequency for ' + cqText(s.cq_min) + (s.time ? ', last spot ' + s.time : '');
+        'calling on this frequency for ' + cqText(s.cq_min) + (s.first ? ' (since ' + s.first + ')' : '') + (s.time ? ', last spot ' + s.time : '');
       if (s.run != null) b.title = (b.title ? b.title + ' - ' : '') +
         'runs ' + s.run + '% of QSOs' + (s.hours != null ? ', on air ' + s.hours + ' h' : '') +
         ' in its last log' + (s.rec ? ' (reconstructed from other logs: a minimum)' : '') +
@@ -592,10 +592,11 @@ INDEX_HTML = """<!doctype html>
         (s.mode && s.mode.toUpperCase() !== 'CW' ? ' ' + esc(s.mode) : '') +
         (s.run != null ? ' R' + s.run + '%' + (s.rec ? '*' : '') : '') +
         (s.hours != null ? ' ' + Math.round(s.hours) + 'h' : '') +
-        '</span> <span>' + (s.snr == null ? '--' : s.snr + 'dB') +
-        // cq3m = heard calling on this frequency for 3 minutes (RBN);
-        // the spot time moves to the tile's tooltip then.
-        (s.cq_min != null ? ' cq' + cqText(s.cq_min) : (s.time ? ' ' + esc(s.time) : '')) +
+        '</span> <span>' +
+        // first spotted on this frequency (UTC), SNR, time calling there
+        (s.first ? esc(s.first) + ' ' : (s.time ? esc(s.time) + ' ' : '')) +
+        (s.snr == null ? '--' : s.snr + 'dB') +
+        (s.cq_min != null ? ' cq' + cqText(s.cq_min) : '') +
         '</span></span>';
       attachPress(b, s);
       grid.appendChild(b);
@@ -927,7 +928,7 @@ open one and tap <b>Reconnect</b>.</p>
   <dt><span class="sky">Blue</span> outline</dt>
   <dd>Your radio is on that spot's frequency (within 0.5 kHz).</dd>
 </dl>
-<p>Right side of a tile, e.g. <b>7003.1 R6%* 4h</b> / <b>22dB cq3m</b>:</p>
+<p>Right side of a tile, e.g. <b>7003.1 R6%* 4h</b> / <b>1132Z 22dB cq3m</b>:</p>
 <dl>
   <dt><b>7003.1</b></dt><dd>Spot frequency (kHz), in bold. The mode is shown only when it
     isn't CW (e.g. RTTY).</dd>
@@ -941,10 +942,10 @@ open one and tap <b>Reconnect</b>.</p>
   <dt>&#9889;</dt>
   <dd><b>Rare CQ</b>: runs under 30% or is on under 6 h. A CQ from it won't last -
     work it now.</dd>
+  <dt>1132Z</dt><dd>When it was first spotted on this frequency (UTC).</dd>
   <dt>22dB</dt><dd>Signal-to-noise on the skimmer.</dd>
   <dt>cq3m</dt>
-  <dd>Calling on this frequency for 3 minutes (learned live from the RBN spots). Without
-    it, the time of the last spot (UTC).</dd>
+  <dd>Calling on this frequency for 3 minutes (learned live from the RBN spots).</dd>
 </dl>
 <p>Not shown: stations you already worked on this band and mode, your own call, and
 beacons.</p>

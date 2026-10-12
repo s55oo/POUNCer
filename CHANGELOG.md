@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.5.9 — 2026-10-12 — first-heard time on the tiles
+
+- Tile line 2 starts with the **UTC time the station was first spotted on
+  that frequency**: `1132Z 22dB cq3m` (from the RBN tracking; a spot not
+  tracked yet shows its own spot time). Tooltip: "calling on this
+  frequency for 3m (since 1132Z), last spot 1135Z". Help page updated.
+- `OnFreqTracker.first_heard`; `/api/spots` gives `first` per spot.
+
 ## v0.5.8 — 2026-10-12 — bold frequency, cq3m, fit
 
 - Spot frequency on the tiles in **bold** (white).

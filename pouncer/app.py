@@ -481,6 +481,7 @@ class PouncerApp:
                     "mult": self._mults(s),
                     **self._run_fields(s),
                     "cq_min": self._cq_minutes(s),
+                    "first": self._first_heard_utc(s),
                 }
                 for s in spots
             ],
@@ -625,6 +626,11 @@ class PouncerApp:
         """Minutes this station has been on this spot's frequency (RBN)."""
         return self._on_freq.minutes(s.dxcall, band_from_khz(s.freq_khz), s.freq_khz,
                                      time.time())
+
+    def _first_heard_utc(self, s: Spot) -> str:
+        """UTC time it was first spotted on this frequency (e.g. 1132Z)."""
+        t = self._on_freq.first_heard(s.dxcall, band_from_khz(s.freq_khz), s.freq_khz)
+        return time.strftime("%H%MZ", time.gmtime(t)) if t else (s.time_utc or "")
 
     def _prune(self) -> None:
         cutoff = time.time() - self.cfg.max_age_minutes * 60

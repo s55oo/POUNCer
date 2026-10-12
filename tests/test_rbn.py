@@ -81,6 +81,7 @@ class OnFreqTrackerTests(unittest.TestCase):
         tr.add(self._spot(7012.0, 1000), "40m")
         tr.add(self._spot(7012.1, 1240), "40m")   # drift 0.1 kHz: still there
         self.assertEqual(tr.minutes("M0KTZ", "40m", 7012.1, 1300), 5)
+        self.assertEqual(tr.first_heard("M0KTZ", "40m", 7012.1), 1000)
         tr.add(self._spot(7018.0, 1400), "40m")   # moved: starts again
         self.assertIsNone(tr.minutes("M0KTZ", "40m", 7012.1, 1500))
         self.assertEqual(tr.minutes("m0ktz", "40m", 7018.0, 1520), 2)
