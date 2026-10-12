@@ -308,6 +308,13 @@ class OnFreqTracker:
             return None
         return int((now - e[1]) // 60)
 
+    def first_heard(self, call: str, band: str | None, freq_khz: float) -> float | None:
+        """When it was first heard on this frequency (epoch), None if not tracked."""
+        e = self._d.get((call.upper(), band))
+        if not e or abs(e[0] - freq_khz) > self.stay_khz:
+            return None
+        return e[1]
+
     def prune(self, cutoff: float) -> None:
         for key in [k for k, e in self._d.items() if e[2] < cutoff]:
             del self._d[key]
