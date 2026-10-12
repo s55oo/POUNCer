@@ -83,6 +83,17 @@ class WebServerTests(unittest.TestCase):
             self.filters, [("narrow", False), ("wide", False), ("wide", True)]
         )
 
+    def test_help_page(self) -> None:
+        with self._get("/") as resp:
+            self.assertIn('href="/help"', resp.read().decode("utf-8"))
+        with self._get("/help") as resp:
+            body = resp.read().decode("utf-8")
+        self.assertEqual(resp.status, 200)
+        from pouncer import __version__
+        self.assertIn(f"POUNCer {__version__} help", body)
+        for word in ("CLR", "MLT", "Run history", "CQ 3m", "WPM", "NAR", "ENTER"):
+            self.assertIn(word, body)
+
     def test_clear_and_undo(self) -> None:
         with self._get("/") as resp:
             self.assertIn('id="clr"', resp.read().decode("utf-8"))

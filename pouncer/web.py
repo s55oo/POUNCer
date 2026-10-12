@@ -74,6 +74,11 @@ INDEX_HTML = """<!doctype html>
     padding: 10px 14px; border-bottom: 1px solid #223; }
   header .band { font-size: 16px; font-weight: 700; }
   header .meta { font-size: 11px; opacity: .6; margin-top: 2px; }
+  .metarow { display: flex; align-items: center; gap: 8px; }
+  .metarow .meta { flex: 1 1 auto; min-width: 0; }
+  .metarow .help { flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%;
+    background: #263238; color: #cfd8dc; font-size: 13px; font-weight: 700;
+    text-align: center; line-height: 22px; text-decoration: none; margin-top: 2px; }
   /* --row: spot tile height, --gap: space between tiles; the key column on
      the right uses them so one key = exactly two spot rows. */
   :root { --row: 84px; --gap: 10px; --kw: 160px; --kfont: 26px; }
@@ -168,6 +173,8 @@ INDEX_HTML = """<!doctype html>
     background: #1a2127; border-radius: 14px; padding: 14px; }
   .sheet-title { font-weight: 700; margin-bottom: 10px; }
   .sheet-title span { font-weight: 400; opacity: .6; font-size: 13px; }
+  a.helplink { display: block; text-align: center; text-decoration: none; color: #cfd8dc;
+    margin-bottom: 8px; }
   .bandgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .bandgrid button { background: #263238; color: #fff; border: 0; border-radius: 10px;
     font: inherit; font-size: 22px; font-weight: 800; padding: 16px 0; cursor: pointer; }
@@ -274,7 +281,8 @@ INDEX_HTML = """<!doctype html>
     <button class="reconnect" id="reconnect" title="Re-read which log N1MM has open">&#x21bb;<span class="lbl"> Log</span></button>
   </div>
   </div>
-  <div class="meta" id="meta">connecting...</div>
+  <div class="metarow"><div class="meta" id="meta">connecting...</div>
+    <a class="help" href="/help" title="What every button does">?</a></div>
   <div id="logwarn"><span class="msg" id="logmsg"></span>
     <button id="logbtn">Reconnect</button></div>
 </header>
@@ -307,6 +315,7 @@ INDEX_HTML = """<!doctype html>
 <div id="bandsheet"><div class="sheet">
   <div class="sheet-title">Change band <span>(QSY the radio)</span></div>
   <div class="bandgrid" id="bandgrid"></div>
+  <a class="sheet-close helplink" href="/help">Help: what every button does</a>
   <button class="sheet-close" id="bandclose">Cancel</button>
 </div></div>
 <script>
@@ -804,6 +813,137 @@ INDEX_HTML = """<!doctype html>
 """
 
 
+HELP_HTML = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>POUNCer __VERSION__ help</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #101418; color: #e6e6e6;
+    font: 15px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 12px 16px 40px; }
+  a.back { display: inline-block; margin: 4px 0 12px; padding: 10px 14px;
+    background: #2e7d32; color: #fff; border-radius: 10px; text-decoration: none; font-weight: 700; }
+  h1 { font-size: 20px; margin: 6px 0 4px; }
+  h2 { font-size: 16px; margin: 22px 0 8px; color: #fff; border-bottom: 1px solid #263238;
+    padding-bottom: 4px; }
+  p.lead { opacity: .7; margin: 0 0 6px; font-size: 13px; }
+  dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 8px 12px; }
+  dt { font-weight: 700; white-space: nowrap; }
+  dd { margin: 0; }
+  .k { display: inline-block; min-width: 26px; padding: 3px 8px; border-radius: 7px;
+    background: #263238; color: #fff; text-align: center; font-weight: 700; font-size: 13px; }
+  .green { background: #2e7d32; } .purple { background: #6a1b9a; } .blue { background: #1565c0; }
+  .amber { background: #ff8f00; color: #111; } .red { color: #ef9a9a; }
+  .yel { color: #ffeb3b; font-weight: 700; } .mag { color: #f48fb1; font-weight: 700; }
+  .sky { color: #4fc3f7; font-weight: 700; }
+  .note { background: #1c2329; border-radius: 10px; padding: 10px 12px; margin-top: 10px;
+    font-size: 13px; }
+  @media (max-width: 420px) { dl { grid-template-columns: 1fr; gap: 2px 0; } dd { margin-bottom: 8px; } }
+</style>
+</head>
+<body><main>
+<a class="back" href="/">&larr; Back to the spots</a>
+<h1>POUNCer __VERSION__ - what every button does</h1>
+<p class="lead">The page follows the band your radio is on in N1MM and shows the RBN
+spots you still need there. Nothing here transmits except the F-keys.</p>
+
+<h2>Top row</h2>
+<dl>
+  <dt><span class="k">7020.0 &#9662;</span></dt>
+  <dd>The radio frequency (kHz). Tap it to pick another band (160-10 m): the radio
+    goes to the last frequency you used there. No transmit.</dd>
+  <dt><span class="k red">CLR</span></dt>
+  <dd>Clear every spot (e.g. old spots from before the contest). New ones come in
+    again from RBN. <b>Undo</b> in the pop-up for 5 s.</dd>
+  <dt><span class="k">Time</span> <span class="k">Freq</span> <span class="k">SNR</span></dt>
+  <dd>Sort the list: newest spot first / by frequency / strongest first. The green one
+    is the active sort.</dd>
+  <dt><span class="k yel">DX</span></dt>
+  <dd>DX stations (outside your continent) on top, still in the chosen sort.</dd>
+  <dt><span class="k mag">MLT</span></dt>
+  <dd>New multipliers on top: double first, then single.</dd>
+  <dt><span class="k">&#9889;</span></dt>
+  <dd>Rare CQ on top: stations that hardly ever run, or are on only a few hours
+    (see <i>Run history</i> below). Unknown ones go last.</dd>
+  <dt><span class="k">&#8635;</span></dt>
+  <dd>Re-read which log N1MM has open (after you open another log).</dd>
+</dl>
+<p>The small line under it: how many needed spots, your QSOs per band and in total, and
+the open log. An <b>orange bar</b> means N1MM has no log open (or isn't running) -
+open one and tap <b>Reconnect</b>.</p>
+
+<h2>Spot tiles</h2>
+<dl>
+  <dt>Tap</dt>
+  <dd>The radio goes to that spot and the call is typed into N1MM's Entry Window
+    (no transmit). The tile you tapped keeps a <span class="yel">yellow ring</span>.</dd>
+  <dt>Hold 2 s</dt>
+  <dd>Remove that call from the list (on this band), with Undo.</dd>
+  <dt><span class="yel">YELLOW</span> call</dt>
+  <dd>DX - outside your continent. White = your own continent.</dd>
+  <dt>Green tile</dt>
+  <dd>Strong signal (20 dB or more).</dd>
+  <dt><span class="mag">&#9612;</span> bar on the left</dt>
+  <dd>New multiplier on this band: thin = single, thick = double (e.g. new zone and
+    new country).</dd>
+  <dt><span class="sky">Blue</span> outline</dt>
+  <dd>Your radio is on that spot's frequency (within 0.5 kHz).</dd>
+</dl>
+<p>Right side of a tile, e.g. <b>7003.1 CW R6%* 4h</b> / <b>22 dB CQ 3m</b>:</p>
+<dl>
+  <dt>7003.1 CW</dt><dd>Spot frequency (kHz) and mode.</dd>
+  <dt>R81%</dt>
+  <dd><b>Run history</b>: in its logs of the last 6 years of this contest (from S53ZO's
+    public log archive), 81% of its QSOs were made calling CQ.</dd>
+  <dt>23h</dt><dd>Hours it was usually on the air in this contest.</dd>
+  <dt>*</dt>
+  <dd>From a reconstructed log (the station never sent one; built from other stations'
+    logs - a minimum).</dd>
+  <dt>&#9889;</dt>
+  <dd><b>Rare CQ</b>: runs under 30% or is on under 6 h. A CQ from it won't last -
+    work it now.</dd>
+  <dt>22 dB</dt><dd>Signal-to-noise on the skimmer.</dd>
+  <dt>CQ 3m</dt>
+  <dd>Calling on this frequency for 3 minutes (learned live from the RBN spots). Without
+    it, the time of the last spot (UTC).</dd>
+</dl>
+<p>Not shown: stations you already worked on this band and mode, your own call, and
+beacons.</p>
+
+<h2>Keys on the right</h2>
+<dl>
+  <dt><span class="k green">F2</span> &hellip; <span class="k green">F7</span></dt>
+  <dd>Press that function key in N1MM - it <b>transmits</b> N1MM's message (F2 report,
+    F3 TU, F4 your call, F5 his call, F7 ?). The label under the key says which.</dd>
+  <dt><span class="k green">ENTER</span></dt>
+  <dd>Enter in N1MM: logs the QSO (no transmit).</dd>
+</dl>
+<p>Keys turn red for a moment when pressed. Which keys appear is set in
+<code>config.ini</code> (<code>[ui] fkeys</code>).</p>
+
+<h2>Bottom row</h2>
+<dl>
+  <dt><span class="k purple">WPM &minus;</span> <span class="k purple">WPM +</span></dt>
+  <dd>CW speed down / up (N1MM's PgDn / PgUp).</dd>
+  <dt><span class="k blue">&minus;25 Hz</span> <span class="k blue">+25 Hz</span></dt>
+  <dd>Move the VFO down / up by 25 Hz. No transmit.</dd>
+  <dt><span class="k amber">NAR</span> <span class="k">WIDE</span></dt>
+  <dd>Receive filter narrow / wide (sent to the radio through N1MM). The lit one is the
+    last one set.</dd>
+</dl>
+
+<div class="note">Messages (e.g. "Cleared 12 spots", "CW faster") pop up at the top for
+5 s - tap to close them. The page refreshes every second; while you touch a tile the
+list holds still.</div>
+<p><a class="back" href="/">&larr; Back to the spots</a></p>
+</main></body>
+</html>
+"""
+
+
 def local_ipv4s() -> list[str]:
     """Best-effort list of this machine's IPv4 addresses."""
     addrs: set[str] = set()
@@ -954,6 +1094,14 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
+        if parsed.path in ("/help", "/help.html"):
+            body = HELP_HTML.replace("__VERSION__", __version__).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if parsed.path in ("/", "/index.html"):
             page = INDEX_HTML.replace("__VERSION__", __version__)
             self._send(200, page.encode("utf-8"), "text/html; charset=utf-8")
