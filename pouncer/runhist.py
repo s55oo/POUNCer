@@ -97,7 +97,8 @@ class RunHistory:
     """Background lookups of how often a call runs; ``get()`` never blocks."""
 
     def __init__(
-        self, cache_dir: str, fetch=None, base_url: str = ARCHIVE_URL, server: str = ""
+        self, cache_dir: str, fetch=None, base_url: str = ARCHIVE_URL, server: str = "",
+        run_list: str = "",
     ) -> None:
         self.cache_dir = cache_dir
         self.base_url = base_url
@@ -118,8 +119,35 @@ class RunHistory:
         self._lists: dict[tuple, threading.Event] = {}
         self._save_lock = threading.Lock()
         self._shard_locks: dict[str, threading.Lock] = {}
+        if run_list:
+            self.load_run_list(run_list)
         for i in range(WORKERS):
             threading.Thread(target=self._worker, name=f"runhist{i}", daemon=True).start()
+
+    def load_run_list(self, path: str) -> int:
+        """Load a ready-made run list (runlist.sqlite from server/runlist.py):
+        newest year per call, contest and mode. Those calls are known at once,
+        no download. Returns how many were loaded."""
+        if not os.path.exists(path):
+            return 0
+        try:
+            con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+            try:
+                rows = con.execute(
+                    "SELECT call, contest, mode, run FROM runs r WHERE year ="
+                    " (SELECT MAX(year) FROM runs WHERE call = r.call"
+                    " AND contest = r.contest AND mode = r.mode)"
+                ).fetchall()
+            finally:
+                con.close()
+        except sqlite3.Error as exc:
+            log.warning("run list %s unreadable: %s", path, exc)
+            return 0
+        with self._lock:
+            for call, contest, mode, pct in rows:
+                self._results[f"{call.upper()}|{contest}|{mode}"] = pct
+        log.info("run list %s: %d entries", path, len(rows))
+        return len(rows)
 
     def get(self, call: str, n1mm_contest: str, mode: str) -> int | None:
         """Run % for the call (None = unknown / not looked up yet)."""
