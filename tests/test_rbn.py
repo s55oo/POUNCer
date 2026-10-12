@@ -97,5 +97,37 @@ class OnFreqTrackerTests(unittest.TestCase):
         self.assertIsNone(tr.minutes("4U1UN", "20m", 14100.0, 60))
 
 
+class SpotterFilterTests(unittest.TestCase):
+    def test_backup_skimmers_while_primary_is_quiet(self) -> None:
+        from pouncer.rbn import SpotterFilter
+        now = [1000.0]
+        cont = {"S50ARX": "EU", "OE9GHV": "EU", "W3LPL": "NA"}
+        f = SpotterFilter("S53WW", continent_of=cont.get, home_cont=lambda: "EU",
+                          quiet_s=300, clock=lambda: now[0])
+        self.assertTrue(f.accept("S53WW-#"))
+        self.assertFalse(f.accept("S50ARX-#"))       # primary alive: only S53WW
+        now[0] += 301                                 # S53WW quiet 5 min
+        self.assertTrue(f.backup_active())
+        self.assertTrue(f.accept("S50ARX-#"))         # same continent
+        self.assertTrue(f.accept("OE9GHV-#"))
+        self.assertFalse(f.accept("W3LPL-#"))         # other continent
+        self.assertTrue(f.accept("S53WW-#"))          # back again
+        self.assertFalse(f.backup_active())
+        self.assertFalse(f.accept("S50ARX-#"))
+
+    def test_listed_backups_only(self) -> None:
+        from pouncer.rbn import SpotterFilter
+        now = [0.0]
+        f = SpotterFilter("S53WW", backups=["OE9GHV"], continent_of=lambda c: "EU",
+                          quiet_s=60, clock=lambda: now[0])
+        now[0] = 61
+        self.assertTrue(f.accept("OE9GHV-#"))
+        self.assertFalse(f.accept("S50ARX-#"))       # not in the list
+
+    def test_no_primary_accepts_all(self) -> None:
+        from pouncer.rbn import SpotterFilter
+        self.assertTrue(SpotterFilter("").accept("ANY-#"))
+
+
 if __name__ == "__main__":
     unittest.main()

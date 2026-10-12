@@ -159,6 +159,42 @@ def parse_spot(line: str) -> Spot | None:
     )
 
 
+class SpotterFilter:
+    """Which skimmers' spots to keep: the chosen one (S53WW) and, while it has
+    been quiet for ``quiet_s`` (offline?), backup skimmers - the listed
+    ``backups`` (call prefixes) or, if none are listed, every skimmer on our
+    own continent. Switches back as soon as the chosen one spots again."""
+
+    def __init__(self, primary: str, backups=(), continent_of=None, home_cont=None,
+                 quiet_s: float = 300, clock=time.time) -> None:
+        self.primary = (primary or "").upper()
+        self.backups = tuple(b.strip().upper() for b in backups if b.strip())
+        self.continent_of = continent_of
+        self.home_cont = home_cont or (lambda: "EU")
+        self.quiet_s = quiet_s
+        self.clock = clock
+        self.last_primary = clock()  # start: give the chosen one time to speak
+
+    def backup_active(self) -> bool:
+        return bool(self.primary) and self.clock() - self.last_primary > self.quiet_s
+
+    def accept(self, spotter: str) -> bool:
+        sp = (spotter or "").upper()
+        if not self.primary:
+            return True
+        if sp.startswith(self.primary):
+            self.last_primary = self.clock()
+            return True
+        if not self.backup_active():
+            return False
+        if self.backups:
+            return any(sp.startswith(b) for b in self.backups)
+        if self.continent_of is None:
+            return False
+        base = sp.split("-")[0]
+        return self.continent_of(base) == self.home_cont()
+
+
 class RBNClient(threading.Thread):
     """Connects to the RBN telnet feed and pushes matching spots to a queue."""
 
@@ -175,7 +211,11 @@ class RBNClient(threading.Thread):
         self.host = host
         self.port = port
         self.callsign = callsign
-        self.spotter_filter = (spotter_filter or "").upper()
+        # a prefix string (S53WW) or a SpotterFilter (with backup skimmers)
+        self.spotter_filter = (
+            spotter_filter if hasattr(spotter_filter, "accept")
+            else (spotter_filter or "").upper()
+        )
         self.queue = out_queue
         self.on_status = on_status
         self._stop = threading.Event()
@@ -257,7 +297,10 @@ class RBNClient(threading.Thread):
             spot = parse_spot(line)
             if spot is None:
                 continue
-            if self.spotter_filter and not spot.spotter.upper().startswith(self.spotter_filter):
+            if hasattr(self.spotter_filter, "accept"):
+                if not self.spotter_filter.accept(spot.spotter):
+                    continue
+            elif self.spotter_filter and not spot.spotter.upper().startswith(self.spotter_filter):
                 continue
             try:
                 self.queue.put_nowait(spot)

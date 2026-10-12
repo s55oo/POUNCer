@@ -158,6 +158,11 @@ Give them all the same `[rbn] spotter` and modes.
 | 22dB | skimmer SNR |
 | cq3m | calling on this frequency for 3 minutes (from RBN) |
 
+A **faded** tile = not re-spotted for 5 min (probably gone). When a rare CQ
+(⚡) that is also a **new multiplier** appears, the phone beeps (alerts on/off
+in the band menu). If S53WW goes quiet for 5 min, other skimmers on your
+continent are used ("⚠ backup skimmers") until it is back.
+
 Tap = QSY + call into N1MM (no TX; the callsign box is always emptied first); hold 2 s = remove from the list. The
 **?** after the status line opens the same explanation on the phone.
 

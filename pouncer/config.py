@@ -52,6 +52,10 @@ class Config:
     rbn_port: int = 7000
     rbn_callsign: str = ""  # empty: taken from N1MM (see app)
     rbn_spotter: str = "S53WW"
+    # Backup when the chosen skimmer is quiet: listed prefixes, or (empty)
+    # all skimmers on our continent; after this many minutes of silence
+    backup_spotters: tuple[str, ...] = ()
+    backup_after_minutes: int = 5
     cty_file: str = ""
     hide_beacons: bool = True
     follow_modes: tuple[str, ...] = ("CW",)
@@ -92,6 +96,7 @@ class Config:
     team_peers: tuple[str, ...] = ()  # extra POUNCer IPs (networks without broadcast)
     sort: str = "snr"
     max_age_minutes: int = 10
+    fade_minutes: int = 5  # phone: tile fades when not re-spotted this long
     trigger: str = "single"
 
     web_enabled: bool = True
@@ -130,6 +135,10 @@ def load_config(path: str) -> Config:
     cfg.rbn_port = i("rbn", "port", cfg.rbn_port)
     cfg.rbn_callsign = s("rbn", "callsign", cfg.rbn_callsign).strip().upper()
     cfg.rbn_spotter = s("rbn", "spotter", cfg.rbn_spotter)
+    cfg.backup_spotters = tuple(
+        b for b in s("rbn", "backup_spotters", "").replace(";", ",").replace(" ", ",").split(",") if b
+    )
+    cfg.backup_after_minutes = max(1, i("rbn", "backup_after_minutes", cfg.backup_after_minutes))
     cfg.cty_file = s("rbn", "cty", cfg.cty_file).strip()
     cfg.hide_beacons = b("rbn", "hide_beacons", cfg.hide_beacons)
     cfg.follow_modes = parse_modes(
@@ -153,6 +162,7 @@ def load_config(path: str) -> Config:
 
     cfg.sort = s("ui", "sort", cfg.sort).strip().lower()
     cfg.max_age_minutes = i("ui", "max_age_minutes", cfg.max_age_minutes)
+    cfg.fade_minutes = max(1, i("ui", "fade_minutes", cfg.fade_minutes))
     cfg.tune_step_hz = max(1, i("ui", "tune_step_hz", cfg.tune_step_hz))
     fs = s("ui", "filter_start", cfg.filter_start).strip().lower()
     cfg.filter_start = fs if fs in ("narrow", "wide") else ""

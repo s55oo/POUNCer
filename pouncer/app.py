@@ -17,7 +17,7 @@ from .cty import Entity, load_cty, wpx_prefix
 from .n1mm import (
     N1MMController, RadioListener, RadioState, cat_macro, next_tune_khz,
 )
-from .rbn import OnFreqTracker, RBNClient, Spot, is_beacon, ports_for_modes
+from .rbn import OnFreqTracker, RBNClient, Spot, SpotterFilter, is_beacon, ports_for_modes
 from .runhist import RARE_HOURS, RARE_RUN_PCT, RunHistory
 from .team import Team
 from .web import WebServer, pick_web_address
@@ -121,6 +121,13 @@ class PouncerApp:
         self.cty = load_cty(config.cty_file, config.n1mm_ini)
         self._home_call: str | None = None
         self._home_cont = "EU"
+        # S53WW, or skimmers on our continent while S53WW is quiet (backup)
+        self.spotter_filter = SpotterFilter(
+            config.rbn_spotter, config.backup_spotters,
+            continent_of=lambda call: self._continent(call),
+            home_cont=lambda: self.home_cont,
+            quiet_s=config.backup_after_minutes * 60,
+        )
         self._cty_cache: dict[str, Entity | None] = {}
         self.controller = N1MMController(
             config.n1mm_control_ip,
@@ -377,7 +384,7 @@ class PouncerApp:
                 self.cfg.rbn_host,
                 port,
                 self.cfg.rbn_callsign,
-                self.cfg.rbn_spotter,
+                self.spotter_filter,
                 self.spot_queue,
                 on_status=self.status_queue.put,
             )
@@ -473,6 +480,8 @@ class PouncerApp:
             "home_cont": self.home_cont,
             "station": self.own_call(),
             "team": self._team_text(),
+            "fade_s": self.cfg.fade_minutes * 60,
+            "backup": self._backup_text(),
             "contest_bands": list(CONTEST_BANDS),
             "tune_step": self.cfg.tune_step_hz,
             "rare_run": RARE_RUN_PCT,
@@ -509,6 +518,7 @@ class PouncerApp:
                     **self._run_fields(s),
                     "cq_min": self._cq_minutes(s),
                     "first": self._first_heard_utc(s),
+                    "age": int(time.time() - s.received),
                 }
                 for s in spots
             ],
@@ -729,6 +739,14 @@ class PouncerApp:
             tag = {"master": " - MASTER", "slave": " - SLAVE"}.get(role, "")
             self.root.title(f"POUNCer {__version__}{tag} - RBN band follower for N1MM")
 
+    def _backup_text(self) -> str:
+        """'' normally; a note while backup skimmers are used."""
+        f = self.spotter_filter
+        if not f.backup_active():
+            return ""
+        which = ", ".join(f.backups) if f.backups else f"skimmers in {self.home_cont}"
+        return f"{f.primary} quiet - using {which}"
+
     def _team_text(self) -> str:
         if self.team is None:
             return ""
@@ -935,6 +953,7 @@ class PouncerApp:
             text=(
                 f"RBN: {self.rbn_status if not (self.team and self.team.role() == 'slave') else 'via team master'}"
                 f"   {self._team_text()}   spotter={self.cfg.rbn_spotter or 'ALL'}"
+                f"{'   BACKUP: ' + self._backup_text() if self._backup_text() else ''}"
                 f"   mode={','.join(self.cfg.follow_modes)}"
                 f"   band={band or 'ALL'}   spots={len(self.displayed)}/{len(self.spots)}"
                 f"   hidden={self._worked_hidden}"
@@ -958,6 +977,14 @@ class PouncerApp:
             and (s.dxcall.upper(), band_from_khz(s.freq_khz)) not in self._removed
             and not same_station(s.dxcall, own)  # never list ourselves
         ]
+        # one tile per station and band: the newest spot (several skimmers,
+        # or a small drift, give the same station more than one spot)
+        newest: dict[tuple[str, str | None], Spot] = {}
+        for s in items:
+            k = (s.dxcall.upper(), band_from_khz(s.freq_khz))
+            if k not in newest or s.received > newest[k].received:
+                newest[k] = s
+        items = list(newest.values())
         if self.hide_worked_var.get():
             kept = []
             hidden = 0
