@@ -23,6 +23,7 @@ from .win32 import (
     force_foreground, is_n1mm_running, send_cw_speed, send_enter, send_filter_toggle,
     send_fkey,
     type_text,
+    clear_focused_edit,
     wipe_callsign,
 )
 from .worked import WorkedLog, n1mm_station_call, same_station
@@ -398,11 +399,15 @@ class PouncerApp:
         if self.set_call_var.get():
             can_type = focused or not self.cfg.focus_n1mm
             if can_type:
+                # Always start from an empty callsign box: N1MM's wipe
+                # (Alt+W; also clears the exchange), then empty the focused
+                # box directly in case the wipe didn't land yet, then type.
                 if self.cfg.wipe_before_call:
                     wipe_callsign()
-                    time.sleep(0.05)
+                    time.sleep(0.08)
+                cleared = clear_focused_edit(hwnd) if hwnd else False
                 type_text(spot.dxcall)
-                msg += " (call typed, no TX)"
+                msg += " (call typed, no TX)" + ("" if cleared else " [box not cleared]")
             else:
                 msg += " (call skipped: N1MM not focused)"
         if self.cfg.focus_n1mm:

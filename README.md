@@ -137,7 +137,7 @@ is required.
 | 22dB | skimmer SNR |
 | cq3m | calling on this frequency for 3 minutes (from RBN) |
 
-Tap = QSY + call into N1MM (no TX); hold 2 s = remove from the list. The
+Tap = QSY + call into N1MM (no TX; the callsign box is always emptied first); hold 2 s = remove from the list. The
 **?** after the status line opens the same explanation on the phone.
 
 ## Download
