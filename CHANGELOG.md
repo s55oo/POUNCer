@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## v0.5.4 — 2026-10-12 — CQ time on frequency (from RBN)
+
+- Each tile shows **`CQ 3m`**: how long the station has been calling on
+  that frequency, learned live from the RBN spots (no internet lookup). A
+  re-spot within 0.5 kHz and within 20 min of the last one = still there;
+  moved or silent longer = starts again. Shown as `CQ 27m` / `CQ 1h35` in
+  place of the spot time (which moves to the tile's tooltip).
+- With R% / ⚡ this tells "rare runner, just started" - the best moment.
+- `rbn.OnFreqTracker`; `/api/spots` gives `cq_min` per spot.
+
 ## v0.5.3 — 2026-10-12 — run history over the last 6 years
 
 - Run history now uses the station's logs of the **last 6 years** of the

@@ -382,6 +382,9 @@ INDEX_HTML = """<!doctype html>
     if (s.run == null) return 1e6;
     return (isRare(s) ? 0 : 1e4) + s.run * 10 + Math.min(s.hours == null ? 99 : s.hours, 99) / 10;
   }
+  function cqText(m) {
+    return m < 60 ? m + 'm' : Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0');
+  }
   function sorted(spots) {
     const a = spots.slice();
     if (sortKey === 'freq') a.sort((x, y) => x.freq - y.freq);
@@ -534,6 +537,8 @@ INDEX_HTML = """<!doctype html>
       // Run history (past logs): R = % of QSOs made running; ⚡ = rarely
       // runs, so a CQ from it won't last - work it now.
       const rare = isRare(s);
+      if (s.cq_min != null) b.title = (b.title ? b.title + ' - ' : '') +
+        'calling on this frequency for ' + cqText(s.cq_min) + (s.time ? ', last spot ' + s.time : '');
       if (s.run != null) b.title = (b.title ? b.title + ' - ' : '') +
         'runs ' + s.run + '% of QSOs' + (s.hours != null ? ', on air ' + s.hours + ' h' : '') +
         ' in its last log' + (s.rec ? ' (reconstructed from other logs: a minimum)' : '') +
@@ -546,7 +551,10 @@ INDEX_HTML = """<!doctype html>
         (s.run != null ? ' R' + s.run + '%' + (s.rec ? '*' : '') : '') +
         (s.hours != null ? ' ' + Math.round(s.hours) + 'h' : '') +
         '</span> <span>' + (s.snr == null ? '--' : s.snr + ' dB') +
-        (s.time ? ' ' + esc(s.time) : '') + '</span></span>';
+        // CQ 3m = heard calling on this frequency for 3 minutes (RBN);
+        // the spot time moves to the tile's tooltip then.
+        (s.cq_min != null ? ' CQ ' + cqText(s.cq_min) : (s.time ? ' ' + esc(s.time) : '')) +
+        '</span></span>';
       attachPress(b, s);
       grid.appendChild(b);
     });

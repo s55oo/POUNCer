@@ -16,7 +16,7 @@ from .cty import Entity, load_cty, wpx_prefix
 from .n1mm import (
     N1MMController, RadioListener, RadioState, cat_macro, next_tune_khz,
 )
-from .rbn import RBNClient, Spot, is_beacon, ports_for_modes
+from .rbn import OnFreqTracker, RBNClient, Spot, is_beacon, ports_for_modes
 from .runhist import RARE_HOURS, RARE_RUN_PCT, RunHistory
 from .web import WebServer, pick_web_address
 from .win32 import (
@@ -34,6 +34,8 @@ TOUCH_MAX_COLUMNS = 2
 WEB_MAX_SPOTS = 60
 RADIO_ALIVE_SECONDS = 30
 ON_FREQ_KHZ = 0.5  # a spot this close to the radio frequency = "tuned to it"
+ON_FREQ_STAY_KHZ = 0.5  # RBN re-spot within this = station still on that frequency
+ON_FREQ_GAP_S = 20 * 60  # ... and within 20 min of the last spot (skimmers re-spot sparsely)
 ON_FREQ_BG = "#0277bd"  # touch board: tile of the station we are tuned to  # RadioInfo newer than this => N1MM is running
 FKEY_BG = "#2e7d32"          # key buttons: green at rest
 FKEY_PRESSED_BG = "#c62828"  # ... red while / just after being pressed
@@ -90,6 +92,8 @@ class PouncerApp:
         self.spot_queue: "queue.Queue[Spot]" = queue.Queue(maxsize=20000)
         self.status_queue: "queue.Queue[str]" = queue.Queue()
         self.spots: dict[tuple, Spot] = {}
+        # How long each station has been calling on one frequency, from RBN
+        self._on_freq = OnFreqTracker(ON_FREQ_STAY_KHZ, ON_FREQ_GAP_S)
         self.displayed: list[Spot] = []
         self.state = RadioState()
         self.worked = WorkedLog(
@@ -476,6 +480,7 @@ class PouncerApp:
                     "dx": self._is_dx(s.dxcall),
                     "mult": self._mults(s),
                     **self._run_fields(s),
+                    "cq_min": self._cq_minutes(s),
                 }
                 for s in spots
             ],
@@ -608,15 +613,25 @@ class PouncerApp:
             except queue.Empty:
                 break
             self.spots[spot.key] = spot
+            self._track_on_freq(spot)
             got += 1
         if got:
             self._dirty = True
+
+    def _track_on_freq(self, spot: Spot) -> None:
+        self._on_freq.add(spot, band_from_khz(spot.freq_khz))
+
+    def _cq_minutes(self, s: Spot) -> int | None:
+        """Minutes this station has been on this spot's frequency (RBN)."""
+        return self._on_freq.minutes(s.dxcall, band_from_khz(s.freq_khz), s.freq_khz,
+                                     time.time())
 
     def _prune(self) -> None:
         cutoff = time.time() - self.cfg.max_age_minutes * 60
         stale = [k for k, s in self.spots.items() if s.received < cutoff]
         for key in stale:
             del self.spots[key]
+        self._on_freq.prune(time.time() - ON_FREQ_GAP_S)
         if stale:
             self._dirty = True
 
