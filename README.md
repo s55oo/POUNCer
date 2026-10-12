@@ -61,7 +61,7 @@ spotted callsign into the N1MM Entry Window.
   the main window: the ZeroTier address if ZeroTier is running, otherwise the
   LAN address, plus the port it listens on.
   Binds to all interfaces, so it works over your LAN and over ZeroTier/VPN for
-  remote access. LAN/VPN only, no password. **Sort: Time / Freq / SNR** buttons
+  remote access. LAN/VPN only, no password. **Sort: Time / Freq / SNR** buttons (**CLR** in front clears all spots, with Undo)
   in the top header row reorder the tiles (the choice is remembered in the
   browser); the **DX** button next to them puts DX spots on top, still in that
   order, and **MLT** puts new multipliers on top (double, then single; magenta

@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.5.2 — 2026-10-12 — CLR on the phone
+
+- Phone header: **CLR** button in front of Time clears every spot from the
+  list (e.g. old spots from before the contest started); new spots come in
+  again as RBN sends them. The pop-up offers **Undo** for 5 s (brings the
+  cleared spots back; newer spots of the same call win). Same as the main
+  window's "Clear spots". New `GET /api/clear[?undo=1]`.
+
 ## v0.5.1 — 2026-10-12 — own call from Change Your Station Data, never listed
 
 - POUNCer's own call is now the **open log's station call** (N1MM Config >

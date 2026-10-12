@@ -35,6 +35,7 @@ HideHandler = Callable[[str, float, bool], None]  # (call, freq kHz, hide?)
 TuneHandler = Callable[[int], None]  # VFO step in Hz (+/-)
 # filter width ("narrow"/"wide"), fix=True: toggle the radio, keep the label
 FilterHandler = Callable[[str, bool], None]
+ClearHandler = Callable[[bool], None]  # True = undo (bring the cleared spots back)
 
 
 def is_send_key(key: str) -> bool:
@@ -206,6 +207,8 @@ INDEX_HTML = """<!doctype html>
   .sorts button.multfirst { color: #f48fb1; font-weight: 700; }
   .sorts button.multfirst.on { background: #d81b60; color: #fff; }
   .sorts button.rarefirst { color: #ffd54f; font-weight: 700; }
+  .sorts button.clr { color: #ef9a9a; font-weight: 700; }
+  .sorts button.clr:active { background: #c62828; color: #fff; }
   .sorts button.rarefirst.on { background: #6d4c41; color: #fff; }
   button.tile.m1 { box-shadow: inset 6px 0 0 #ec407a; }
   button.tile.m2 { box-shadow: inset 12px 0 0 #ec407a; }
@@ -261,6 +264,7 @@ INDEX_HTML = """<!doctype html>
   <button class="title band" id="band" title="Change band">POUNCer</button>
   <div class="sorts">
     <span>Sort:</span>
+    <button class="clr" id="clr" title="Clear all spots (e.g. old spots before the contest). Undo for 5 s">CLR</button>
     <button data-sort="time">Time</button>
     <button data-sort="freq">Freq</button>
     <button data-sort="snr">SNR</button>
@@ -401,6 +405,24 @@ INDEX_HTML = """<!doctype html>
     document.getElementById('multfirst').classList.toggle('on', multFirst);
     document.getElementById('rarefirst').classList.toggle('on', rareFirst);
   }
+  // CLR: clear every spot (e.g. old ones from before the contest started);
+  // new spots come in again as RBN sends them. Undo in the pop-up for 5 s.
+  async function clearSpots(undo) {
+    try {
+      const r = await fetch('/api/clear' + (undo ? '?undo=1' : ''));
+      const j = await r.json();
+      if (!j.ok) { toast('Failed: ' + (j.error || 'error')); return; }
+      if (undo) { toast('Spots are back'); }
+      else {
+        const n = lastData && lastData.spots ? lastData.spots.length : 0;
+        toast('Cleared ' + n + ' spot' + (n === 1 ? '' : 's'), () => clearSpots(true));
+      }
+      setTimeout(refresh, 400);
+    } catch (e) {
+      toast('Failed: ' + e);
+    }
+  }
+  document.getElementById('clr').onclick = () => clearSpots(false);
   document.getElementById('rarefirst').onclick = () => {
     rareFirst = !rareFirst;
     try { localStorage.setItem('pouncer.rarefirst', rareFirst ? '1' : '0'); } catch (e) {}
@@ -887,8 +909,10 @@ class _Server(ThreadingHTTPServer):
         on_hide: HideHandler | None = None,
         on_tune: TuneHandler | None = None,
         on_filter: FilterHandler | None = None,
+        on_clear: ClearHandler | None = None,
     ):
         super().__init__(address, _Handler)
+        self.on_clear = on_clear
         self.on_tune = on_tune
         self.on_filter = on_filter
         self.on_band = on_band
@@ -1032,6 +1056,18 @@ class _Handler(BaseHTTPRequestHandler):
                 return
             self._send_json({"ok": True, "band": band})
             return
+        if parsed.path == "/api/clear":
+            undo = (parse_qs(parsed.query).get("undo") or ["0"])[0] in ("1", "true")
+            if self.server.on_clear is None:
+                self._send_json({"ok": False, "error": "not supported"}, 404)
+                return
+            try:
+                self.server.on_clear(undo)
+            except Exception as exc:
+                self._send_json({"ok": False, "error": str(exc)}, 500)
+                return
+            self._send_json({"ok": True, "undo": undo})
+            return
         if parsed.path == "/api/reconnect":
             if self.server.on_reconnect is None:
                 self._send_json({"ok": False, "error": "not supported"}, 404)
@@ -1061,10 +1097,11 @@ class WebServer:
         on_hide: HideHandler | None = None,
         on_tune: TuneHandler | None = None,
         on_filter: FilterHandler | None = None,
+        on_clear: ClearHandler | None = None,
     ) -> None:
         self._httpd = _Server(
             (host, port), get_spots, on_qsy, on_key, on_reconnect, on_band, on_hide,
-            on_tune, on_filter,
+            on_tune, on_filter, on_clear,
         )
         self._thread: threading.Thread | None = None
 
