@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.5.11 — 2026-10-12 — N1MM's own {WIPE} before every call
+
+- Tapping a spot now first sends N1MM its own **`{WIPE}`** command (RadioCmd
+  packet on the UDP control port, like NAR / WIDE) so N1MM wipes the Entry
+  Window itself, whatever has the keyboard; Alt+W stays as a backup. Then
+  0.2 s wait, the callsign box is emptied directly, and the clicked call is
+  typed.
+
 ## v0.5.10 — 2026-10-12 — callsign box always clean
 
 - Tapping a spot sometimes left several calls in N1MM's callsign box
