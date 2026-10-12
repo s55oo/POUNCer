@@ -163,6 +163,7 @@ class RunHistory:
         # Optional run list server (server/runlist.py): whole contest list in
         # one request, so most calls are known before they are ever spotted.
         self.server = server.rstrip("/")
+        self.on_learn = None  # callback(key, value) after a lookup (team sharing)
         self._lists: dict[tuple, threading.Event] = {}
         self._save_lock = threading.Lock()
         self._fetch_slots = threading.BoundedSemaphore(FETCH_PARALLEL)
@@ -196,6 +197,24 @@ class RunHistory:
                 self._results[f"{call.upper()}|{contest}|{mode}"] = {"run": pct}
         log.info("run list %s: %d entries", path, len(rows))
         return len(rows)
+
+    def merge(self, data: dict) -> int:
+        """Take results learned elsewhere (team peers); never overwrites."""
+        added = 0
+        with self._lock:
+            for key, value in data.items():
+                if isinstance(key, str) and key.count("|") == 2 and key not in self._results:
+                    if value is None or isinstance(value, dict):
+                        self._results[key] = value
+                        added += 1
+        if added:
+            self._save()
+        return added
+
+    def snapshot(self) -> dict:
+        """Everything known (for a team peer that just joined)."""
+        with self._lock:
+            return dict(self._results)
 
     def get(self, call: str, n1mm_contest: str, mode: str) -> dict | None:
         """{"run": %, "hours": h or None, "rec": bool} (None = unknown / not
@@ -249,6 +268,11 @@ class RunHistory:
             with self._lock:
                 self._results[key] = pct
             self._save()
+            if self.on_learn is not None:  # tell the team
+                try:
+                    self.on_learn(key, pct)
+                except Exception:
+                    pass
 
     def _save(self) -> None:
         with self._save_lock:

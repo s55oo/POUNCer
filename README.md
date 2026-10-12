@@ -116,6 +116,25 @@ spotted callsign into the N1MM Entry Window.
 Only the Python standard library is used (tkinter for the GUI). No pip install
 is required.
 
+## Several POUNCers (team)
+
+Running one POUNCer per band / PC on the same network? They find each other
+by themselves (UDP broadcast, port 12079) and work as a **team**:
+
+- the one **running longest** (with a working RBN connection) is the
+  **master** - the only one connected to RBN; it passes the spots to the
+  others (**slaves**), so there is one RBN connection for the whole station;
+- whatever run history one learns is shared with all - each call is
+  downloaded from GitHub only **once**; a POUNCer started later gets
+  everything known so far from the master;
+- if the master is switched off (or its RBN is down over a minute) the next
+  one takes over within seconds.
+
+The main window shows `team: master (3 POUNCers)` or `team: slave of
+<IP>`; the phone's status line starts with **M** or **S**. Allow UDP 12079
+in the Windows firewall on each PC. `[team] enabled = false` = stand-alone.
+Give them all the same `[rbn] spotter` and modes.
+
 ## Reading a tile (phone view)
 
 ```

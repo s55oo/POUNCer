@@ -550,6 +550,9 @@ INDEX_HTML = """<!doctype html>
       meta += ' &middot; ' + nm;
     }
     else if (!logBad) meta += ' &middot; ' + esc(data.worked || '');
+    // team: M = this POUNCer is the team master (RBN), S = slave of it
+    if (data.team && data.team.indexOf('master') >= 0) meta = '<b title="' + esc(data.team) + '">M</b> &middot; ' + meta;
+    else if (data.team && data.team.indexOf('slave') >= 0) meta = '<b title="' + esc(data.team) + '">S</b> &middot; ' + meta;
     metaEl.innerHTML = meta;
     const cols = columns();
     const spots = sorted(data.spots);
@@ -907,7 +910,9 @@ spots you still need there. Nothing here transmits except the F-keys.</p>
   <dt><span class="k">&#8635;</span></dt>
   <dd>Re-read which log N1MM has open (after you open another log).</dd>
 </dl>
-<p>The small line under it: how many needed spots, your QSOs per band and in total, and
+<p>The small line under it starts with <b>M</b> or <b>S</b> when several POUNCers
+work as a team on your network: M = this one is the master (keeps the RBN
+connection), S = it gets its spots from the master. Then: how many needed spots, your QSOs per band and in total, and
 the open log. An <b>orange bar</b> means N1MM has no log open (or isn't running) -
 open one and tap <b>Reconnect</b>.</p>
 
@@ -1250,6 +1255,10 @@ class _Handler(BaseHTTPRequestHandler):
                 return
             self._send_json({"ok": True, "band": band})
             return
+        if parsed.path == "/api/runhist":  # team: a joining POUNCer syncs
+            getter = getattr(self.server, "get_runhist", None)
+            self._send_json(getter() if getter else {})
+            return
         if parsed.path == "/api/clear":
             undo = (parse_qs(parsed.query).get("undo") or ["0"])[0] in ("1", "true")
             if self.server.on_clear is None:
@@ -1298,6 +1307,10 @@ class WebServer:
             on_tune, on_filter, on_clear,
         )
         self._thread: threading.Thread | None = None
+
+    def set_runhist_provider(self, getter) -> None:
+        """Team: serve our run history at /api/runhist."""
+        self._httpd.get_runhist = getter
 
     @property
     def port(self) -> int:

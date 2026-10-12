@@ -187,5 +187,21 @@ class RunHistoryTests(unittest.TestCase):
                               .get("X1X", "CQWWCW", "CW"))
 
 
+    def test_merge_from_team_and_learn_hook(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            learned = []
+
+            def fetch(url):
+                raise OSError("no network")
+
+            rh = RunHistory(os.path.join(d, "cache"), fetch=fetch)
+            rh.on_learn = lambda k, v: learned.append(k)
+            self.assertEqual(rh.merge({"M0KTZ|CQWW|CW": {"run": 6}, "bad": 1}), 1)
+            self.assertEqual(rh.get("M0KTZ", "CQWWCW", "CW"), {"run": 6})
+            self.assertEqual(rh.merge({"M0KTZ|CQWW|CW": {"run": 99}}), 0)  # never overwrites
+            self.assertIn("M0KTZ|CQWW|CW", rh.snapshot())
+            self.assertEqual(learned, [])  # merged results aren't re-broadcast
+
+
 if __name__ == "__main__":
     unittest.main()
