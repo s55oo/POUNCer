@@ -17,6 +17,7 @@ class WebServerTests(unittest.TestCase):
         self.hides: list[tuple[str, float, bool]] = []
         self.tunes: list[int] = []
         self.filters: list[tuple[str, bool]] = []
+        self.clears: list[bool] = []
         self.payload = {
             "band": "20m",
             "modes": ["CW"],
@@ -35,6 +36,7 @@ class WebServerTests(unittest.TestCase):
             lambda call, freq, hide: self.hides.append((call, freq, hide)),
             self.tunes.append,
             lambda w, fix: self.filters.append((w, fix)),
+            self.clears.append,
         )
         self.web.start()
         self.url = f"http://127.0.0.1:{self.web.port}"
@@ -80,6 +82,14 @@ class WebServerTests(unittest.TestCase):
         self.assertEqual(
             self.filters, [("narrow", False), ("wide", False), ("wide", True)]
         )
+
+    def test_clear_and_undo(self) -> None:
+        with self._get("/") as resp:
+            self.assertIn('id="clr"', resp.read().decode("utf-8"))
+        for q in ("", "?undo=1"):
+            with self._get("/api/clear" + q) as resp:
+                self.assertTrue(json.loads(resp.read())["ok"])
+        self.assertEqual(self.clears, [False, True])
 
     def test_filter_rejects_bad_width(self) -> None:
         for q in ("", "w=medium"):

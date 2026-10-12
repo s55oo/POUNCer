@@ -305,8 +305,20 @@ class PouncerApp:
         return lambda s: s.freq_khz
 
     def _clear_spots(self) -> None:
+        """Forget every spot (kept until the next clear, for Undo)."""
+        self._cleared = dict(self.spots)
         self.spots.clear()
         self._dirty = True
+
+    def _unclear_spots(self) -> None:
+        """Undo a clear: bring the cleared spots back (newer ones win)."""
+        for key, spot in (getattr(self, "_cleared", None) or {}).items():
+            self.spots.setdefault(key, spot)
+        self._cleared = {}
+        self._dirty = True
+
+    def _web_clear(self, undo: bool) -> None:
+        self._web_queue.put(("clear", bool(undo)))
 
     def _on_toggle_worked(self) -> None:
         self._dirty = True
@@ -501,6 +513,12 @@ class PouncerApp:
                 return
             if item[0] == "key":
                 self._press_key(item[1])
+                continue
+            if item[0] == "clear":
+                if item[1]:
+                    self._unclear_spots()
+                else:
+                    self._clear_spots()
                 continue
             if item[0] == "reconnect":
                 self._reconnect_log()
@@ -988,7 +1006,7 @@ class PouncerApp:
                 self.cfg.web_host, self.cfg.web_port,
                 self._web_spots, self._web_qsy, self._web_key,
                 self._web_reconnect, self._web_band, self._web_hide,
-                self._web_tune, self._web_filter,
+                self._web_tune, self._web_filter, self._web_clear,
             )
             self.web.start()
         except OSError as exc:
