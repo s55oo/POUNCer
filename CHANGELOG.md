@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## v0.5.5 — 2026-10-12 — help page
+
+- Phone: **help page** (`/help`) explaining every button, colour and mark:
+  top row (frequency / band menu, CLR, sorts, DX, MLT, ⚡, ↻), the status
+  line and orange log bar, the tiles (tap, hold, yellow / green / magenta /
+  blue, R% / h / * / ⚡ / CQ 3m), the F-keys and ENTER, the bottom row
+  (WPM, ±25 Hz, NAR / WIDE) and the pop-ups. Opens from the small **?** at
+  the end of the status line and from the band menu; "Back to the spots".
+
 ## v0.5.4 — 2026-10-12 — CQ time on frequency (from RBN)
 
 - Each tile shows **`CQ 3m`**: how long the station has been calling on
