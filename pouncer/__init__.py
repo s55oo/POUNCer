@@ -1,3 +1,3 @@
 """POUNCer - follow N1MM radio frequency and show S53WW RBN spots."""
 
-__version__ = "0.5.2"
+__version__ = "0.5.3"

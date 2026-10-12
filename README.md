@@ -78,8 +78,8 @@ spotted callsign into the N1MM Entry Window.
   narrow, `[ui] filter_start` - hold 1 s to toggle
   the radio without changing the label if they differ); none of them transmit.
   **Run history:** each tile shows `R81% 23h` = how often that station ran
-  (called CQ) and how many hours it was on the air in its last log of the same
-  contest, from S53ZO's public contest-log archive (`*` = reconstructed log,
+  (called CQ) and how many hours it was on the air in its logs of the last 6 years of
+  the same contest (else its other contests in that mode), from S53ZO's public contest-log archive (`*` = reconstructed log,
   for stations that never sent one); **⚡** = rare CQ (runs under 30% or on
   under 6 h) - it won't last, work it now
   (`[ui] run_history`, cached in a `cache` folder). The **⚡** header button
