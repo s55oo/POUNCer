@@ -101,7 +101,7 @@ drain web actions → refresh the cached web payload.
 | `pouncer/win32.py` | `force_foreground`, `wipe_callsign` (Alt+W), `type_text` (unicode `SendInput`), `send_fkey` (F1-F12 - transmits in N1MM), `send_enter` (logs the QSO), `is_n1mm_running` (process scan). |
 | `pouncer/web.py` | `WebServer` + mobile page + `/api/spots`, `/api/qsy`; `local_ipv4s`. |
 | `pouncer/app.py` | `PouncerApp`: GUI, filters, tick loop, table, touch view, web wiring, `_act_on_spot`. |
-| `pouncer/runhist.py` | `RunHistory`: background, disk-cached run/S&P share per call from the public contest-log archive (`SH6/logs_XX.sqlite` shard, XX = crc32(CALL)&0xff → newest 2 logs of the same contest+mode from raw.githubusercontent.com → `run_share`: QSO on the same kHz (±0.3) as one of the last 2 on that band). `get()` never blocks (None until known). |
+| `pouncer/runhist.py` | `RunHistory`: background, disk-cached run/S&P share per call from the public contest-log archive (`SH6/logs_XX.sqlite` shard, XX = crc32(CALL)&0xff → newest log of the same contest+mode from raw.githubusercontent.com → `run_share`: QSO on the same kHz (±0.3) as one of the last 2 on that band). `get()` never blocks (None until known); `WORKERS = 8` threads, one download per shard (per-shard lock). Page: ⚡ toggle = sort by `run` ascending, unknown last. |
 | `pouncer/flow.py` | `flow_positions`: pure flow-layout geometry (items left to right, wrapping onto rows) for `app.FlowFrame`, which holds the main window's sort / option / key / action controls. |
 
 ---

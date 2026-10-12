@@ -1,5 +1,20 @@
 # POUNCer — Changelog
 
+## v0.3.1 — 2026-10-12 — run history fast, ⚡ sort
+
+- Run history is looked up **8 calls at a time** (was one by one) and from
+  the **newest log only** (was 2). Measured for S53CC: index shard 1.27 MB
+  in 0.78 s + log 105 KB in 0.44 s + 3 ms to compute = ~1.2 s for a call
+  never seen before (~0.45 s once its shard is cached; instant once the
+  call is cached). A band with 40 new calls: all known after ~6 s instead
+  of ~49 s (simulated with those download times). Two calls in the same
+  shard download it once; the cache file is written atomically.
+- New **⚡** header button (next to MLT): rarely-running stations on top =
+  lowest run % first, unknown last; DX / MLT still group on top of it.
+  Saved per phone like the other toggles.
+- Header buttons a bit tighter below 400 px so the frequency always shows
+  in full (checked at 320-430 px).
+
 ## v0.3.0 — 2026-10-12 — run history from the contest-log archive
 
 - Phone tiles show how often a spotted station **runs**: `R81%` = 81% of

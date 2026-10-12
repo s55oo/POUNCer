@@ -25,7 +25,8 @@ from urllib.parse import quote
 log = logging.getLogger(__name__)
 
 ARCHIVE_URL = "https://raw.githubusercontent.com/s53zo/Hamradio-Contest-logs-Archives/main/"
-MAX_LOGS = 2          # newest logs looked at per call
+MAX_LOGS = 1          # newest log looked at per call (speed: one download)
+WORKERS = 8           # lookups in parallel (a new band = many new calls)
 MIN_QSOS = 30         # fewer QSOs than this = not enough to tell
 RUN_KHZ = 0.3         # same frequency (kHz) as one of the last 2 QSOs = running
 RARE_RUN_PCT = 30     # runs less than this % of QSOs = "rarely runs" (marked)
@@ -109,7 +110,10 @@ class RunHistory:
                 self._results = json.load(fh)
         except (OSError, ValueError):
             pass
-        threading.Thread(target=self._worker, name="runhist", daemon=True).start()
+        self._save_lock = threading.Lock()
+        self._shard_locks: dict[str, threading.Lock] = {}
+        for i in range(WORKERS):
+            threading.Thread(target=self._worker, name=f"runhist{i}", daemon=True).start()
 
     def get(self, call: str, n1mm_contest: str, mode: str) -> int | None:
         """Run % for the call (None = unknown / not looked up yet)."""
@@ -135,22 +139,32 @@ class RunHistory:
                 continue
             with self._lock:
                 self._results[key] = pct
+            self._save()
+
+    def _save(self) -> None:
+        with self._save_lock:
+            with self._lock:
                 data = dict(self._results)
             try:
                 os.makedirs(self.cache_dir, exist_ok=True)
-                with open(self._file, "w", encoding="utf-8") as fh:
+                with open(self._file + ".part", "w", encoding="utf-8") as fh:
                     json.dump(data, fh)
+                os.replace(self._file + ".part", self._file)
             except OSError:
                 pass
 
     def _lookup(self, call: str, contest: str | None, mode: str) -> int | None:
-        shard = os.path.join(self.cache_dir, "SH6", shard_name(call))
-        if not os.path.exists(shard):
-            data = self._fetch(self.base_url + "SH6/" + shard_name(call))
-            os.makedirs(os.path.dirname(shard), exist_ok=True)
-            with open(shard + ".part", "wb") as fh:
-                fh.write(data)
-            os.replace(shard + ".part", shard)
+        name = shard_name(call)
+        shard = os.path.join(self.cache_dir, "SH6", name)
+        with self._lock:
+            shard_lock = self._shard_locks.setdefault(name, threading.Lock())
+        with shard_lock:  # two calls in one shard: download it once
+            if not os.path.exists(shard):
+                data = self._fetch(self.base_url + "SH6/" + name)
+                os.makedirs(os.path.dirname(shard), exist_ok=True)
+                with open(shard + ".part", "wb") as fh:
+                    fh.write(data)
+                os.replace(shard + ".part", shard)
         con = sqlite3.connect(f"file:{shard}?mode=ro", uri=True)
         try:
             rows = con.execute(
