@@ -96,7 +96,9 @@ def run_share(cabrillo: str) -> tuple[int, int]:
 class RunHistory:
     """Background lookups of how often a call runs; ``get()`` never blocks."""
 
-    def __init__(self, cache_dir: str, fetch=None, base_url: str = ARCHIVE_URL) -> None:
+    def __init__(
+        self, cache_dir: str, fetch=None, base_url: str = ARCHIVE_URL, server: str = ""
+    ) -> None:
         self.cache_dir = cache_dir
         self.base_url = base_url
         self._fetch = fetch or self._http_get
@@ -110,6 +112,10 @@ class RunHistory:
                 self._results = json.load(fh)
         except (OSError, ValueError):
             pass
+        # Optional run list server (server/runlist.py): whole contest list in
+        # one request, so most calls are known before they are ever spotted.
+        self.server = server.rstrip("/")
+        self._lists: dict[tuple, threading.Event] = {}
         self._save_lock = threading.Lock()
         self._shard_locks: dict[str, threading.Lock] = {}
         for i in range(WORKERS):
@@ -122,14 +128,40 @@ class RunHistory:
         with self._lock:
             if key in self._results:
                 return self._results[key]
+            if self.server and contest and (contest, amode) not in self._lists:
+                self._lists[(contest, amode)] = threading.Event()
+                threading.Thread(target=self._load_list, args=(contest, amode),
+                                 daemon=True).start()
             if key not in self._asked:
                 self._asked.add(key)
                 self._queue.put((key, call.upper(), contest, amode))
         return None
 
+    def _load_list(self, contest: str, mode: str) -> None:
+        """Whole run list for a contest + mode from the run list server."""
+        try:
+            data = json.loads(self._fetch(
+                f"{self.server}/runs?contest={quote(contest)}&mode={quote(mode)}"
+            ))
+            with self._lock:
+                for call, pct in data.items():
+                    self._results[f"{call.upper()}|{contest}|{mode}"] = pct
+            log.info("run list %s %s: %d calls from %s", contest, mode, len(data), self.server)
+            self._save()
+        except Exception as exc:  # server down: per-call lookups still work
+            log.info("run list server %s: %s", self.server, exc)
+        finally:
+            self._lists[(contest, mode)].set()
+
     def _worker(self) -> None:
         while True:
             key, call, contest, mode = self._queue.get()
+            loading = self._lists.get((contest, mode))
+            if loading is not None:  # list on its way: don't fetch twice
+                loading.wait(15)
+                with self._lock:
+                    if key in self._results:
+                        continue
             try:
                 pct = self._lookup(call, contest, mode)
             except Exception as exc:  # network etc.: try again next time

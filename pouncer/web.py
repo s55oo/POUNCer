@@ -524,14 +524,20 @@ INDEX_HTML = """<!doctype html>
   // Tap = QSY. Hold 2 s = offer to remove the call from the list.
   const HOLD_MS = 2000;
   let pressing = false;   // a tile is being held: don't redraw the list
+  let releaseTimer = null;
   function attachPress(b, s) {
     let timer = null, held = false;
     const cancel = () => {
-      clearTimeout(timer); timer = null; pressing = false;
+      clearTimeout(timer); timer = null;
+      // Keep the list still a moment after the finger lifts, so a re-sort
+      // (e.g. run % just arrived) can't swap the tile before the tap lands.
+      clearTimeout(releaseTimer);
+      releaseTimer = setTimeout(() => { pressing = false; }, 400);
       b.classList.remove('holding');
     };
     b.addEventListener('pointerdown', () => {
       held = false;
+      clearTimeout(releaseTimer);
       pressing = true;
       b.classList.add('holding');
       timer = setTimeout(() => { held = true; cancel(); askRemove(s); }, HOLD_MS);

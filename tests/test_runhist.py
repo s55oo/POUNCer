@@ -114,5 +114,27 @@ class RunHistoryTests(unittest.TestCase):
             self.assertLess(time.time() - t0, 2)
 
 
+    def test_server_list_makes_calls_known_without_github(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            urls = []
+
+            def fetch(url):
+                urls.append(url)
+                if url.startswith("http://srv/runs"):
+                    return b'{"S53CC": 77, "OH2BH": 8}'
+                raise OSError("no github in this test")
+
+            rh = RunHistory(os.path.join(d, "cache"), fetch=fetch, base_url="X/",
+                            server="http://srv/")
+            rh.get("S53CC", "CQWWCW", "CW")
+            for _ in range(100):
+                if rh.get("S53CC", "CQWWCW", "CW") is not None:
+                    break
+                time.sleep(0.05)
+            self.assertEqual(rh.get("S53CC", "CQWWCW", "CW"), 77)
+            self.assertEqual(rh.get("OH2BH", "CQWWCW", "CW"), 8)  # never asked, known
+            self.assertEqual(urls[0], "http://srv/runs?contest=CQWW&mode=CW")
+            self.assertFalse(any(u.startswith("X/") for u in urls))  # no GitHub
+
 if __name__ == "__main__":
     unittest.main()
