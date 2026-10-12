@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.5.6 — 2026-10-12 — pop-up next to ENTER
+
+- The pop-up message now appears **level with the ENTER key** (the last
+  key on the right), centred over the spot list so it never covers the
+  keys; without keys, just above the footer; kept on screen in landscape.
+  Positioned from JS (`placeToast`) each time it shows.
+- Dark grey with a light border (was the same green as the tiles).
+
 ## v0.5.5 — 2026-10-12 — help page
 
 - Phone: **help page** (`/help`) explaining every button, colour and mark:
