@@ -107,6 +107,11 @@ if _WIN:
     _kernel32.Process32NextW.restype = wintypes.BOOL
     _kernel32.CloseHandle.argtypes = (ctypes.c_void_p,)
     _kernel32.CloseHandle.restype = wintypes.BOOL
+    _user32.SendMessageW.argtypes = (wintypes.HWND, wintypes.UINT, wintypes.WPARAM, ctypes.c_void_p)
+    _user32.SendMessageW.restype = ctypes.c_ssize_t
+    _user32.GetClassNameW.argtypes = (wintypes.HWND, wintypes.LPWSTR, ctypes.c_int)
+    _user32.GetWindowThreadProcessId.argtypes = (wintypes.HWND, ctypes.c_void_p)
+    _user32.GetWindowThreadProcessId.restype = wintypes.DWORD
 
 
 def running_process_names() -> set[str] | None:
@@ -182,6 +187,46 @@ def wipe_callsign() -> bool:
         _key(vk=_VK_W, flags=_KEYEVENTF_KEYUP),
         _key(vk=_VK_MENU, flags=_KEYEVENTF_KEYUP),
     ])
+    return True
+
+
+class _GUITHREADINFO(ctypes.Structure):
+    _fields_ = [
+        ("cbSize", wintypes.DWORD),
+        ("flags", wintypes.DWORD),
+        ("hwndActive", wintypes.HWND),
+        ("hwndFocus", wintypes.HWND),
+        ("hwndCapture", wintypes.HWND),
+        ("hwndMenuOwner", wintypes.HWND),
+        ("hwndMoveSize", wintypes.HWND),
+        ("hwndCaret", wintypes.HWND),
+        ("rcCaret", wintypes.RECT),
+    ]
+
+
+_WM_SETTEXT = 0x000C
+
+
+def clear_focused_edit(window_hwnd: int) -> bool:
+    """Empty the text box that has the keyboard focus in ``window_hwnd``'s
+    thread (after Alt+W: N1MM's callsign box), via WM_SETTEXT - so no old
+    text can stay in front of the call we type next. Only touches an EDIT
+    control. True if it was cleared."""
+    if not _WIN or not window_hwnd:
+        return False
+    thread = _user32.GetWindowThreadProcessId(window_hwnd, None)
+    info = _GUITHREADINFO()
+    info.cbSize = ctypes.sizeof(_GUITHREADINFO)
+    if not thread or not _user32.GetGUIThreadInfo(thread, ctypes.byref(info)):
+        return False
+    focus = info.hwndFocus
+    if not focus:
+        return False
+    cls = ctypes.create_unicode_buffer(256)
+    _user32.GetClassNameW(focus, cls, 256)
+    if "EDIT" not in cls.value.upper():  # WinForms text box: WindowsForms10.EDIT...
+        return False
+    _user32.SendMessageW(focus, _WM_SETTEXT, 0, ctypes.c_wchar_p(""))
     return True
 
 

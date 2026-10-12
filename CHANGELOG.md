@@ -1,6 +1,15 @@
 # POUNCer — Changelog
 
-## Unreleased — docs
+## v0.5.10 — 2026-10-12 — callsign box always clean
+
+- Tapping a spot sometimes left several calls in N1MM's callsign box
+  (Alt+W wipe not done yet when the call was typed). Now each tap: Alt+W
+  (wipes call + exchange), then the focused callsign box is **emptied
+  directly** (WM_SETTEXT "" on the focused EDIT control), then the call is
+  typed (so N1MM still runs its dupe / mult checks). Status says
+  `[box not cleared]` if the box couldn't be found.
+  `win32.clear_focused_edit`; a Windows-only test on a real EDIT box runs
+  in the build.
 
 - README: "Reading a tile" table (colours, marks, line format); tile layout
   in ARCHITECTURE.

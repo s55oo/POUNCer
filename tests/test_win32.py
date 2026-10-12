@@ -31,8 +31,42 @@ class FilterToggleTests(unittest.TestCase):
         if win32._WIN:
             self.skipTest("would press Alt+' on this machine")
         self.assertFalse(win32.send_filter_toggle())
+        self.assertFalse(win32.clear_focused_edit(12345))
+        self.assertFalse(win32.clear_focused_edit(0))
         self.assertEqual(win32._VK_OEM_7, 0xDE)
 
+
+
+@unittest.skipUnless(win32._WIN, "needs Windows")
+class ClearEditOnWindowsTests(unittest.TestCase):
+    def test_clears_a_real_focused_edit_box(self) -> None:
+        import ctypes
+        from ctypes import wintypes
+        u = ctypes.windll.user32
+        u.CreateWindowExW.restype = wintypes.HWND
+        u.CreateWindowExW.argtypes = (
+            wintypes.DWORD, wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.DWORD,
+            ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+            wintypes.HWND, wintypes.HMENU, wintypes.HINSTANCE, wintypes.LPVOID)
+        WS_OVERLAPPEDWINDOW, WS_CHILD, WS_VISIBLE = 0x00CF0000, 0x40000000, 0x10000000
+        top = u.CreateWindowExW(0, "STATIC", "pouncer test", WS_OVERLAPPEDWINDOW,
+                                0, 0, 200, 100, None, None, None, None)
+        if not top:
+            self.skipTest("cannot create a window here")
+        try:
+            edit = u.CreateWindowExW(0, "EDIT", "S50ROH2BH", WS_CHILD | WS_VISIBLE,
+                                     0, 0, 150, 20, top, None, None, None)
+            self.assertTrue(edit)
+            u.SetFocus.argtypes = (wintypes.HWND,)
+            u.SetFocus(edit)
+            self.assertTrue(win32.clear_focused_edit(top))
+            buf = ctypes.create_unicode_buffer(64)
+            u.GetWindowTextW.argtypes = (wintypes.HWND, wintypes.LPWSTR, ctypes.c_int)
+            u.GetWindowTextW(edit, buf, 64)
+            self.assertEqual(buf.value, "")
+        finally:
+            u.DestroyWindow.argtypes = (wintypes.HWND,)
+            u.DestroyWindow(top)
 
 if __name__ == "__main__":
     unittest.main()
