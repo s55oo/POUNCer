@@ -91,7 +91,7 @@ class WebServerTests(unittest.TestCase):
         self.assertEqual(resp.status, 200)
         from pouncer import __version__
         self.assertIn(f"POUNCer {__version__} help", body)
-        for word in ("CLR", "MLT", "Run history", "CQ 3m", "WPM", "NAR", "ENTER"):
+        for word in ("CLR", "MLT", "Run history", "cq3m", "WPM", "NAR", "ENTER"):
             self.assertIn(word, body)
 
     def test_clear_and_undo(self) -> None:

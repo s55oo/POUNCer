@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## v0.5.8 — 2026-10-12 — bold frequency, cq3m, fit
+
+- Spot frequency on the tiles in **bold** (white).
+- Time on frequency written `cq3m` / `cq1h35` (was `CQ 3m`).
+- Mode shown only when it isn't CW (e.g. `RTTY`) - saves room.
+- Tiles that still don't fit (long call + every mark) get slightly smaller
+  text automatically; under 380 px the details are a bit smaller. Checked
+  320-430 px: everything fits from 360 px up.
+
 ## v0.5.7 — 2026-10-12 — "17dB"
 
 - Signal strength written without a space: `17dB` (phone tiles, help page,
