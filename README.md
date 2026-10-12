@@ -74,6 +74,10 @@ spotted callsign into the N1MM Entry Window.
   Wide/Narrow button; the width POUNCer set is lit amber - it starts as
   narrow, `[ui] filter_start` - hold 1 s to toggle
   the radio without changing the label if they differ); none of them transmit.
+  **Run history:** each tile shows `R81%` = how often that station ran (called
+  CQ) in its past logs of the same contest, from S53ZO's public contest-log
+  archive; **⚡** = runs under 30% - a CQ from it won't last, work it now
+  (`[ui] run_history`, cached in a `cache` folder).
   Confirmations ("Wide filter", "CW faster", Undo after a remove) pop up at
   the top, just under the header, for 5 s (tap to close). On a phone the tiles are compact one-line rows (callsign left,
   details right) so about 10 fit on screen; wider screens get two columns of

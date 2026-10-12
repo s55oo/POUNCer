@@ -141,6 +141,7 @@ INDEX_HTML = """<!doctype html>
     font-size: 16px; z-index: 10; border: 1px solid #81c784;
     box-shadow: 0 6px 24px rgba(0, 0, 0, .7);
     transition: transform .15s ease, opacity .15s ease, visibility 0s linear .15s; }
+  .call .rare { font-size: .8em; margin-left: 4px; }
   #toast[hidden] { display: none !important; }
   #toast.show { transform: translateX(-50%) translateY(0); opacity: 1;
     visibility: visible; pointer-events: auto;
@@ -475,11 +476,17 @@ INDEX_HTML = """<!doctype html>
         (spotKey(s) === selKey ? ' sel' : '');
       // DX (outside our continent): callsign in yellow; EU stays white
       if (s.country) b.title = s.country + (s.cont ? ' (' + s.cont + ')' : '');
+      // Run history (past logs): R = % of QSOs made running; ⚡ = rarely
+      // runs, so a CQ from it won't last - work it now.
+      const rare = s.run != null && s.run < (lastData && lastData.rare_run || 30);
+      if (s.run != null) b.title = (b.title ? b.title + ' - ' : '') +
+        'runs ' + s.run + '% of QSOs in past logs' + (rare ? ' (rarely runs: work it now)' : '');
       const len = (s.call || '').length;
       const size = len > 10 ? ' xlong' : (len > 8 ? ' long' : '');
       b.innerHTML = '<span class="call' + size + (s.dx ? ' dx' : '') + '">' +
-        esc(s.call) + '</span>' +
+        esc(s.call) + (rare ? '<span class="rare">\u26a1</span>' : '') + '</span>' +
         '<span class="detail"><span>' + s.freq.toFixed(1) + ' ' + esc(s.mode) +
+        (s.run != null ? ' R' + s.run + '%' : '') +
         '</span> <span>' + (s.snr == null ? '--' : s.snr + ' dB') +
         (s.time ? ' ' + esc(s.time) : '') + '</span></span>';
       attachPress(b, s);

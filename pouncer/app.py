@@ -17,6 +17,7 @@ from .n1mm import (
     N1MMController, RadioListener, RadioState, cat_macro, next_tune_khz,
 )
 from .rbn import RBNClient, Spot, is_beacon, ports_for_modes
+from .runhist import RARE_RUN_PCT, RunHistory
 from .web import WebServer, pick_web_address
 from .win32 import (
     force_foreground, is_n1mm_running, send_cw_speed, send_enter, send_filter_toggle,
@@ -103,6 +104,10 @@ class PouncerApp:
                 log.info("callsign %s taken from N1MM", config.rbn_callsign)
             else:
                 log.warning("no callsign: set [rbn] callsign in config.ini")
+        # How often each spotted call runs, from past contest logs.
+        self.runhist = (
+            RunHistory(config.run_history_dir or "cache") if config.run_history else None
+        )
         # Callsign -> continent (N1MM's wl_cty.dat) for EU / DX marking.
         self.cty = load_cty(config.cty_file, config.n1mm_ini)
         self.home_cont = (
@@ -425,6 +430,7 @@ class PouncerApp:
             "home_cont": self.home_cont,
             "contest_bands": list(CONTEST_BANDS),
             "tune_step": self.cfg.tune_step_hz,
+            "rare_run": RARE_RUN_PCT,
             "filter": self._filter_width,
             # "cat": NAR/WIDE set the filter (always send); "toggle": Alt+'
             "filter_mode": (
@@ -454,6 +460,7 @@ class PouncerApp:
                     "country": self._country(s.dxcall),
                     "dx": self._is_dx(s.dxcall),
                     "mult": self._mults(s),
+                    "run": self._run_pct(s),
                 }
                 for s in spots
             ],
@@ -619,6 +626,12 @@ class PouncerApp:
         return self.worked.new_mults(
             s.freq_khz, ent.prefix if ent else None, zone, wpx_prefix(s.dxcall),
         )
+
+    def _run_pct(self, s: Spot) -> int | None:
+        """% of past QSOs (same contest + mode) this call made running."""
+        if self.runhist is None:
+            return None
+        return self.runhist.get(s.dxcall, self.worked.contest_name, s.mode)
 
     def _is_dx(self, call: str) -> bool:
         """DX = a known continent other than ours (EU for S5)."""
