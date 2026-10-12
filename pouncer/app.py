@@ -981,7 +981,7 @@ class PouncerApp:
         font = ("Segoe UI", self.cfg.touch_font, "bold")
         for idx, s in enumerate(spots):
             row, col = idx % rows, idx // rows
-            snr = "--" if s.snr is None else f"{s.snr} dB"
+            snr = "--" if s.snr is None else f"{s.snr}dB"
             strong = s.snr is not None and s.snr >= 20
             bg = "#1b5e20" if strong else "#263238"
             if s is tuned:
