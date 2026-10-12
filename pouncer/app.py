@@ -399,12 +399,19 @@ class PouncerApp:
         if self.set_call_var.get():
             can_type = focused or not self.cfg.focus_n1mm
             if can_type:
-                # Always start from an empty callsign box: N1MM's wipe
-                # (Alt+W; also clears the exchange), then empty the focused
-                # box directly in case the wipe didn't land yet, then type.
+                # Always start from an empty Entry Window: N1MM's wipe, then
+                # empty the focused callsign box directly in case the wipe
+                # didn't land yet, then type the clicked call.
                 if self.cfg.wipe_before_call:
+                    # N1MM's own wipe ({WIPE} macro via its UDP command port,
+                    # works whatever has the keyboard), plus Alt+W as backup
+                    nr = self.state.active_radio_nr()
+                    try:
+                        self.controller.send_radio_command("{WIPE}", nr, hwnd)
+                    except OSError:
+                        pass
                     wipe_callsign()
-                    time.sleep(0.08)
+                    time.sleep(0.2)  # let N1MM finish the wipe before we type
                 cleared = clear_focused_edit(hwnd) if hwnd else False
                 type_text(spot.dxcall)
                 msg += " (call typed, no TX)" + ("" if cleared else " [box not cleared]")
