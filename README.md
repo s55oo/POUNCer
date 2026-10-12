@@ -130,8 +130,8 @@ by themselves (UDP broadcast, port 12079) and work as a **team**:
 - if the master is switched off (or its RBN is down over a minute) the next
   one takes over within seconds.
 
-The main window shows `team: master (3 POUNCers)` or `team: slave of
-<IP>`; the phone's status line starts with **M** or **S**. Allow UDP 12079
+The main window shows a coloured bar at the top - **MASTER** (green) or
+**SLAVE** (blue, with the master's IP) - and the role in its title; the phone's status line starts with **M** or **S**. Allow UDP 12079
 in the Windows firewall on each PC. `[team] enabled = false` = stand-alone.
 Give them all the same `[rbn] spotter` and modes.
 

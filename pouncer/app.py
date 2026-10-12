@@ -177,6 +177,10 @@ class PouncerApp:
 
         header = ttk.Frame(self.root, padding=(8, 6, 8, 2))
         header.pack(fill="x")
+        # Team role, big and coloured: MASTER (talks to RBN) / SLAVE / alone
+        self.team_label = tk.Label(header, text="", anchor="w", font=("Segoe UI", 12, "bold"),
+                                   padx=6, pady=2)
+        self.team_label.pack(fill="x", pady=(0, 4))
         self.n1mm_label = self._wrap_label(header, "N1MM: waiting for radio info...")
         self.rbn_label = self._wrap_label(header, "RBN: starting...")
         self.log_label = self._wrap_label(header, "Log: -")
@@ -709,6 +713,21 @@ class PouncerApp:
             if self.web is not None:
                 self.web.set_runhist_provider(self.runhist.snapshot)
 
+    def _update_team_label(self) -> None:
+        """Top line + window title: MASTER / SLAVE / stand-alone."""
+        role = self.team.role() if self.team is not None else "off"
+        n = len(self.team.alive_peers()) + 1 if self.team is not None else 1
+        text, bg = {
+            "master": (f"MASTER - this POUNCer talks to RBN for the team ({n} POUNCers)", "#2e7d32"),
+            "slave": (f"SLAVE - spots come from the master at {self.team.master_ip() if self.team else ''}"
+                      f" ({n} POUNCers)", "#1565c0"),
+            "solo": ("ALONE - no other POUNCer on the network (team on)", "#546e7a"),
+        }.get(role, ("Team off - stand-alone", "#546e7a"))
+        if self.team_label.cget("text") != text:
+            self.team_label.configure(text=text, bg=bg, fg="#ffffff")
+            tag = {"master": " - MASTER", "slave": " - SLAVE"}.get(role, "")
+            self.root.title(f"POUNCer {__version__}{tag} - RBN band follower for N1MM")
+
     def _team_text(self) -> str:
         if self.team is None:
             return ""
@@ -921,6 +940,7 @@ class PouncerApp:
             )
         )
         self.log_label.configure(text=worked)
+        self._update_team_label()
 
     def _visible_spots(self) -> list[Spot]:
         """Spots matching the current band, modes and worked filter."""
