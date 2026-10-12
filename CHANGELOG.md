@@ -1,5 +1,24 @@
 # POUNCer — Changelog
 
+## v0.3.0 — 2026-10-12 — run history from the contest-log archive
+
+- Phone tiles show how often a spotted station **runs**: `R81%` = 81% of
+  its QSOs in past logs were made calling CQ (same frequency as one of its
+  last two QSOs on that band). **⚡** = runs under 30%: a station that
+  mostly searches but is spotted calling CQ won't stay long - work it now.
+  Hover / long text in the tile title explains it.
+- Data: S53ZO's public archive
+  (github.com/s53zo/Hamradio-Contest-logs-Archives). The call's `SH6`
+  shard (`logs_XX.sqlite`, XX = crc32(CALL) & 0xff, ~1.4 MB) says which logs
+  exist; the newest 2 of the same contest + mode (N1MM's contest, e.g.
+  CQWWCW -> `CQWW` CW; else any contest in that mode, never reconstructed
+  logs) are downloaded and measured. Fewer than 30 QSOs = no info.
+- Runs in one background thread, nothing blocks; shards and results are
+  kept in a `cache` folder next to config.ini (`runhist.json`), so each call
+  is fetched once. No internet = simply no info.
+- New `pouncer/runhist.py`; `[ui] run_history = true` (false = off);
+  `/api/spots` gives `run` per spot and `rare_run`.
+
 ## v0.2.10 — 2026-10-11 — NAR / WIDE set the filter by CAT (Flex)
 
 - NAR / WIDE no longer use N1MM's Alt+' **toggle** (POUNCer could never know

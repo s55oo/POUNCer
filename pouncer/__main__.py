@@ -34,6 +34,10 @@ def main(argv: list[str] | None = None) -> int:
         logging.warning("config file not found: %s (using defaults)", args.config)
 
     config = load_config(args.config)
+    if not config.run_history_dir:
+        config.run_history_dir = os.path.join(
+            os.path.dirname(os.path.abspath(args.config)), "cache"
+        )
     app = PouncerApp(config)
     app.run()
     return 0
