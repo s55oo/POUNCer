@@ -107,5 +107,50 @@ class JoinSyncTests(unittest.TestCase):
             teammod.ANNOUNCE_S = old
 
 
+
+class TargetsTests(unittest.TestCase):
+    def test_announce_goes_to_every_adapter_known_and_manual_peers(self) -> None:
+        sent = []
+
+        class FakeSock:
+            def __init__(self, name):
+                self.name = name
+
+            def sendto(self, data, addr):
+                sent.append((self.name, addr))
+
+            def close(self):
+                pass
+
+        tm = Team(0, port=18121, peers=["10.147.17.8"])
+        try:
+            tm._sock.close()
+            tm._sock = FakeSock("main")
+            tm._if_socks = {"192.168.1.10": FakeSock("lan"), "10.147.17.5": FakeSock("zt")}
+            tm._if_checked = time.time()          # don't re-read adapters
+            tm.peers["x"] = {"ip": "10.147.17.9", "web": 0, "started": 0.0,
+                             "healthy": True, "seen": time.time()}
+            tm._send({"t": "hi"})
+            self.assertIn(("lan", ("255.255.255.255", 18121)), sent)
+            self.assertIn(("zt", ("255.255.255.255", 18121)), sent)   # ZeroTier too
+            self.assertIn(("main", ("10.147.17.8", 18121)), sent)     # manual peer
+            self.assertIn(("main", ("10.147.17.9", 18121)), sent)     # known peer
+            sent.clear()
+            tm._send({"t": "spot"}, broadcast=False)                   # data: direct only
+            self.assertEqual({a[0] for _, a in sent}, {"10.147.17.8", "10.147.17.9"})
+        finally:
+            tm._stop.set()
+
+    def test_peers_config(self) -> None:
+        import os
+        import tempfile
+        from pouncer.config import load_config
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "c.ini")
+            with open(path, "w") as fh:
+                fh.write("[team]\npeers = 10.147.17.5, 10.147.17.8;192.168.1.20\n")
+            self.assertEqual(load_config(path).team_peers,
+                             ("10.147.17.5", "10.147.17.8", "192.168.1.20"))
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,5 +1,17 @@
 # POUNCer — Changelog
 
+## v0.6.2 — 2026-10-12 — team over ZeroTier too
+
+- The team announcement now goes out of **every network adapter** (LAN,
+  ZeroTier, ...): one broadcast socket bound to each local IPv4 (Windows
+  sends a broadcast only out of the adapter the socket is bound to; the
+  list is re-read every 60 s, e.g. ZeroTier coming up later). Before, only
+  the main adapter was used, so POUNCers on ZeroTier didn't see each other.
+- POUNCers that know each other also talk **directly** (unicast), and spots
+  / run history go only directly (no broadcast flood).
+- New `[team] peers = 10.147.17.5, 10.147.17.8`: extra POUNCer IPs for
+  networks that drop broadcasts.
+
 ## v0.6.1 — 2026-10-12 — MASTER / SLAVE in the Windows window
 
 - The main window shows the team role at the top in a coloured bar:

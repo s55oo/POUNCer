@@ -702,6 +702,7 @@ class PouncerApp:
                 rbn_ok=self._rbn_ok,
                 port=self.cfg.team_port,
                 version=__version__,
+                peers=list(self.cfg.team_peers),
             )
             self.team.start()
         except OSError as exc:
