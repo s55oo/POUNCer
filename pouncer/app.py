@@ -423,6 +423,7 @@ class PouncerApp:
                 self.spotter_filter,
                 self.spot_queue,
                 on_status=self.status_queue.put,
+                history=self.cfg.rbn_history,
             )
             client.start()
             self._rbn_clients[port] = client

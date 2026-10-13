@@ -129,5 +129,59 @@ class SpotterFilterTests(unittest.TestCase):
         self.assertTrue(SpotterFilter("").accept("ANY-#"))
 
 
+class HistoryTests(unittest.TestCase):
+    def test_parse_sh_dx_line(self) -> None:
+        import calendar
+        from pouncer.rbn import parse_history
+        now = calendar.timegm((2026, 10, 13, 12, 5, 0))
+        s = parse_history("  14025.0  K1ABC        13-Oct-2026 1159Z  CW 23 dB 28 WPM CQ          <S53WW-#>",
+                          now)
+        self.assertEqual((s.dxcall, s.freq_khz, s.mode, s.snr, s.wpm, s.spot_type, s.spotter),
+                         ("K1ABC", 14025.0, "CW", 23, 28, "CQ", "S53WW-#"))
+        self.assertEqual(now - s.received, 6 * 60)          # its own time: ages as usual
+        self.assertIsNone(parse_history("DX de S53WW-#: 14025.0 K1ABC CW 23 dB 28 WPM CQ 1159Z"))
+        self.assertIsNone(parse_history("S55OO de RBN 13-Oct-2026 1205Z >"))
+
+    def test_client_asks_for_history_after_login(self) -> None:
+        import queue
+        import socket
+        import threading
+        from pouncer.rbn import RBNClient, SpotterFilter
+        srv = socket.socket()
+        srv.bind(("127.0.0.1", 0))
+        srv.listen(1)
+        got_cmds, q = [], queue.Queue()
+
+        def server():
+            c, _ = srv.accept()
+            c.sendall(b"Please enter your call: ")
+            buf = b""
+            while b"sh/dx" not in buf:
+                data = c.recv(1024)
+                if not data:
+                    return
+                buf += data
+            got_cmds.append(buf.decode())
+            c.sendall(b"  14025.0  K1ABC        13-Oct-2026 1159Z  CW 23 dB 28 WPM CQ   <S53WW-#>\r\n"
+                      b"  14030.0  W1AW         13-Oct-2026 1158Z  CW 11 dB 25 WPM CQ   <DL1XX-#>\r\n")
+            import time as _t
+            _t.sleep(1)
+            c.close()
+
+        th = threading.Thread(target=server, daemon=True)
+        th.start()
+        client = RBNClient("127.0.0.1", srv.getsockname()[1], "S55OO",
+                           SpotterFilter("S53WW"), q, history=30)
+        client.start()
+        th.join(10)
+        client.stop()
+        srv.close()
+        self.assertTrue(got_cmds and "S55OO" in got_cmds[0])
+        self.assertIn("sh/dx/100 spotter=S53WW-#", got_cmds[0])
+        spots = [q.get(timeout=2)]
+        self.assertEqual(spots[0].dxcall, "K1ABC")           # DL1XX's filtered out
+        self.assertTrue(q.empty())
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -170,6 +170,12 @@ with A it shows that band's spots for radio A, with B for radio B (green =
 the band shown, blue ring = the band the radio is on). Tap a station there
 and that radio goes to it.
 
+## Spots at start
+
+Right after logging in to RBN POUNCer asks for the **last spots**
+(`sh/dx/100 spotter=S53WW-#`, or `sh/dx/30` if that gives nothing), so the
+list has stations to click straight away. `[rbn] history = 30` (0 = off).
+
 ## Contest summary
 
 **Σ** on the phone page (next to **?**, also in the band menu) or the

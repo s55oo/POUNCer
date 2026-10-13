@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## v0.7.23 — 2026-10-13 — last spots at start (SH/DX)
+
+- **At start (and after a reconnect) POUNCer asks RBN for the last spots**,
+  so there are stations to click right away instead of waiting for new
+  spots: `sh/dx/100 spotter=S53WW-#` (your skimmer's last spots), and if
+  that gives nothing `sh/dx/30`. They come with their own time, so old
+  ones fade / expire as usual. In a team the master passes them on.
+  `[rbn] history = 30` (0 = off).
+
 ## v0.7.22 — 2026-10-13 — radio B: frequency with the right decimal sign
 
 - **Fix: radio B jumped to a wrong frequency** (e.g. 140001 instead of
