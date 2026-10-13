@@ -291,6 +291,28 @@ def restore_focus(snap: dict | None) -> bool:
     return ok
 
 
+_WM_GETTEXT = 0x000D
+
+
+def focused_edit_text(window_hwnd: int) -> str | None:
+    """Text of the box with the keyboard focus in ``window_hwnd``'s thread
+    (N1MM's callsign box after a tap); None if it isn't a text box."""
+    if not _WIN or not window_hwnd:
+        return None
+    thread = _user32.GetWindowThreadProcessId(window_hwnd, None)
+    info = _GUITHREADINFO()
+    info.cbSize = ctypes.sizeof(_GUITHREADINFO)
+    if not thread or not _user32.GetGUIThreadInfo(thread, ctypes.byref(info)) or not info.hwndFocus:
+        return None
+    cls = ctypes.create_unicode_buffer(256)
+    _user32.GetClassNameW(info.hwndFocus, cls, 256)
+    if "EDIT" not in cls.value.upper():
+        return None
+    buf = ctypes.create_unicode_buffer(128)
+    _user32.SendMessageW(info.hwndFocus, _WM_GETTEXT, 128, ctypes.addressof(buf))
+    return buf.value
+
+
 def type_text(text: str) -> bool:
     """Type literal text into the focused control via unicode keystrokes."""
     if not _WIN:

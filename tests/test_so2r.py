@@ -101,7 +101,8 @@ class AppRadioTests(unittest.TestCase):
         )
         f._band_memory, f._tune_last = {}, {}
         for name in ("_radio_nr", "_radio_tag", "_so2r", "_current_band", "_radio_khz",
-                     "_focus_radio", "_qsy", "_types_qsy", "_snapshot_focus", "_return_focus"):
+                     "_focus_radio", "_qsy", "_types_qsy", "_snapshot_focus", "_return_focus",
+                     "_wait_for_qsy", "_check_call"):
             setattr(f, name, getattr(app.PouncerApp, name).__get__(f))
         return f
 
@@ -160,6 +161,34 @@ class AppRadioTests(unittest.TestCase):
             with mock.patch.object(app, "window_pid", side_effect=lambda h: 7 if h == 2222 else 42):
                 app.PouncerApp._act_on_spot(f, spot, 2)
             self.assertEqual(restored, [])
+
+    def test_call_typed_only_after_n1mm_reports_new_frequency(self) -> None:
+        # N1MM can wipe the call when the radio moves: wait for the new
+        # frequency in RadioInfo, then type; retype if the box lost it
+        app = _import_app()
+        f = self._fake(app, radio=1)
+        f.cfg.qsy_wait_ms, f.cfg.qsy_settle_ms = 1500, 250
+        events = []
+
+        def fake_sleep(sec):
+            events.append(("sleep", sec))
+            if len([e for e in events if e[0] == "sleep"]) == 3:   # radio arrives
+                f.state.update(radio_info(1, 14031.0, 1111))
+
+        boxes = iter(["", "DL1AA"])     # first check: N1MM cleared it
+        spot = app.Spot(dxcall="DL1AA", freq_khz=14031.0, mode="CW", snr=10, wpm=28,
+                        spot_type="CQ", spotter="S53WW", time_utc="1200Z", received=0)
+        with mock.patch.object(app, "force_foreground", return_value=True), \
+                mock.patch.object(app, "wipe_callsign", side_effect=lambda: events.append(("wipe",))), \
+                mock.patch.object(app, "clear_focused_edit", return_value=True), \
+                mock.patch.object(app, "type_text", side_effect=lambda t: events.append(("type", t))), \
+                mock.patch.object(app, "focused_edit_text", side_effect=lambda h: next(boxes)), \
+                mock.patch.object(app.time, "sleep", side_effect=fake_sleep):
+            app.PouncerApp._act_on_spot(f, spot, 1)
+        first_type = events.index(("type", "DL1AA"))
+        self.assertIn(("sleep", 0.25), events[:first_type])     # settled after the QSY
+        self.assertLess(events.index(("sleep", 0.25)), events.index(("wipe",)))
+        self.assertEqual([e for e in events if e[0] == "type"], [("type", "DL1AA")] * 2)
 
     def test_tap_on_radio_a_uses_udp(self) -> None:
         app = _import_app()

@@ -25,7 +25,8 @@ from .team import Team
 from .update import Updater
 from .web import WebServer, pick_web_address
 from .win32 import (
-    focus_snapshot, force_foreground, is_n1mm_running, restore_focus, send_cw_speed,
+    focus_snapshot, focused_edit_text, force_foreground, is_n1mm_running, restore_focus,
+    send_cw_speed,
     send_enter, send_filter_toggle, window_pid,
     send_fkey,
     type_text,
@@ -442,6 +443,37 @@ class PouncerApp:
         if N1MM reports it, else the active one (SO1R: always the one radio)."""
         return self.state.active_radio_nr(radio or self.radio)
 
+    def _wait_for_qsy(self, nr: int, khz: float) -> bool:
+        """Wait until N1MM reports radio ``nr`` on ``khz`` (it may wipe the
+        callsign when the radio moves - typing before that lost the call),
+        then a little more. False if it never came (we type anyway)."""
+        wait = getattr(self.cfg, "qsy_wait_ms", 0) / 1000
+        settle = getattr(self.cfg, "qsy_settle_ms", 0) / 1000
+        end = time.time() + wait
+        while True:
+            snap = self.state.snapshot(nr)
+            f = snap.get("freq_khz") if snap else None
+            if f is not None and abs(f - khz) <= 0.15:
+                if settle:
+                    time.sleep(settle)
+                return True
+            if time.time() >= end:
+                return wait == 0
+            time.sleep(0.05)
+
+    def _check_call(self, hwnd, call: str) -> str:
+        """The call really in the callsign box? If not (N1MM cleared it),
+        type it once more."""
+        if not hwnd:
+            return ""
+        time.sleep(0.1)
+        got = focused_edit_text(hwnd)
+        if got is None or got.strip().upper() == call.strip().upper():
+            return ""
+        clear_focused_edit(hwnd)
+        type_text(call)
+        return " [call typed again]"
+
     def _snapshot_focus(self):
         """SO2R: where the cursor is before we go to the other radio's window."""
         if not getattr(self.cfg, "return_focus", False) or not self._so2r():
@@ -482,6 +514,7 @@ class PouncerApp:
         if not self._qsy(nr, spot.freq_khz, hwnd, focused):
             return
         self.taps.record(spot.dxcall, spot.freq_khz)   # for the contest summary
+        landed = self._wait_for_qsy(nr, spot.freq_khz)
 
         msg = f"QSY {self._radio_tag(nr)}{spot.freq_khz:.1f} kHz -> {spot.dxcall}"
         if self.set_call_var.get():
@@ -502,6 +535,9 @@ class PouncerApp:
                 cleared = clear_focused_edit(hwnd) if hwnd else False
                 type_text(spot.dxcall)
                 msg += " (call typed, no TX)" + ("" if cleared else " [box not cleared]")
+                msg += self._check_call(hwnd, spot.dxcall)
+                if not landed:
+                    msg += " [N1MM didn't report the new frequency]"
             else:
                 msg += " (call skipped: N1MM not focused)"
         if self.cfg.focus_n1mm:
