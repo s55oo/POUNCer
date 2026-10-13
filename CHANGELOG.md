@@ -1,5 +1,22 @@
 # POUNCer — Changelog
 
+## v0.7.29 — 2026-10-13 — pre-contest self-test
+
+- **Self-test** button in the main window (exe only, not on the phone):
+  checks before the contest what otherwise shows up in the first hour -
+  N1MM radio info (A / B, frequency, mode, Entry Window), the N1MM log,
+  the callsign, the RBN feed and whether RBN answered **SH/DX** at login,
+  whether the **RBN, backup and SSB servers** answer (connect and read
+  the greeting only, no login, so the running connection is not
+  disturbed), the **same login call** on the backup and SSB cluster (tip:
+  `[ssb] login = S55OO-2`), the typed frequency's **decimal sign**, and
+  **TEST** put into Entry Window A / B and read back (what was in the
+  box is put back).
+- Optional **QSY test**: each radio 1 kHz up and back (radio A by UDP,
+  radio B typed), with how long N1MM took to report it.
+- Each line OK / CHECK / FAIL, a summary, **Copy result**; also in the
+  diagnostic log. Taps wait while it runs. Nothing transmits.
+
 ## v0.7.28 — 2026-10-13 — SSB
 
 - **SSB contests.** RBN skimmers don't decode SSB, so SSB spots come from a

@@ -198,6 +198,17 @@ N1MM reported the new frequency, the call put in and what N1MM's box really
 showed), keys, RBN connection changes and the settings at start. **Copy
 all** and send it when something goes wrong. Also in `cache\diag.log`.
 
+## Self-test (before the contest)
+
+**Self-test** (main window) checks N1MM radio info and log, the RBN feed and
+its last spots at start (SH/DX), whether the RBN / backup / SSB servers
+answer, the login calls, the decimal sign of a typed frequency and - with
+the cursor in the call box - TEST put into Entry Window A / B and read back
+(the box is put back as it was). Tick **Test QSY** to also move each radio
+1 kHz up and back. Every line is OK / CHECK / FAIL with what to do; **Copy
+result** to send it. Nothing transmits; run it before the contest, not
+during a QSO.
+
 ## SSB
 
 RBN has no SSB, so for SSB POUNCer uses a **DX cluster** (human spots,

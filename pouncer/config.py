@@ -72,8 +72,8 @@ class Config:
     n1mm_control_port: int = 13064
     n1mm_radionr: int = 1
     default_radio: int = 1  # SO2R: radio a tap goes to at start (1 = A, 2 = B)
-    radio_b_qsy: str = "type"
-    freq_decimal: str = "auto"  # typed frequency: auto (Windows setting), "." or ","  # SO2R radio B QSY: "type" (kHz + Enter in Entry Window B) or "udp"
+    radio_b_qsy: str = "type"  # SO2R radio B QSY: "type" (kHz + Enter in Entry Window B) or "udp"
+    freq_decimal: str = "auto"  # typed frequency: auto (Windows setting), "." or ","
     set_callsign: bool = True
     wipe_before_call: bool = True
     focus_n1mm: bool = True
