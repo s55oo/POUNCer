@@ -267,6 +267,16 @@ class PouncerApp:
         else:
             self.tree.bind("<ButtonRelease-1>", self._on_qsy)
 
+        # F1-F12 typed while POUNCer has the focus go to N1MM's Entry Window
+        # (focus N1MM, then the key = that N1MM message is SENT, like there).
+        if self.cfg.forward_fkeys:
+            for n in range(1, 13):
+                self.root.bind_all(f"<F{n}>", lambda _e, k=f"F{n}": self._forward_key(k))
+            # Enter too, when it is one of the set keys (logs the QSO in N1MM)
+            if any(k.lower() == "enter" for k, _ in self.cfg.fkeys):
+                for seq in ("<Return>", "<KP_Enter>"):
+                    self.root.bind_all(seq, lambda _e: self._forward_key("Enter"))
+
         bottom = ttk.Frame(self.root, padding=(8, 2))
         bottom.pack(fill="x")
         self.web_label = self._wrap_label(bottom, "Phone view: starting...")
@@ -599,6 +609,11 @@ class PouncerApp:
         if label and label.upper() != big:
             return f"{big}{sep}{label}"
         return big
+
+    def _forward_key(self, key: str) -> str:
+        """A function key pressed on the keyboard in POUNCer: pass it to N1MM."""
+        self._press_key(key)
+        return "break"  # Tk does nothing else with it (F10 = no menu)
 
     def _press_key(self, key: str) -> None:
         """A TX / log button was pressed: focus N1MM, then send the key.

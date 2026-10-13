@@ -114,6 +114,10 @@ spotted callsign into the N1MM Entry Window.
   is to send the keystroke to the Entry Window (`EntryWindowHwnd`). Reorder or
   disable the buttons with e.g. `fkeys = F1:CQ F4:MyCall Enter` (empty = no
   buttons).
+* **Keyboard F-keys** - with the POUNCer window active, F1-F12 (and Enter,
+  if it is one of the set keys) go straight to N1MM: POUNCer focuses the
+  Entry Window and presses the key there, so the message is sent
+  (`[ui] forward_fkeys`).
 
 Only the Python standard library is used (tkinter for the GUI). No pip install
 is required.

@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.10 — 2026-10-13 — function keys from the keyboard
+
+- Main window: pressing **F1-F12 on the keyboard** while POUNCer is the
+  active window works like in N1MM - POUNCer brings N1MM's Entry Window to
+  the front and presses that key there, so the N1MM message is **sent**.
+  **Enter** too when it is one of the set keys (`[ui] fkeys`), logging the
+  QSO. `[ui] forward_fkeys = true` (false = off).
+
 ## v0.7.9 — 2026-10-13 — NEXT button, macOS builds
 
 - **macOS builds** (by S53ZO): every release also has
