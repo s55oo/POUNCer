@@ -190,14 +190,6 @@ POUNCer's config.ini (only that line; comments stay). Most work at once, the
 ones marked ↻ after **Restart POUNCer**. Only from the browser on the PC
 itself unless `[web] remote_settings = true`.
 
-## Diagnostic log
-
-**Diagnostics** (main window) or "Diagnostic log" (phone band menu) shows
-what POUNCer did, step by step - every tap with timings (focus, QSY, when
-N1MM reported the new frequency, the call put in and what N1MM's box really
-showed), keys, RBN connection changes and the settings at start. **Copy
-all** and send it when something goes wrong. Also in `cache\diag.log`.
-
 ## SSB
 
 RBN has no SSB, so for SSB POUNCer uses a **DX cluster** (human spots,
