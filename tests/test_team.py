@@ -17,6 +17,22 @@ def wait_for(cond, timeout=6.0):
     return False
 
 
+class VersionMismatchTests(unittest.TestCase):
+    def test_peers_on_other_versions(self) -> None:
+        t = Team(0, version="0.7.12")
+        now = time.time()
+        t.peers = {
+            "p1": {"ip": "192.168.1.20", "ver": "0.7.12", "seen": now, "started": 1},
+            "p2": {"ip": "192.168.1.21", "ver": "0.7.9", "seen": now, "started": 2},
+            "p3": {"ip": "192.168.1.22", "ver": "", "seen": now, "started": 3},
+            "p4": {"ip": "192.168.1.23", "ver": "0.7.1", "seen": now - 60, "started": 4},
+        }
+        self.assertEqual(t.version_mismatch(),
+                         [("192.168.1.21", "0.7.9"), ("192.168.1.22", "?")])
+        t.peers = {"p1": t.peers["p1"]}
+        self.assertEqual(t.version_mismatch(), [])
+
+
 class ElectTests(unittest.TestCase):
     def test_earliest_alive_healthy_wins(self) -> None:
         now = 1000.0

@@ -793,6 +793,9 @@ class PouncerApp:
                       f" ({n} POUNCers)", "#1565c0"),
             "solo": ("ALONE - no other POUNCer on the network (team on)", "#546e7a"),
         }.get(role, ("Team off - stand-alone", "#546e7a"))
+        note = self._version_note()
+        if note and role in ("master", "slave"):
+            text, bg = f"{text}   |   {note}", "#ef6c00"
         if self.team_label.cget("text") != text:
             self.team_label.configure(text=text, bg=bg, fg="#ffffff")
             tag = {"master": " - MASTER", "slave": " - SLAVE"}.get(role, "")
@@ -806,15 +809,27 @@ class PouncerApp:
         which = ", ".join(f.backups) if f.backups else f"skimmers in {self.home_cont}"
         return f"{f.primary} quiet - using {which}"
 
+    def _version_note(self) -> str:
+        """'' when the whole team runs this version; else who differs."""
+        if self.team is None:
+            return ""
+        diff = self.team.version_mismatch()
+        if not diff:
+            return ""
+        who = ", ".join(f"{ip} runs {ver}" for ip, ver in diff)
+        return f"VERSIONS DIFFER: this one is {__version__}, {who} - update all to the same"
+
     def _team_text(self) -> str:
         if self.team is None:
             return ""
         role = self.team.role()
         n = len(self.team.alive_peers())
+        note = self._version_note()
+        note = f" - {note}" if note and role in ("master", "slave") else ""
         if role == "slave":
-            return f"team: slave of {self.team.master_ip()} ({n + 1} POUNCers)"
+            return f"team: slave of {self.team.master_ip()} ({n + 1} POUNCers){note}"
         if role == "master":
-            return f"team: master ({n + 1} POUNCers)"
+            return f"team: master ({n + 1} POUNCers){note}"
         return "team: alone"
 
     def _prune(self) -> None:
@@ -1035,7 +1050,7 @@ class PouncerApp:
             lights.rbn_light(self.rbn_status, spot_age, role),
             lights.n1mm_light(snap["age"] if snap and snap.get("freq_khz") else None),
             lights.log_light(self.worked.log_open, self.worked.log_state),
-            lights.team_light(role, n),
+            lights.team_light(role, n, self.team.version_mismatch() if self.team else None),
             lights.web_light(self.cfg.web_enabled, self.web is not None),
             lights.warm_light(self.runhist is not None and self.cfg.warmup,
                               self.runhist.warm_status if self.runhist else ""),

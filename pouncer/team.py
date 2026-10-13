@@ -34,6 +34,12 @@ RBN_SICK_S = 60.0     # master whose RBN is down this long steps aside
 MAX_DATAGRAM = 60000
 
 
+def _ver(text: str) -> tuple[int, ...]:
+    """'v0.7.11' / '0.7.11' -> (0, 7, 11); unparsable -> ()."""
+    from .update import parse_version  # local: keep team import light
+    return parse_version(text)
+
+
 def local_ipv4s_all() -> list[str]:
     """Every IPv4 of this PC: all adapters on Windows (ipconfig), else what
     the hostname / default route give."""
@@ -136,6 +142,14 @@ class Team:
         with self._lock:
             return [dict(p, id=i) for i, p in self.peers.items()
                     if now - p["seen"] <= PEER_TIMEOUT_S]
+
+    def version_mismatch(self) -> list[tuple[str, str]]:
+        """(ip, version) of team POUNCers running another version than this one."""
+        mine = _ver(self.version)
+        if not mine:
+            return []
+        return sorted((p["ip"], p.get("ver") or "?") for p in self.alive_peers()
+                      if _ver(p.get("ver") or "") != mine)
 
     def role(self) -> str:
         """'solo' (no other POUNCer), 'master' or 'slave'."""
