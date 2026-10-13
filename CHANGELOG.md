@@ -1,5 +1,10 @@
 # POUNCer — Changelog
 
+## v0.7.30 — 2026-10-13 — self-test removed
+
+- The **Self-test** button and window from v0.7.29 are removed again (no
+  extra checks run). The Diagnostics log stays as before.
+
 ## v0.7.29 — 2026-10-13 — pre-contest self-test
 
 - **Self-test** button in the main window (exe only, not on the phone):
