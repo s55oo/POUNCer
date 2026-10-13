@@ -44,7 +44,7 @@ REFRESH_MS = 500
 WEB_MAX_SPOTS = 60
 WEB_VIEW_S = 10  # keep building a band a phone looks at this long after its last ask
 RADIO_ALIVE_SECONDS = 30
-TYPED_QSY_WAIT_S = 0.4  # radio B (typed QSY): wait at most this for N1MM's frequency report
+GUARD_CALL_S = 1.0  # radio B: after the call, keep it in the box this long if N1MM's QSY came late
 ON_FREQ_KHZ = 0.5  # a spot this close to the radio frequency = "tuned to it"
 ON_FREQ_STAY_KHZ = 0.5  # RBN re-spot within this = station still on that frequency
 ON_FREQ_GAP_S = 20 * 60  # ... and within 20 min of the last spot (skimmers re-spot sparsely)
@@ -569,6 +569,28 @@ class PouncerApp:
             set_focused_edit_text(hwnd, call)
         return " [call not confirmed in N1MM]"
 
+    def _guard_call(self, hwnd, call: str, nr: int, khz: float) -> bool:
+        """Radio B when N1MM hadn't reported the new frequency yet: keep the
+        call in the box a little longer - if N1MM's QSY (and its wipe of the
+        callsign) comes late, put the call in again. True = the report came."""
+        if not hwnd or not self._settext():
+            return False
+        settle = getattr(self.cfg, "qsy_settle_ms", 0) / 1000
+        want = call.strip().upper()
+        end = time.time() + GUARD_CALL_S
+        landed_at = None
+        while time.time() < end:
+            snap = self.state.snapshot(nr)
+            f = snap.get("freq_khz") if snap else None
+            if landed_at is None and f is not None and abs(f - khz) <= 0.15:
+                landed_at = time.time()
+                end = min(end, landed_at + settle + 0.2)
+            got = focused_edit_text(hwnd)
+            if got is not None and got.strip().upper() != want:
+                set_focused_edit_text(hwnd, call)
+            time.sleep(0.05)
+        return landed_at is not None
+
     def _snapshot_focus(self):
         """SO2R: where the cursor is before we go to the other radio's window."""
         if not getattr(self.cfg, "return_focus", False) or not self._so2r():
@@ -610,11 +632,9 @@ class PouncerApp:
         if not self._qsy(nr, spot.freq_khz, hwnd, focused):
             return
         self.taps.record(spot.dxcall, spot.freq_khz)   # for the contest summary
-        # radio B (typed): N1MM has taken the frequency already, so don't
-        # sit out the full wait for its report - the call check below
-        # puts the call in again if N1MM's wipe comes late
-        landed = self._wait_for_qsy(nr, spot.freq_khz,
-                                    TYPED_QSY_WAIT_S if self._types_qsy(nr) else None)
+        # wait until N1MM reports the radio on the new frequency (it wipes
+        # the callsign when the radio moves), radio B too
+        landed = self._wait_for_qsy(nr, spot.freq_khz)
 
         msg = f"QSY {self._radio_tag(nr)}{spot.freq_khz:.1f} kHz -> {spot.dxcall}"
         if self.set_call_var.get():
@@ -636,6 +656,8 @@ class PouncerApp:
                 how = self._enter_text(hwnd, spot.dxcall)
                 msg += " (call typed, no TX)" + ("" if how else " [box not cleared]")
                 msg += self._check_call(hwnd, spot.dxcall)
+                if not landed and self._types_qsy(nr):
+                    landed = self._guard_call(hwnd, spot.dxcall, nr, spot.freq_khz)
                 if not landed:
                     msg += " [N1MM didn't report the new frequency]"
             else:

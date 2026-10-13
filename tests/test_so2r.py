@@ -405,35 +405,66 @@ if __name__ == "__main__":
     unittest.main()
 
 
-class RadioBSpeedTests(unittest.TestCase):
-    """Radio B (typed QSY) must not sit out the full wait for N1MM's
-    frequency report: v0.7.21-0.7.31 took ~2.7 s per tap, v0.7.18 ~0.65 s."""
+class RadioBTimingTests(unittest.TestCase):
+    """Radio B (typed QSY): the call goes in only after N1MM moved the radio
+    (it wipes the callsign then), and survives a late wipe."""
 
-    def test_b_tap_is_fast_even_without_n1mm_report(self) -> None:
+    def _run(self, report_after: float, wipe_after: float | None):
         app = _import_app()
         f = AppRadioTests._fake(AppRadioTests(), app, radio=2)
         f.cfg.qsy_wait_ms, f.cfg.qsy_settle_ms, f.cfg.type_mode = 1500, 250, "settext"
         f.cfg.freq_decimal, f.cfg.return_focus = ",", False
+        f._guard_call = app.PouncerApp._guard_call.__get__(f)
         clock = [1000.0]
         box = {"t": ""}
+        entered = []
+
+        def tick():
+            # N1MM: radio B moves (and the callsign is wiped) after Enter
+            if entered and clock[0] >= entered[0] + report_after and \
+                    f.state.snapshot(2)["freq_khz"] != 7011.0:
+                f.state.update(radio_info(2, 7011.0, 2222))
+            if wipe_after is not None and entered and not box.get("wiped") and \
+                    clock[0] >= entered[0] + wipe_after:
+                box["t"], box["wiped"] = "", True
+
+        def sleep(sec):
+            clock[0] += sec
+            tick()
 
         def settext(h, t):
             box["t"] = t
             return True
 
         def enter():
-            box["t"] = ""          # N1MM takes the frequency out of the box
+            entered.append(clock[0])
+            box["t"] = ""
             return True
-        # N1MM never reports radio B's new frequency (the slow case)
         with mock.patch.object(app, "force_foreground", return_value=True), \
                 mock.patch.object(app, "set_focused_edit_text", side_effect=settext), \
                 mock.patch.object(app, "focused_edit_text", side_effect=lambda h: box["t"]), \
                 mock.patch.object(app, "send_enter", side_effect=enter), \
                 mock.patch.object(app.time, "time", side_effect=lambda: clock[0]), \
-                mock.patch.object(app.time, "sleep", side_effect=lambda s: clock.__setitem__(0, clock[0] + s)):
+                mock.patch.object(app.time, "sleep", side_effect=sleep):
             spot = app.Spot(dxcall="K1ABC", freq_khz=7011.0, mode="CW", snr=10, wpm=28,
                             spot_type="CQ", spotter="S53WW", time_utc="1200Z", received=0)
             app.PouncerApp._act_on_spot(f, spot, 2)
-        took = clock[0] - 1000.0
-        self.assertLess(took, 1.2, took)        # was 2.4+ s
-        self.assertEqual(box["t"], "K1ABC")
+            took = clock[0] - 1000.0
+            sleep(3)            # later: a wipe still to come would happen now
+        return took, box["t"]
+
+    def test_call_after_radio_moved(self) -> None:
+        took, call = self._run(report_after=0.4, wipe_after=0.4)
+        self.assertEqual(call, "K1ABC")
+        self.assertLess(took, 1.5, took)
+
+    def test_late_qsy_wipe_is_repaired(self) -> None:
+        # N1MM reports / wipes only after 1.95 s - after the call was put in
+        took, call = self._run(report_after=1.95, wipe_after=1.95)
+        self.assertEqual(call, "K1ABC")
+        self.assertLess(took, 3.5, took)
+
+    def test_never_reported_does_not_hang(self) -> None:
+        took, call = self._run(report_after=99, wipe_after=None)
+        self.assertEqual(call, "K1ABC")
+        self.assertLess(took, 3.5, took)

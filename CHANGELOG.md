@@ -1,5 +1,17 @@
 # POUNCer — Changelog
 
+## v0.7.33 — 2026-10-13 — radio B: frequency first, then the call
+
+- v0.7.32 was too quick on radio B: the call went in before N1MM had moved
+  the radio, and N1MM's wipe on the QSY then took it out again. Radio B
+  waits again until N1MM reports the new frequency (at most
+  `qsy_wait_ms`, then `qsy_settle_ms`) before the call goes in - about
+  1.2 s per tap. The fixed 0.3 s after Enter stays replaced by "until N1MM
+  took the frequency out of the box".
+- If N1MM's report comes later than the wait, POUNCer now keeps watching
+  the call box for up to 1 s more and puts the call in again if N1MM wiped
+  it - so the call stays even on a slow PC.
+
 ## v0.7.32 — 2026-10-13 — radio B tap fast again
 
 - **A tap for radio B was slow** (about 2.5 s) since v0.7.21: after typing
