@@ -371,6 +371,7 @@ INDEX_HTML = """<!doctype html>
   <div class="bandgrid" id="bandgrid"></div>
   <button class="sheet-close" id="alertbtn">Alerts: on</button>
   <a class="sheet-close helplink" href="/summary">Contest summary</a>
+  <a class="sheet-close helplink" href="/diag">Diagnostic log</a>
   <a class="sheet-close helplink" href="/help">Help: what every button does</a>
   <button class="sheet-close" id="bandclose">Cancel</button>
 </div></div>
@@ -1195,6 +1196,12 @@ open: QSOs and how many came <b>from POUNCer</b> (you tapped that call on that b
 air, best 60 minutes, a per-band table, rate per hour and the list of multipliers you
 worked from spots. POUNCer keeps the taps in <code>cache\\taps.jsonl</code> (14 days).</p>
 
+<h2>Diagnostic log</h2>
+<p><b>Diagnostic log</b> in the band menu (or the <b>Diagnostics</b> button in the main
+window) shows what POUNCer did, step by step: each tap with timings (QSY, when N1MM
+reported the new frequency, the call put in and what the box really showed), keys, RBN
+connection changes. <b>Copy all</b> and send it when something goes wrong.</p>
+
 <h2>Two radios (SO2R / SO2V)</h2>
 <dl>
   <dt><span class="k blue">A</span> <span class="k" style="background:#ef6c00">B</span></dt>
@@ -1491,6 +1498,72 @@ contest). Times UTC. Off time = gaps of 30 minutes or more. The page updates eve
 """
 
 
+DIAG_HTML = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>POUNCer __VERSION__ diagnostic log</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #101418; color: #e6e6e6;
+    font: 15px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 12px 16px 40px; }
+  .bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .bar a, .bar button { display: inline-block; margin: 4px 0 10px; padding: 10px 14px; border: 0;
+    background: #263238; color: #fff; border-radius: 10px; text-decoration: none;
+    font: inherit; font-weight: 700; cursor: pointer; }
+  .bar a.back { background: #2e7d32; }
+  .bar button.copy { background: #1565c0; }
+  h1 { font-size: 20px; margin: 6px 0 2px; }
+  p.lead { opacity: .75; margin: 0 0 10px; font-size: 13px; }
+  textarea { width: 100%; box-sizing: border-box; height: 70vh; background: #0b0f12; color: #cfd8dc;
+    border: 1px solid #263238; border-radius: 10px; padding: 10px;
+    font: 12px/1.45 ui-monospace, Consolas, monospace; white-space: pre; }
+  #msg { font-size: 13px; color: #81c784; }
+</style>
+</head>
+<body><main>
+<div class="bar"><a class="back" href="/">&larr; Back to the spots</a>
+  <button class="copy" id="copy">Copy all</button>
+  <button id="reload">&#8635; Refresh</button><span id="msg"></span></div>
+<h1>Diagnostic log</h1>
+<p class="lead">What POUNCer did, step by step: each tap with its timings (+ms after the
+tap: focus, QSY, when N1MM reported the new frequency, wipe, the call put in and what
+the callsign box really showed, cursor back), keys, RBN connection changes, the N1MM
+radios and the settings at start. Newest at the bottom. If something goes wrong in a
+contest, tap <b>Copy all</b> and send it. Also in <code>cache\\diag.log</code> next to
+POUNCer.exe.</p>
+<textarea id="log" readonly spellcheck="false">loading...</textarea>
+<script>
+  const box = document.getElementById('log');
+  const msg = document.getElementById('msg');
+  async function load() {
+    try {
+      const r = await fetch('/api/diag', {cache: 'no-store'});
+      box.value = await r.text() || '(nothing yet)';
+      box.scrollTop = box.scrollHeight;
+    } catch (e) {
+      box.value = 'POUNCer not reachable';
+    }
+  }
+  document.getElementById('reload').onclick = load;
+  document.getElementById('copy').onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(box.value);   // https / localhost
+    } catch (e) {
+      box.focus(); box.select(); document.execCommand('copy');   // phone over http
+    }
+    msg.textContent = 'Copied';
+    setTimeout(() => { msg.textContent = ''; }, 2500);
+  };
+  load();
+</script>
+</main></body>
+</html>
+"""
+
+
 class _Server(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = True
@@ -1680,6 +1753,15 @@ class _Handler(BaseHTTPRequestHandler):
                 return
             self._send_json({"ok": True, "band": band})
             return
+        if parsed.path in ("/diag", "/diag.html"):
+            page = DIAG_HTML.replace("__VERSION__", __version__)
+            self._send(200, page.encode("utf-8"), "text/html; charset=utf-8")
+            return
+        if parsed.path == "/api/diag":
+            getter = getattr(self.server, "get_diag", None)
+            text = getter() if getter else "diagnostic log not available"
+            self._send(200, text.encode("utf-8"), "text/plain; charset=utf-8")
+            return
         if parsed.path in ("/summary", "/summary.html"):
             page = SUMMARY_HTML.replace("__VERSION__", __version__)
             self._send(200, page.encode("utf-8"), "text/html; charset=utf-8")
@@ -1746,6 +1828,10 @@ class WebServer:
             on_tune, on_filter, on_clear,
         )
         self._thread: threading.Thread | None = None
+
+    def set_diag_provider(self, getter) -> None:
+        """Diagnostic log text for /api/diag."""
+        self._httpd.get_diag = getter
 
     def set_summary_provider(self, getter) -> None:
         """Contest summary for /api/summary (a dict)."""

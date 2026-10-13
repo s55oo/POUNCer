@@ -100,10 +100,12 @@ class AppRadioTests(unittest.TestCase):
             status_label=types.SimpleNamespace(configure=lambda **kw: None),
         )
         f._band_memory, f._tune_last = {}, {}
+        from pouncer.diag import DiagLog
+        f.diag, f._trace = DiagLog(""), None
         for name in ("_radio_nr", "_radio_tag", "_so2r", "_current_band", "_radio_khz",
                      "_focus_radio", "_qsy", "_types_qsy", "_snapshot_focus", "_return_focus",
                      "_wait_for_qsy", "_check_call", "_freq_text",
-                     "_settext", "_enter_text"):
+                     "_settext", "_enter_text", "_t", "_act_on_spot_traced"):
             setattr(f, name, getattr(app.PouncerApp, name).__get__(f))
         return f
 
@@ -195,6 +197,12 @@ class AppRadioTests(unittest.TestCase):
         self.assertEqual([e for e in events if e[0] in ("set", "type")], [("set", "HB9CBR/P")] * 2)
         self.assertNotIn(("altw",), events)                      # no queued Alt+W either
         self.assertIn("call put in again", status[-1])
+        # the diagnostic log has the whole tap, step by step
+        line = f.diag.text().splitlines()[-1]
+        self.assertIn("TAP HB9CBR/P 14031.0 radio A", line)
+        for part in ("focus ok", "qsy udp 14031.0", "n1mm 14031.0", "wipe",
+                     'set "HB9CBR/P"', 'box "" WRONG - again', 'box "HB9CBR/P" ok'):
+            self.assertIn(part, line)
 
     def test_keys_mode_never_retypes(self) -> None:
         # typed keys: a slow PC may still be typing - typing again mixed

@@ -21,6 +21,7 @@ from .n1mm import (
 from .rbn import OnFreqTracker, RBNClient, Spot, SpotterFilter, is_beacon, ports_for_modes
 from .runhist import RARE_HOURS, RARE_RUN_PCT, RunHistory
 from . import summary as summarymod
+from .diag import DiagLog
 from .team import Team
 from .update import Updater
 from .web import WebServer, pick_web_address
@@ -122,6 +123,12 @@ class PouncerApp:
         self.updater = Updater(__version__, enabled=config.auto_update)
         # Every tapped station (for the contest summary): cache\taps.jsonl
         self.taps = summarymod.TapLog(config.run_history_dir or "cache")
+        # Diagnostic log: each tap step by step with timings (/diag, cache\diag.log)
+        import os as _os
+        self.diag = DiagLog(_os.path.join(config.run_history_dir or "cache", "diag.log"))
+        self._trace = None
+        self._diag_radios: list[int] = []
+        self._diag_start(config)
         if self.runhist is not None and config.warmup:
             self.runhist.warm_up()  # every station of CQWW / ARRL DX / WPX CW
         # Callsign -> continent (N1MM's wl_cty.dat) for EU / DX marking.
@@ -239,6 +246,8 @@ class PouncerApp:
         flow.add(ttk.Button(flow, text="Open in browser", command=self._open_browser))
         flow.add(ttk.Button(flow, text="Summary",
                             command=lambda: self._open_browser("summary")))
+        flow.add(ttk.Button(flow, text="Diagnostics",
+                            command=lambda: self._open_browser("diag")))
         # SO2R: which radio (N1MM Entry Window A / B) clicks, F-keys and the
         # band follow go to; with one radio only A is used.
         self.radio_btn = flow.add(ttk.Button(flow, text=self._radio_btn_text(),
@@ -459,10 +468,12 @@ class PouncerApp:
             snap = self.state.snapshot(nr)
             f = snap.get("freq_khz") if snap else None
             if f is not None and abs(f - khz) <= 0.15:
+                self._t("n1mm", f"{f:.1f}")
                 if settle:
                     time.sleep(settle)
                 return True
             if time.time() >= end:
+                self._t("n1mm NO new freq", f"(still {f:.1f})" if f is not None else "")
                 return wait == 0
             time.sleep(0.05)
 
@@ -474,9 +485,11 @@ class PouncerApp:
         can get mixed up), or cleared + typed key by key. True if the box
         was set / cleared."""
         if self._settext() and hwnd and set_focused_edit_text(hwnd, text):
+            self._t("set", f'"{text}"')
             return True
         cleared = clear_focused_edit(hwnd) if hwnd else False
         type_text(text)
+        self._t("typed", f'"{text}"' + ("" if cleared else " (box not cleared)"))
         return cleared
 
     def _check_call(self, hwnd, call: str) -> str:
@@ -491,7 +504,9 @@ class PouncerApp:
             time.sleep(0.15)
             got = focused_edit_text(hwnd)
             if got is None or got.strip().upper() == want:
+                self._t("box", "?" if got is None else f'"{got}" ok')
                 return " [call put in again]" if attempt else ""
+            self._t("box", f'"{got}" WRONG - again')
             set_focused_edit_text(hwnd, call)
         return " [call not confirmed in N1MM]"
 
@@ -516,14 +531,50 @@ class PouncerApp:
             ok = restore_focus(snap)
         except Exception:
             ok = False
+        self._t("cursor back" if ok else "cursor NOT back")
         if not ok:
             return " [cursor not returned]"
         back = next((self._radio_tag(n).strip(": ") for n in self.state.radio_numbers()
                      if self.state.entry_window_hwnd(n) == snap.get("fg")), "")
         return f" [cursor back in Entry Window {back}]" if back else " [cursor back]"
 
+    def _diag_start(self, config) -> None:
+        try:
+            sep = decimal_separator()
+        except Exception:
+            sep = "?"
+        c = config
+        self.diag.event("START", (
+            f"POUNCer {__version__} | decimal sign '{sep}' | type_mode={getattr(c, 'type_mode', '')}"
+            f" radio_b_qsy={getattr(c, 'radio_b_qsy', '')} freq_decimal={getattr(c, 'freq_decimal', '')}"
+            f" qsy_wait_ms={getattr(c, 'qsy_wait_ms', '')} qsy_settle_ms={getattr(c, 'qsy_settle_ms', '')}"
+            f" focus_n1mm={c.focus_n1mm} return_focus={getattr(c, 'return_focus', '')}"
+            f" wipe_before_call={c.wipe_before_call} | RBN {c.rbn_host}:{c.rbn_port}"
+            f" spotter={c.rbn_spotter or 'ALL'} backup={getattr(c, 'rbn_backup_host', '') or '-'}"))
+
+    def _t(self, name: str, detail: str = "") -> None:
+        """A step of the tap being traced (diagnostic log)."""
+        tr = getattr(self, "_trace", None)
+        if tr is not None:
+            tr.step(name, detail)
+
     def _act_on_spot(self, spot: Spot, radio: int | None = None) -> None:
         nr = self._radio_nr(radio)
+        diag = getattr(self, "diag", None)
+        self._trace = diag.trace(
+            "TAP", f"{spot.dxcall} {spot.freq_khz:.1f} radio {'AB'[nr - 1] if nr in (1, 2) else nr}"
+        ) if diag is not None else None
+        try:
+            self._act_on_spot_traced(spot, nr)
+        except Exception as exc:
+            self._t("ERROR", repr(exc))
+            raise
+        finally:
+            if self._trace is not None:
+                self._trace.done()
+            self._trace = None
+
+    def _act_on_spot_traced(self, spot: Spot, nr: int) -> None:
         hwnd = self.state.entry_window_hwnd(nr)  # that radio's Entry Window (A / B)
         snap = self._snapshot_focus()
         focused = False
@@ -531,8 +582,10 @@ class PouncerApp:
             focused = force_foreground(hwnd)
             if focused:
                 time.sleep(0.15)
+        self._t("focus", "ok" if focused else ("FAILED" if hwnd else "no Entry Window"))
 
         if not self._qsy(nr, spot.freq_khz, hwnd, focused):
+            self._t("qsy FAILED")
             return
         self.taps.record(spot.dxcall, spot.freq_khz)   # for the contest summary
         landed = self._wait_for_qsy(nr, spot.freq_khz)
@@ -553,6 +606,7 @@ class PouncerApp:
                         pass
                     if not self._settext():
                         wipe_callsign()   # Alt+W key: only when typing keys
+                    self._t("wipe")
                     time.sleep(0.2)  # let N1MM finish the wipe before we type
                 how = self._enter_text(hwnd, spot.dxcall)
                 msg += " (call typed, no TX)" + ("" if how else " [box not cleared]")
@@ -561,6 +615,7 @@ class PouncerApp:
                     msg += " [N1MM didn't report the new frequency]"
             else:
                 msg += " (call skipped: N1MM not focused)"
+                self._t("call skipped (no focus)")
         if self.cfg.focus_n1mm:
             msg += " [N1MM focused]" if focused else " [N1MM focus failed]"
         msg += self._return_focus(snap, hwnd)
@@ -783,7 +838,13 @@ class PouncerApp:
             focused = force_foreground(hwnd)
             if focused:
                 time.sleep(0.15)
-        if not self._send_key(key):
+        ok_key = self._send_key(key)
+        diag = getattr(self, "diag", None)
+        if diag is not None:
+            diag.event("KEY", f"{key} radio {'AB'[self._radio_nr(radio) - 1] if self._radio_nr(radio) in (1, 2) else '?'}"
+                       f" | focus {'ok' if focused else ('FAILED' if hwnd else 'no Entry Window')}"
+                       f" | {'sent' if ok_key else 'unknown key'}")
+        if not ok_key:
             self.status_label.configure(text=f"Unknown key: {key}")
             return
         msg = f"Sent {key} to N1MM"
@@ -812,9 +873,17 @@ class PouncerApp:
     def _drain_status(self) -> None:
         while True:
             try:
-                self.rbn_status = self.status_queue.get_nowait()
+                status = self.status_queue.get_nowait()
             except queue.Empty:
                 break
+            if status != self.rbn_status:
+                self.diag.event("RBN", status)
+            self.rbn_status = status
+        radios = self.state.radio_numbers()
+        if radios != self._diag_radios:
+            self._diag_radios = radios
+            self.diag.event("N1MM", "radios " + (", ".join("AB"[r - 1] if r in (1, 2) else str(r)
+                                                         for r in radios) or "none"))
 
     def _drain_spots(self) -> None:
         got = 0
@@ -1036,15 +1105,19 @@ class PouncerApp:
                 self.status_label.configure(
                     text="QSY B failed: Entry Window B not in front (N1MM focus failed)")
                 return False
-            self._enter_text(hwnd, self._freq_text(khz))   # e.g. 14025,3 on a Slovenian PC
+            text = self._freq_text(khz)
+            self._enter_text(hwnd, text)   # e.g. 14025,3 on a Slovenian PC
             send_enter()
+            self._t("qsy typed", f'"{text}"+Enter')
             time.sleep(0.3)   # let N1MM tune and clear the box before the call
             return True
         try:
             self.controller.set_frequency(khz, radio_nr=nr)
         except OSError as exc:
             self.status_label.configure(text=f"N1MM QSY failed: {exc}")
+            self._t("qsy udp FAILED", str(exc))
             return False
+        self._t("qsy udp", f"{khz:.1f} radio {nr}")
         return True
 
     def _focus_radio(self, nr: int) -> bool:
@@ -1429,6 +1502,7 @@ class PouncerApp:
                 self._web_tune, self._web_filter, self._web_clear,
             )
             self.web.set_summary_provider(self._summary)
+            self.web.set_diag_provider(self.diag.text)
             self.web.start()
         except OSError as exc:
             log.warning(

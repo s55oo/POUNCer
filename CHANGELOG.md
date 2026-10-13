@@ -1,5 +1,18 @@
 # POUNCer — Changelog
 
+## v0.7.26 — 2026-10-13 — diagnostic log
+
+- **Diagnostic log** (`/diag`: "Diagnostic log" in the phone's band menu,
+  **Diagnostics** button in the main window): what POUNCer did, step by
+  step. Each tap is one line with timings (+ms after the tap): Entry
+  Window focus, QSY (UDP or the typed frequency, e.g. `"14000,1"+Enter`),
+  when N1MM reported the new frequency (or that it didn't), wipe, the call
+  put in and what the callsign box really showed (and if it was put in
+  again), cursor back. Also F-keys / Enter, RBN connection changes (incl.
+  the backup), the N1MM radios, and the settings at start (version,
+  Windows decimal sign, type_mode, waits, ...). **Copy all** button to send
+  it on. Last 500 lines; also in `cache\diag.log` (kept under 2 MB).
+
 ## v0.7.25 — 2026-10-13 — backup telnet server (azure.s53m.com:8000)
 
 - **Backup when RBN's telnet dies:** after RBN's own telnet failed twice in
