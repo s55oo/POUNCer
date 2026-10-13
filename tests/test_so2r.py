@@ -187,6 +187,7 @@ class WebRadioTests(unittest.TestCase):
         self.assertIn("pouncer.radio", INDEX_HTML)
         self.assertIn("Two radios", HELP_HTML)
         self.assertIn("data.freqs", INDEX_HTML)                 # A over B in the header
+        self.assertIn("lastData.rbands", INDEX_HTML)            # band menu: row per radio
 
 
 class TestOptionsPageTests(unittest.TestCase):

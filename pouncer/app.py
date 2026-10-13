@@ -516,6 +516,7 @@ class PouncerApp:
             "radios": self.state.radio_numbers(),
             # SO2R: every radio's frequency, so the page shows A and B
             "freqs": {str(nr): self._radio_khz(nr) for nr in self.state.radio_numbers()},
+            "rbands": {str(nr): self._current_band(nr) for nr in self.state.radio_numbers()},
             "home_cont": self.home_cont,
             "station": self.own_call(),
             "team": self._team_text(),

@@ -181,6 +181,7 @@ INDEX_HTML = """<!doctype html>
   /* SO2R: two frequencies, A over B */
   button.band.ab { padding-top: 2px; padding-bottom: 2px; padding-right: 0; flex: 0 0 auto; }
   button.band.ab::after { display: none; }
+  button.band .fl.cur::after { content: " \u25be"; font-size: 11px; opacity: .6; }
   button.band .two { display: flex; flex-direction: column; line-height: 1.15; }
   button.band .fl { font-size: 12px; font-weight: 400; opacity: .55; }
   button.band .fl.cur { font-size: 16px; font-weight: 700; opacity: 1; }
@@ -224,6 +225,11 @@ INDEX_HTML = """<!doctype html>
   .bandgrid button { background: #263238; color: #fff; border: 0; border-radius: 10px;
     font: inherit; font-size: 22px; font-weight: 800; padding: 16px 0; cursor: pointer; }
   .bandgrid button.cur { background: #2e7d32; }
+  .bandgrid .radiohead { grid-column: 1 / -1; font-size: 14px; opacity: .7; margin-top: 6px; }
+  .bandgrid .radiohead.mine { opacity: 1; font-weight: 700; }
+  .bandgrid .radiohead i { font-style: normal; font-weight: 700; color: #64b5f6; }
+  .bandgrid .radiohead.r2 i { color: #ffb74d; }
+  .bandgrid .radiohead span { font-weight: 400; opacity: .7; }
   .bandgrid button:active { background: #c62828; }
   .sheet-close { margin-top: 10px; width: 100%; background: #37474f; color: #fff;
     border: 0; border-radius: 10px; font: inherit; padding: 12px; cursor: pointer; }
@@ -870,22 +876,42 @@ INDEX_HTML = """<!doctype html>
   function openBands() {
     const bands = lastData.contest_bands || ['160m','80m','40m','20m','15m','10m'];
     bandGrid.textContent = '';
-    bands.forEach(b => {
+    const addRow = (nr, cur) => bands.forEach(b => {
       const btn = document.createElement('button');
       btn.textContent = b;
-      if (b === lastData.band) btn.classList.add('cur');
-      btn.onclick = () => chooseBand(b);
+      if (b === cur) btn.classList.add('cur');
+      btn.onclick = () => chooseBand(b, nr);
       bandGrid.appendChild(btn);
     });
+    const rb = lastData.rbands || {};
+    const so2r = (lastData.radios || []).length > 1;
+    bandGrid.classList.toggle('two', so2r);
+    if (so2r) {
+      // SO2R: a row of bands for each radio; the one this phone works is marked
+      const mine = lastData.radio === 2 ? 2 : 1;
+      [1, 2].forEach(nr => {
+        const h = document.createElement('div');
+        h.className = 'radiohead r' + nr + (nr === mine ? ' mine' : '');
+        h.innerHTML = '<i>' + (nr === 2 ? 'B' : 'A') + '</i> Radio ' + (nr === 2 ? 'B' : 'A') +
+          (rb[String(nr)] ? ' &middot; now ' + esc(rb[String(nr)]) : '') +
+          (nr === mine ? ' <span>(this phone)</span>' : '');
+        bandGrid.appendChild(h);
+        addRow(nr, rb[String(nr)]);
+      });
+    } else {
+      addRow(null, lastData.band);
+    }
     bandSheet.classList.add('show');
   }
   function closeBands() { bandSheet.classList.remove('show'); }
-  async function chooseBand(b) {
+  async function chooseBand(b, nr) {
     closeBands();
     try {
-      const r = await fetch('/api/band?' + rp({band: b}));
+      const q = rp({band: b});
+      if (nr) q.set('radio', nr);          // SO2R: the radio of that row
+      const r = await fetch('/api/band?' + q);
       const j = await r.json();
-      toast(j.ok ? ('QSY ' + b) : ('Failed: ' + (j.error || 'error')));
+      toast(j.ok ? ('QSY ' + (nr ? (nr === 2 ? 'B ' : 'A ') : '') + b) : ('Failed: ' + (j.error || 'error')));
     } catch (e) {
       toast('Failed: ' + e);
     }
@@ -1143,7 +1169,9 @@ page.</p>
     one phone can work radio A and another radio B.</dd>
   <dt><span class="k">A 7020.0<br>B 14025.3</span></dt>
   <dd>With two radios the frequency shows both: A on top, B under it. The radio this
-    phone works is big and bright.</dd>
+    phone works is big and bright. Tap it for the band menu: a row of bands for
+    <b>radio A</b> and one for <b>radio B</b> (each with its band now in green) - so you
+    can change the band of either radio, whichever one this phone works.</dd>
 </dl>
 
 <h2>Bottom row</h2>
