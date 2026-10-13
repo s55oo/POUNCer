@@ -93,7 +93,9 @@ spotted callsign into the N1MM Entry Window.
   days) a ready list of **46 044 stations** from CQWW CW, ARRL DX CW and
   CQ WPX CW 2021-2026 (submitted + reconstructed logs), so those marks are
   there the moment a call is spotted (`[ui] warmup`; built by
-  `server/warmlist.py`, release `warmup`). Calls not in it are looked up live.
+  `server/warmlist.py`, release `warmup`). Stored as `cache\warm.sqlite`;
+  `cache\warm-up.txt` and the main window say when it was downloaded.
+  Calls not in it are looked up live.
   Or put a ready-made **`runlist.sqlite`** next to `config.ini`
   (`[ui] run_list`) - loads at start, no download.
   Or with the optional **run list server** (`server/`, Docker, e.g. on ZeroTier;

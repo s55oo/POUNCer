@@ -236,6 +236,16 @@ class RunHistoryTests(unittest.TestCase):
                              {"run": 6, "hours": 3.5, "rec": True})
             self.assertEqual(rh.get("S50R", "ARRLDXCW", "CW")["run"], 80)
             self.assertIn("2 stations", rh.warm_status)
+            txt = os.path.join(d, "cache", "warm-up.txt")
+            for _ in range(100):
+                if "downloaded" in rh.warm_status and os.path.exists(txt):
+                    break
+                time.sleep(0.05)
+            self.assertIn("downloaded", rh.warm_status)
+            with open(txt, encoding="utf-8") as fh:
+                info = fh.read()
+            self.assertIn("Stations:    2", info)
+            self.assertIn("http://x/warm.sqlite", info)
             # fresh copy in the cache: a new start loads it without downloading
             urls.clear()
             rh2 = RunHistory(os.path.join(d, "cache"), fetch=fetch)
