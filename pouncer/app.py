@@ -22,6 +22,7 @@ from .rbn import OnFreqTracker, RBNClient, Spot, SpotterFilter, is_beacon, ports
 from .runhist import RARE_HOURS, RARE_RUN_PCT, RunHistory
 from . import summary as summarymod
 from .diag import DiagLog
+from . import settings as settingsmod
 from .team import Team
 from .update import Updater
 from .web import WebServer, pick_web_address
@@ -246,6 +247,8 @@ class PouncerApp:
         flow.add(ttk.Button(flow, text="Open in browser", command=self._open_browser))
         flow.add(ttk.Button(flow, text="Summary",
                             command=lambda: self._open_browser("summary")))
+        flow.add(ttk.Button(flow, text="Settings",
+                            command=lambda: self._open_browser("settings")))
         flow.add(ttk.Button(flow, text="Diagnostics",
                             command=lambda: self._open_browser("diag")))
         # SO2R: which radio (N1MM Entry Window A / B) clicks, F-keys and the
@@ -772,6 +775,11 @@ class PouncerApp:
                 continue
             if item[0] == "reconnect":
                 self._reconnect_log()
+                continue
+            if item[0] == "restart":       # settings page: start POUNCer again
+                self.status_label.configure(text="Restarting (settings changed)...")
+                self.root.update_idletasks()
+                self.updater.restart(before_exit=self._shutdown)
                 continue
             if item[0] == "band":
                 self._qsy_band(item[1], item[2])
@@ -1321,6 +1329,16 @@ class PouncerApp:
                 padx=8, command=self._restart_for_update)
             self.lights_frame.add(self._restart_btn)
 
+    def _save_setting(self, key: str, value: str) -> dict:
+        """Settings page (web thread): write config.ini, update the config."""
+        res = settingsmod.save(self.cfg, self.cfg.config_path, key, value)
+        self.diag.event("SETTING", f"{key} = {value}" + ("" if res.get("ok") else
+                                                         f" REFUSED: {res.get('error')}"))
+        return res
+
+    def _web_restart(self) -> None:
+        self._web_queue.put(("restart",))
+
     def _on_update_click(self) -> None:
         """Update light clicked: restart into a downloaded version, open the
         Releases page (macOS), or ask GitHub for a new version right now."""
@@ -1503,6 +1521,12 @@ class PouncerApp:
             )
             self.web.set_summary_provider(self._summary)
             self.web.set_diag_provider(self.diag.text)
+            self.web.set_settings_provider(
+                lambda: {"items": settingsmod.current(self.cfg), "path": self.cfg.config_path},
+                self._save_setting,
+                restart=(self._web_restart if self.updater.exe else None),
+                remote=self.cfg.web_remote_settings,
+            )
             self.web.start()
         except OSError as exc:
             log.warning(

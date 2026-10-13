@@ -371,6 +371,7 @@ INDEX_HTML = """<!doctype html>
   <div class="bandgrid" id="bandgrid"></div>
   <button class="sheet-close" id="alertbtn">Alerts: on</button>
   <a class="sheet-close helplink" href="/summary">Contest summary</a>
+  <a class="sheet-close helplink" href="/settings">Settings</a>
   <a class="sheet-close helplink" href="/diag">Diagnostic log</a>
   <a class="sheet-close helplink" href="/help">Help: what every button does</a>
   <button class="sheet-close" id="bandclose">Cancel</button>
@@ -1196,6 +1197,13 @@ open: QSOs and how many came <b>from POUNCer</b> (you tapped that call on that b
 air, best 60 minutes, a per-band table, rate per hour and the list of multipliers you
 worked from spots. POUNCer keeps the taps in <code>cache\\taps.jsonl</code> (14 days).</p>
 
+<h2>Settings</h2>
+<p><b>Settings</b> in the band menu (or the <b>Settings</b> button in the main window): the
+most-used settings of config.ini - wait times and how the call goes into N1MM, radio B,
+cursor back, skimmer, backup server, auto-update - changed in the browser and written into
+config.ini. Most work at once; the ones marked &#8635; after a restart (Restart button).
+By default only from the browser on the PC itself (<code>[web] remote_settings</code>).</p>
+
 <h2>Diagnostic log</h2>
 <p><b>Diagnostic log</b> in the band menu (or the <b>Diagnostics</b> button in the main
 window) shows what POUNCer did, step by step: each tap with timings (QSY, when N1MM
@@ -1564,6 +1572,123 @@ POUNCer.exe.</p>
 """
 
 
+SETTINGS_HTML = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>POUNCer __VERSION__ settings</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #101418; color: #e6e6e6;
+    font: 15px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 12px 16px 60px; }
+  .bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .bar a, .bar button { display: inline-block; margin: 4px 0 10px; padding: 10px 14px; border: 0;
+    background: #263238; color: #fff; border-radius: 10px; text-decoration: none;
+    font: inherit; font-weight: 700; cursor: pointer; }
+  .bar a.back { background: #2e7d32; }
+  .bar button.restart { background: #ef6c00; }
+  h1 { font-size: 20px; margin: 6px 0 2px; }
+  h2 { font-size: 16px; margin: 22px 0 8px; border-bottom: 1px solid #263238; padding-bottom: 4px; }
+  p.lead { opacity: .75; margin: 0 0 8px; font-size: 13px; }
+  .row { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center;
+    padding: 10px 0; border-bottom: 1px solid #1c2329; }
+  .row label { font-weight: 600; }
+  .row .help { grid-column: 1 / -1; font-size: 12px; opacity: .65; }
+  .row .state { grid-column: 1 / -1; font-size: 12px; min-height: 0; }
+  .ok { color: #81c784; } .err { color: #ef9a9a; } .later { color: #ffb74d; }
+  input[type=number], input[type=text], select { background: #0b0f12; color: #fff;
+    border: 1px solid #37474f; border-radius: 8px; padding: 8px; font: inherit; }
+  input[type=number] { width: 7em; } input[type=text] { width: 12em; }
+  input[type=checkbox] { transform: scale(1.5); margin: 6px; }
+  .ro input, .ro select { opacity: .6; }
+  .warn { background: #3e2723; border-radius: 10px; padding: 10px 12px; font-size: 13px; }
+  @media (max-width: 420px) { input[type=text] { width: 9em; } }
+</style>
+</head>
+<body><main>
+<div class="bar"><a class="back" href="/">&larr; Back to the spots</a>
+  <button class="restart" id="restart" hidden>Restart POUNCer</button></div>
+<h1>Settings</h1>
+<p class="lead" id="lead">loading...</p>
+<div id="out"></div>
+<script>
+  const out = document.getElementById('out');
+  const lead = document.getElementById('lead');
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;',
+      '"': '&quot;', "'": '&#39;'}[c]));
+  }
+  function field(it, ro) {
+    const id = 'f_' + it.key.replace('.', '_');
+    const dis = ro ? ' disabled' : '';
+    if (it.kind === 'bool')
+      return '<input type="checkbox" id="' + id + '"' + (it.value ? ' checked' : '') + dis + '>';
+    if (it.kind === 'choice')
+      return '<select id="' + id + '"' + dis + '>' + it.choices.map(c =>
+        '<option' + (String(c) === String(it.value) ? ' selected' : '') + '>' + esc(c) + '</option>').join('') + '</select>';
+    if (it.kind === 'int')
+      return '<input type="number" id="' + id + '" value="' + esc(it.value) + '" min="' + it.min +
+        '" max="' + it.max + '"' + dis + '>';
+    return '<input type="text" id="' + id + '" value="' + esc(it.value == null ? '' : it.value) + '"' + dis + '>';
+  }
+  async function save(it, el, state) {
+    const v = it.kind === 'bool' ? (el.checked ? 'true' : 'false') : el.value;
+    state.className = 'state'; state.textContent = 'saving...';
+    try {
+      const r = await fetch('/api/settings/set?' + new URLSearchParams({key: it.key, value: v}));
+      const j = await r.json();
+      if (j.ok) {
+        state.className = 'state ' + (j.live ? 'ok' : 'later');
+        state.textContent = j.live ? 'Saved - in use now' : 'Saved - used after a restart';
+        if (!j.live) document.getElementById('restart').hidden = !window.canRestart;
+      } else {
+        state.className = 'state err'; state.textContent = j.error || 'not saved';
+      }
+    } catch (e) {
+      state.className = 'state err'; state.textContent = 'POUNCer not reachable';
+    }
+  }
+  async function load() {
+    const r = await fetch('/api/settings', {cache: 'no-store'});
+    const d = await r.json();
+    window.canRestart = d.can_restart;
+    const ro = !d.can_edit;
+    lead.innerHTML = 'Written into <code>' + esc(d.path || 'config.ini') + '</code> of this POUNCer ' +
+      '(each PC has its own). Changes are saved at once.' + (ro ? '' : ' Orange = used after a restart.');
+    let h = ro ? '<div class="warn">Read-only here: settings can be changed only in the browser on the PC ' +
+      'that runs POUNCer (http://127.0.0.1:' + location.port + '/settings), or set ' +
+      '<code>[web] remote_settings = true</code>.</div>' : '';
+    let group = '';
+    d.items.forEach(it => {
+      if (it.group !== group) { group = it.group; h += '<h2>' + esc(group) + '</h2>'; }
+      h += '<div class="row' + (ro ? ' ro' : '') + '"><label for="f_' + it.key.replace('.', '_') + '">' +
+        esc(it.label) + (it.live ? '' : ' <span class="later" title="used after a restart">&#8635;</span>') +
+        '</label>' + field(it, ro) +
+        (it.help ? '<div class="help">' + esc(it.help) + ' <code>[' + esc(it.key.replace('.', '] ')) + '</code></div>' : '') +
+        '<div class="state" id="s_' + it.key.replace('.', '_') + '"></div></div>';
+    });
+    out.innerHTML = h;
+    if (ro) return;
+    d.items.forEach(it => {
+      const el = document.getElementById('f_' + it.key.replace('.', '_'));
+      const state = document.getElementById('s_' + it.key.replace('.', '_'));
+      el.addEventListener('change', () => save(it, el, state));
+    });
+  }
+  document.getElementById('restart').onclick = async () => {
+    try { await fetch('/api/restart'); } catch (e) {}
+    lead.textContent = 'Restarting POUNCer... this page reloads in a few seconds.';
+    setTimeout(() => location.reload(), 6000);
+  };
+  load().catch(() => { lead.textContent = 'POUNCer not reachable'; });
+</script>
+</main></body>
+</html>
+"""
+
+
 class _Server(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = True
@@ -1607,6 +1732,43 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         if self.command != "HEAD":
             self.wfile.write(body)
+
+    def _local_client(self) -> bool:
+        ip = (self.client_address[0] or "") if self.client_address else ""
+        return ip in ("127.0.0.1", "::1", "::ffff:127.0.0.1") or ip.startswith("127.")
+
+    def _settings_api(self, parsed) -> None:
+        srv = self.server
+        items = getattr(srv, "get_settings", None)
+        if items is None:
+            self._send_json({"ok": False, "error": "not available"})
+            return
+        can_edit = self._local_client() or getattr(srv, "remote_settings", False)
+        if parsed.path == "/api/settings":
+            data = items()
+            data["can_edit"] = can_edit
+            data["can_restart"] = bool(getattr(srv, "restart_app", None)) and can_edit
+            self._send_json(data)
+            return
+        if not can_edit:
+            self._send_json({"ok": False, "error": "settings can be changed only on this PC "
+                                                   "([web] remote_settings = true for all)"}, 403)
+            return
+        if parsed.path == "/api/restart":
+            fn = getattr(srv, "restart_app", None)
+            if fn is None:
+                self._send_json({"ok": False, "error": "restart works only in the exe"})
+                return
+            fn()
+            self._send_json({"ok": True})
+            return
+        q = parse_qs(parsed.query)
+        key = (q.get("key") or [""])[0]
+        value = (q.get("value") or [""])[0]
+        try:
+            self._send_json(srv.save_setting(key, value))
+        except Exception as exc:
+            self._send_json({"ok": False, "error": str(exc)}, 500)
 
     def _send_json(self, obj, code: int = 200) -> None:
         self._send(code, json.dumps(obj).encode("utf-8"), "application/json")
@@ -1753,6 +1915,13 @@ class _Handler(BaseHTTPRequestHandler):
                 return
             self._send_json({"ok": True, "band": band})
             return
+        if parsed.path in ("/settings", "/settings.html"):
+            page = SETTINGS_HTML.replace("__VERSION__", __version__)
+            self._send(200, page.encode("utf-8"), "text/html; charset=utf-8")
+            return
+        if parsed.path.startswith("/api/settings") or parsed.path == "/api/restart":
+            self._settings_api(parsed)
+            return
         if parsed.path in ("/diag", "/diag.html"):
             page = DIAG_HTML.replace("__VERSION__", __version__)
             self._send(200, page.encode("utf-8"), "text/html; charset=utf-8")
@@ -1828,6 +1997,14 @@ class WebServer:
             on_tune, on_filter, on_clear,
         )
         self._thread: threading.Thread | None = None
+
+    def set_settings_provider(self, get_items, save, restart=None, remote: bool = False) -> None:
+        """Settings page: list, save one (key, value), restart POUNCer.
+        ``remote`` = also from other devices (else only from this PC)."""
+        self._httpd.get_settings = get_items
+        self._httpd.save_setting = save
+        self._httpd.restart_app = restart
+        self._httpd.remote_settings = bool(remote)
 
     def set_diag_provider(self, getter) -> None:
         """Diagnostic log text for /api/diag."""

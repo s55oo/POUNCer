@@ -1,0 +1,182 @@
+"""Settings page: the most-used config.ini settings, changed in the browser.
+
+Each setting maps a ``[section] key`` in config.ini to a ``Config``
+attribute. Saving writes just that line into config.ini (comments and
+everything else stay as they are) and updates the running POUNCer: most
+settings work at once ("live"), the rest from the next start.
+"""
+
+from __future__ import annotations
+
+import os
+import re
+
+from .config import parse_radio
+
+# kind: int / bool / choice / text ; live: used at once without a restart
+SETTINGS: list[dict] = [
+    {"key": "n1mm.qsy_wait_ms", "attr": "qsy_wait_ms", "kind": "int", "min": 0, "max": 10000,
+     "live": True, "group": "Tap -> N1MM",
+     "label": "Wait for N1MM's new frequency (ms)",
+     "help": "After a QSY, wait (at most) this long until N1MM reports the radio on the "
+             "new frequency before the call is put in."},
+    {"key": "n1mm.qsy_settle_ms", "attr": "qsy_settle_ms", "kind": "int", "min": 0, "max": 5000,
+     "live": True, "group": "Tap -> N1MM",
+     "label": "Then wait (ms)",
+     "help": "Extra pause after that, before wiping and putting the call in. Raise it "
+             "(e.g. 500) on a slow PC that loses calls."},
+    {"key": "n1mm.type_mode", "attr": "type_mode", "kind": "choice",
+     "choices": ["settext", "keys"], "live": True, "group": "Tap -> N1MM",
+     "label": "How the call goes into N1MM",
+     "help": "settext = in one go (nothing can get mixed up); keys = typed key by key."},
+    {"key": "n1mm.wipe_before_call", "attr": "wipe_before_call", "kind": "bool",
+     "live": True, "group": "Tap -> N1MM",
+     "label": "Wipe the Entry Window first", "help": "N1MM's {WIPE} before the new call."},
+    {"key": "n1mm.focus_n1mm", "attr": "focus_n1mm", "kind": "bool",
+     "live": True, "group": "Tap -> N1MM",
+     "label": "Bring N1MM to the front", "help": "Needed to put the call in."},
+    {"key": "n1mm.radio_b_qsy", "attr": "radio_b_qsy", "kind": "choice",
+     "choices": ["type", "udp"], "live": True, "group": "SO2R / SO2V",
+     "label": "How radio B is QSYed",
+     "help": "type = frequency + Enter typed into Entry Window B; udp = N1MM's UDP "
+             "command (moved radio A in SO2R)."},
+    {"key": "n1mm.freq_decimal", "attr": "freq_decimal", "kind": "choice",
+     "choices": ["auto", ".", ","], "live": True, "group": "SO2R / SO2V",
+     "label": "Decimal sign of the typed frequency",
+     "help": "auto = the Windows setting (\",\" in Slovenian)."},
+    {"key": "n1mm.return_focus", "attr": "return_focus", "kind": "bool",
+     "live": True, "group": "SO2R / SO2V",
+     "label": "Cursor back where it was",
+     "help": "After a tap for the other radio: back to the same Entry Window and box."},
+    {"key": "n1mm.default_radio", "attr": "default_radio", "kind": "choice",
+     "choices": ["A", "B"], "live": False, "group": "SO2R / SO2V",
+     "label": "Radio at start", "help": "Which radio the main window works at start."},
+    {"key": "rbn.spotter", "attr": "rbn_spotter", "kind": "text", "live": False,
+     "group": "RBN", "label": "Skimmer", "help": "Only spots of this skimmer (e.g. S53WW)."},
+    {"key": "rbn.history", "attr": "rbn_history", "kind": "int", "min": 0, "max": 500,
+     "live": False, "group": "RBN", "label": "Last spots at start (SH/DX)",
+     "help": "0 = off."},
+    {"key": "rbn.backup_host", "attr": "rbn_backup_host", "kind": "text", "live": False,
+     "group": "RBN", "label": "Backup telnet server",
+     "help": "Used when RBN's telnet is down. Empty = no backup."},
+    {"key": "rbn.backup_port", "attr": "rbn_backup_port", "kind": "int", "min": 1,
+     "max": 65535, "live": False, "group": "RBN", "label": "Backup port", "help": ""},
+    {"key": "rbn.backup_commands", "attr": "rbn_backup_commands", "kind": "text",
+     "live": False, "group": "RBN", "label": "Backup commands after login",
+     "help": "Comma separated, e.g. set/skimmer."},
+    {"key": "ui.auto_update", "attr": "auto_update", "kind": "bool", "live": False,
+     "group": "Program", "label": "Auto-update from GitHub", "help": ""},
+]
+BY_KEY = {s["key"]: s for s in SETTINGS}
+
+
+def _show(item: dict, value) -> object:
+    if item["attr"] == "default_radio":
+        return "B" if value == 2 else "A"
+    if item["attr"] == "rbn_backup_commands":
+        return ", ".join(value or ())
+    return value
+
+
+def current(cfg) -> list[dict]:
+    """Every setting with its value now (for the page)."""
+    out = []
+    for item in SETTINGS:
+        d = {k: v for k, v in item.items() if k != "attr"}
+        d["value"] = _show(item, getattr(cfg, item["attr"], None))
+        out.append(d)
+    return out
+
+
+def parse(item: dict, text: str):
+    """(value for Config, text for config.ini); ValueError if not valid."""
+    text = str(text).strip()
+    kind = item["kind"]
+    if kind == "int":
+        v = int(text)
+        if not item.get("min", v) <= v <= item.get("max", v):
+            raise ValueError(f"{item['label']}: {item.get('min')}-{item.get('max')}")
+        return v, str(v)
+    if kind == "bool":
+        v = text.lower() in ("1", "true", "yes", "on")
+        if text.lower() not in ("1", "0", "true", "false", "yes", "no", "on", "off"):
+            raise ValueError(f"{item['label']}: true or false")
+        return v, "true" if v else "false"
+    if kind == "choice":
+        low = {c.lower(): c for c in item["choices"]}
+        if text.lower() not in low:
+            raise ValueError(f"{item['label']}: one of {', '.join(item['choices'])}")
+        c = low[text.lower()]
+        if item["attr"] == "default_radio":
+            return parse_radio(c, 1), c
+        return c, c
+    if item["attr"] == "rbn_backup_commands":
+        parts = tuple(p.strip() for p in text.split(",") if p.strip())
+        return parts, ", ".join(parts)
+    if any(ch in text for ch in "\r\n[]"):
+        raise ValueError(f"{item['label']}: no line breaks or brackets")
+    if item["attr"] == "rbn_spotter":
+        text = text.upper()
+    return text, text
+
+
+_HEADER = re.compile(r"^\s*\[([^\]]+)\]\s*$")
+
+
+def set_ini_value(path: str, section: str, key: str, value: str) -> None:
+    """Write ``key = value`` into ``[section]`` of an ini file, keeping all
+    comments and other lines; adds the key (or the section) if missing."""
+    lines: list[str] = []
+    if os.path.exists(path):
+        with open(path, encoding="utf-8-sig") as fh:
+            lines = fh.read().splitlines()
+    key_re = re.compile(rf"^\s*{re.escape(key)}\s*[=:]", re.IGNORECASE)
+    start = end = None
+    for n, line in enumerate(lines):
+        m = _HEADER.match(line)
+        if m:
+            if start is not None:
+                end = n
+                break
+            if m.group(1).strip().lower() == section.lower():
+                start = n
+    new = f"{key} = {value}"
+    if start is None:
+        if lines and lines[-1].strip():
+            lines.append("")
+        lines += [f"[{section}]", new]
+    else:
+        end = len(lines) if end is None else end
+        for n in range(start + 1, end):
+            if key_re.match(lines[n]):
+                lines[n] = new
+                break
+        else:
+            at = end
+            while at - 1 > start and not lines[at - 1].strip():
+                at -= 1                      # before the blank lines at the end
+            lines.insert(at, new)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        fh.write("\n".join(lines) + "\n")
+    os.replace(tmp, path)
+
+
+def save(cfg, path: str, key: str, text: str) -> dict:
+    """Validate, write config.ini, update the running config."""
+    item = BY_KEY.get(key)
+    if item is None:
+        return {"ok": False, "error": f"unknown setting {key}"}
+    try:
+        value, ini_text = parse(item, text)
+    except ValueError as exc:
+        return {"ok": False, "error": str(exc) or "not valid"}
+    if not path:
+        return {"ok": False, "error": "no config.ini path"}
+    section, name = key.split(".", 1)
+    try:
+        set_ini_value(path, section, name, ini_text)
+    except OSError as exc:
+        return {"ok": False, "error": f"could not write config.ini: {exc}"}
+    setattr(cfg, item["attr"], value)
+    return {"ok": True, "key": key, "value": _show(item, value), "live": item["live"]}

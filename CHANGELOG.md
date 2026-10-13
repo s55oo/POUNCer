@@ -1,5 +1,19 @@
 # POUNCer — Changelog
 
+## v0.7.27 — 2026-10-13 — settings page
+
+- **Settings page** (`/settings`: **Settings** button in the main window,
+  "Settings" in the phone's band menu): the most-used settings changed in
+  the browser and written straight into this POUNCer's config.ini - only
+  that line, all comments stay. Tap -> N1MM (wait times, settext / keys,
+  wipe, focus), SO2R (radio B QSY, decimal sign, cursor back, radio at
+  start), RBN (skimmer, SH/DX at start, backup server / port / commands),
+  auto-update. Most are used at once; the ones marked ↻ after a restart -
+  **Restart POUNCer** button on the page. Bad values are refused.
+- Changes only from the browser on the PC itself (each PC its own); from a
+  phone / other PC read-only unless `[web] remote_settings = true`.
+  Every change is in the diagnostic log.
+
 ## v0.7.26 — 2026-10-13 — diagnostic log
 
 - **Diagnostic log** (`/diag`: "Diagnostic log" in the phone's band menu,

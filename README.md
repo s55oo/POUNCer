@@ -181,6 +181,15 @@ with A it shows that band's spots for radio A, with B for radio B (green =
 the band shown, blue ring = the band the radio is on). Tap a station there
 and that radio goes to it.
 
+## Settings page
+
+**Settings** (main window, or the phone's band menu) changes the most-used
+settings in the browser - wait times, settext / keys, radio B, decimal sign,
+cursor back, skimmer, backup server, auto-update - and writes them into this
+POUNCer's config.ini (only that line; comments stay). Most work at once, the
+ones marked ↻ after **Restart POUNCer**. Only from the browser on the PC
+itself unless `[web] remote_settings = true`.
+
 ## Diagnostic log
 
 **Diagnostics** (main window) or "Diagnostic log" (phone band menu) shows
