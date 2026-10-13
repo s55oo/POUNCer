@@ -139,7 +139,9 @@ everything is connected:
 | Warm-up | list loaded | downloading | download failed | off |
 | Update | up to date | checking / check failed | - | off (blue = new version ready: **Restart** button) |
 
-**Auto-update:** the exe checks GitHub at start and every 6 h; a newer
+**Auto-update:** click the **Update** light ("Up to date (…) ↻") to check
+GitHub right now - a new version is downloaded, then click it again (or
+**Restart**) to start it. Otherwise the exe checks GitHub at start and every 6 h; a newer
 release is downloaded, its SHA-256 checked, and it replaces POUNCer.exe on
 disk. It runs from the next start (or press **Restart -> vX**); POUNCer
 never restarts by itself in the middle of a contest. `[ui] auto_update`.

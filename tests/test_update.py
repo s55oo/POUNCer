@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -84,6 +85,22 @@ class UpdaterTests(unittest.TestCase):
         u, exe = self._run("v0.7.3", b"x", "0" * 64)
         self.assertEqual(u.state, up.CURRENT)
         self.assertEqual(update_light(u.state, u.text())[0], "ok")
+
+    def test_click_checks_right_away(self) -> None:
+        u, exe = self._run("v0.7.3", b"x", "0" * 64)          # up to date
+        self.assertIn("\u21bb", u.text())                    # the click hint
+        calls = []
+        u._fetch = lambda url, **k: calls.append(url) or json.dumps({"tag_name": "v0.7.3"}).encode()
+        u._last_check = time.time()                          # 6 h timer not due
+        self.assertTrue(u.check_in_background())
+        for _ in range(100):
+            if calls and u.state == up.CURRENT:
+                break
+            time.sleep(0.02)
+        self.assertEqual(calls, [up.LATEST_URL])
+        u.state = up.READY
+        self.assertFalse(u.check_in_background())            # nothing to do then
+        self.assertFalse(up.Updater("0.7.3").check_in_background())   # source run
 
     def test_offline_and_source_runs(self) -> None:
         def fetch(*a, **k):
