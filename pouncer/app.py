@@ -20,6 +20,7 @@ from .n1mm import (
 )
 from .rbn import OnFreqTracker, RBNClient, Spot, SpotterFilter, is_beacon, ports_for_modes
 from .runhist import RARE_HOURS, RARE_RUN_PCT, RunHistory
+from . import summary as summarymod
 from .team import Team
 from .update import Updater
 from .web import WebServer, pick_web_address
@@ -116,6 +117,8 @@ class PouncerApp:
             if config.run_history else None
         )
         self.updater = Updater(__version__, enabled=config.auto_update)
+        # Every tapped station (for the contest summary): cache\taps.jsonl
+        self.taps = summarymod.TapLog(config.run_history_dir or "cache")
         if self.runhist is not None and config.warmup:
             self.runhist.warm_up()  # every station of CQWW / ARRL DX / WPX CW
         # Callsign -> continent (N1MM's wl_cty.dat) for EU / DX marking.
@@ -228,6 +231,8 @@ class PouncerApp:
         flow.add(ttk.Button(flow, text="Clear spots", command=self._clear_spots), gap=12)
         flow.add(ttk.Button(flow, text="Reconnect log", command=self._reconnect_log))
         flow.add(ttk.Button(flow, text="Open in browser", command=self._open_browser))
+        flow.add(ttk.Button(flow, text="Summary",
+                            command=lambda: self._open_browser("summary")))
         # SO2R: which radio (N1MM Entry Window A / B) clicks, F-keys and the
         # band follow go to; with one radio only A is used.
         self.radio_btn = flow.add(ttk.Button(flow, text=self._radio_btn_text(),
@@ -446,6 +451,7 @@ class PouncerApp:
         except OSError as exc:
             self.status_label.configure(text=f"N1MM QSY failed: {exc}")
             return
+        self.taps.record(spot.dxcall, spot.freq_khz)   # for the contest summary
 
         msg = f"QSY {self._radio_tag(nr)}{spot.freq_khz:.1f} kHz -> {spot.dxcall}"
         if self.set_call_var.get():
@@ -1183,9 +1189,26 @@ class PouncerApp:
             host = "127.0.0.1"
         return f"http://{host}:{self.web.port}/" if self.web is not None else ""
 
-    def _open_browser(self) -> None:
+    def _summary(self) -> dict:
+        """Contest summary of the open N1MM log (web thread, read-only)."""
+        w = self.worked
+        path = getattr(w, "_path", None)
+        if not w.log_open or not path:
+            return {"ok": False, "error": w.log_message or "No log open in N1MM"}
+        try:
+            qsos = summarymod.read_qsos(path, w.contest_nr, w.mult_types)
+        except Exception as exc:   # locked / gone
+            return {"ok": False, "error": f"Could not read the log: {exc}"}
+        out = summarymod.build(qsos, self.taps.snapshot(), w.mult_types)
+        out.update(log=w.db_name, contest=w.contest_name,
+                   station=w.station_call or self.own_call())
+        return out
+
+    def _open_browser(self, page: str = "") -> None:
         """Touch / big-button view = the phone page in the default browser."""
         url = self._local_web_url()
+        if url and page:
+            url += page
         if not url:
             self.status_label.configure(
                 text="Browser view needs the phone view: [web] enabled = true")
@@ -1225,6 +1248,7 @@ class PouncerApp:
                 self._web_reconnect, self._web_band, self._web_hide,
                 self._web_tune, self._web_filter, self._web_clear,
             )
+            self.web.set_summary_provider(self._summary)
             self.web.start()
         except OSError as exc:
             log.warning(

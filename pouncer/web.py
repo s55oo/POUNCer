@@ -338,6 +338,7 @@ INDEX_HTML = """<!doctype html>
   </div>
   </div>
   <div class="metarow"><div class="meta" id="meta">connecting...</div>
+    <a class="help" href="/summary" title="Contest summary: QSOs, rate, mults from spots">&Sigma;</a>
     <a class="help" href="/help" title="What every button does">?</a></div>
   <div id="logwarn"><span class="msg" id="logmsg"></span>
     <button id="logbtn">Reconnect</button></div>
@@ -371,6 +372,7 @@ INDEX_HTML = """<!doctype html>
   <div class="sheet-title">Change band <span>(QSY the radio)</span></div>
   <div class="bandgrid" id="bandgrid"></div>
   <button class="sheet-close" id="alertbtn">Alerts: on</button>
+  <a class="sheet-close helplink" href="/summary">Contest summary</a>
   <a class="sheet-close helplink" href="/help">Help: what every button does</a>
   <button class="sheet-close" id="bandclose">Cancel</button>
 </div></div>
@@ -1160,6 +1162,14 @@ page.</p>
 <p>Keys turn red for a moment when pressed. Which keys appear is set in
 <code>config.ini</code> (<code>[ui] fkeys</code>).</p>
 
+<h2>Contest summary</h2>
+<p><span class="k">&Sigma;</span> next to <span class="k">?</span> (also in the band menu, and the
+<b>Summary</b> button in the main window) opens the contest summary of the log N1MM has
+open: QSOs and how many came <b>from POUNCer</b> (you tapped that call on that band up to
+15 minutes before logging it), multipliers and how many came from spots, rate on the
+air, best 60 minutes, a per-band table, rate per hour and the list of multipliers you
+worked from spots. POUNCer keeps the taps in <code>cache\\taps.jsonl</code> (14 days).</p>
+
 <h2>Two radios (SO2R / SO2V)</h2>
 <dl>
   <dt><span class="k blue">A</span> <span class="k" style="background:#ef6c00">B</span></dt>
@@ -1315,6 +1325,141 @@ def pick_web_address(
     if ips:
         return ips[0], "LAN"
     return "localhost", "local only"
+
+
+SUMMARY_HTML = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>POUNCer __VERSION__ contest summary</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #101418; color: #e6e6e6;
+    font: 15px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 12px 16px 40px; }
+  .bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  a.back, button.reload { display: inline-block; margin: 4px 0 12px; padding: 10px 14px; border: 0;
+    background: #2e7d32; color: #fff; border-radius: 10px; text-decoration: none; font-weight: 700;
+    font: inherit; font-weight: 700; cursor: pointer; }
+  button.reload { background: #263238; }
+  h1 { font-size: 20px; margin: 6px 0 2px; }
+  h2 { font-size: 16px; margin: 22px 0 8px; color: #fff; border-bottom: 1px solid #263238;
+    padding-bottom: 4px; }
+  p.lead { opacity: .7; margin: 0 0 6px; font-size: 13px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .stat { background: #1c2329; border-radius: 10px; padding: 10px 12px; }
+  .stat b { display: block; font-size: 24px; color: #fff; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 12px; opacity: .75; }
+  .stat.p b { color: #81c784; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { padding: 6px 8px; text-align: right; border-bottom: 1px solid #1f282e; }
+  th:first-child, td:first-child { text-align: left; }
+  th { font-size: 12px; font-weight: 600; opacity: .7; }
+  tr.tot td { font-weight: 700; border-top: 1px solid #37474f; }
+  .p { color: #81c784; }
+  .hours { display: grid; grid-template-columns: max-content 1fr max-content; gap: 3px 8px;
+    align-items: center; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .track { height: 14px; background: #1c2329; border-radius: 4px; overflow: hidden; display: flex; }
+  .track i { display: block; height: 100%; }
+  .track i.pp { background: #43a047; } .track i.oo { background: #546e7a; }
+  .legend { font-size: 12px; opacity: .8; margin: 4px 0 8px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 4px 0 10px; }
+  .msg { background: #3e2723; border-radius: 10px; padding: 12px; }
+  .note { background: #1c2329; border-radius: 10px; padding: 10px 12px; margin-top: 14px; font-size: 13px; }
+  .empty { opacity: .6; font-size: 13px; }
+</style>
+</head>
+<body><main>
+<div class="bar"><a class="back" href="/">&larr; Back to the spots</a>
+  <button class="reload" id="reload">&#8635; Refresh</button></div>
+<h1>Contest summary</h1>
+<p class="lead" id="lead">Reading the N1MM log...</p>
+<div id="out"></div>
+<div class="note">A QSO counts as <span class="p">from POUNCer</span> when you tapped that
+call on that band (tile, NEXT or the main window) up to 15 minutes before it was logged.
+Multipliers: the first QSO with a new zone / country on a band (WPX prefix: once per
+contest). Times UTC. Off time = gaps of 30 minutes or more. The page updates every minute.</div>
+</main>
+<script>
+  const out = document.getElementById('out');
+  const lead = document.getElementById('lead');
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;',
+      '"': '&quot;', "'": '&#39;'}[c]));
+  }
+  function pct(a, b) { return b ? Math.round(100 * a / b) + '%' : '-'; }
+  function stat(v, label, cls) {
+    return '<div class="stat' + (cls ? ' ' + cls : '') + '"><b>' + v + '</b><span>' + label + '</span></div>';
+  }
+  function render(d) {
+    if (!d.ok) {
+      lead.textContent = '';
+      out.innerHTML = '<div class="msg">' + esc(d.error || 'No log open in N1MM') + '</div>';
+      return;
+    }
+    lead.innerHTML = esc([d.station, d.contest, d.log].filter(Boolean).join(' \\u00b7 ')) +
+      (d.first ? '<br>' + esc(d.first) + ' \\u2013 ' + esc(d.last.slice(-5)) + ' UTC' : '');
+    let h = '<div class="stats">' +
+      stat(d.qsos, 'QSOs') +
+      stat(d.pouncer + ' <small>(' + d.pouncer_pct + '%)</small>', 'QSOs from POUNCer taps', 'p') +
+      stat(d.mults, 'multipliers') +
+      stat(d.pouncer_mults, 'mults from spots', 'p') +
+      stat(d.rate == null ? '-' : d.rate, 'QSOs / hour on the air (' + d.on_hours + ' h)') +
+      stat(d.best60, 'best 60 min' + (d.best60_at ? ' (from ' + esc(d.best60_at) + ')' : '')) +
+      stat(d.tapped_worked + ' / ' + d.tapped_stations, 'tapped stations worked (' +
+           pct(d.tapped_worked, d.tapped_stations) + ')') +
+      '</div>';
+    h += '<h2>Per band</h2>';
+    if (d.bands.length) {
+      h += '<table><tr><th>Band</th><th>QSOs</th><th class="p">POUNCer</th><th>Mults</th><th class="p">from spots</th></tr>';
+      d.bands.forEach(b => {
+        h += '<tr><td>' + esc(b.band) + '</td><td>' + b.qsos + '</td><td class="p">' + b.pouncer +
+          ' <small>' + pct(b.pouncer, b.qsos) + '</small></td><td>' + b.mults + '</td><td class="p">' +
+          b.pouncer_mults + '</td></tr>';
+      });
+      h += '<tr class="tot"><td>Total</td><td>' + d.qsos + '</td><td class="p">' + d.pouncer +
+        '</td><td>' + d.mults + '</td><td class="p">' + d.pouncer_mults + '</td></tr></table>';
+    } else h += '<p class="empty">No QSOs in this log yet.</p>';
+    h += '<h2>Rate per hour</h2>';
+    if (d.hours.length) {
+      const max = Math.max(...d.hours.map(x => x.qsos));
+      h += '<div class="legend"><i style="background:#43a047"></i>from POUNCer' +
+        '<i style="background:#546e7a"></i>other QSOs</div><div class="hours">';
+      d.hours.forEach(x => {
+        const wp = 100 * x.pouncer / max, wo = 100 * (x.qsos - x.pouncer) / max;
+        h += '<span>' + esc(x.hour.slice(5)) + '</span><div class="track"><i class="pp" style="width:' +
+          wp + '%"></i><i class="oo" style="width:' + wo + '%"></i></div><span>' + x.qsos +
+          (x.pouncer ? ' <span class="p">(' + x.pouncer + ')</span>' : '') + '</span>';
+      });
+      h += '</div>';
+    } else h += '<p class="empty">-</p>';
+    h += '<h2>Multipliers from spots (' + d.mults_from_spots.length + ')</h2>';
+    if (d.mults_from_spots.length) {
+      h += '<table><tr><th>Time</th><th>Band</th><th>Call</th><th>New</th></tr>';
+      d.mults_from_spots.slice().reverse().forEach(m => {
+        h += '<tr><td>' + esc(m.time) + '</td><td>' + esc(m.band) + '</td><td>' + esc(m.call) +
+          '</td><td>' + esc(m.kind) + ' ' + esc(m.value) + '</td></tr>';
+      });
+      h += '</table>';
+    } else h += '<p class="empty">None yet.</p>';
+    out.innerHTML = h;
+  }
+  async function load() {
+    try {
+      const r = await fetch('/api/summary', {cache: 'no-store'});
+      render(await r.json());
+    } catch (e) {
+      lead.textContent = 'POUNCer not reachable - retrying...';
+    }
+  }
+  document.getElementById('reload').onclick = load;
+  load();
+  setInterval(load, 60000);
+</script>
+</body>
+</html>
+"""
 
 
 class _Server(ThreadingHTTPServer):
@@ -1498,6 +1643,20 @@ class _Handler(BaseHTTPRequestHandler):
                 return
             self._send_json({"ok": True, "band": band})
             return
+        if parsed.path in ("/summary", "/summary.html"):
+            page = SUMMARY_HTML.replace("__VERSION__", __version__)
+            self._send(200, page.encode("utf-8"), "text/html; charset=utf-8")
+            return
+        if parsed.path == "/api/summary":
+            getter = getattr(self.server, "get_summary", None)
+            if getter is None:
+                self._send_json({"ok": False, "error": "not available"})
+                return
+            try:
+                self._send_json(getter())
+            except Exception as exc:
+                self._send_json({"ok": False, "error": str(exc)}, 500)
+            return
         if parsed.path == "/api/runhist":  # team: a joining POUNCer syncs
             getter = getattr(self.server, "get_runhist", None)
             self._send_json(getter() if getter else {})
@@ -1550,6 +1709,10 @@ class WebServer:
             on_tune, on_filter, on_clear,
         )
         self._thread: threading.Thread | None = None
+
+    def set_summary_provider(self, getter) -> None:
+        """Contest summary for /api/summary (a dict)."""
+        self._httpd.get_summary = getter
 
     def set_runhist_provider(self, getter) -> None:
         """Team: serve our run history at /api/runhist."""
