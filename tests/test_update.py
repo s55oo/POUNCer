@@ -5,6 +5,7 @@ import json
 import os
 import tempfile
 import unittest
+from unittest import mock
 
 from pouncer import update as up
 from pouncer.lights import update_light
@@ -27,6 +28,16 @@ class VersionTests(unittest.TestCase):
 
 
 class UpdaterTests(unittest.TestCase):
+    def test_frozen_macos_build_does_not_download_windows_update(self) -> None:
+        fetch = mock.Mock()
+        with mock.patch.object(up.sys, "platform", "darwin"), \
+                mock.patch.object(up.sys, "frozen", True, create=True):
+            u = up.Updater("0.7.3", fetch=fetch)
+            u.maybe_check()
+        self.assertEqual(u.state, up.OFF)
+        self.assertFalse(u.enabled)
+        fetch.assert_not_called()
+
     def _run(self, tag: str, blob: bytes, sha: str):
         d = tempfile.mkdtemp()
         exe = os.path.join(d, "POUNCer.exe")
