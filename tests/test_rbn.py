@@ -183,5 +183,64 @@ class HistoryTests(unittest.TestCase):
         self.assertTrue(q.empty())
 
 
+class BackupServerTests(unittest.TestCase):
+    def test_switches_to_backup_when_rbn_is_down_and_back_later(self) -> None:
+        import queue
+        import socket
+        import threading
+        from pouncer.rbn import RBNClient, SpotterFilter
+        dead = socket.socket()
+        dead.bind(("127.0.0.1", 0))
+        dead_port = dead.getsockname()[1]
+        dead.close()                                  # RBN "down": refused
+        srv = socket.socket()
+        srv.bind(("127.0.0.1", 0))
+        srv.listen(2)
+        got = []
+
+        def backup_server():
+            c, _ = srv.accept()
+            c.sendall(b"Please enter your call: ")
+            buf = b""
+            while b"S55OO" not in buf:
+                buf += c.recv(1024)
+            got.append(buf)
+            c.sendall(b"DX de S53WW-#:   14025.0  K1ABC  CW 23 dB 28 WPM CQ  1200Z\r\n")
+            import time as _t
+            _t.sleep(0.5)
+            got.append(c.recv(1024))                  # set/skimmer
+            _t.sleep(3)
+            c.close()
+
+        th = threading.Thread(target=backup_server, daemon=True)
+        th.start()
+        statuses, q = [], queue.Queue()
+        client = RBNClient("127.0.0.1", dead_port, "S55OO", SpotterFilter("S53WW"), q,
+                           on_status=statuses.append, history=0,
+                           backup=("127.0.0.1", srv.getsockname()[1]),
+                           backup_commands=("set/skimmer",), retry_primary_s=6)
+        client.start()
+        try:
+            spot = q.get(timeout=20)
+            self.assertEqual(spot.dxcall, "K1ABC")
+            self.assertTrue(any("switching to backup" in x for x in statuses))
+            self.assertTrue(any(x.startswith("logged in") and "backup" in x for x in statuses))
+            th.join(10)
+            self.assertIn(b"set/skimmer", b"".join(got))
+            deadline = __import__("time").time() + 10
+            while not any("trying RBN again" in x for x in statuses) and __import__("time").time() < deadline:
+                __import__("time").sleep(0.1)
+            self.assertTrue(any("trying RBN again" in x for x in statuses))
+        finally:
+            client.stop()
+            srv.close()
+
+    def test_light_says_backup(self) -> None:
+        from pouncer.lights import OK, rbn_light
+        self.assertEqual(rbn_light("logged in as S55OO (backup azure.s53m.com)", None, "solo"),
+                         (OK, "RBN via backup"))
+        self.assertEqual(rbn_light("logged in as S55OO", None, "solo"), (OK, "RBN"))
+
+
 if __name__ == "__main__":
     unittest.main()

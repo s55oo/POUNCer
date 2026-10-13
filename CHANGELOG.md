@@ -1,5 +1,16 @@
 # POUNCer — Changelog
 
+## v0.7.25 — 2026-10-13 — backup telnet server (azure.s53m.com:8000)
+
+- **Backup when RBN's telnet dies:** after RBN's own telnet failed twice in
+  a row (no connection / dropped) or sent no spots for 2 minutes, POUNCer
+  connects to the backup server **azure.s53m.com:8000** (same login, same
+  S53WW filter, same SH/DX at start). The light shows **RBN via backup**.
+  Every 10 minutes RBN itself is tried again.
+- `[rbn] backup_host`, `backup_port`, `backup_commands` (sent after login,
+  e.g. `set/skimmer`); empty `backup_host` = no backup.
+- Spot lines right after a prompt without a newline are read too.
+
 ## v0.7.24 — 2026-10-13 — calls go into N1MM in one go
 
 - **Fix: long calls sometimes arrived wrong in N1MM** (e.g. "PHB9CBR/P"

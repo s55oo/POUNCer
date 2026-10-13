@@ -236,6 +236,10 @@ class SpotterFilter:
         return self.continent_of(base) == self.home_cont()
 
 
+class _BackToPrimary(Exception):
+    """Backup has run long enough: try RBN's own telnet again."""
+
+
 class RBNClient(threading.Thread):
     """Connects to the RBN telnet feed and pushes matching spots to a queue."""
 
@@ -248,8 +252,22 @@ class RBNClient(threading.Thread):
         out_queue: "queue.Queue[Spot]",
         on_status=None,
         history: int = 30,
+        backup: tuple[str, int] | None = None,
+        backup_commands: Iterable[str] = (),
+        silent_s: float = 120,
+        retry_primary_s: float = 600,
     ) -> None:
         super().__init__(daemon=True, name="rbn")
+        # Backup telnet server (a DX cluster passing on the RBN skimmer
+        # spots, e.g. azure.s53m.com:8000): used when RBN's own telnet
+        # fails twice in a row or sends nothing for ``silent_s``; after
+        # ``retry_primary_s`` RBN is tried again.
+        self.backup = backup if backup and backup[0] else None
+        self.backup_commands = tuple(c for c in backup_commands if c.strip())
+        self.silent_s = silent_s
+        self.retry_primary_s = retry_primary_s
+        self.on_backup = False
+        self._last_dx = time.monotonic()
         # after login ask for the last spots (SH/DX), so the list isn't empty
         self.history = max(0, int(history or 0))
         self.host = host
@@ -287,22 +305,45 @@ class RBNClient(threading.Thread):
 
     def run(self) -> None:
         backoff = 2
+        fails = 0               # RBN failures in a row
         while not self._stop.is_set():
+            back_to_rbn = False
             try:
-                self._connect_and_read()
+                if self.on_backup:
+                    self._connect_and_read(*self.backup, backup=True)
+                else:
+                    self._connect_and_read(self.host, self.port)
                 backoff = 2
+            except _BackToPrimary:
+                back_to_rbn = True
             except Exception as exc:  # noqa: BLE001 - keep the thread alive
                 if not self._stop.is_set():
-                    log.warning("RBN connection error: %s", exc)
+                    log.warning("RBN connection error (%s): %s",
+                                "backup" if self.on_backup else "RBN", exc)
             if self._stop.is_set():
                 break
+            if self.on_backup:
+                # time to try RBN again, or the backup failed too
+                self.on_backup = False
+                fails = 0
+                self._status("trying RBN again")
+                self._stop.wait(1)
+                continue
+            fails += 1
+            if self.backup and fails >= 2:
+                self.on_backup = True
+                self._status(f"RBN down - switching to backup {self.backup[0]}:{self.backup[1]}")
+                self._stop.wait(1)
+                continue
             self._status("disconnected, reconnecting")
             self._stop.wait(backoff)
             backoff = min(backoff * 2, 60)
 
-    def _connect_and_read(self) -> None:
-        self._status(f"connecting to {self.host}:{self.port}")
-        sock = socket.create_connection((self.host, self.port), timeout=30)
+    def _connect_and_read(self, host: str | None = None, port: int | None = None,
+                          backup: bool = False) -> None:
+        host, port = host or self.host, port or self.port
+        self._status(f"connecting to {host}:{port}" + (" (backup)" if backup else ""))
+        sock = socket.create_connection((host, port), timeout=30)
         sock.settimeout(1.0)   # wake up every second (login / SH/DX timing)
         self._sock = sock
         telnet = TelnetFilter()
@@ -312,7 +353,22 @@ class RBNClient(threading.Thread):
         self._history_lines = 0
         hist_at = None          # when to ask for the last spots
         hist_step = 0           # 0: filtered on our skimmer, 1: plain, 2: done
+        started = time.monotonic()
+        self._last_dx = started
+        cmds_sent = not backup
         while not self._stop.is_set():
+            now = time.monotonic()
+            if backup and now - started > self.retry_primary_s:
+                raise _BackToPrimary()
+            if not backup and self.backup and logged_in and now - self._last_dx > self.silent_s:
+                raise ConnectionError(f"RBN sent no spots for {int(self.silent_s)} s")
+            if logged_in and not cmds_sent and now > login_deadline + 1:
+                for cmd in self.backup_commands:     # e.g. set/skimmer
+                    try:
+                        sock.sendall((cmd.strip() + "\r\n").encode("ascii", "ignore"))
+                    except OSError:
+                        pass
+                cmds_sent = True
             if logged_in and self.history and hist_step < 2:
                 now = time.monotonic()
                 if hist_at is None:
@@ -330,7 +386,7 @@ class RBNClient(threading.Thread):
                     logged_in = True
                 continue
             if not chunk:
-                raise ConnectionError("RBN closed the connection")
+                raise ConnectionError("the server closed the connection")
             data, reply = telnet.feed(chunk)
             if reply:
                 try:
@@ -350,6 +406,11 @@ class RBNClient(threading.Thread):
         buf += text
         while "\n" in buf:
             line, buf = buf.split("\n", 1)
+            at = line.find("DX de ")
+            if at > 0:            # a prompt without a newline in front of it
+                line = line[at:]
+            if line.startswith("DX de"):
+                self._last_dx = time.monotonic()   # the feed is alive
             spot = parse_spot(line)
             if spot is None:
                 spot = parse_history(line)
@@ -392,7 +453,8 @@ class RBNClient(threading.Thread):
             return
         try:
             sock.sendall((self.callsign + "\r\n").encode("ascii", "ignore"))
-            self._status(f"logged in as {self.callsign}")
+            self._status(f"logged in as {self.callsign}" +
+                         (f" (backup {self.backup[0]})" if self.on_backup and self.backup else ""))
         except OSError as exc:
             log.warning("failed to send RBN login: %s", exc)
 

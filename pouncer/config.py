@@ -52,7 +52,11 @@ class Config:
     rbn_port: int = 7000
     rbn_callsign: str = ""  # empty: taken from N1MM (see app)
     rbn_spotter: str = "S53WW"
-    rbn_history: int = 30     # at start ask RBN for the last spots (SH/DX); 0 = off
+    rbn_history: int = 30
+    # backup telnet server when RBN's own telnet is down (CW feed)
+    rbn_backup_host: str = "azure.s53m.com"
+    rbn_backup_port: int = 8000
+    rbn_backup_commands: tuple = ()     # at start ask RBN for the last spots (SH/DX); 0 = off
     # Backup when the chosen skimmer is quiet: listed prefixes, or (empty)
     # all skimmers on our continent; after this many minutes of silence
     backup_spotters: tuple[str, ...] = ()
@@ -154,6 +158,10 @@ def load_config(path: str) -> Config:
     cfg.rbn_callsign = s("rbn", "callsign", cfg.rbn_callsign).strip().upper()
     cfg.rbn_spotter = s("rbn", "spotter", cfg.rbn_spotter)
     cfg.rbn_history = max(0, i("rbn", "history", cfg.rbn_history))
+    cfg.rbn_backup_host = s("rbn", "backup_host", cfg.rbn_backup_host).strip()
+    cfg.rbn_backup_port = i("rbn", "backup_port", cfg.rbn_backup_port)
+    cfg.rbn_backup_commands = tuple(
+        c.strip() for c in s("rbn", "backup_commands", "").split(",") if c.strip())
     cfg.backup_spotters = tuple(
         b for b in s("rbn", "backup_spotters", "").replace(";", ",").replace(" ", ",").split(",") if b
     )
