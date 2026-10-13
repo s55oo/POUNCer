@@ -6,9 +6,10 @@ import sqlite3
 import sys
 import tempfile
 import threading
-import time
 import unittest
 import urllib.request
+from http.server import ThreadingHTTPServer
+from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "server"))
 import runlist  # noqa: E402
@@ -30,13 +31,35 @@ class RunListServerTests(unittest.TestCase):
             ])
             con.commit()
             con.close()
-            port = 18077
-            threading.Thread(target=runlist.serve, args=(d, port), daemon=True).start()
-            time.sleep(0.5)
-            get = lambda p: json.loads(urllib.request.urlopen(f"http://127.0.0.1:{port}{p}").read())
-            self.assertEqual(get("/runs?contest=CQWW&mode=CW"), {"S53CC": 77, "OH2BH": 8})
-            self.assertEqual(get("/run?call=s53cc&contest=CQWW&mode=CW")["year"], 2025)
-            self.assertEqual(len(get("/status")), 3)  # CW 2024, CW 2025, PH 2025
+            ready = threading.Event()
+            servers = []
+
+            def local_server(address, handler):
+                # Keep this test local and let the OS select an unused port.
+                # macOS runners can block listeners on all network interfaces.
+                server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+                servers.append(server)
+                ready.set()
+                return server
+
+            with mock.patch.object(runlist, "ThreadingHTTPServer", side_effect=local_server):
+                worker = threading.Thread(target=runlist.serve, args=(d, 0), daemon=True)
+                worker.start()
+                self.assertTrue(ready.wait(5), "HTTP server did not start")
+                server = servers[0]
+                port = server.server_port
+                try:
+                    def get(path):
+                        with urllib.request.urlopen(f"http://127.0.0.1:{port}{path}", timeout=5) as response:
+                            return json.load(response)
+
+                    self.assertEqual(get("/runs?contest=CQWW&mode=CW"), {"S53CC": 77, "OH2BH": 8})
+                    self.assertEqual(get("/run?call=s53cc&contest=CQWW&mode=CW")["year"], 2025)
+                    self.assertEqual(len(get("/status")), 3)  # CW 2024, CW 2025, PH 2025
+                finally:
+                    server.shutdown()
+                    worker.join(timeout=5)
+                    server.server_close()
 
 
 if __name__ == "__main__":
