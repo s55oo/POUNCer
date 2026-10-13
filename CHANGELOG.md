@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.14 — 2026-10-13 — SO2R band menu for both radios
+
+- Phone, SO2R: tapping the frequency opens the band menu with **a row for
+  radio A and a row for radio B** (each radio's current band green, "this
+  phone" marked), so either radio's band can be changed - also radio B's
+  while the phone works A, and the other way round. Payload `rbands`
+  {radio: band}. The ▾ menu hint is back next to the bright frequency.
+
 ## v0.7.13 — 2026-10-13 — busy-contest test options, A + B frequency
 
 - **Test options** for busy contests (phone page), each on / off under

@@ -154,7 +154,9 @@ e.g. one phone for radio A, a second one for radio B. In the main window
 the **Radio A (A/B)** button does the same for clicks and keyboard F-keys.
 `[n1mm] default_radio = A` / `B` sets the start radio. With one radio
 nothing changes. The frequency in the top row then shows **both radios** -
-A with B under it; the radio this phone works is the big one.
+A with B under it; the radio this phone works is the big one. Tapping it
+opens the band menu with a row for **radio A** and a row for **radio B**,
+so either radio's band can be changed from any phone.
 
 ## Busy contests: test options (phone page)
 
