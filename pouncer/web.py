@@ -178,6 +178,17 @@ INDEX_HTML = """<!doctype html>
   /* SO2R: the A/B key is as wide as CLR; the row gets a bit tighter so the
      frequency still fits (only while the switch is shown) */
   .sorts button.radiosw { min-width: 2.6em; }
+  /* SO2R: two frequencies, A over B */
+  button.band.ab { padding-top: 2px; padding-bottom: 2px; padding-right: 0; flex: 0 0 auto; }
+  button.band.ab::after { display: none; }
+  button.band .two { display: flex; flex-direction: column; line-height: 1.15; }
+  button.band .fl { font-size: 12px; font-weight: 400; opacity: .55; }
+  button.band .fl.cur { font-size: 16px; font-weight: 700; opacity: 1; }
+  button.band .fl i { font-style: normal; font-weight: 700; color: #64b5f6; }
+  button.band .fl.r2 i { color: #ffb74d; }
+  @media (max-width: 480px) { button.band .fl.cur { font-size: 15px; } }
+  @media (max-width: 400px) { button.band .fl.cur { font-size: 14px; }
+    button.band .fl { font-size: 11px; } }
   @media (max-width: 480px) {
     header.so2r .sorts { gap: 2px; }
     header.so2r .sorts button { padding: 7px 4px; font-size: 13px; }
@@ -241,6 +252,10 @@ INDEX_HTML = """<!doctype html>
   .sorts button { white-space: nowrap; background: #263238; color: #fff; border: 0; padding: 7px 14px;
     border-radius: 8px; font: inherit; cursor: pointer; }
   .sorts button.active { background: #2e7d32; }
+  .sorts button.from::after { content: '\u2191'; font-size: 0.8em; }
+  button.tile.fresh { background-image: linear-gradient(#ffd54f, #ffd54f);
+    background-size: 100% 3px; background-repeat: no-repeat; }
+  .calmtag { color: #80cbc4; font-weight: 700; }
   /* DX-on-top toggle: yellow like the DX callsigns when on */
   .sorts button.dxfirst { color: #ffeb3b; font-weight: 700; }
   .sorts button.dxfirst.on { background: #f9a825; color: #1a1a1a; }
@@ -378,6 +393,19 @@ INDEX_HTML = """<!doctype html>
   }
   let rareFirst = false;
   try { rareFirst = localStorage.getItem('pouncer.rarefirst') === '1'; } catch (e) {}
+  // Test options (on / off on the help page; Freq tapped again = freqFrom):
+  // freqFrom - Freq sort starts at the radio frequency and goes up the band
+  //            (wraps to the bottom), so the top is always the next one up.
+  // calm     - tiles keep their place: new stations are added at the end
+  //            (marked), the list re-sorts only every CALM_RESORT_MS and
+  //            never within CALM_HOLD_MS of a touch / scroll.
+  let freqFrom = false, calm = false;
+  try { freqFrom = localStorage.getItem('pouncer.freqfrom') === '1'; } catch (e) {}
+  try { calm = localStorage.getItem('pouncer.calm') === '1'; } catch (e) {}
+  const CALM_RESORT_MS = 15000, CALM_HOLD_MS = 3000;
+  let calmOrder = [], calmSig = '', calmSorted = 0, lastTouch = 0;
+  let calmNew = new Set();
+  const calmKey = s => s.call + '|' + Math.round(s.freq / 1000);
 
   function esc(s) {
     return String(s).replace(/[&<>"']/g, c => ({
@@ -498,9 +526,14 @@ INDEX_HTML = """<!doctype html>
   function cqText(m) {
     return m < 60 ? m + 'm' : Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0');
   }
-  function sorted(spots) {
+  function sorted(spots, radioKhz) {
     const a = spots.slice();
-    if (sortKey === 'freq') a.sort((x, y) => x.freq - y.freq);
+    if (sortKey === 'freq' && freqFrom && radioKhz > 0) {
+      // from the radio frequency up (the station you're on first), then wrap
+      const k = f => f >= radioKhz - 0.3 ? f - radioKhz : f - radioKhz + 1e7;
+      a.sort((x, y) => k(x.freq) - k(y.freq));
+    }
+    else if (sortKey === 'freq') a.sort((x, y) => x.freq - y.freq);
     else if (sortKey === 'time') a.sort((x, y) => timeVal(y) - timeVal(x));
     else a.sort((x, y) => snrVal(y) - snrVal(x));
     // \u26a1 button: rare CQ first (see rareKey), unknown last. DX / MLT still
@@ -514,12 +547,36 @@ INDEX_HTML = """<!doctype html>
     if (multFirst) a.sort((x, y) => (y.mult || 0) - (x.mult || 0));
     return a;
   }
+  // Calm list: keep the tiles where they were between re-sorts.
+  function arrange(data) {
+    const full = sorted(data.spots, data.freq);
+    const now = Date.now();
+    const sig = [sortKey, freqFrom, dxFirst, multFirst, rareFirst, data.band, data.radio].join('|');
+    if (!calm || sig !== calmSig || !calmOrder.length ||
+        (now - calmSorted >= CALM_RESORT_MS && now - lastTouch >= CALM_HOLD_MS)) {
+      calmSig = sig; calmSorted = now; calmNew = new Set();
+      calmOrder = full.map(calmKey);
+      return full;
+    }
+    const byKey = new Map();
+    full.forEach(s => { if (!byKey.has(calmKey(s))) byKey.set(calmKey(s), s); });
+    const kept = calmOrder.filter(k => byKey.has(k));
+    const keep = new Set(kept);
+    const added = [];
+    byKey.forEach((s, k) => { if (!keep.has(k)) { added.push(k); calmNew.add(k); } });
+    calmOrder = kept.concat(added);
+    return calmOrder.map(k => byKey.get(k));
+  }
   function markSort() {
     document.querySelectorAll('.sorts button[data-sort]').forEach(b =>
       b.classList.toggle('active', b.dataset.sort === sortKey));
     document.getElementById('dxfirst').classList.toggle('on', dxFirst);
     document.getElementById('multfirst').classList.toggle('on', multFirst);
     document.getElementById('rarefirst').classList.toggle('on', rareFirst);
+    const fb = document.querySelector('.sorts button[data-sort="freq"]');
+    fb.classList.toggle('from', freqFrom);
+    fb.title = freqFrom ? 'By frequency from your radio up (tap again: whole band from the bottom)'
+                        : 'By frequency (tap again: from your radio frequency up)';
   }
   // CLR: clear every spot (e.g. old ones from before the contest started);
   // new spots come in again as RBN sends them. Undo in the pop-up for 5 s.
@@ -617,8 +674,19 @@ INDEX_HTML = """<!doctype html>
     const where = (typeof data.freq === 'number' && data.freq > 0)
       ? data.freq.toFixed(1) + '<span class="khz"> kHz</span>'
       : esc(data.band || 'ALL band');
-    bandEl.innerHTML = '<span class="app">POUNCer&nbsp; </span>' + where +
-      '<span class="modes"> ' + esc((data.modes || []).join('/')) + '</span>';
+    // SO2R: A's frequency with B's under it; the radio this phone works is bright
+    const fr = data.freqs || {};
+    const fA = fr['1'], fB = fr['2'];
+    if (!radioSw.hidden && fA > 0 && fB > 0) {
+      const line = (nr, f) => '<span class="fl r' + nr + (nr === cur ? ' cur' : '') + '"><i>' +
+        (nr === 2 ? 'B' : 'A') + '</i>\u2009' + f.toFixed(1) + '</span>';
+      bandEl.innerHTML = '<span class="two">' + line(1, fA) + line(2, fB) + '</span>';
+      bandEl.classList.add('ab');
+    } else {
+      bandEl.classList.remove('ab');
+      bandEl.innerHTML = '<span class="app">POUNCer&nbsp; </span>' + where +
+        '<span class="modes"> ' + esc((data.modes || []).join('/')) + '</span>';
+    }
     const lg = data.log || {};
     const logBad = lg.open === false && lg.state && lg.state !== 'unknown';
     logWarnEl.classList.toggle('show', logBad);
@@ -647,9 +715,10 @@ INDEX_HTML = """<!doctype html>
     // team POUNCers on different versions
     const vd = (data.team || '').indexOf('VERSIONS DIFFER');
     if (vd >= 0) meta = '<span class="warn" title="' + esc(data.team) + '">\u26a0 ' + esc(data.team.slice(vd)) + '</span> &middot; ' + meta;
+    if (calm) meta = '<span class="calmtag" title="Calm list: tiles keep their place, re-sorted every 15 s">calm</span> &middot; ' + meta;
     metaEl.innerHTML = meta;
     const cols = columns();
-    const spots = sorted(data.spots);
+    const spots = arrange(data);
     shown = spots;
     const rows = Math.max(1, Math.ceil(spots.length / cols));
     grid.style.gridTemplateColumns = 'repeat(' + cols + ', minmax(0, 1fr))';
@@ -671,7 +740,8 @@ INDEX_HTML = """<!doctype html>
         (s === tuned ? ' onfreq' : '') +
         // not re-spotted for a while: probably gone - fade it
         (s.age != null && data.fade_s && s.age >= data.fade_s ? ' stale' : '') +
-        (spotKey(s) === selKey ? ' sel' : '');
+        (spotKey(s) === selKey ? ' sel' : '') +
+        (calm && calmNew.has(calmKey(s)) ? ' fresh' : '');
       // DX (outside our continent): callsign in yellow; EU stays white
       if (s.country) b.title = s.country + (s.cont ? ' (' + s.cont + ')' : '');
       // Run history (past logs): R = % of QSOs made running; ⚡ = rarely
@@ -894,7 +964,8 @@ INDEX_HTML = """<!doctype html>
       const data = await r.json();
       // Holding a tile / remove box open: keep the list still (the redraw
       // would cancel the hold); show the fresh data afterwards.
-      if (pressing || document.getElementById('rmsheet').classList.contains('show')) {
+      if (pressing || document.getElementById('rmsheet').classList.contains('show') ||
+          (calm && Date.now() - lastTouch < CALM_HOLD_MS)) {
         lastData = data;
         return;
       }
@@ -905,11 +976,22 @@ INDEX_HTML = """<!doctype html>
   }
   document.querySelectorAll('.sorts button[data-sort]').forEach(b => {
     b.onclick = () => {
+      if (b.dataset.sort === 'freq' && sortKey === 'freq') {   // Freq again: toggle
+        freqFrom = !freqFrom;
+        try { localStorage.setItem('pouncer.freqfrom', freqFrom ? '1' : '0'); } catch (e) {}
+        toast(freqFrom ? 'Freq: from your radio frequency up' : 'Freq: whole band from the bottom');
+      }
       sortKey = b.dataset.sort;
       localStorage.setItem('pouncer.sort', sortKey);
+      markSort();
       render(lastData);
     };
   });
+  // calm list: a touch or scroll holds the list still for CALM_HOLD_MS
+  const touched = () => { lastTouch = Date.now(); };
+  ['pointerdown', 'touchstart', 'wheel'].forEach(ev =>
+    document.getElementById('grid').addEventListener(ev, touched, {passive: true}));
+  window.addEventListener('scroll', touched, {passive: true});
   markSort();
   refresh();
   setInterval(refresh, 1000);
@@ -949,6 +1031,9 @@ HELP_HTML = """<!doctype html>
   .note { background: #1c2329; border-radius: 10px; padding: 10px 12px; margin-top: 10px;
     font-size: 13px; }
   @media (max-width: 420px) { dl { grid-template-columns: 1fr; gap: 2px 0; } dd { margin-bottom: 8px; } }
+  label.opt { display: block; margin: 10px 0; padding: 10px; background: #263238;
+    border-radius: 8px; line-height: 1.4; }
+  label.opt input { transform: scale(1.5); margin: 0 10px 0 4px; vertical-align: middle; }
 </style>
 </head>
 <body><main>
@@ -967,7 +1052,8 @@ spots you still need there. Nothing here transmits except the F-keys.</p>
     again from RBN. <b>Undo</b> in the pop-up for 5 s.</dd>
   <dt><span class="k">Time</span> <span class="k">Freq</span> <span class="k">SNR</span></dt>
   <dd>Sort the list: newest spot first / by frequency / strongest first. The green one
-    is the active sort.</dd>
+    is the active sort. Tap <b>Freq</b> again for <b>Freq&#8593;</b>: from your radio
+    frequency up (see Test options below).</dd>
   <dt><span class="k yel">DX</span></dt>
   <dd>DX stations (outside your continent) on top, still in the chosen sort.</dd>
   <dt><span class="k mag">MLT</span></dt>
@@ -1055,6 +1141,9 @@ page.</p>
     F-keys, ENTER, &minus;/+ Hz and the band menu go to that radio (N1MM Entry Window A or
     B), and the list shows that radio's band. Each phone remembers its own choice, so
     one phone can work radio A and another radio B.</dd>
+  <dt><span class="k">A 7020.0<br>B 14025.3</span></dt>
+  <dd>With two radios the frequency shows both: A on top, B under it. The radio this
+    phone works is big and bright.</dd>
 </dl>
 
 <h2>Bottom row</h2>
@@ -1069,6 +1158,29 @@ page.</p>
     after the last station you tapped; after the last one it starts again at the top.
     No transmit.</dd>
 </dl>
+
+<h2 id="test">Test options</h2>
+<p>For busy contests - try them, switch off what you don't like. Saved on this
+phone (each phone its own).</p>
+<label class="opt"><input type="checkbox" id="opt-freqfrom">
+  <b>Freq from my radio up</b> (Freq&#8593;) - the frequency sort starts at the radio
+  frequency: the station you're on is first, then the next ones up the band; the ones
+  below you come at the end. As you tune up, the list goes with you, and
+  <b>NEXT</b> walks up the band. Also: tap <b>Freq</b> twice.</label>
+<label class="opt"><input type="checkbox" id="opt-calm">
+  <b>Calm list</b> - tiles keep their place instead of jumping around every second.
+  New stations are added at the end with a <span style="color:#ffd54f">yellow line</span>
+  on top; gone ones drop out; SNR / time update in place. The whole list is re-sorted
+  every 15 s, but never within 3 s of you touching or scrolling it. Changing the sort,
+  DX / MLT / &#9889;, band or radio re-sorts at once. "calm" at the start of the small
+  line = on.</label>
+<script>
+  [['opt-freqfrom', 'pouncer.freqfrom'], ['opt-calm', 'pouncer.calm']].forEach(([id, key]) => {
+    const box = document.getElementById(id);
+    try { box.checked = localStorage.getItem(key) === '1'; } catch (e) {}
+    box.onchange = () => { try { localStorage.setItem(key, box.checked ? '1' : '0'); } catch (e) {} };
+  });
+</script>
 
 <div class="note">Messages (e.g. "Cleared 12 spots", "CW faster") pop up level with the
 ENTER key for 5 s - tap to close them. The page refreshes every second; while you touch a tile the
