@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.7.31 — 2026-10-13 — diagnostic log removed
+
+- The **Diagnostic log** from v0.7.26 is removed: no **Diagnostics** button
+  in the main window, no "Diagnostic log" in the phone's band menu, no
+  `/diag` page and no `cache\diag.log` any more (an old file can simply be
+  deleted). Taps, QSY and putting the call in work exactly as before.
+
 ## v0.7.30 — 2026-10-13 — self-test removed
 
 - The **Self-test** button and window from v0.7.29 are removed again (no
