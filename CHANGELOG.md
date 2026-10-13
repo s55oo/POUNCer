@@ -1,5 +1,16 @@
 # POUNCer — Changelog
 
+## v0.7.32 — 2026-10-13 — radio B tap fast again
+
+- **A tap for radio B was slow** (about 2.5 s) since v0.7.21: after typing
+  the frequency into Entry Window B, POUNCer waited up to 1.5 s for N1MM's
+  frequency report plus 0.25 s, and a fixed 0.3 s before that. Now it waits
+  only until N1MM has taken the frequency out of the box (usually a few
+  tens of ms), then at most 0.4 s for the report and 0.1 s more - about
+  0.6 s per tap, like v0.7.18. The call check (put the call in again if
+  N1MM's wipe came late) stays. Radio A unchanged.
+- The status line shows how long the tap took, e.g. "(0.6 s)".
+
 ## v0.7.31 — 2026-10-13 — diagnostic log removed
 
 - The **Diagnostic log** from v0.7.26 is removed: no **Diagnostics** button
