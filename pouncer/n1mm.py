@@ -102,24 +102,37 @@ class RadioState:
                 self._active = info["active_radio"]
             self._last = time.time()
 
-    def active_radio_nr(self) -> int:
+    # SO2R / SO2V: N1MM sends one RadioInfo per radio (RadioNr = the radio
+    # the packet is about), each with that radio's own EntryWindowHwnd (the
+    # A or B Entry Window). ``nr`` picks a radio; if N1MM hasn't reported
+    # that radio (e.g. SO1R), the active one is used, as before.
+    def _pick(self, nr: int | None) -> int:
+        if nr is not None and nr in self._radios:
+            return nr
+        return self._active if self._active in self._radios else max(self._radios)
+
+    def radio_numbers(self) -> list[int]:
+        """Radios N1MM has reported (e.g. [1] or [1, 2])."""
+        with self._lock:
+            return sorted(self._radios)
+
+    def active_radio_nr(self, nr: int | None = None) -> int:
         with self._lock:
             if not self._radios:
-                return 1
-            return self._active if self._active in self._radios else max(self._radios)
+                return nr or 1
+            return self._pick(nr)
 
-    def entry_window_hwnd(self) -> int | None:
+    def entry_window_hwnd(self, nr: int | None = None) -> int | None:
         with self._lock:
             if not self._radios:
                 return None
-            nr = self._active if self._active in self._radios else max(self._radios)
-            return self._radios[nr].get("entry_window_hwnd")
+            return self._radios[self._pick(nr)].get("entry_window_hwnd")
 
-    def snapshot(self) -> dict | None:
+    def snapshot(self, nr: int | None = None) -> dict | None:
         with self._lock:
             if not self._radios:
                 return None
-            nr = self._active if self._active in self._radios else max(self._radios)
+            nr = self._pick(nr)
             info = dict(self._radios[nr])
             info["age"] = time.time() - self._last
             info["band"] = band_from_khz(info.get("freq_khz"))
@@ -226,12 +239,18 @@ class N1MMController:
         """Run an N1MM macro / command for a radio (see ``radio_command_xml``)."""
         self._send(radio_command_xml(command, radio_nr or self.radionr, focus_hwnd))
 
-    def set_frequency(self, freq_khz: float, mousebutton: str = "Left") -> None:
+    def set_frequency(self, freq_khz: float, mousebutton: str | None = None,
+                      radio_nr: int | None = None) -> None:
+        """QSY a radio. N1MM docs: mouse button Left = radio 1, and when
+        running SO2V/SO2R Right = radio 2 - so radio 2 gets "Right"."""
+        nr = int(radio_nr or self.radionr or 1)
+        if mousebutton is None:
+            mousebutton = "Right" if nr == 2 else "Left"
         payload = (
             '<?xml version="1.0" encoding="utf-8"?>\n'
             "<radio_setfrequency>\n"
             "  <app>POUNCer</app>\n"
-            f"  <radionr>{self.radionr}</radionr>\n"
+            f"  <radionr>{nr}</radionr>\n"
             f"  <frequency>{freq_khz:.3f}</frequency>\n"
             f"  <mousebutton>{mousebutton}</mousebutton>\n"
             "</radio_setfrequency>\n"

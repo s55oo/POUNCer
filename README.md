@@ -142,6 +142,18 @@ release is downloaded, its SHA-256 checked, and it replaces POUNCer.exe on
 disk. It runs from the next start (or press **Restart -> vX**); POUNCer
 never restarts by itself in the middle of a contest. `[ui] auto_update`.
 
+## Two radios (SO2R / SO2V)
+
+When N1MM runs two radios (it then has Entry Windows **A** and **B**), the
+phone page shows a **Radio A / Radio B** switch under the frequency. It
+chooses which radio that phone works: taps (QSY + callsign), F-keys,
+ENTER, −/+ Hz and the band menu go to that radio's Entry Window, and the
+spot list follows that radio's band. Every phone keeps its own choice -
+e.g. one phone for radio A, a second one for radio B. In the main window
+the **Radio A (A/B)** button does the same for clicks and keyboard F-keys.
+`[n1mm] default_radio = A` / `B` sets the start radio. With one radio
+nothing changes.
+
 ## Several POUNCers (team)
 
 Running one POUNCer per band / PC on the same network - LAN or ZeroTier? They
@@ -263,6 +275,7 @@ All options live in `config.ini` and are documented inline. Key ones:
 | `[ui] touch_view` | Open the phone page in the default browser at startup (`true`/`false`). |
 | `[ui] fkeys` | TX/log buttons in the main window and phone page: `KEY[:label]` list (default `F2:RPRT F3:TU F4:CALL F5:HisCALL F7:? Enter`). Each F-key **transmits** its N1MM message; `Enter` logs the QSO. Empty = no buttons. |
 | `[web] enabled` | Serve the phone/browser view (`true`/`false`, default `true`). |
+| `[n1mm] default_radio` | SO2R: radio at start, `A` (radio 1) or `B` (radio 2); empty = `radionr`. Switch on the phone (per phone) or with the main window's A/B button. |
 | `[web] host` | Interface to bind (`0.0.0.0` = all, including ZeroTier). |
 | `[web] port` | Port for the phone view (default 8080). |
 

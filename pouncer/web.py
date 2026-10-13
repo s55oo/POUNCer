@@ -171,6 +171,13 @@ INDEX_HTML = """<!doctype html>
   button.tile.holding { filter: brightness(.7); transition: filter 2s linear; }
   #rmsheet .rm { background: #c62828; }
   .top { display: flex; align-items: center; gap: 10px; }
+  /* SO2R radio A / B switch (only shown when N1MM reports two radios) */
+  button.radiosw { flex: 0 0 auto; border: 0; border-radius: 7px; font: inherit;
+    font-size: 14px; font-weight: 800; padding: 4px 10px; cursor: pointer;
+    background: #1565c0; color: #fff; margin-top: 4px; }
+  button.radiosw.b { background: #ef6c00; }
+  button.radiosw[hidden] { display: none; }
+
   .top .title { flex: 1 1 auto; min-width: 0; white-space: nowrap;
     overflow: hidden; text-overflow: ellipsis; }
   .sorts { display: flex; gap: 6px; align-items: center; font-size: 13px; flex-wrap: wrap; }
@@ -293,7 +300,8 @@ INDEX_HTML = """<!doctype html>
     <button class="reconnect" id="reconnect" title="Re-read which log N1MM has open">&#x21bb;<span class="lbl"> Log</span></button>
   </div>
   </div>
-  <div class="metarow"><div class="meta" id="meta">connecting...</div>
+  <div class="metarow"><button class="radiosw" id="radiosw" hidden title="SO2R: radio A or B - taps, keys and the band list go to this radio (N1MM Entry Window A / B)">Radio A</button>
+    <div class="meta" id="meta">connecting...</div>
     <a class="help" href="/help" title="What every button does">?</a></div>
   <div id="logwarn"><span class="msg" id="logmsg"></span>
     <button id="logbtn">Reconnect</button></div>
@@ -345,6 +353,14 @@ INDEX_HTML = """<!doctype html>
   let multFirst = false;
   try { dxFirst = localStorage.getItem('pouncer.dxfirst') === '1'; } catch (e) {}
   try { multFirst = localStorage.getItem('pouncer.multfirst') === '1'; } catch (e) {}
+  // SO2R: radio this phone works (1 = A, 2 = B); null = POUNCer's default
+  let myRadio = null;
+  try { const v = localStorage.getItem('pouncer.radio'); if (v === '1' || v === '2') myRadio = Number(v); } catch (e) {}
+  function rp(params) {           // add ?radio= to a request when chosen
+    const q = new URLSearchParams(params || {});
+    if (myRadio) q.set('radio', myRadio);
+    return q;
+  }
   let rareFirst = false;
   try { rareFirst = localStorage.getItem('pouncer.rarefirst') === '1'; } catch (e) {}
 
@@ -562,7 +578,7 @@ INDEX_HTML = """<!doctype html>
       setTimeout(() => btn.classList.remove('sel'), 800);
     }
     try {
-      const r = await fetch('/api/key?' + new URLSearchParams({key: key}));
+      const r = await fetch('/api/key?' + rp({key: key}));
       const j = await r.json();
       toast(j.ok ? (/^enter$/i.test(key) ? 'Logged' : ('TX ' + key))
                  : ('Failed: ' + (j.error || 'error')));
@@ -575,6 +591,12 @@ INDEX_HTML = """<!doctype html>
     if (data.tune_step && data.tune_step !== tuneStep) { tuneStep = data.tune_step; labelTune(); }
     syncHeaderHeight();
     lastData = data;
+    // SO2R switch: shown when N1MM reports two radios (or B was chosen)
+    const radioSw = document.getElementById('radiosw');
+    const cur = data.radio === 2 ? 2 : 1;
+    radioSw.hidden = !((data.radios || []).length > 1 || cur === 2);
+    radioSw.textContent = 'Radio ' + (cur === 2 ? 'B' : 'A');
+    radioSw.classList.toggle('b', cur === 2);
     // Radio frequency in kHz (falls back to the band, then "ALL band").
     const where = (typeof data.freq === 'number' && data.freq > 0)
       ? data.freq.toFixed(1) + '<span class="khz"> kHz</span>'
@@ -733,7 +755,7 @@ INDEX_HTML = """<!doctype html>
     document.querySelectorAll('button.tile.sel').forEach(t => t.classList.remove('sel'));
     btn.classList.add('sel');
     try {
-      const r = await fetch('/api/qsy?' + new URLSearchParams(
+      const r = await fetch('/api/qsy?' + rp(
         {call: s.call, freq: s.freq, mode: s.mode}));
       const j = await r.json();
       toast(j.ok ? ('QSY ' + s.call) : ('Failed: ' + (j.error || 'error')));
@@ -772,7 +794,7 @@ INDEX_HTML = """<!doctype html>
   async function chooseBand(b) {
     closeBands();
     try {
-      const r = await fetch('/api/band?' + new URLSearchParams({band: b}));
+      const r = await fetch('/api/band?' + rp({band: b}));
       const j = await r.json();
       toast(j.ok ? ('QSY ' + b) : ('Failed: ' + (j.error || 'error')));
     } catch (e) {
@@ -799,7 +821,7 @@ INDEX_HTML = """<!doctype html>
       flash(b);
       const hz = Number(b.dataset.tune) * tuneStep;
       try {
-        const r = await fetch('/api/tune?' + new URLSearchParams({hz: hz}));
+        const r = await fetch('/api/tune?' + rp({hz: hz}));
         const j = await r.json();
         if (!j.ok) toast('Failed: ' + (j.error || 'error'));
       } catch (e) {
@@ -811,7 +833,7 @@ INDEX_HTML = """<!doctype html>
     b.onclick = async () => {
       flash(b);
       try {
-        const r = await fetch('/api/key?' + new URLSearchParams({key: b.dataset.key}));
+        const r = await fetch('/api/key?' + rp({key: b.dataset.key}));
         const j = await r.json();
         toast(j.ok ? (b.dataset.key === 'PgUp' ? 'CW faster' : 'CW slower')
                    : ('Failed: ' + (j.error || 'error')));
@@ -839,9 +861,17 @@ INDEX_HTML = """<!doctype html>
     document.documentElement.style.setProperty('--hdr', h + 'px');
   }
   window.addEventListener('resize', syncHeaderHeight);
+  document.getElementById('radiosw').onclick = () => {
+    myRadio = (lastData.radio === 2 ? 2 : 1) === 1 ? 2 : 1;
+    try { localStorage.setItem('pouncer.radio', String(myRadio)); } catch (e) {}
+    selKey = '';
+    toast('Radio ' + (myRadio === 2 ? 'B' : 'A') + ': taps and keys go to Entry Window ' +
+          (myRadio === 2 ? 'B' : 'A'));
+    refresh();
+  };
   async function refresh() {
     try {
-      const r = await fetch('/api/spots', {cache: 'no-store'});
+      const r = await fetch('/api/spots?' + rp(), {cache: 'no-store'});
       const data = await r.json();
       // Holding a tile / remove box open: keep the list still (the redraw
       // would cancel the hold); show the fresh data afterwards.
@@ -995,6 +1025,15 @@ page.</p>
 </dl>
 <p>Keys turn red for a moment when pressed. Which keys appear is set in
 <code>config.ini</code> (<code>[ui] fkeys</code>).</p>
+
+<h2>Two radios (SO2R / SO2V)</h2>
+<dl>
+  <dt><span class="k blue">Radio A</span> <span class="k" style="background:#ef6c00">Radio B</span></dt>
+  <dd>Under the frequency; only shown when N1MM runs two radios. Tap to switch which radio this phone works: taps, the
+    F-keys, ENTER, &minus;/+ Hz and the band menu go to that radio (N1MM Entry Window A or
+    B), and the list shows that radio's band. Each phone remembers its own choice, so
+    one phone can work radio A and another radio B.</dd>
+</dl>
 
 <h2>Bottom row</h2>
 <dl>
@@ -1166,6 +1205,17 @@ class _Handler(BaseHTTPRequestHandler):
     def do_HEAD(self) -> None:
         self.do_GET()
 
+    def _radio(self, parsed) -> int | None:
+        """SO2R: ?radio=1|2 (A|B) chosen on the phone; None = not given."""
+        raw = (parse_qs(parsed.query).get("radio") or [""])[0].strip().upper()
+        return {"1": 1, "A": 1, "2": 2, "B": 2}.get(raw)
+
+    def _call(self, fn, parsed, *args):
+        """Call a handler, adding radio= only when the phone sent one (so
+        handlers without SO2R support keep working)."""
+        radio = self._radio(parsed)
+        return fn(*args, radio=radio) if radio is not None else fn(*args)
+
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         if parsed.path in ("/help", "/help.html"):
@@ -1181,7 +1231,7 @@ class _Handler(BaseHTTPRequestHandler):
             self._send(200, page.encode("utf-8"), "text/html; charset=utf-8")
             return
         if parsed.path == "/api/spots":
-            self._send_json(self.server.get_spots())
+            self._send_json(self._call(self.server.get_spots, parsed))
             return
         if parsed.path == "/api/qsy":
             q = parse_qs(parsed.query)
@@ -1195,7 +1245,7 @@ class _Handler(BaseHTTPRequestHandler):
                 self._send_json({"ok": False, "error": "call required"}, 400)
                 return
             try:
-                self.server.on_qsy(call, freq, mode)
+                self._call(self.server.on_qsy, parsed, call, freq, mode)
             except Exception as exc:  # never kill the server thread
                 log.warning("web qsy failed: %s", exc)
                 self._send_json({"ok": False, "error": str(exc)}, 500)
@@ -1209,7 +1259,7 @@ class _Handler(BaseHTTPRequestHandler):
                 return
             norm = normalize_key(key)
             try:
-                self.server.on_key(norm)
+                self._call(self.server.on_key, parsed, norm)
             except Exception as exc:
                 self._send_json({"ok": False, "error": str(exc)}, 500)
                 return
@@ -1228,7 +1278,7 @@ class _Handler(BaseHTTPRequestHandler):
                 self._send_json({"ok": False, "error": "not supported"}, 404)
                 return
             try:
-                self.server.on_tune(hz)
+                self._call(self.server.on_tune, parsed, hz)
             except Exception as exc:
                 self._send_json({"ok": False, "error": str(exc)}, 500)
                 return
@@ -1280,7 +1330,7 @@ class _Handler(BaseHTTPRequestHandler):
                 self._send_json({"ok": False, "error": "not supported"}, 404)
                 return
             try:
-                self.server.on_band(band)
+                self._call(self.server.on_band, parsed, band)
             except Exception as exc:
                 self._send_json({"ok": False, "error": str(exc)}, 500)
                 return
