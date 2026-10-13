@@ -1,4 +1,4 @@
-"""A tiny local web server that mirrors the touch view for a phone.
+"""A tiny local web server: the phone / tablet / browser view of POUNCer.
 
 Standard library only (``http.server``). The heavy lifting stays in the app:
 this module just serves a mobile page, a JSON feed of the currently visible
