@@ -1,5 +1,19 @@
 # POUNCer — Changelog
 
+## v0.7.24 — 2026-10-13 — calls go into N1MM in one go
+
+- **Fix: long calls sometimes arrived wrong in N1MM** (e.g. "PHB9CBR/P"
+  instead of "HB9CBR/P"), more often on a slow PC. The call was typed key
+  by key; v0.7.21's check then read the box while a slow PC was still
+  typing, cleared it and typed again - the keys still waiting got mixed in.
+  Now the call (and radio B's frequency) is **put into N1MM's box in one
+  go** (WM_SETTEXT, cursor at the end): nothing can get mixed up, however
+  slow the PC. Then POUNCer reads the box and puts it in again if N1MM's
+  wipe came late (up to 3 times). The extra Alt+W key wipe is gone (N1MM's
+  {WIPE} command does it).
+- `[n1mm] type_mode = settext` (default) or `keys` (typed as before, no
+  re-typing).
+
 ## v0.7.23 — 2026-10-13 — last spots at start (SH/DX)
 
 - **At start (and after a reconnect) POUNCer asks RBN for the last spots**,
