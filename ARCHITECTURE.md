@@ -286,8 +286,10 @@ serves the same needed spots as tap tiles. Page layout, top to bottom:
    too short for all keys.
 6. **Footer** (fixed, bottom) - thirds: **WPM − / WPM +** left (`/api/key`
    PgDn / PgUp → N1MM CW speed), **−/+ `tune_step_hz` Hz** middle
-   (`/api/tune`), **NAR / WIDE** right (`/api/filter` → Alt+' = N1MM's
-   wide/narrow toggle; the page lights `filter` from `/api/spots`). `--ftr` (its height, set from JS) keeps the list
+   (`/api/tune`), **NEXT ▶** right (client-side: `shown` = the tiles in
+   display order; the one after `selKey`, else the first → `qsy()` like a
+   tap). The NAR / WIDE buttons were removed in v0.7.8 (`/api/filter` and
+   `_set_filter` are still there, unused by the page). `--ftr` (its height, set from JS) keeps the list
    and the key column clear of it.
 
 | Route | Returns |
@@ -298,7 +300,7 @@ serves the same needed spots as tap tiles. Page layout, top to bottom:
 | `GET /api/key?key=F4` | Enqueues a keystroke (`F1`-`F12`, `Enter`, or `PgUp`/`PgDn` = CW speed, else 400); returns `{"ok": …}`. |
 | `GET /api/hide?call=&freq=` / `/api/unhide` | Long-press remove: enqueues `("hide", call, freq, bool)` → `_set_removed()`; `(call, band)` in `_removed` is filtered out of `_visible_spots` until restart. |
 | `GET /api/tune?hz=25` | Footer −/+: enqueues `("tune", hz)` → `_tune()` → `set_frequency(next_tune_khz(...))` (steps from the last own target if recent / still matching, else from RadioInfo). |
-| `GET /api/filter?w=narrow\|wide[&fix=1]` | Footer NAR/WIDE: enqueues `("filter", w, fix)` → `_set_filter()`. With `[ui] filter_narrow_cat` / `filter_wide_cat` set (shipped: Flex `ZZFI05;` / `ZZFI02;`), it sends `N1MMController.send_radio_command(cat_macro(cat, nr), nr, EntryWindowHwnd)` = `<RadioCmd><RadioNr>…</RadioNr><FocusEntry>hwnd</FocusEntry><RadioCommand>{CATnASC cmd}</RadioCommand></RadioCmd>` to UDP 13064 (undocumented N1MM packet; absolute setting, sent on every tap). Otherwise (both empty): N1MM only has a toggle (Alt+', `win32.send_filter_toggle`, VK_OEM_7 so any keyboard layout works), so the app remembers `_filter_width` (starts at `[ui] filter_start`, default `narrow`; empty = unknown) and sends the toggle only when it changes; `fix=1` (1 s hold) toggles the radio but keeps the remembered width, to resync after the Bandmap button was used. Never transmits. |
+| `GET /api/filter?w=narrow\|wide[&fix=1]` | (No button since v0.7.8.) Was the footer NAR/WIDE: enqueues `("filter", w, fix)` → `_set_filter()`. With `[ui] filter_narrow_cat` / `filter_wide_cat` set (shipped: Flex `ZZFI05;` / `ZZFI02;`), it sends `N1MMController.send_radio_command(cat_macro(cat, nr), nr, EntryWindowHwnd)` = `<RadioCmd><RadioNr>…</RadioNr><FocusEntry>hwnd</FocusEntry><RadioCommand>{CATnASC cmd}</RadioCommand></RadioCmd>` to UDP 13064 (undocumented N1MM packet; absolute setting, sent on every tap). Otherwise (both empty): N1MM only has a toggle (Alt+', `win32.send_filter_toggle`, VK_OEM_7 so any keyboard layout works), so the app remembers `_filter_width` (starts at `[ui] filter_start`, default `narrow`; empty = unknown) and sends the toggle only when it changes; `fix=1` (1 s hold) toggles the radio but keeps the remembered width, to resync after the Bandmap button was used. Never transmits. |
 | `GET /api/band?band=40m` | Band picker: enqueues `("band", band)` → `_qsy_band()` - QSY to the last frequency used on that band (remembered each tick from RadioInfo) or `DEFAULT_BAND_KHZ`. Only `CONTEST_BANDS` (160/80/40/20/15/10 m), else 400. Never transmits. |
 | tile line 2 | `first` (UTC first heard on that frequency, `OnFreqTracker.first_heard`, else the spot time) + SNR as `22dB` + `cq<min>`; line 1 = bold freq (`.fq`), mode only if not CW, `R<run>%`, `<hours>h`, `*`; a tile wider than the screen gets `.tight` (smaller text). Green tile = SNR ≥ 20. |
 | `GET /help` | Help page (`HELP_HTML`, version filled in): every button, colour and mark. Linked from the `?` after the status line and from the band menu. |
