@@ -202,8 +202,10 @@ For macOS, download **POUNCer-macos-arm64.tar.gz** (Apple Silicon) or
 archive, keep `POUNCer` and `config.ini` together, and run `./POUNCer` from
 Terminal in that folder. The archives preserve executable permissions and
 include an editable config; matching `.sha256` files are published alongside
-them. These builds are unsigned and are not notarized. Automatic updates are
-Windows-only; download new macOS versions from the Releases page.
+them. These builds are unsigned and are not notarized. Installing updates by
+itself is Windows-only; the macOS POUNCer turns its Update light blue ("vX
+available on GitHub") when a new version is out - download it from the
+Releases page.
 
 The **Build POUNCer (Windows and macOS)** GitHub Actions workflow also makes
 both macOS builds available as artifacts when run manually without a release

@@ -29,14 +29,25 @@ class VersionTests(unittest.TestCase):
 
 class UpdaterTests(unittest.TestCase):
     def test_frozen_macos_build_does_not_download_windows_update(self) -> None:
-        fetch = mock.Mock()
+        """macOS build: discovers a new release (blue light), never downloads
+        the Windows exe."""
+        urls = []
+
+        def fetch(url, accept="", timeout=0):
+            urls.append(url)
+            return json.dumps({"tag_name": "v0.7.9", "assets": [
+                {"name": "POUNCer.exe", "browser_download_url": "http://x/exe"}]}).encode()
+
         with mock.patch.object(up.sys, "platform", "darwin"), \
                 mock.patch.object(up.sys, "frozen", True, create=True):
             u = up.Updater("0.7.3", fetch=fetch)
-            u.maybe_check()
-        self.assertEqual(u.state, up.OFF)
-        self.assertFalse(u.enabled)
-        fetch.assert_not_called()
+        self.assertTrue(u.notify_only)
+        self.assertEqual(u.exe, "")
+        u.check_now()
+        self.assertEqual(urls, [up.LATEST_URL])            # no asset download
+        self.assertEqual(u.state, up.AVAILABLE)
+        self.assertEqual(update_light(u.state, u.text()),
+                         ("new", "v0.7.9 available on GitHub"))
 
     def _run(self, tag: str, blob: bytes, sha: str):
         d = tempfile.mkdtemp()

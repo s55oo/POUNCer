@@ -10,8 +10,10 @@ and the new file takes its place. The running POUNCer is never stopped by
 itself - the new version starts at the next start, or right away with the
 "Restart" button.
 
-Only for the built Windows exe (``sys.frozen``); source and macOS builds
-do not automatically update from the Windows release asset.
+Only the built Windows exe (``sys.frozen``) installs updates. A built macOS
+POUNCer only *discovers* them: the Update light turns blue with "vX
+available" (download the macOS archive from the Releases page); it never
+downloads the Windows asset. Running from source does nothing.
 """
 
 from __future__ import annotations
@@ -34,8 +36,8 @@ ASSET = "POUNCer.exe"
 CHECK_EVERY_S = 6 * 3600
 
 # states (for the light in the main window)
-OFF, CHECKING, CURRENT, DOWNLOADING, READY, FAILED = (
-    "off", "checking", "current", "downloading", "ready", "failed")
+OFF, CHECKING, CURRENT, DOWNLOADING, READY, FAILED, AVAILABLE = (
+    "off", "checking", "current", "downloading", "ready", "failed", "available")
 
 
 def parse_version(text: str) -> tuple[int, ...]:
@@ -70,14 +72,16 @@ class Updater:
         self.current = current
         frozen = getattr(sys, "frozen", False)
         self.exe = exe_path or (sys.executable if frozen and sys.platform == "win32" else "")
-        self.enabled = enabled and bool(self.exe)
+        # macOS (and other) builds: look for new versions, don't install them
+        self.notify_only = not self.exe and bool(frozen)
+        self.enabled = enabled and (bool(self.exe) or self.notify_only)
         self._fetch = fetch or _get
         self.state = OFF if not self.enabled else CHECKING
         self.new_version = ""
         self.error = ""
         self._last_check = 0.0
         self._busy = threading.Lock()
-        if self.enabled:
+        if self.enabled and self.exe:
             self.cleanup_old()
 
     # --- status ----------------------------------------------------------
@@ -88,6 +92,7 @@ class Updater:
             CURRENT: f"Up to date ({self.current})",
             DOWNLOADING: f"Update {self.new_version}: downloading",
             READY: f"Update {self.new_version} ready - restart",
+            AVAILABLE: f"{self.new_version} available on GitHub",
             FAILED: "Update check failed",
         }[self.state]
 
@@ -103,7 +108,7 @@ class Updater:
 
     def maybe_check(self) -> None:
         """Start a background check if due (at start, then every 6 h)."""
-        if not self.enabled or self.state in (READY, DOWNLOADING):
+        if not self.enabled or self.state in (READY, DOWNLOADING, AVAILABLE):
             return
         if time.time() - self._last_check < CHECK_EVERY_S:
             return
@@ -119,6 +124,10 @@ class Updater:
             tag = str(release.get("tag_name") or "")
             if not is_newer(tag, self.current):
                 self.state = CURRENT
+                return
+            if self.notify_only:          # macOS: just say so
+                self.new_version = tag
+                self.state = AVAILABLE
                 return
             asset = next((a for a in release.get("assets") or []
                           if a.get("name") == ASSET), None)
