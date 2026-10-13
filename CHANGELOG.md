@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## v0.7.8 — 2026-10-13 — NEXT button
+
+- Phone / browser page: **NEXT ▶** in the footer (right) goes to the next
+  station of the list, in the order shown (sort + DX / MLT / ⚡): QSY and
+  enter its call, exactly like tapping its tile. It starts after the
+  station you tapped last; after the last one it starts at the top again.
+  No transmit.
+- The **NAR / WIDE** filter buttons are removed (NEXT took their place);
+  the `filter_*` lines are gone from config.ini.
+
 ## v0.7.7 — 2026-10-13 — Restart button restarts at once
 
 - The blue **Restart -> vX** button (update ready) now restarts POUNCer

@@ -74,8 +74,8 @@ class WebServerTests(unittest.TestCase):
     def test_filter_buttons(self) -> None:
         with self._get("/") as resp:
             body = resp.read().decode("utf-8")
-        self.assertIn('data-filter="narrow"', body)
-        self.assertIn('data-filter="wide"', body)
+        self.assertNotIn('data-filter=', body)      # NAR/WIDE buttons removed
+        self.assertIn('id="next"', body)             # NEXT took their place
         for q in ("w=narrow", "w=WIDE", "w=wide&fix=1"):
             with self._get("/api/filter?" + q) as resp:
                 self.assertTrue(json.loads(resp.read())["ok"])
@@ -91,7 +91,7 @@ class WebServerTests(unittest.TestCase):
         self.assertEqual(resp.status, 200)
         from pouncer import __version__
         self.assertIn(f"POUNCer {__version__} help", body)
-        for word in ("CLR", "MLT", "Run history", "cq3m", "WPM", "NAR", "ENTER"):
+        for word in ("CLR", "MLT", "Run history", "cq3m", "WPM", "NEXT", "ENTER"):
             self.assertIn(word, body)
 
     def test_clear_and_undo(self) -> None:

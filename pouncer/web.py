@@ -118,9 +118,9 @@ INDEX_HTML = """<!doctype html>
     button.tile .detail > span { display: block; }
   }
   .empty { padding: 24px; opacity: .6; font-size: 16px; }
-  /* footer: CW speed -/+, VFO -/+ step, RX filter NAR/WIDE (no TX) */
+  /* footer: CW speed -/+, VFO -/+ step, NEXT station (no TX) */
   .footbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 3;
-    /* thirds: CW speed left, VFO step in the middle, RX filter right */
+    /* thirds: CW speed left, VFO step in the middle, NEXT right */
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
     padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); background: #0b0f12;
     border-top: 1px solid #223; }
@@ -131,9 +131,8 @@ INDEX_HTML = """<!doctype html>
     transition: background .12s ease; }
   .footbar .tune { background: #1565c0; }
   .footbar .wpm { background: #6a1b9a; }
-  /* RX filter: the width POUNCer last set is lit amber */
-  .footbar .filt { background: #37474f; color: #cfd8dc; }
-  .footbar .filt.on { background: #ff8f00; color: #111; }
+  /* NEXT: the next station of the list (QSY + call), one wide button */
+  .footbar .next { grid-column: 1 / -1; background: #00897b; letter-spacing: .5px; }
   .footbar button:active, .footbar button.sel { background: #c62828; color: #fff; }
   @media (max-width: 619px) { .footbar button { font-size: 14px; } }
   body { padding-bottom: var(--ftr, 0px); }
@@ -168,7 +167,7 @@ INDEX_HTML = """<!doctype html>
   #toast button { margin-left: 12px; background: #fff; color: #263238; border: 0;
     border-radius: 8px; padding: 6px 12px; font: inherit; font-weight: 700; }
   /* long-press on a tile: no iOS text selection / callout menu */
-  button.tile, .footbar .filt { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+  button.tile, .footbar button { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
   button.tile.holding { filter: brightness(.7); transition: filter 2s linear; }
   #rmsheet .rm { background: #c62828; }
   .top { display: flex; align-items: center; gap: 10px; }
@@ -313,8 +312,7 @@ INDEX_HTML = """<!doctype html>
     <button class="tune" data-tune="1" title="Move the VFO up (no TX)">+25 Hz</button>
   </div>
   <div class="fgroup">
-    <button class="filt" data-filter="narrow" title="Narrow RX filter (N1MM Alt+'). Hold 1 s: toggle the radio only, to resync">NAR</button>
-    <button class="filt" data-filter="wide" title="Wide RX filter (N1MM Alt+'). Hold 1 s: toggle the radio only, to resync">WIDE</button>
+    <button class="next" id="next" title="Next station of the list (in the order shown): QSY + call, like tapping its tile. No TX">NEXT &#9654;</button>
   </div>
 </footer>
 <div id="toast" hidden></div>
@@ -575,8 +573,6 @@ INDEX_HTML = """<!doctype html>
   function render(data) {
     renderFkeys(data.fkeys);
     if (data.tune_step && data.tune_step !== tuneStep) { tuneStep = data.tune_step; labelTune(); }
-    if ('filter' in data && data.filter !== filterWidth) showFilter(data.filter);
-    if (data.filter_mode) filterMode = data.filter_mode;
     syncHeaderHeight();
     lastData = data;
     // Radio frequency in kHz (falls back to the band, then "ALL band").
@@ -613,6 +609,7 @@ INDEX_HTML = """<!doctype html>
     metaEl.innerHTML = meta;
     const cols = columns();
     const spots = sorted(data.spots);
+    shown = spots;
     const rows = Math.max(1, Math.ceil(spots.length / cols));
     grid.style.gridTemplateColumns = 'repeat(' + cols + ', minmax(0, 1fr))';
     grid.style.gridTemplateRows = 'repeat(' + rows + ', minmax(var(--row), auto))';
@@ -823,56 +820,18 @@ INDEX_HTML = """<!doctype html>
       }
     };
   });
-  // RX filter: N1MM only has a wide/narrow toggle (Alt+'), so POUNCer
-  // remembers the width it set and lights that button. Tap = switch to that
-  // width (nothing is sent if it is already lit). Hold 1 s = toggle the
-  // radio but keep the label - use it when the radio and the label differ.
-  let filterWidth = null;
-  let filterMode = 'toggle';  // 'cat': NAR/WIDE set the filter, always sent
-  function showFilter(w) {
-    filterWidth = w || null;
-    document.querySelectorAll('.footbar [data-filter]').forEach(b => {
-      b.classList.toggle('on', b.dataset.filter === filterWidth);
-    });
-  }
-  async function sendFilter(b, fix) {
-    flash(b);
-    try {
-      const q = {w: b.dataset.filter};
-      if (fix) q.fix = 1;
-      const r = await fetch('/api/filter?' + new URLSearchParams(q));
-      const j = await r.json();
-      if (!j.ok) { toast('Failed: ' + (j.error || 'error')); return; }
-      if (fix) { toast('Filter toggled, label kept'); return; }
-      showFilter(j.w);
-      toast(j.w === 'narrow' ? 'Narrow filter' : 'Wide filter');
-    } catch (e) {
-      toast('Failed: ' + e);
-    }
-  }
-  document.querySelectorAll('.footbar [data-filter]').forEach(b => {
-    let timer = null, held = false;
-    const start = () => {
-      held = false;
-      clearTimeout(timer);
-      timer = setTimeout(() => { held = true; sendFilter(b, filterMode !== 'cat'); }, 1000);
-    };
-    const stop = () => { clearTimeout(timer); timer = null; };
-    b.addEventListener('pointerdown', start);
-    b.addEventListener('pointerup', stop);
-    b.addEventListener('pointerleave', stop);
-    b.addEventListener('pointercancel', stop);
-    b.addEventListener('contextmenu', e => e.preventDefault());
-    b.onclick = () => {
-      if (held) { held = false; return; }
-      if (filterMode !== 'cat' && b.dataset.filter === filterWidth) {
-        flash(b);
-        toast(b.dataset.filter === 'narrow' ? 'Already narrow' : 'Already wide');
-        return;
-      }
-      sendFilter(b, false);
-    };
-  });
+  // NEXT: the station after the last tapped one, in the order shown (sort
+  // + DX / MLT / \u26a1 toggles); the first one if none tapped or at the end.
+  let shown = [];
+  document.getElementById('next').onclick = () => {
+    const btn = document.getElementById('next');
+    flash(btn);
+    if (!shown.length) { toast('No stations in the list'); return; }
+    const at = shown.findIndex(s => spotKey(s) === selKey);
+    const i = at >= 0 && at + 1 < shown.length ? at + 1 : 0;
+    const tile = document.getElementById('grid').children[i];
+    qsy(shown[i], tile || btn);
+  };
   function syncHeaderHeight() {
     const f = document.getElementById('footbar');
     document.documentElement.style.setProperty('--ftr', (f ? f.offsetHeight : 0) + 'px');
@@ -934,7 +893,7 @@ HELP_HTML = """<!doctype html>
   dd { margin: 0; }
   .k { display: inline-block; min-width: 26px; padding: 3px 8px; border-radius: 7px;
     background: #263238; color: #fff; text-align: center; font-weight: 700; font-size: 13px; }
-  .green { background: #2e7d32; } .purple { background: #6a1b9a; } .blue { background: #1565c0; }
+  .green { background: #2e7d32; } .purple { background: #6a1b9a; } .blue { background: #1565c0; } .teal { background: #00897b; }
   .amber { background: #ff8f00; color: #111; } .red { color: #ef9a9a; }
   .yel { color: #ffeb3b; font-weight: 700; } .mag { color: #f48fb1; font-weight: 700; }
   .sky { color: #4fc3f7; font-weight: 700; }
@@ -1043,9 +1002,11 @@ page.</p>
   <dd>CW speed down / up (N1MM's PgDn / PgUp).</dd>
   <dt><span class="k blue">&minus;25 Hz</span> <span class="k blue">+25 Hz</span></dt>
   <dd>Move the VFO down / up by 25 Hz. No transmit.</dd>
-  <dt><span class="k amber">NAR</span> <span class="k">WIDE</span></dt>
-  <dd>Receive filter narrow / wide (sent to the radio through N1MM). The lit one is the
-    last one set.</dd>
+  <dt><span class="k teal">NEXT &#9654;</span></dt>
+  <dd>Go to the next station of the list, in the order shown (your sort and the DX /
+    MLT / &#9889; buttons): QSY and enter its call, exactly like tapping its tile. Starts
+    after the last station you tapped; after the last one it starts again at the top.
+    No transmit.</dd>
 </dl>
 
 <div class="note">Messages (e.g. "Cleared 12 spots", "CW faster") pop up level with the

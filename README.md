@@ -68,13 +68,10 @@ spotted callsign into the N1MM Entry Window.
   that call from the list (with Undo); the station you tapped keeps a yellow
   border until you tap another. The **footer** has **WPM − / WPM +** on the
   left (N1MM PgDn / PgUp = CW speed) and **−25 Hz / +25 Hz** in the middle
-  (move the VFO via N1MM; step = `[ui] tune_step_hz`), and **NAR / WIDE** on
-  the right (RX filter: by CAT through N1MM, `[ui] filter_narrow_cat` /
-  `filter_wide_cat`, shipped for a FLEX-6000 - or, with those empty, via
-  N1MM's Alt+' wide/narrow toggle, like the Bandmap's
-  Wide/Narrow button; the width POUNCer set is lit amber - it starts as
-  narrow, `[ui] filter_start` - hold 1 s to toggle
-  the radio without changing the label if they differ); none of them transmit.
+  (move the VFO via N1MM; step = `[ui] tune_step_hz`), and **NEXT ▶** on
+  the right: the next station of the list in the order shown (after the one
+  you tapped last; at the end it starts again at the top) - QSY and call,
+  like tapping its tile. None of them transmit.
   The **?** at the end of the status line opens a help page explaining
   every button.
   **cq3m** on a tile = how long that station has been calling on that

@@ -91,10 +91,6 @@ class FilterStartTests(unittest.TestCase):
         self.assertEqual((cfg.filter_narrow_cat, cfg.filter_wide_cat), ("ZZFI05;", "ZZFI02;"))
         self.assertEqual(self._load("[ui]\n").filter_narrow_cat, "")
 
-    def test_shipped_config_uses_flex_cat(self):
-        cfg = load_config(os.path.join(os.path.dirname(__file__), "..", "config.ini"))
-        self.assertTrue(cfg.filter_narrow_cat and cfg.filter_wide_cat)
-
     def test_backup_and_fade(self):
         cfg = self._load("[rbn]\nbackup_spotters = OE9GHV, S50ARX\nbackup_after_minutes = 3\n"
                          "[ui]\nfade_minutes = 4\n")
