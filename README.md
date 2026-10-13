@@ -157,10 +157,10 @@ the **Radio A (A/B)** button does the same for clicks and keyboard F-keys.
 `[n1mm] default_radio = A` / `B` sets the start radio. With one radio
 nothing changes. The frequency in the top row then shows **both radios** -
 A with B under it; the radio this phone works is the big one. Tapping it
-opens the band menu with a row for **radio A** and a row for **radio B**
-(green = the band shown, blue ring = the band the radio is on): pick a band
-in B's row and the phone works radio B and shows that band's spots; tap a
-station to QSY radio B there.
+opens one band menu (160-10 m) for the radio chosen with the **A / B** key:
+with A it shows that band's spots for radio A, with B for radio B (green =
+the band shown, blue ring = the band the radio is on). Tap a station there
+and that radio goes to it.
 
 ## Contest summary
 

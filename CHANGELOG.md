@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.7.17 — 2026-10-13 — one band menu for the A / B radio
+
+- Phone band menu: **one row of bands (160-10 m)** again, for the radio
+  chosen with the **A / B** key in the header ("Band for radio B"). With A
+  it shows that band's spots for radio A, with B for radio B; tap a station
+  there and that radio goes to it. The two-row A / B menu is gone.
+
 ## v0.7.16 — 2026-10-13 — band menu shows a band, tap QSYs
 
 - **Band menu (phone) no longer QSYs the radio** - it shows **that band's

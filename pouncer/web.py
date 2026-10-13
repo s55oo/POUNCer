@@ -227,11 +227,7 @@ INDEX_HTML = """<!doctype html>
   .bandgrid button.cur { background: #2e7d32; }
   .bandgrid button.here { box-shadow: inset 0 0 0 2px #4fc3f7; }
   .viewtag { color: #4fc3f7; font-weight: 700; cursor: pointer; }
-  .bandgrid .radiohead { grid-column: 1 / -1; font-size: 14px; opacity: .7; margin-top: 6px; }
-  .bandgrid .radiohead.mine { opacity: 1; font-weight: 700; }
-  .bandgrid .radiohead i { font-style: normal; font-weight: 700; color: #64b5f6; }
-  .bandgrid .radiohead.r2 i { color: #ffb74d; }
-  .bandgrid .radiohead span { font-weight: 400; opacity: .7; }
+  #bandfor i { font-style: normal; color: #64b5f6; } #bandfor i.r2 { color: #ffb74d; }
   .bandgrid button:active { background: #c62828; }
   .sheet-close { margin-top: 10px; width: 100%; background: #37474f; color: #fff;
     border: 0; border-radius: 10px; font: inherit; padding: 12px; cursor: pointer; }
@@ -371,7 +367,7 @@ INDEX_HTML = """<!doctype html>
   <button class="sheet-close" id="rmno">Cancel</button>
 </div></div>
 <div id="bandsheet"><div class="sheet">
-  <div class="sheet-title">Show band <span>(tap a station there to QSY)</span></div>
+  <div class="sheet-title">Band<span id="bandfor"></span> <span>(shows its spots - tap a station to QSY)</span></div>
   <div class="bandgrid" id="bandgrid"></div>
   <button class="sheet-close" id="alertbtn">Alerts: on</button>
   <a class="sheet-close helplink" href="/summary">Contest summary</a>
@@ -896,51 +892,36 @@ INDEX_HTML = """<!doctype html>
   document.getElementById('logbtn').onclick = reconnect;
   const bandSheet = document.getElementById('bandsheet');
   const bandGrid = document.getElementById('bandgrid');
+  // One band menu (160-10 m) for the radio chosen with the A / B key in the
+  // header: it shows that band's spots for that radio (no QSY - tap a
+  // station there and that radio goes to it).
   function openBands() {
     const bands = lastData.contest_bands || ['160m','80m','40m','20m','15m','10m'];
+    const cur = lastData.radio === 2 ? 2 : 1;
+    const so2r = (lastData.radios || []).length > 1 || cur === 2;
+    const real = (lastData.rbands || {})[String(cur)] || lastData.radio_band || lastData.band;
+    const shown = (views[String(cur)] && views[String(cur)].band) || real;
+    document.getElementById('bandfor').innerHTML = so2r
+      ? ' for <i class="r' + cur + '">radio ' + (cur === 2 ? 'B' : 'A') + '</i>' : '';
     bandGrid.textContent = '';
-    const shownBand = (nr, real) => (views[String(nr)] && views[String(nr)].band) || real;
-    const addRow = (nr, real) => bands.forEach(b => {
+    bands.forEach(b => {
       const btn = document.createElement('button');
       btn.textContent = b;
-      if (b === shownBand(nr || (lastData.radio || 1), real)) btn.classList.add('cur');
+      if (b === shown) btn.classList.add('cur');
       if (b === real) btn.classList.add('here');   // the radio is on this band
-      btn.onclick = () => chooseBand(b, nr);
+      btn.onclick = () => chooseBand(b);
       bandGrid.appendChild(btn);
     });
-    const rb = lastData.rbands || {};
-    const so2r = (lastData.radios || []).length > 1;
-    bandGrid.classList.toggle('two', so2r);
-    if (so2r) {
-      // SO2R: a row of bands for each radio; the one this phone works is marked
-      const mine = lastData.radio === 2 ? 2 : 1;
-      [1, 2].forEach(nr => {
-        const h = document.createElement('div');
-        h.className = 'radiohead r' + nr + (nr === mine ? ' mine' : '');
-        h.innerHTML = '<i>' + (nr === 2 ? 'B' : 'A') + '</i> Radio ' + (nr === 2 ? 'B' : 'A') +
-          (rb[String(nr)] ? ' &middot; now ' + esc(rb[String(nr)]) : '') +
-          (nr === mine ? ' <span>(this phone)</span>' : '');
-        bandGrid.appendChild(h);
-        addRow(nr, rb[String(nr)]);
-      });
-    } else {
-      addRow(null, lastData.radio_band || lastData.band);
-    }
     bandSheet.classList.add('show');
   }
   function closeBands() { bandSheet.classList.remove('show'); }
   // Band menu: show that band's spots for the radio - the radio stays where
   // it is until you tap a station (that QSY works for A and B alike).
-  function chooseBand(b, nr) {
+  function chooseBand(b) {
     closeBands();
-    const cur = lastData.radio === 2 ? 2 : 1;
-    if (nr && nr !== cur) {              // SO2R: B's row while on A -> work B
-      myRadio = nr;
-      try { localStorage.setItem('pouncer.radio', String(nr)); } catch (e) {}
-    }
-    const r = nr || cur;
-    const real = (lastData.rbands || {})[String(r)] || (r === cur ? lastData.radio_band : '') || '';
-    const tag = nr ? (r === 2 ? 'B' : 'A') + ': ' : '';
+    const r = lastData.radio === 2 ? 2 : 1;      // the radio of the A / B key
+    const real = (lastData.rbands || {})[String(r)] || lastData.radio_band || '';
+    const tag = (lastData.radios || []).length > 1 ? (r === 2 ? 'B' : 'A') + ': ' : '';
     if (b === real) {
       delete views[String(r)];
       toast(tag + b + ' (the radio is there)');
@@ -1223,10 +1204,10 @@ worked from spots. POUNCer keeps the taps in <code>cache\\taps.jsonl</code> (14 
     one phone can work radio A and another radio B.</dd>
   <dt><span class="k">A 7020.0<br>B 14025.3</span></dt>
   <dd>With two radios the frequency shows both: A on top, B under it. The radio this
-    phone works is big and bright. Tap it for the band menu: a row of bands for
-    <b>radio A</b> and one for <b>radio B</b> (green = the band shown, blue ring = the
-    band the radio is on). A band in B's row: this phone works radio B and shows that
-    band's spots; tap a station to QSY radio B there.</dd>
+    phone works is big and bright. Tap it for the band menu (160-10 m): it is for the
+    radio chosen with the <b>A / B</b> key - with A it shows that band's spots for radio
+    A, with B for radio B (green = the band shown, blue ring = the band the radio is on).
+    Tap a station there and that radio goes to it.</dd>
 </dl>
 
 <h2>Bottom row</h2>
