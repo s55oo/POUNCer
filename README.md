@@ -157,7 +157,10 @@ the **Radio A (A/B)** button does the same for clicks and keyboard F-keys.
 `[n1mm] default_radio = A` / `B` sets the start radio. Radio B is
 QSYed by typing the frequency (kHz) + Enter into Entry Window B, as you
 would by hand - N1MM's UDP QSY command moved radio A in SO2R
-(`[n1mm] radio_b_qsy = type`, or `udp` for the UDP command). With one radio
+(`[n1mm] radio_b_qsy = type`, or `udp` for the UDP command). After a tap
+for the other radio the cursor goes back to where it was - same Entry
+Window, same box (callsign / exchange) and cursor position
+(`[n1mm] return_focus = true`). With one radio
 nothing changes. The frequency in the top row then shows **both radios** -
 A with B under it; the radio this phone works is the big one. Tapping it
 opens one band menu (160-10 m) for the radio chosen with the **A / B** key:

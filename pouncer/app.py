@@ -25,7 +25,8 @@ from .team import Team
 from .update import Updater
 from .web import WebServer, pick_web_address
 from .win32 import (
-    force_foreground, is_n1mm_running, send_cw_speed, send_enter, send_filter_toggle,
+    focus_snapshot, force_foreground, is_n1mm_running, restore_focus, send_cw_speed,
+    send_enter, send_filter_toggle, window_pid,
     send_fkey,
     type_text,
     clear_focused_edit,
@@ -441,9 +442,37 @@ class PouncerApp:
         if N1MM reports it, else the active one (SO1R: always the one radio)."""
         return self.state.active_radio_nr(radio or self.radio)
 
+    def _snapshot_focus(self):
+        """SO2R: where the cursor is before we go to the other radio's window."""
+        if not getattr(self.cfg, "return_focus", False) or not self._so2r():
+            return None
+        try:
+            return focus_snapshot()
+        except Exception:   # never let this stop a QSY
+            return None
+
+    def _return_focus(self, snap, target_hwnd) -> str:
+        """Put the cursor back (window, box, position) if it was in ANOTHER
+        N1MM Entry Window than the one we used. Returns a status note."""
+        if not snap or not target_hwnd or snap.get("fg") == target_hwnd:
+            return ""
+        if not snap.get("pid") or snap["pid"] != window_pid(target_hwnd):
+            return ""          # it wasn't in N1MM (e.g. POUNCer's own window)
+        time.sleep(0.1)
+        try:
+            ok = restore_focus(snap)
+        except Exception:
+            ok = False
+        if not ok:
+            return " [cursor not returned]"
+        back = next((self._radio_tag(n).strip(": ") for n in self.state.radio_numbers()
+                     if self.state.entry_window_hwnd(n) == snap.get("fg")), "")
+        return f" [cursor back in Entry Window {back}]" if back else " [cursor back]"
+
     def _act_on_spot(self, spot: Spot, radio: int | None = None) -> None:
         nr = self._radio_nr(radio)
         hwnd = self.state.entry_window_hwnd(nr)  # that radio's Entry Window (A / B)
+        snap = self._snapshot_focus()
         focused = False
         if self.cfg.focus_n1mm and hwnd:
             focused = force_foreground(hwnd)
@@ -477,6 +506,7 @@ class PouncerApp:
                 msg += " (call skipped: N1MM not focused)"
         if self.cfg.focus_n1mm:
             msg += " [N1MM focused]" if focused else " [N1MM focus failed]"
+        msg += self._return_focus(snap, hwnd)
         self.status_label.configure(text=msg)
 
     def _tick(self) -> None:
@@ -973,11 +1003,14 @@ class PouncerApp:
         if khz is None:
             self.status_label.configure(text="Tune: no radio frequency from N1MM yet")
             return
+        snap = self._snapshot_focus()
+        hwnd = self.state.entry_window_hwnd(nr)
         focused = self._focus_radio(nr)
-        if not self._qsy(nr, khz, self.state.entry_window_hwnd(nr), focused):
+        if not self._qsy(nr, khz, hwnd, focused):
             return
         self._tune_last[nr] = (khz, now)
-        self.status_label.configure(text=f"Tune {hz:+d} Hz -> {khz:.3f} kHz")
+        note = self._return_focus(snap, hwnd) if focused else ""
+        self.status_label.configure(text=f"Tune {hz:+d} Hz -> {khz:.3f} kHz{note}")
 
     def _filter_cat(self, width: str) -> str:
         return self.cfg.filter_narrow_cat if width == "narrow" else self.cfg.filter_wide_cat

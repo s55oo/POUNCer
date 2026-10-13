@@ -1208,7 +1208,9 @@ worked from spots. POUNCer keeps the taps in <code>cache\\taps.jsonl</code> (14 
     radio chosen with the <b>A / B</b> key - with A it shows that band's spots for radio
     A, with B for radio B (green = the band shown, blue ring = the band the radio is on).
     Tap a station there and that radio goes to it (radio B: POUNCer types the
-    frequency + Enter into Entry Window B, then the call - like you would by hand).</dd>
+    frequency + Enter into Entry Window B, then the call - like you would by hand).
+    If your cursor was in the other Entry Window (e.g. typing the exchange in A), it
+    goes back there afterwards - same box, same position.</dd>
 </dl>
 
 <h2>Bottom row</h2>

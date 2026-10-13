@@ -71,6 +71,7 @@ class Config:
     set_callsign: bool = True
     wipe_before_call: bool = True
     focus_n1mm: bool = True
+    return_focus: bool = True  # SO2R: after a tap on the other radio, cursor back where it was
     n1mm_ini: str = ""
 
     worked_db: str = ""
@@ -169,6 +170,7 @@ def load_config(path: str) -> Config:
     cfg.set_callsign = b("n1mm", "set_callsign", cfg.set_callsign)
     cfg.wipe_before_call = b("n1mm", "wipe_before_call", cfg.wipe_before_call)
     cfg.focus_n1mm = b("n1mm", "focus_n1mm", cfg.focus_n1mm)
+    cfg.return_focus = b("n1mm", "return_focus", cfg.return_focus)
     cfg.n1mm_ini = s("n1mm", "ini", cfg.n1mm_ini).strip()
 
     cfg.worked_db = s("worked", "db", cfg.worked_db).strip()
