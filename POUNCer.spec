@@ -6,15 +6,24 @@
 # Antivirus false positives (Trojan:Win32/Wacatac.B!ml): see ARCHITECTURE.md
 # "Build & run". upx stays False - UPX packing is a common AV trigger.
 
+import sys
+
+datas = []
+runtime_hooks = []
+if sys.platform == 'darwin':
+    import certifi
+    datas = [(certifi.where(), 'certificates')]
+    runtime_hooks = ['packaging/macos_certificates.py']
+
 a = Analysis(
     ['pouncer_main.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=datas,
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=runtime_hooks,
     excludes=[],
     noarchive=False,
     optimize=0,
