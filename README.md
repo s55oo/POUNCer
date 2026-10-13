@@ -200,6 +200,20 @@ bootloader compiled from source, so Windows Defender doesn't flag them
 (locally built exes can be flagged `Trojan:Win32/Wacatac.B!ml` - a false
 positive). Each release lists the exe's SHA-256.
 
+For macOS, download **POUNCer-macos-arm64.tar.gz** (Apple Silicon) or
+**POUNCer-macos-x86_64.tar.gz** (Intel) from the same release. Extract the
+archive, keep `POUNCer` and `config.ini` together, and run `./POUNCer` from
+Terminal in that folder. The archives preserve executable permissions and
+include an editable config; matching `.sha256` files are published alongside
+them. These builds are unsigned and are not notarized. Automatic updates are
+Windows-only; download new macOS versions from the Releases page.
+
+The **Build POUNCer (Windows and macOS)** GitHub Actions workflow also makes
+both macOS builds available as artifacts when run manually without a release
+tag. N1MM Logger+ still runs on Windows; configure its broadcast destination
+to the Mac's IP address when using POUNCer on another computer. Local Windows
+keyboard and window controls are unavailable on macOS.
+
 ## N1MM Logger+ setup
 
 1. Open N1MM Logger+.

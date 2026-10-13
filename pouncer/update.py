@@ -10,7 +10,8 @@ and the new file takes its place. The running POUNCer is never stopped by
 itself - the new version starts at the next start, or right away with the
 "Restart" button.
 
-Only for the built exe (``sys.frozen``); running from source does nothing.
+Only for the built Windows exe (``sys.frozen``); source and macOS builds
+do not automatically update from the Windows release asset.
 """
 
 from __future__ import annotations
@@ -68,7 +69,7 @@ class Updater:
                  enabled: bool = True, fetch=None) -> None:
         self.current = current
         frozen = getattr(sys, "frozen", False)
-        self.exe = exe_path or (sys.executable if frozen else "")
+        self.exe = exe_path or (sys.executable if frozen and sys.platform == "win32" else "")
         self.enabled = enabled and bool(self.exe)
         self._fetch = fetch or _get
         self.state = OFF if not self.enabled else CHECKING
