@@ -136,6 +136,12 @@ everything is connected:
 | Team | master or slave (count) | alone on the network | - | team off |
 | Phone | web view running | - | port in use | disabled |
 | Warm-up | list loaded | downloading | download failed | off |
+| Update | up to date | checking / check failed | - | off (blue = new version ready: **Restart** button) |
+
+**Auto-update:** the exe checks GitHub at start and every 6 h; a newer
+release is downloaded, its SHA-256 checked, and it replaces POUNCer.exe on
+disk. It runs from the next start (or press **Restart -> vX**); POUNCer
+never restarts by itself in the middle of a contest. `[ui] auto_update`.
 
 ## Several POUNCers (team)
 

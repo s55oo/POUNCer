@@ -21,6 +21,7 @@ from .n1mm import (
 from .rbn import OnFreqTracker, RBNClient, Spot, SpotterFilter, is_beacon, ports_for_modes
 from .runhist import RARE_HOURS, RARE_RUN_PCT, RunHistory
 from .team import Team
+from .update import Updater
 from .web import WebServer, pick_web_address
 from .win32 import (
     force_foreground, is_n1mm_running, send_cw_speed, send_enter, send_filter_toggle,
@@ -118,6 +119,7 @@ class PouncerApp:
                        run_list=config.run_list)
             if config.run_history else None
         )
+        self.updater = Updater(__version__, enabled=config.auto_update)
         if self.runhist is not None and config.warmup:
             self.runhist.warm_up()  # every station of CQWW / ARRL DX / WPX CW
         # Callsign -> continent (N1MM's wl_cty.dat) for EU / DX marking.
@@ -196,6 +198,7 @@ class PouncerApp:
         self.lights_frame.pack(fill="x", pady=(0, 4))
         self._lights: list[tuple[tk.Label, tk.Label]] = []
         self._lights_last: list | None = None
+        self._restart_btn: tk.Button | None = None
         self.n1mm_label = self._wrap_label(header, "N1MM: waiting for radio info...")
         self.rbn_label = self._wrap_label(header, "RBN: starting...")
         self.log_label = self._wrap_label(header, "Log: -")
@@ -451,6 +454,7 @@ class PouncerApp:
         self.status_label.configure(text=msg)
 
     def _tick(self) -> None:
+        self.updater.maybe_check()
         self._drain_status()
         self._drain_spots()
         self._ensure_rbn_clients()
@@ -984,6 +988,7 @@ class PouncerApp:
             lights.web_light(self.cfg.web_enabled, self.web is not None),
             lights.warm_light(self.runhist is not None and self.cfg.warmup,
                               self.runhist.warm_status if self.runhist else ""),
+            lights.update_light(self.updater.state, self.updater.text()),
         ]
 
     def _update_lights(self, snap) -> None:
@@ -1004,6 +1009,21 @@ class PouncerApp:
         for (dot, name), (state, text) in zip(self._lights, states):
             dot.configure(fg=lights.COLORS[state])
             name.configure(text=text)
+        if self.updater.state == "ready" and self._restart_btn is None:
+            self._restart_btn = tk.Button(
+                self.lights_frame, text=f"Restart -> {self.updater.new_version}",
+                bg=lights.COLORS[lights.NEW], fg="#ffffff", relief="flat",
+                padx=8, command=self._restart_for_update)
+            self.lights_frame.add(self._restart_btn)
+
+    def _restart_for_update(self) -> None:
+        from tkinter import messagebox
+        if not messagebox.askyesno(
+                "POUNCer update",
+                f"Restart POUNCer now with {self.updater.new_version}?\n"
+                "(Otherwise it is used from the next start.)"):
+            return
+        self.updater.restart(before_exit=self._shutdown)
 
     def _visible_spots(self) -> list[Spot]:
         """Spots matching the current band, modes and worked filter."""

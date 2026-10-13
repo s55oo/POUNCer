@@ -92,6 +92,7 @@ class Config:
     run_server: str = ""  # optional run list server URL (server/runlist.py)
     run_list: str = "runlist.sqlite"  # ready-made run list file (next to config.ini)
     warmup: bool = True  # download the warm-up list (big CW contests) at start
+    auto_update: bool = True  # exe: download a newer release, used from the next start
     team: bool = True       # work together with other POUNCers on the network
     team_port: int = 12079
     team_peers: tuple[str, ...] = ()  # extra POUNCer IPs (networks without broadcast)
@@ -173,6 +174,7 @@ def load_config(path: str) -> Config:
     cfg.run_server = s("ui", "run_server", cfg.run_server).strip()
     cfg.run_list = s("ui", "run_list", cfg.run_list).strip()
     cfg.warmup = b("ui", "warmup", cfg.warmup)
+    cfg.auto_update = b("ui", "auto_update", cfg.auto_update)
     cfg.team = b("team", "enabled", cfg.team)
     cfg.team_port = i("team", "port", cfg.team_port)
     cfg.team_peers = tuple(

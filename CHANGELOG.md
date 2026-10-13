@@ -1,5 +1,19 @@
 # POUNCer — Changelog
 
+## v0.7.4 — 2026-10-13 — auto-update
+
+- **Auto-update** (POUNCer.exe): at start and every 6 hours POUNCer asks
+  GitHub for the latest release. If it is newer, POUNCer.exe is downloaded
+  in the background, its SHA-256 is checked against the one GitHub
+  publishes (asset digest, else the hash in the release notes), and it
+  replaces the exe on disk (the running one becomes `POUNCer.exe.old`,
+  deleted at the next start). POUNCer **never restarts by itself** - the
+  new version runs from the next start, or press the blue **Restart ->
+  vX** button next to the lights. A wrong hash or no internet = nothing
+  changes. New light **Update**: green = up to date, blue = update ready,
+  amber = checking / failed. `[ui] auto_update = true` (false = off).
+  `pouncer/update.py`.
+
 ## v0.7.3 — 2026-10-13 — connection lights
 
 - Main window, under the MASTER / SLAVE bar: one light per connection -
