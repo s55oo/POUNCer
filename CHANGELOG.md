@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.7.2 — 2026-10-13 — warm-up: show when it was downloaded
+
+- POUNCer.exe main window: `warm-up: 46044 stations known in advance
+  (downloaded 2026-10-13 06:52)`.
+- After each download POUNCer also writes `cache\warm-up.txt` next to
+  `warm.sqlite`: date, stations, contests, years, source, next check.
+
 ## v0.7.1 — 2026-10-13 — warm-up list
 
 - **Warm-up**: POUNCer downloads at start (once into `cache/warm.sqlite`,

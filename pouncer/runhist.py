@@ -185,7 +185,7 @@ class RunHistory:
         def run() -> None:
             path = os.path.join(self.cache_dir, "warm.sqlite")
             if os.path.exists(path):
-                self.load_run_list(path)
+                self._load_warm(path, downloaded=False)
             fresh = os.path.exists(path) and (
                 time.time() - os.path.getmtime(path) < max_age_days * 86400)
             if fresh:
@@ -202,9 +202,49 @@ class RunHistory:
                 self.warm_status = f"warm-up download failed: {exc}"
                 log.info("warm-up download from %s failed: %s", url, exc)
                 return
-            self.load_run_list(path)
+            self._load_warm(path, downloaded=True, url=url, max_age_days=max_age_days)
 
         threading.Thread(target=run, name="warmup", daemon=True).start()
+
+    def _load_warm(self, path: str, downloaded: bool, url: str = "",
+                   max_age_days: float = 30) -> None:
+        """Load warm.sqlite; status shows when it was downloaded. After a new
+        download also write ``warm-up.txt`` next to it (what, when, from where)."""
+        n = self.load_run_list(path)
+        if not n:
+            return
+        when = time.strftime("%Y-%m-%d %H:%M", time.localtime(os.path.getmtime(path)))
+        self.warm_status = f"{n} stations known in advance (downloaded {when})"
+        if not downloaded:
+            return
+        info = {}
+        try:
+            con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+            try:
+                info = dict(con.execute("SELECT key, value FROM info"))
+            finally:
+                con.close()
+        except sqlite3.Error:
+            pass
+        refresh = time.strftime("%Y-%m-%d", time.localtime(
+            os.path.getmtime(path) + max_age_days * 86400))
+        lines = [
+            "POUNCer warm-up list",
+            f"Downloaded:  {when}",
+            f"Stations:    {n}",
+            f"Contests:    {info.get('contests', '?')}",
+            f"Years:       {info.get('years', '?')}",
+            f"Built:       {info.get('built', '?')}",
+            f"From:        {url}",
+            f"Next check:  {refresh} (downloaded again after that)",
+            "File:        warm.sqlite (delete it to download again)",
+        ]
+        try:
+            with open(os.path.join(self.cache_dir, "warm-up.txt"), "w",
+                      encoding="utf-8") as fh:
+                fh.write("\n".join(lines) + "\n")
+        except OSError as exc:
+            log.info("warm-up.txt: %s", exc)
 
     def load_run_list(self, path: str) -> int:
         """Load a ready-made run list (runlist.sqlite from server/runlist.py):
