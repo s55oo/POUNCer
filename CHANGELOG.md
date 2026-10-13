@@ -1,6 +1,13 @@
 # POUNCer — Changelog
 
-## v0.7.8 — 2026-10-13 — NEXT button
+## v0.7.9 — 2026-10-13 — NEXT button, macOS builds
+
+- **macOS builds** (by S53ZO): every release also has
+  `POUNCer-macos-arm64.tar.gz` (Apple Silicon) and
+  `POUNCer-macos-x86_64.tar.gz` (Intel), built by the same workflow.
+- macOS POUNCer **discovers new versions** too: the Update light turns
+  blue with "vX available on GitHub" (download it from the Releases page);
+  installing by itself stays Windows-only.
 
 - Phone / browser page: **NEXT ▶** in the footer (right) goes to the next
   station of the list, in the order shown (sort + DX / MLT / ⚡): QSY and
@@ -9,6 +16,11 @@
   No transmit.
 - The **NAR / WIDE** filter buttons are removed (NEXT took their place);
   the `filter_*` lines are gone from config.ini.
+
+## v0.7.8 — 2026-10-13 — (don't use)
+
+- Published by mistake from the commit before the NEXT change: it is
+  v0.7.7 inside (and says so). Use v0.7.9.
 
 ## v0.7.7 — 2026-10-13 — Restart button restarts at once
 

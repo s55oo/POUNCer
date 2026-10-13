@@ -68,4 +68,4 @@ def warm_light(enabled: bool, status: str) -> tuple[str, str]:
 
 def update_light(state: str, text: str) -> tuple[str, str]:
     """state from pouncer.update: off/checking/current/downloading/ready/failed."""
-    return {"off": OFF, "current": OK, "ready": NEW}.get(state, WAIT), text
+    return {"off": OFF, "current": OK, "ready": NEW, "available": NEW}.get(state, WAIT), text
