@@ -58,5 +58,21 @@ class TkLayoutTests(unittest.TestCase):
         self.assertGreater(label.winfo_reqheight(), 40)  # several lines
 
 
+    def test_fkey_row_stays_one_row(self) -> None:
+        row = ttk.Frame(self.root)
+        row.pack(fill="x")
+        buttons = []
+        for i, text in enumerate(["F2 RPRT", "F3 TU", "F4 CALL", "F5 HisCALL", "F7 ?", "ENTER"]):
+            row.columnconfigure(i, weight=1, uniform="fkey")
+            b = ttk.Button(row, text=text, width=1)
+            b.grid(row=0, column=i, sticky="ew", padx=2)
+            buttons.append(b)
+        for geo in ("320x200+10+10", "1400x200+10+10"):
+            self._settle(geo)
+            self.assertEqual(len({b.winfo_y() for b in buttons}), 1)
+            self.assertLessEqual(buttons[-1].winfo_x() + buttons[-1].winfo_width(),
+                                 row.winfo_width() + 1)
+
+
 if __name__ == "__main__":
     unittest.main()
