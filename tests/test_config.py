@@ -42,7 +42,6 @@ class LoadConfigTests(unittest.TestCase):
         self.assertEqual(cfg.rbn_port, 7000)
         self.assertEqual(cfg.rbn_ft8_port, 7001)
         self.assertFalse(cfg.touch_view)
-        self.assertEqual((cfg.touch_columns, cfg.touch_rows, cfg.touch_font), (2, 8, 26))
         self.assertEqual(cfg.fkeys, (
             ("F2", "RPRT"), ("F3", "TU"), ("F4", "CALL"), ("F5", "HisCALL"), ("F7", "?"),
             ("Enter", "Enter"),
@@ -73,7 +72,7 @@ class LoadConfigTests(unittest.TestCase):
             cfg = load_config(path)
             self.assertEqual(cfg.follow_modes, ("CW", "RTTY"))
             self.assertTrue(cfg.touch_view)
-            self.assertEqual((cfg.touch_columns, cfg.touch_rows, cfg.touch_font), (5, 4, 34))
+            self.assertFalse(hasattr(cfg, "touch_rows"))  # old keys ignored
 
 
 class FilterStartTests(unittest.TestCase):

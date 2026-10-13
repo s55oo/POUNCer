@@ -29,7 +29,7 @@ spotted callsign into the N1MM Entry Window.
   the foreground first so the keystrokes land in the callsign box.
 * **EU / DX** - each spotted call is looked up in N1MM's own country file
   (`SupportFiles\wl_cty.dat`). Stations outside your continent (EU for S5)
-  are DX: their callsign is **yellow** on the phone page and touch board
+  are DX: their callsign is **yellow** on the phone page
   (EU calls white), plus a **Cont** column and light-orange rows in the main
   window.
 * **Worked calls** - N1MM logs are SQLite (`.s3db`) files, and each file can
@@ -48,15 +48,13 @@ spotted callsign into the N1MM Entry Window.
   the banner clears on its own once you open a log; the **Reconnect** button
   (banner, the **Log** button next to Sort, or *Reconnect log* in the main
   window) re-reads which log N1MM has open immediately.
-* **Touch view** - an optional second screen sized for a 1080p display with
-  large tap targets (one big button per spot). It lists the needed spots
-  strongest-SNR first in at most two columns, filled top-to-bottom (strongest
-  at the top-left). Tapping a button QSYs and enters the call exactly like
-  clicking a table row. Open it with the **Touch view** button (or set
-  `[ui] touch_view = true` to open it at startup); Esc closes it.
+* **Touch / big-button view** - the phone page in your PC's default browser
+  (touch screen, second monitor): the **Open in browser** button in the main
+  window opens it (or set `[ui] touch_view = true` to open it at startup).
+  The old separate Tk touch window is gone - one view for everything.
 * **Phone view (web)** - a small local web server (stdlib only) serves the same
   needed spots as big tap tiles for a phone/browser. Tapping a tile QSYs and
-  enters the call on this PC (same as the touch view). Open
+  enters the call on this PC. Open
   `http://<pc-ip>:8080` - the exact URL is shown on the **Phone view** line of
   the main window: the ZeroTier address if ZeroTier is running, otherwise the
   LAN address, plus the port it listens on.
@@ -110,7 +108,7 @@ spotted callsign into the N1MM Entry Window.
   The header shows the radio frequency; **tap it to change band** (160, 80,
   40, 20, 15, 10 m) - the radio goes to the last frequency you used on that
   band, or a CW default.
-* **TX / log buttons** - the main window, the touch board and the phone page all
+* **TX / log buttons** - the main window and the phone page all
   show buttons for `[ui] fkeys` (default `F2:RPRT F3:TU F4:CALL F5:HisCALL F7:? Enter`). An F-key
   button presses that function key in the focused N1MM Entry Window, so N1MM
   sends its message - e.g. F4 normally sends `{MYCALL}`. Unlike tapping a spot,
@@ -245,11 +243,8 @@ All options live in `config.ini` and are documented inline. Key ones:
 | `[worked] refresh_seconds` | How often to re-check which log/contest N1MM has open. Newly logged QSOs are picked up almost immediately regardless (the log's WAL file is checked every ~0.5 s tick). |
 | `[ui] sort` | Initial sort column (`time`, `freq`, `snr`, `wpm`, `call`, `mode`, `type`, `spotter`). Click any column heading to sort by it; click again to reverse. The up/down arrow in the heading shows the current sort. SNR sorts strongest first. |
 | `[ui] trigger` | `single` or `double` click to QSY. |
-| `[ui] touch_view` | Open the big-button touch view at startup (`true`/`false`). |
-| `[ui] touch_columns` | Touch-view columns (default 2; clamped to a maximum of 2). |
-| `[ui] touch_rows` | Touch-view rows per column (default 8). |
-| `[ui] touch_font` | Tile font size (points) in the touch view (default 26). |
-| `[ui] fkeys` | TX/log buttons in the main window, touch board and phone page: `KEY[:label]` list (default `F2:RPRT F3:TU F4:CALL F5:HisCALL F7:? Enter`). Each F-key **transmits** its N1MM message; `Enter` logs the QSO. Empty = no buttons. |
+| `[ui] touch_view` | Open the phone page in the default browser at startup (`true`/`false`). |
+| `[ui] fkeys` | TX/log buttons in the main window and phone page: `KEY[:label]` list (default `F2:RPRT F3:TU F4:CALL F5:HisCALL F7:? Enter`). Each F-key **transmits** its N1MM message; `Enter` logs the QSO. Empty = no buttons. |
 | `[web] enabled` | Serve the phone/browser view (`true`/`false`, default `true`). |
 | `[web] host` | Interface to bind (`0.0.0.0` = all, including ZeroTier). |
 | `[web] port` | Port for the phone view (default 8080). |

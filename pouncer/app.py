@@ -35,15 +35,11 @@ from .worked import WorkedLog, n1mm_station_call, same_station
 log = logging.getLogger(__name__)
 
 REFRESH_MS = 500
-TOUCH_MAX_COLUMNS = 2
 WEB_MAX_SPOTS = 60
 RADIO_ALIVE_SECONDS = 30
 ON_FREQ_KHZ = 0.5  # a spot this close to the radio frequency = "tuned to it"
 ON_FREQ_STAY_KHZ = 0.5  # RBN re-spot within this = station still on that frequency
 ON_FREQ_GAP_S = 20 * 60  # ... and within 20 min of the last spot (skimmers re-spot sparsely)
-ON_FREQ_BG = "#0277bd"  # touch board: tile of the station we are tuned to  # RadioInfo newer than this => N1MM is running
-FKEY_BG = "#2e7d32"          # key buttons: green at rest
-FKEY_PRESSED_BG = "#c62828"  # ... red while / just after being pressed
 
 
 class FlowFrame(ttk.Frame):
@@ -151,7 +147,6 @@ class PouncerApp:
         }
         self._sort_labels = {"time": "Time", "freq": "Freq", "snr": "SNR"}
         self._sort_buttons: dict[str, ttk.Button] = {}
-        self._touch_sort_buttons: dict[str, tk.Button] = {}
         self.sort_col = config.sort if config.sort in self.columns else "snr"
         self.sort_reverse = self.sort_col == "snr"
         self.rbn_status = "starting"
@@ -162,7 +157,6 @@ class PouncerApp:
         self._listener: RadioListener | None = None
         self._dirty = True
         self._last_band: str | None = None
-        self.touch_window: tk.Toplevel | None = None
         self.web: WebServer | None = None
         self.web_url = ""
         self._web_addr_checked = 0.0
@@ -230,7 +224,7 @@ class PouncerApp:
 
         flow.add(ttk.Button(flow, text="Clear spots", command=self._clear_spots), gap=12)
         flow.add(ttk.Button(flow, text="Reconnect log", command=self._reconnect_log))
-        flow.add(ttk.Button(flow, text="Touch view", command=self._toggle_touch_view))
+        flow.add(ttk.Button(flow, text="Open in browser", command=self._open_browser))
 
         # Function keys: always ONE row of equal buttons that share the width
         # (they get narrower with the window instead of wrapping).
@@ -315,9 +309,6 @@ class PouncerApp:
             if col == self.sort_col:
                 arrow = " \u25bc" if self.sort_reverse else " \u25b2"
             btn.configure(text=self._sort_labels[col] + arrow)
-        for col, btn in self._touch_sort_buttons.items():
-            active = col == self.sort_col
-            btn.configure(bg="#2e7d32" if active else "#263238")
 
     def _sort_key(self, col: str):
         if col == "freq":
@@ -476,7 +467,6 @@ class PouncerApp:
         self._update_labels()
         if self._dirty:
             self._rebuild()
-            self._update_touch()
             self._dirty = False
         self._drain_web()
         if self.web is not None:
@@ -609,12 +599,6 @@ class PouncerApp:
         if label and label.upper() != big:
             return f"{big}{sep}{label}"
         return big
-
-    def _press_touch_key(self, key: str, btn: tk.Button) -> None:
-        """Touch-board key: flash the button red, then press the key."""
-        btn.configure(bg=FKEY_PRESSED_BG)
-        btn.after(800, lambda: btn.winfo_exists() and btn.configure(bg=FKEY_BG))
-        self._press_key(key)
 
     def _press_key(self, key: str) -> None:
         """A TX / log button was pressed: focus N1MM, then send the key.
@@ -1114,110 +1098,36 @@ class PouncerApp:
                 ),
             )
 
-    def _toggle_touch_view(self) -> None:
-        if self.touch_window is not None and self.touch_window.winfo_exists():
-            self._close_touch_view()
+    def _local_web_url(self) -> str:
+        """The phone page as seen from this PC."""
+        host = self.cfg.web_host
+        if not host or host in ("0.0.0.0", "::"):
+            host = "127.0.0.1"
+        return f"http://{host}:{self.web.port}/" if self.web is not None else ""
+
+    def _open_browser(self) -> None:
+        """Touch / big-button view = the phone page in the default browser."""
+        url = self._local_web_url()
+        if not url:
+            self.status_label.configure(
+                text="Browser view needs the phone view: [web] enabled = true")
             return
-        self._build_touch_view()
-
-    def _close_touch_view(self) -> None:
-        if self.touch_window is not None:
-            self.touch_window.destroy()
-        self.touch_window = None
-        self._touch_sort_buttons = {}
-
-    def _build_touch_view(self) -> None:
-        win = tk.Toplevel(self.root)
-        self.touch_window = win
-        win.title("POUNCer - touch view")
-        sw = self.root.winfo_screenwidth()
-        sh = self.root.winfo_screenheight()
-        win.geometry(f"{sw}x{sh}+0+0")
-        win.configure(bg="#101418")
-        sorts = tk.Frame(win, bg="#101418")
-        sorts.pack(fill="x", padx=6, pady=(8, 2))
-        tk.Label(
-            sorts, text="Sort", bg="#101418", fg="#888888", font=("Segoe UI", 12)
-        ).pack(side="left", padx=(0, 8))
-        for col, label in (("time", "Time"), ("freq", "Freq"), ("snr", "SNR")):
-            btn = tk.Button(
-                sorts, text=label, font=("Segoe UI", 15, "bold"),
-                bg="#263238", fg="#ffffff", activebackground="#2e7d32",
-                activeforeground="#ffffff", relief="flat", bd=0, padx=20, pady=6,
-                command=lambda c=col: self._set_sort(c),
-            )
-            btn.pack(side="left", padx=4)
-            self._touch_sort_buttons[col] = btn
-        if self.cfg.fkeys:
-            bar = tk.Frame(win, bg="#101418")
-            bar.pack(fill="x", padx=6, pady=(8, 2))
-            tk.Label(
-                bar, text="Keys", bg="#101418", fg="#888888", font=("Segoe UI", 12)
-            ).pack(side="left", padx=(0, 8))
-            for key, label in self.cfg.fkeys:
-                btn = tk.Button(
-                    bar, text=self._key_text(key, label, "\n"), font=("Segoe UI", 18, "bold"),
-                    bg=FKEY_BG, fg="#ffffff", activebackground=FKEY_PRESSED_BG,
-                    activeforeground="#ffffff", relief="flat", bd=0,
-                    padx=28, pady=8,
-                )
-                btn.configure(command=lambda k=key, b=btn: self._press_touch_key(k, b))
-                btn.pack(side="left", padx=4)
-        cols = max(1, min(self.cfg.touch_columns, TOUCH_MAX_COLUMNS))
-        rows = max(1, self.cfg.touch_rows)
-        self._touch_cols = cols
-        self._touch_rows = rows
-        self._touch_capacity = cols * rows
-        self._touch_wrap = max(120, int(sw / cols) - 60)
-        board = tk.Frame(win, bg="#101418")
-        board.pack(fill="both", expand=True, padx=6, pady=6)
-        self._touch_board = board
-        for r in range(rows):
-            board.rowconfigure(r, weight=1, uniform="trow")
-        for c in range(cols):
-            board.columnconfigure(c, weight=1, uniform="tcol")
-        win.bind("<Escape>", lambda _e: self._close_touch_view())
-        win.protocol("WM_DELETE_WINDOW", self._close_touch_view)
-        self._update_sort_buttons()
-        self._update_touch()
-
-    def _update_touch(self) -> None:
-        if self.touch_window is None or not self.touch_window.winfo_exists():
-            return
-        for child in self._touch_board.winfo_children():
-            child.destroy()
-        spots = self._sorted_visible()[: self._touch_capacity]
-        tuned = self._on_freq_spot(spots)
-        cols = self._touch_cols
-        rows = self._touch_rows
-        font = ("Segoe UI", self.cfg.touch_font, "bold")
-        for idx, s in enumerate(spots):
-            row, col = idx % rows, idx // rows
-            snr = "--" if s.snr is None else f"{s.snr}dB"
-            strong = s.snr is not None and s.snr >= 20
-            bg = "#1b5e20" if strong else "#263238"
-            if s is tuned:
-                bg = ON_FREQ_BG
-            text = f"{s.dxcall}\n{s.freq_khz:.1f} {s.mode} {snr}"
-            fg = "#ffeb3b" if self._is_dx(s.dxcall) else "#ffffff"  # DX yellow
-            btn = tk.Button(
-                self._touch_board, text=text, font=font,
-                bg=bg, fg=fg, activebackground="#2e7d32",
-                activeforeground=fg, relief="flat", bd=0,
-                wraplength=self._touch_wrap, justify="center",
-                command=lambda sp=s: self._act_on_spot(sp),
-            )
-            btn.grid(row=row, column=col, sticky="nsew", padx=4, pady=4)
+        import webbrowser
+        try:
+            webbrowser.open(url, new=2)
+            self.status_label.configure(text=f"Opened {url} in the browser")
+        except Exception as exc:  # no browser registered
+            self.status_label.configure(text=f"Could not open the browser: {exc}")
 
     def run(self) -> None:
-        if self.cfg.touch_view:
-            self._build_touch_view()
         self._listener = RadioListener(
             self.cfg.n1mm_listen_ip, self.cfg.n1mm_listen_port, self.state
         )
         self._listener.start()
         if self.cfg.web_enabled:
             self._start_web()
+            if self.cfg.touch_view:
+                self.root.after(1500, self._open_browser)
         else:
             self.web_label.configure(text="Phone view: disabled ([web] enabled = false)")
         if self.cfg.team:
