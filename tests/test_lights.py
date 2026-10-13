@@ -26,6 +26,11 @@ class LightsTests(unittest.TestCase):
         self.assertEqual(L.team_light("slave", 2)[0], L.OK)
         self.assertEqual(L.team_light("solo", 1)[0], L.WAIT)
         self.assertEqual(L.team_light("off", 1)[0], L.OFF)
+        # team POUNCers on different versions: amber, says who
+        state, text = L.team_light("master", 2, [("192.168.1.20", "0.7.9")])
+        self.assertEqual(state, L.WAIT)
+        self.assertIn("192.168.1.20 on 0.7.9", text)
+        self.assertEqual(L.team_light("master", 2, [])[0], L.OK)
         self.assertEqual(L.web_light(True, True)[0], L.OK)
         self.assertEqual(L.web_light(True, False)[0], L.BAD)
         self.assertEqual(L.web_light(False, False)[0], L.OFF)

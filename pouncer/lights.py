@@ -41,9 +41,14 @@ def log_light(log_open: bool, log_state: str) -> tuple[str, str]:
     return (WAIT if log_state == "unknown" else BAD), "Log"
 
 
-def team_light(role: str, pouncers: int) -> tuple[str, str]:
-    """role: off / solo / master / slave."""
+def team_light(role: str, pouncers: int,
+               mismatch: list[tuple[str, str]] | None = None) -> tuple[str, str]:
+    """role: off / solo / master / slave. mismatch: (ip, version) of team
+    POUNCers on another version than this one -> amber with who it is."""
     if role in ("master", "slave"):
+        if mismatch:
+            who = ", ".join(f"{ip} on {ver}" for ip, ver in mismatch)
+            return WAIT, f"Team {role} ({pouncers}): {who}"
         return OK, f"Team {role} ({pouncers})"
     if role == "solo":
         return WAIT, "Team: alone"

@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## v0.7.12 — 2026-10-13 — team version check
+
+- **Team version check.** Every POUNCer already announced its version to
+  the team; now it is compared. When a team POUNCer runs another version
+  than this one, the **Team** light turns **amber** and says which PC is
+  on which version (e.g. `Team master (2): 192.168.1.20 on 0.7.9`), the
+  team bar at the top turns orange with "VERSIONS DIFFER ... update all to
+  the same", and the phone page shows a ⚠ note in its small line.
+  A very old POUNCer that doesn't send its version shows as `?`.
+
 ## v0.7.11 — 2026-10-13 — SO2R: radio A / B
 
 - **Radio A / B** for SO2R / SO2V. On the phone page a **A / B** key

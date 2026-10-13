@@ -644,6 +644,9 @@ INDEX_HTML = """<!doctype html>
     // team: M = this POUNCer is the team master (RBN), S = slave of it
     if (data.team && data.team.indexOf('master') >= 0) meta = '<b title="' + esc(data.team) + '">M</b> &middot; ' + meta;
     else if (data.team && data.team.indexOf('slave') >= 0) meta = '<b title="' + esc(data.team) + '">S</b> &middot; ' + meta;
+    // team POUNCers on different versions
+    const vd = (data.team || '').indexOf('VERSIONS DIFFER');
+    if (vd >= 0) meta = '<span class="warn" title="' + esc(data.team) + '">\u26a0 ' + esc(data.team.slice(vd)) + '</span> &middot; ' + meta;
     metaEl.innerHTML = meta;
     const cols = columns();
     const spots = sorted(data.spots);
@@ -980,7 +983,10 @@ of the small line: your skimmer (S53WW) has sent nothing for 5 minutes, so spots
 other skimmers on your continent are shown until it is back.</p>
 <p>The small line under it starts with <b>M</b> or <b>S</b> when several POUNCers
 work as a team on your network: M = this one is the master (keeps the RBN
-connection), S = it gets its spots from the master. Then: how many needed spots, your QSOs per band and in total, and
+connection), S = it gets its spots from the master.
+<span style="color:#ffb74d;font-weight:700">&#9888; VERSIONS DIFFER</span> means the
+POUNCers in the team run different versions (it says which PC runs which) - update
+them all to the same version (Restart after auto-update, or download the newest). Then: how many needed spots, your QSOs per band and in total, and
 the open log. An <b>orange bar</b> means N1MM has no log open (or isn't running) -
 open one and tap <b>Reconnect</b>.</p>
 

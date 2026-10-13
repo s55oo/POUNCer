@@ -132,7 +132,7 @@ everything is connected:
 | RBN | logged in / spots coming (slave: via master) | connecting | disconnected | - |
 | N1MM | radio info coming in | none for 2 min | never received | - |
 | Log | contest log open | checking | no log / N1MM not running | - |
-| Team | master or slave (count) | alone on the network | - | team off |
+| Team | master or slave (count) | alone on the network, or a team POUNCer runs another version (says which IP / version) | - | team off |
 | Phone | web view running | - | port in use | disabled |
 | Warm-up | list loaded | downloading | download failed | off |
 | Update | up to date | checking / check failed | - | off (blue = new version ready: **Restart** button) |
