@@ -424,6 +424,10 @@ class PouncerApp:
                 self.spot_queue,
                 on_status=self.status_queue.put,
                 history=self.cfg.rbn_history,
+                # the backup server passes on the CW feed only
+                backup=((self.cfg.rbn_backup_host, self.cfg.rbn_backup_port)
+                        if port == self.cfg.rbn_port and self.cfg.rbn_backup_host else None),
+                backup_commands=self.cfg.rbn_backup_commands,
             )
             client.start()
             self._rbn_clients[port] = client

@@ -19,11 +19,12 @@ RBN_SPOT_S = 120     # a spot this recently = RBN works whatever the status says
 def rbn_light(status: str, last_spot_age: float | None, role: str) -> tuple[str, str]:
     if role == "slave":
         return OK, "RBN via master"
-    if last_spot_age is not None and last_spot_age < RBN_SPOT_S:
-        return OK, "RBN"
     s = (status or "").lower()
+    name = "RBN via backup" if "backup" in s and "trying rbn" not in s else "RBN"
+    if last_spot_age is not None and last_spot_age < RBN_SPOT_S:
+        return OK, name
     if s.startswith("logged in"):
-        return OK, "RBN"
+        return OK, name
     if s.startswith(("starting", "connecting")):
         return WAIT, "RBN"
     return BAD, "RBN"

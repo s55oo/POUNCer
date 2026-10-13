@@ -181,6 +181,13 @@ with A it shows that band's spots for radio A, with B for radio B (green =
 the band shown, blue ring = the band the radio is on). Tap a station there
 and that radio goes to it.
 
+## Backup when RBN is down
+
+If RBN's telnet fails twice in a row or sends nothing for 2 minutes,
+POUNCer switches to the backup telnet server **azure.s53m.com:8000** (light:
+"RBN via backup") and tries RBN again every 10 minutes. `[rbn] backup_host`
+/ `backup_port` / `backup_commands`; empty `backup_host` = off.
+
 ## Spots at start
 
 Right after logging in to RBN POUNCer asks for the **last spots**
