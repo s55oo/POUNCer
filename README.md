@@ -123,6 +123,20 @@ spotted callsign into the N1MM Entry Window.
 Only the Python standard library is used (tkinter for the GUI). No pip install
 is required.
 
+## Connection lights (Windows window)
+
+Under the MASTER / SLAVE bar a row of lights shows at a glance that
+everything is connected:
+
+| Light | Green | Amber | Red | Grey |
+|---|---|---|---|---|
+| RBN | logged in / spots coming (slave: via master) | connecting | disconnected | - |
+| N1MM | radio info coming in | none for 2 min | never received | - |
+| Log | contest log open | checking | no log / N1MM not running | - |
+| Team | master or slave (count) | alone on the network | - | team off |
+| Phone | web view running | - | port in use | disabled |
+| Warm-up | list loaded | downloading | download failed | off |
+
 ## Several POUNCers (team)
 
 Running one POUNCer per band / PC on the same network - LAN or ZeroTier? They

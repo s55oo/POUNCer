@@ -13,6 +13,7 @@ from . import __version__
 from .bands import CONTEST_BANDS, DEFAULT_BAND_KHZ, band_from_khz
 from .config import Config
 from .flow import flow_positions
+from . import lights
 from .cty import Entity, load_cty, wpx_prefix
 from .n1mm import (
     N1MMController, RadioListener, RadioState, cat_macro, next_tune_khz,
@@ -190,6 +191,11 @@ class PouncerApp:
         self.team_label = tk.Label(header, text="", anchor="w", font=("Segoe UI", 12, "bold"),
                                    padx=6, pady=2)
         self.team_label.pack(fill="x", pady=(0, 4))
+        # Connection lights: green = working, amber = waiting, red = down, grey = off
+        self.lights_frame = FlowFrame(header, padx=14, pady=2)
+        self.lights_frame.pack(fill="x", pady=(0, 4))
+        self._lights: list[tuple[tk.Label, tk.Label]] = []
+        self._lights_last: list | None = None
         self.n1mm_label = self._wrap_label(header, "N1MM: waiting for radio info...")
         self.rbn_label = self._wrap_label(header, "RBN: starting...")
         self.log_label = self._wrap_label(header, "Log: -")
@@ -964,6 +970,40 @@ class PouncerApp:
         )
         self.log_label.configure(text=worked)
         self._update_team_label()
+        self._update_lights(snap)
+
+    def _light_states(self, snap) -> list[tuple[str, str]]:
+        role = self.team.role() if self.team is not None else "off"
+        n = len(self.team.alive_peers()) + 1 if self.team is not None else 1
+        spot_age = time.time() - self._last_own_spot if self._last_own_spot else None
+        return [
+            lights.rbn_light(self.rbn_status, spot_age, role),
+            lights.n1mm_light(snap["age"] if snap and snap.get("freq_khz") else None),
+            lights.log_light(self.worked.log_open, self.worked.log_state),
+            lights.team_light(role, n),
+            lights.web_light(self.cfg.web_enabled, self.web is not None),
+            lights.warm_light(self.runhist is not None and self.cfg.warmup,
+                              self.runhist.warm_status if self.runhist else ""),
+        ]
+
+    def _update_lights(self, snap) -> None:
+        """Coloured dot per connection (RBN, N1MM, log, team, phone, warm-up)."""
+        states = self._light_states(snap)
+        if states == self._lights_last:
+            return
+        self._lights_last = states
+        bg = self.lights_frame.winfo_toplevel().cget("bg")
+        while len(self._lights) < len(states):
+            box = tk.Frame(self.lights_frame, bg=bg)
+            dot = tk.Label(box, text="\u25cf", font=("Segoe UI", 14), bg=bg)
+            dot.pack(side="left")
+            name = tk.Label(box, text="", font=("Segoe UI", 10, "bold"), bg=bg)
+            name.pack(side="left")
+            self.lights_frame.add(box)
+            self._lights.append((dot, name))
+        for (dot, name), (state, text) in zip(self._lights, states):
+            dot.configure(fg=lights.COLORS[state])
+            name.configure(text=text)
 
     def _visible_spots(self) -> list[Spot]:
         """Spots matching the current band, modes and worked filter."""
