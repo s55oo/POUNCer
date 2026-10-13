@@ -292,6 +292,23 @@ def restore_focus(snap: dict | None) -> bool:
 
 
 _WM_GETTEXT = 0x000D
+_LOCALE_USER_DEFAULT = 0x0400
+_LOCALE_SDECIMAL = 0x000E
+
+
+def decimal_separator() -> str:
+    """The Windows user's decimal separator ("," in Slovenian, "." in
+    English). N1MM reads a typed frequency with it: "14000.1" on a
+    Slovenian PC became 140001 kHz."""
+    if not _WIN:
+        return "."
+    buf = ctypes.create_unicode_buffer(8)
+    try:
+        if _kernel32.GetLocaleInfoW(_LOCALE_USER_DEFAULT, _LOCALE_SDECIMAL, buf, 8):
+            return buf.value or "."
+    except (AttributeError, OSError):
+        pass
+    return "."
 
 
 def focused_edit_text(window_hwnd: int) -> str | None:

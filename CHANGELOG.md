@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.22 — 2026-10-13 — radio B: frequency with the right decimal sign
+
+- **Fix: radio B jumped to a wrong frequency** (e.g. 140001 instead of
+  14000.1 kHz) and failed. N1MM reads a typed frequency with the Windows
+  number format; on a Slovenian PC the decimal sign is "," so "14000.1"
+  was read as 140001. POUNCer now types it with the Windows decimal sign
+  ("14000,1"). `[n1mm] freq_decimal = auto` (or force "." / ",").
+
 ## v0.7.21 — 2026-10-13 — call typed reliably after the QSY
 
 - **Fix: sometimes the frequency changed but the call didn't arrive in
