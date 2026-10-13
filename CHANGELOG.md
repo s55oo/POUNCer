@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## v0.7.3 — 2026-10-13 — connection lights
+
+- Main window, under the MASTER / SLAVE bar: one light per connection -
+  **RBN** (or "RBN via master" on a slave), **N1MM** (radio info coming
+  in), **Log** (contest log open), **Team** (master / slave and how many
+  POUNCers; amber = alone), **Phone** (web view running), **Warm-up**.
+  Green = working, amber = waiting / partly, red = not working, grey =
+  switched off. `pouncer/lights.py`.
+
 ## v0.7.2 — 2026-10-13 — warm-up: show when it was downloaded
 
 - POUNCer.exe main window: `warm-up: 46044 stations known in advance
