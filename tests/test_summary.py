@@ -64,7 +64,7 @@ class BuildTests(unittest.TestCase):
 
 class FileTests(unittest.TestCase):
     def test_taps_persist(self) -> None:
-        with tempfile.TemporaryDirectory() as d:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
             a = TapLog(d)
             a.record("k1abc", 14025.0)
             a.record("X1X", 99999.0)                   # no band: ignored
@@ -76,7 +76,7 @@ class FileTests(unittest.TestCase):
             self.assertEqual(len(TapLog(d).snapshot()), 1)
 
     def test_read_qsos_from_n1mm_log(self) -> None:
-        with tempfile.TemporaryDirectory() as d:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
             path = os.path.join(d, "test.s3db")
             con = sqlite3.connect(path)
             con.execute("CREATE TABLE DXLOG (TS TEXT, Call TEXT, Band REAL, Mode TEXT,"

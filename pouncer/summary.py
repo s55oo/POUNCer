@@ -17,6 +17,7 @@ import calendar
 import json
 import logging
 import os
+import pathlib
 import sqlite3
 import threading
 import time
@@ -108,7 +109,7 @@ def _ts(text) -> float | None:
 
 def read_qsos(path: str, contest_nr, mult_types) -> list[dict]:
     """QSOs of the open contest: {t, call, band, mults: {field: value}}."""
-    uri = "file:" + os.path.abspath(path).replace("\\", "/") + "?mode=ro"
+    uri = pathlib.Path(path).absolute().as_uri() + "?mode=ro"   # file:///C:/...
     try:
         con = sqlite3.connect(uri, uri=True, timeout=2.0)
     except sqlite3.OperationalError:
@@ -122,7 +123,8 @@ def read_qsos(path: str, contest_nr, mult_types) -> list[dict]:
             sql += " WHERE ContestNR = ?"
             params = (contest_nr,)
         out = []
-        for row in con.execute(sql, params):
+        rows = con.execute(sql, params).fetchall()   # no open cursor at close (Windows)
+        for row in rows:
             t, band = _ts(row[0]), band_label(row[2])
             if t is None or not row[1] or not band:
                 continue

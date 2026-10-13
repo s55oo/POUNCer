@@ -1,6 +1,6 @@
 # POUNCer — Changelog
 
-## v0.7.15 — 2026-10-13 — contest summary
+## v0.7.15 — 2026-10-13 — contest summary, SO2R band fix
 
 - **Contest summary** page (`/summary`, its own page like the help): **Σ**
   next to **?** on the phone page, "Contest summary" in the band menu, and a
@@ -11,6 +11,10 @@
   tapped stations worked, a per-band table, rate per hour as bars (POUNCer
   part green) and the list of multipliers worked from spots. Updates every
   minute; Refresh button.
+- **Fix (SO2R): band menu and −/+ Hz for radio B moved radio A.** N1MM
+  QSYs the radio whose Entry Window has the focus, so - like a spot tap -
+  POUNCer now brings Entry Window B to the front first (only with two
+  radios; `focus_n1mm`).
 - Every tap (tile, NEXT, main window) is kept in `cache\taps.jsonl`
   (14 days) so a restart doesn't lose them. New module `pouncer/summary.py`.
 
