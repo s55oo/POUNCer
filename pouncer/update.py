@@ -89,11 +89,11 @@ class Updater:
         return {
             OFF: "Update off",
             CHECKING: "Update: checking",
-            CURRENT: f"Up to date ({self.current})",
+            CURRENT: f"Up to date ({self.current}) \u21bb",   # click = check now
             DOWNLOADING: f"Update {self.new_version}: downloading",
             READY: f"Update {self.new_version} ready - restart",
             AVAILABLE: f"{self.new_version} available on GitHub",
-            FAILED: "Update check failed",
+            FAILED: "Update check failed \u21bb",
         }[self.state]
 
     # --- work ------------------------------------------------------------
@@ -114,6 +114,15 @@ class Updater:
             return
         self._last_check = time.time()
         threading.Thread(target=self.check_now, name="update", daemon=True).start()
+
+    def check_in_background(self) -> bool:
+        """Check right now (the Update light was clicked). False when off or
+        already downloading / ready."""
+        if not self.enabled or self.state in (DOWNLOADING, READY):
+            return False
+        self._last_check = time.time()
+        threading.Thread(target=self.check_now, name="update", daemon=True).start()
+        return True
 
     def check_now(self) -> None:
         if not self._busy.acquire(blocking=False):

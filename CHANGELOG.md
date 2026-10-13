@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.20 — 2026-10-13 — click the Update light to check now
+
+- Main window: the **Update** light ("Up to date (0.7.20) ↻") is clickable -
+  it asks GitHub for a new version **right away** (instead of waiting for
+  the 6-hour check); a newer exe is downloaded and checked as usual, then
+  click the light again (or **Restart**) to start it. macOS: a click on
+  "vX available" opens the Releases page.
+
 ## v0.7.19 — 2026-10-13 — SO2R: cursor goes back where it was
 
 - **SO2R / SO2V: after a tap (or −/+ Hz) for the other radio the cursor

@@ -1170,12 +1170,40 @@ class PouncerApp:
         for (dot, name), (state, text) in zip(self._lights, states):
             dot.configure(fg=lights.COLORS[state])
             name.configure(text=text)
+        # the Update light (last) is a button: click = check GitHub now
+        if self._lights and not getattr(self, "_update_light_bound", False):
+            for w in self._lights[-1]:
+                w.configure(cursor="hand2")
+                w.bind("<Button-1>", lambda _e: self._on_update_click())
+            self._update_light_bound = True
         if self.updater.state == "ready" and self._restart_btn is None:
             self._restart_btn = tk.Button(
                 self.lights_frame, text=f"Restart -> {self.updater.new_version}",
                 bg=lights.COLORS[lights.NEW], fg="#ffffff", relief="flat",
                 padx=8, command=self._restart_for_update)
             self.lights_frame.add(self._restart_btn)
+
+    def _on_update_click(self) -> None:
+        """Update light clicked: restart into a downloaded version, open the
+        Releases page (macOS), or ask GitHub for a new version right now."""
+        u = self.updater
+        if u.state == "ready":
+            self._restart_for_update()
+            return
+        if u.state == "available":
+            import webbrowser
+            webbrowser.open("https://github.com/s55oo/POUNCer/releases/latest", new=2)
+            self.status_label.configure(text=f"{u.new_version}: opened the Releases page")
+            return
+        if u.state == "downloading":
+            self.status_label.configure(text=f"Already downloading {u.new_version}...")
+            return
+        if not u.check_in_background():
+            self.status_label.configure(
+                text="Update check works only in the built POUNCer (exe / macOS app)")
+            return
+        self.status_label.configure(text="Checking GitHub for a new version...")
+        self._lights_last = None   # redraw the light ("checking")
 
     def _restart_for_update(self) -> None:
         """Restart button: quit and start the new version right away."""
