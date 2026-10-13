@@ -7,6 +7,17 @@ chosen skimmer (default **S53WW**), for the band you are currently on.
 Clicking a spot re-tunes the radio (QSY) in N1MM and, optionally, types the
 spotted callsign into the N1MM Entry Window.
 
+<p align="center"><img src="docs/phone-view.jpg" width="320"
+  alt="POUNCer phone page in SO2R on 20 m: radio A and B frequencies, the A / B key, sort and filter buttons, spot tiles and the F-key column"></p>
+
+*The phone page in a contest (SO2R): radio **A** on 14043.0 with **B**
+(7013.0) under it, the **A / B** key, CLR / Time / Freq / SNR / DX / MLT / ⚡
+sorting, **S** = slave in a team, "backup skimmers" while S53WW was quiet.
+Tiles: green = strong (20 dB+), ⚡ = rare CQ, run % and hours from past
+logs (R58% ~9h), first heard, SNR and how long it has been calling (cq2m);
+yellow frame = the station you tapped last, blue ring = the radio is on it. F-keys on the right, WPM / ±Hz / NEXT at the
+bottom.*
+
 ## How it works
 
 * **Own call** - taken from the open N1MM log's *Change Your Station Data*
