@@ -36,8 +36,10 @@ class RunListServerTests(unittest.TestCase):
 
             def local_server(address, handler):
                 # Keep this test local and let the OS select an unused port.
-                # macOS runners can block listeners on all network interfaces.
-                server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+                # HTTPServer's reverse DNS lookup can stall on macOS runners;
+                # this local test does not need a resolved server hostname.
+                with mock.patch("http.server.socket.getfqdn", return_value="localhost"):
+                    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
                 servers.append(server)
                 ready.set()
                 return server
