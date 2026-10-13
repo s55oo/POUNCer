@@ -7,9 +7,10 @@ testable anywhere; ``app.py`` draws the dots.
 
 from __future__ import annotations
 
-OK, WAIT, BAD, OFF = "ok", "wait", "bad", "off"
+OK, WAIT, BAD, OFF, NEW = "ok", "wait", "bad", "off", "new"
 
-COLORS = {OK: "#2e7d32", WAIT: "#f9a825", BAD: "#c62828", OFF: "#9e9e9e"}
+COLORS = {OK: "#2e7d32", WAIT: "#f9a825", BAD: "#c62828", OFF: "#9e9e9e",
+          NEW: "#1565c0"}  # NEW (blue) = an update is ready
 
 N1MM_QUIET_S = 120   # no radio info this long = N1MM probably closed
 RBN_SPOT_S = 120     # a spot this recently = RBN works whatever the status says
@@ -63,3 +64,8 @@ def warm_light(enabled: bool, status: str) -> tuple[str, str]:
     if "known in advance" in status:
         return OK, "Warm-up"
     return WAIT, "Warm-up"
+
+
+def update_light(state: str, text: str) -> tuple[str, str]:
+    """state from pouncer.update: off/checking/current/downloading/ready/failed."""
+    return {"off": OFF, "current": OK, "ready": NEW}.get(state, WAIT), text
