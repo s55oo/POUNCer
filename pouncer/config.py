@@ -104,10 +104,7 @@ class Config:
     web_enabled: bool = True
     web_host: str = "0.0.0.0"
     web_port: int = 8080
-    touch_view: bool = False
-    touch_columns: int = 2
-    touch_rows: int = 8
-    touch_font: int = 26
+    touch_view: bool = False  # open the phone page in the default browser at start
 
 
 def load_config(path: str) -> Config:
@@ -182,9 +179,6 @@ def load_config(path: str) -> Config:
     )
     cfg.trigger = s("ui", "trigger", cfg.trigger).strip().lower()
     cfg.touch_view = b("ui", "touch_view", cfg.touch_view)
-    cfg.touch_columns = i("ui", "touch_columns", cfg.touch_columns)
-    cfg.touch_rows = i("ui", "touch_rows", cfg.touch_rows)
-    cfg.touch_font = i("ui", "touch_font", cfg.touch_font)
     cfg.fkeys = parse_fkeys(
         s("ui", "fkeys", s("web", "fkeys", ",".join(f"{k}:{v}" for k, v in cfg.fkeys)))
     )

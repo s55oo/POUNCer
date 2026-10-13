@@ -21,8 +21,8 @@ N1MM and types the callsign into the Entry Window **without transmitting**.
 | Band following | Reads N1MM `<RadioInfo>` UDP broadcasts (port 12060); shows only spots on the band N1MM is currently on. |
 | Action on click/tap | `radio_setfrequency` to N1MM (UDP 13064) + simulated keystrokes to enter the call. Never sends a TX command. |
 | Worked filter | Reads N1MM's open SQLite log (`.s3db`) and hides calls already worked on the same band + mode (current contest only). |
-| TX / log buttons | Optional `[ui] fkeys` buttons (main window, touch board, phone page): F1-F12 transmit the N1MM message; `Enter` logs the QSO. |
-| Views | Main sortable table, a full-screen **touch view**, and a **phone view** (local web server). |
+| TX / log buttons | Optional `[ui] fkeys` buttons (main window, phone page): F1-F12 transmit the N1MM message; `Enter` logs the QSO. |
+| Views | Main sortable table and a **phone view** (local web server), also opened in the PC's browser as the touch view (**Open in browser**). |
 | Sorting | Click column headings; default SNR descending (strongest first). |
 
 ---
@@ -40,7 +40,7 @@ N1MM and types the callsign into the Entry Window **without transmitting**.
  │ (thread)    │        │                     │                         │
  │ parse_spot  │        │        ┌────────────┼─────────────┐           │
  └─────────────┘        │        ▼            ▼             ▼           │
-                        │   Tree table   Touch view    Web payload      │
+                        │   Tree table                 Web payload      │
                         │                                  │            │
                         │                                  ▼            │
                         │                             WebServer (thread) │
@@ -57,7 +57,7 @@ N1MM and types the callsign into the Entry Window **without transmitting**.
 ```
 
 All spot selection funnels through one place — `PouncerApp._visible_spots()` —
-so the table, the touch view and the phone view always show the same set.
+so the table and the phone view always show the same set.
 
 ---
 
@@ -74,7 +74,7 @@ communicates through thread-safe `queue.Queue`s drained by the 500 ms tick.
 | `pouncer-web` | `WebServer` | Serve HTTP | `_web_cache` (read) / `_web_queue` (write) |
 
 `_tick()` order each 500 ms: drain status → drain spots → ensure RBN clients →
-`worked.maybe_reload()` → prune → update labels → rebuild table/touch if dirty →
+`worked.maybe_reload()` → prune → update labels → rebuild table if dirty →
 drain web actions → refresh the cached web payload.
 
 - **Web → GUI:** the HTTP handler pushes a tagged tuple onto `_web_queue`:
@@ -100,7 +100,7 @@ drain web actions → refresh the cached web payload.
 | `pouncer/worked.py` | `WorkedLog` (worked-call set from the active `.s3db`, plus log-open state and `request_recheck`), `inspect_active`, `read_active`, `find_active_db`, `band_label`, `normalize_mode`. |
 | `pouncer/win32.py` | `force_foreground`, `wipe_callsign` (Alt+W), `clear_focused_edit` (after N1MM `{WIPE}` via `send_radio_command` + Alt+W; WM_SETTEXT "" on the focused EDIT of the Entry Window's thread - after Alt+W the callsign box), `type_text` (unicode `SendInput`), `send_fkey` (F1-F12 - transmits in N1MM), `send_enter` (logs the QSO), `is_n1mm_running` (process scan). |
 | `pouncer/web.py` | `WebServer` + mobile page + `/api/spots`, `/api/qsy`; `local_ipv4s`. |
-| `pouncer/app.py` | `PouncerApp`: GUI, filters, tick loop, table, touch view, web wiring, `_act_on_spot`. |
+| `pouncer/app.py` | `PouncerApp`: GUI, filters, tick loop, table, web wiring, **Open in browser** (`_open_browser`), `_act_on_spot`. |
 | `pouncer/runhist.py` | `RunHistory`: background, disk-cached run/S&P share per call from the public contest-log archive (`SH6/logs_XX.sqlite` shard, XX = crc32(CALL)&0xff → submitted logs of the last 6 years (`YEARS_BACK`), same contest+mode, else same mode any contest, up to `MAX_LOGS` = 6, downloaded in parallel (reconstructed only if none, flagged `rec`) from raw.githubusercontent.com → `run_share` + `on_air_hours` (pauses > 30 min = off): QSO on the same kHz (±0.3) as one of the last 2 on that band). `get()` never blocks (None until known); `WORKERS = 8` threads, one download per shard (per-shard lock). Page: ⚡ toggle = sort by `run` ascending, unknown last. |
 | `server/warmlist.py` | Warm-up list builder (run once; `.github/workflows/build-warmup.yml`, manual): partial clone + sparse checkout of CQWW/cw, ARRL/arrl_international_dx_cw_contest, CQWPX/cw (+ `RECONSTRUCTED_LOGS/`) for the last N years; per (call, contest, mode) like `_lookup`: newest `MAX_LOGS` submitted logs else reconstructed, `MIN_QSOS` → `warm.sqlite` table `warm(call, contest, mode, run, hours, rec, logs, newest)` + `info`. Published as release asset `warmup/warm.sqlite`. POUNCer: `RunHistory.warm_up()` (background) loads `cache/warm.sqlite`, downloads it if missing or > 30 days old (checks the SQLite header), never overwrites live results (`setdefault`); `warm_status` = count + file date; after a download writes `cache/warm-up.txt` (date, count, `info` table, URL, next check). `[ui] warmup`. |
 | `server/runlist.py` | Run list server (Docker, `server/README.md`): `build` = partial clone + sparse checkout of `<CONTEST>/{cw,ph,...}/<last N years>` of the archive, `run_share` per log → `runlist.sqlite` (call, contest, mode, year, run, qsos); `serve` = `/runs`, `/run`, `/status` on 8077. POUNCer's `RunHistory(run_list=...)` loads a local `runlist.sqlite` at start (newest year per call/contest/mode; `[ui] run_list`, default next to config.ini), and `RunHistory(server=...)` loads `/runs` once per (contest, mode); workers wait for it (≤15 s) before per-call GitHub lookups. |
@@ -242,8 +242,9 @@ a contest/log switch) is throttled to `[worked] refresh_seconds`.
 **Main window** (`PouncerApp`): header (N1MM freq/band + RBN status line with
 worked status, per-band QSO counts or the "no log" message, then a **Sort: Time /
 Freq / SNR** button bar), a controls row with the *"Also enter callsign"*,
-*"Hide worked"* checkboxes, the `[ui] fkeys` TX/log buttons, **Reconnect log**,
-**Touch view** and **Clear spots** buttons, then the spot `ttk.Treeview`.
+*"Hide worked"* checkboxes, **Clear spots**, **Reconnect log** and **Open in
+browser**, the `[ui] fkeys` TX/log buttons in one row of their own (grid,
+equal columns), then the spot `ttk.Treeview`.
 The sort buttons and the column headings share one sort state (`_set_sort`);
 picking Time or SNR starts descending (newest / strongest first).
 
@@ -252,14 +253,10 @@ picking Time or SNR starts descending (newest / strongest first).
 - Rows with SNR ≥ 20 get the `strong` tag (green).
 - Click a row to act: `<ButtonRelease-1>` or `<Double-1>` per `[ui] trigger`.
 
-**Touch view** (`_build_touch_view`, a `Toplevel`): full-screen big-button board
-for a 1080p touch display. Along the top: a **Sort: Time / Freq / SNR** bar (the
-same sort as the main window; active button green) and the `[ui] fkeys` TX/log
-bar. Key buttons are green (`FKEY_BG`) and flash red (`FKEY_PRESSED_BG`) for
-0.8 s when pressed (`_press_touch_key`). Tiles follow the current sort, filled
-**top-to-bottom** in at most **2 columns** (`TOUCH_MAX_COLUMNS`);
-`touch_rows` × `touch_columns` tiles. Strong tiles are green. Esc closes it;
-opened on startup if `[ui] touch_view`.
+**Touch view** = the phone page in the default browser: **Open in browser**
+(`_open_browser`, `webbrowser.open` of `http://127.0.0.1:<port>/` - or
+`[web] host` if bound to one address); opened at startup if `[ui]
+touch_view`. (The separate Tk touch window was removed in v0.7.6.)
 
 **Phone view** (`web.py`): a local HTTP server (`ThreadingHTTPServer`) that
 serves the same needed spots as tap tiles. Page layout, top to bottom:
@@ -277,8 +274,8 @@ serves the same needed spots as tap tiles. Page layout, top to bottom:
 4. **Spot tiles** (left) - the last tapped tile keeps a yellow border (`sel`,
    client-side `selKey` = call + freq) until another is tapped or it leaves
    the list; the tile within 0.5 kHz of the radio (`freq`) gets a
-   light-blue outline ("tuned to"; also a light-blue table row / blue touch
-   tile via `_on_freq_spot`, `ON_FREQ_KHZ`). under 620 px wide: one column of half-height (46 px)
+   light-blue outline ("tuned to"; also a light-blue table row
+   via `_on_freq_spot`, `ON_FREQ_KHZ`). under 620 px wide: one column of half-height (46 px)
    tiles, callsign left / details right on two lines (`freq mode`, `SNR
    time`), ~12 fit on an iPhone 16. Wider: two columns of tall (84 px) tiles,
    callsign over details. Details are 13 px.
@@ -312,7 +309,7 @@ The page sorts client-side (instant, works while polling). The server feed is
 capped at `WEB_MAX_SPOTS` (60) strongest-SNR spots.
 
 **TX / log buttons:** `[ui] fkeys` (default `F2:RPRT F3:TU F4:CALL F5:HisCALL F7:? Enter`) renders the
-same key bar in the main window, the touch view and the phone page. Tapping one
+same key bar in the main window and the phone page. Tapping one
 fetches `/api/key`, the request is pushed onto `_web_queue` as `("key", key)` and
 drained on the Tk tick like a QSY: `_press_key` focuses the Entry Window and
 calls `win32.send_fkey(n)` (`SendInput` of `VK_F1+n-1`) for F-keys, or
@@ -377,11 +374,8 @@ LAN/VPN-only and unauthenticated.
 | `sort` | `snr` | Initial sort column. |
 | `max_age_minutes` | `10` | Drop spots older than this. |
 | `trigger` | `single` | `single` or `double` click to act. |
-| `touch_view` | `false` | Open the touch board at startup. |
-| `touch_columns` | `2` | Touch columns (clamped to max 2). |
-| `touch_rows` | `8` | Touch tiles per column. |
-| `touch_font` | `26` | Touch tile font size (points). |
-| `fkeys` | `F2:RPRT F3:TU F4:CALL F5:HisCALL F7:? Enter` | TX/log buttons (main/touch/phone): `KEY[:label]` list, keys `F1`-`F12` (transmit) or `Enter` (logs); empty = no buttons. |
+| `touch_view` | `false` | Open the phone page in the default browser at startup. |
+| `fkeys` | `F2:RPRT F3:TU F4:CALL F5:HisCALL F7:? Enter` | TX/log buttons (main/phone): `KEY[:label]` list, keys `F1`-`F12` (transmit) or `Enter` (logs); empty = no buttons. |
 
 ### `[web]`
 
@@ -404,7 +398,7 @@ LAN/VPN-only and unauthenticated.
 
 ## 9.2 `_press_key` (the TX / log buttons)
 
-Reached from a main-window button, a touch tile bar, or the phone page (via
+Reached from a main-window button or the phone page (via
 `/api/key` -> `_web_queue` -> tick). Used by all three views.
 
 1. If `focus_n1mm` and we know `EntryWindowHwnd`: `force_foreground(hwnd)` then
@@ -502,6 +496,6 @@ unit-tested (verified manually / by smoke runs).
   `RCmd` send method in the code anymore.
 - **WAL:** worked-log freshness depends on watching `<db>-wal`, not just the db.
 - **Frozen imports:** keep `pouncer_main.py` as the PyInstaller entry point.
-- **Single source of truth:** every view (table/touch/web) derives from
+- **Single source of truth:** every view (table/web) derives from
   `_visible_spots()`.
 - **Stdlib only:** no `watchdog`, no web framework, no `telnetlib`.

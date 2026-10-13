@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## v0.7.6 — 2026-10-13 — touch view = the browser page
+
+- The separate Tk **touch view** window is removed. Its place is taken by
+  the phone page in the PC's **default browser**: the **Open in browser**
+  button (instead of *Touch view*), or `[ui] touch_view = true` to open it
+  at startup. One view for phone, tablet and touch screen - with
+  everything the page has (run history, ⚡, alerts, filters, CLR ...).
+- `[ui] touch_columns / touch_rows / touch_font` are no longer used
+  (ignored if still in config.ini).
+
 ## v0.7.5 — 2026-10-13 — function keys in one row
 
 - Main window: the function-key buttons (`[ui] fkeys`, e.g. F2 RPRT ...
