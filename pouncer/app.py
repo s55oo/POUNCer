@@ -517,17 +517,12 @@ class PouncerApp:
         if N1MM reports it, else the active one (SO1R: always the one radio)."""
         return self.state.active_radio_nr(radio or self.radio)
 
-    def _wait_for_qsy(self, nr: int, khz: float, max_s: float | None = None) -> bool:
+    def _wait_for_qsy(self, nr: int, khz: float) -> bool:
         """Wait until N1MM reports radio ``nr`` on ``khz`` (it may wipe the
         callsign when the radio moves - typing before that lost the call),
-        then a little more. False if it never came (we type anyway).
-        ``max_s``: wait at most this long (typed radio B QSY - N1MM already
-        took the frequency, so its report is only a bonus there)."""
+        then a little more. False if it never came (we type anyway)."""
         wait = getattr(self.cfg, "qsy_wait_ms", 0) / 1000
         settle = getattr(self.cfg, "qsy_settle_ms", 0) / 1000
-        if max_s is not None:
-            wait = min(wait, max_s)
-            settle = min(settle, 0.1)
         end = time.time() + wait
         while True:
             snap = self.state.snapshot(nr)
@@ -1151,10 +1146,12 @@ class PouncerApp:
                 self.status_label.configure(
                     text="QSY B failed: Entry Window B not in front (N1MM focus failed)")
                 return False
-            text = self._freq_text(khz)
-            self._enter_text(hwnd, text)   # e.g. 14025,3 on a Slovenian PC
+            # typed key by key, as up to v0.7.23 when B worked well (N1MM
+            # reacts to typed keys; only the call goes in in one go)
+            clear_focused_edit(hwnd)
+            type_text(self._freq_text(khz))   # e.g. 14025,3 on a Slovenian PC
             send_enter()
-            self._wait_box_taken(hwnd, text)
+            time.sleep(0.3)   # let N1MM tune and clear the box before the call
             return True
         try:
             self.controller.set_frequency(khz, radio_nr=nr)
@@ -1162,21 +1159,6 @@ class PouncerApp:
             self.status_label.configure(text=f"N1MM QSY failed: {exc}")
             return False
         return True
-
-    def _wait_box_taken(self, hwnd, text: str, max_s: float = 0.5) -> None:
-        """After Enter: wait until N1MM has taken the typed frequency out of
-        the box (it tunes then) - usually a few tens of ms - instead of a
-        fixed 0.3 s. Can't read the box (keys mode): the old 0.3 s."""
-        if not self._settext() or focused_edit_text(hwnd) is None:
-            time.sleep(0.3)
-            return
-        end = time.time() + max_s
-        while time.time() < end:
-            got = focused_edit_text(hwnd)
-            if got is None or got.strip() != text:
-                time.sleep(0.05)    # a moment for N1MM to finish the QSY
-                return
-            time.sleep(0.03)
 
     def _focus_radio(self, nr: int) -> bool:
         """SO2R: bring that radio's Entry Window (A / B) to the front before a

@@ -103,7 +103,7 @@ class AppRadioTests(unittest.TestCase):
         for name in ("_radio_nr", "_radio_tag", "_so2r", "_current_band", "_radio_khz",
                      "_focus_radio", "_qsy", "_types_qsy", "_snapshot_focus", "_return_focus",
                      "_wait_for_qsy", "_check_call", "_freq_text",
-                     "_settext", "_enter_text", "_wait_box_taken"):
+                     "_settext", "_enter_text"):
             setattr(f, name, getattr(app.PouncerApp, name).__get__(f))
         return f
 
@@ -440,7 +440,10 @@ class RadioBTimingTests(unittest.TestCase):
             entered.append(clock[0])
             box["t"] = ""
             return True
+        typed = []
         with mock.patch.object(app, "force_foreground", return_value=True), \
+                mock.patch.object(app, "clear_focused_edit", return_value=True), \
+                mock.patch.object(app, "type_text", side_effect=lambda t: (typed.append(t), box.update(t=t))), \
                 mock.patch.object(app, "set_focused_edit_text", side_effect=settext), \
                 mock.patch.object(app, "focused_edit_text", side_effect=lambda h: box["t"]), \
                 mock.patch.object(app, "send_enter", side_effect=enter), \
@@ -451,6 +454,7 @@ class RadioBTimingTests(unittest.TestCase):
             app.PouncerApp._act_on_spot(f, spot, 2)
             took = clock[0] - 1000.0
             sleep(3)            # later: a wipe still to come would happen now
+        self.assertEqual(typed, ["7011"])      # frequency typed key by key, as in v0.7.23
         return took, box["t"]
 
     def test_call_after_radio_moved(self) -> None:
