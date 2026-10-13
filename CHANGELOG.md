@@ -1,5 +1,11 @@
 # POUNCer — Changelog
 
+## v0.7.5 — 2026-10-13 — function keys in one row
+
+- Main window: the function-key buttons (`[ui] fkeys`, e.g. F2 RPRT ...
+  ENTER) have their own row, always **one row**: equal buttons sharing the
+  window width, narrower when the window is narrow (no wrapping).
+
 ## v0.7.4 — 2026-10-13 — auto-update
 
 - **Auto-update** (POUNCer.exe): at start and every 6 hours POUNCer asks

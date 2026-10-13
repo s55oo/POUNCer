@@ -228,17 +228,23 @@ class PouncerApp:
             variable=self.hide_worked_var, command=self._on_toggle_worked,
         ), gap=12)
 
-        if self.cfg.fkeys:
-            flow.add(ttk.Label(flow, text="Keys:"), gap=12)
-            for key, label in self.cfg.fkeys:
-                flow.add(ttk.Button(
-                    flow, text=self._key_text(key, label, " "),
-                    command=lambda k=key: self._press_key(k),
-                ))
-
         flow.add(ttk.Button(flow, text="Clear spots", command=self._clear_spots), gap=12)
         flow.add(ttk.Button(flow, text="Reconnect log", command=self._reconnect_log))
         flow.add(ttk.Button(flow, text="Touch view", command=self._toggle_touch_view))
+
+        # Function keys: always ONE row of equal buttons that share the width
+        # (they get narrower with the window instead of wrapping).
+        self.fkey_row = None
+        if self.cfg.fkeys:
+            row = ttk.Frame(self.root, padding=(8, 0, 8, 4))
+            row.pack(fill="x")
+            self.fkey_row = row
+            for i, (key, label) in enumerate(self.cfg.fkeys):
+                row.columnconfigure(i, weight=1, uniform="fkey")
+                ttk.Button(
+                    row, text=self._key_text(key, label, " "), width=1,
+                    command=lambda k=key: self._press_key(k),
+                ).grid(row=0, column=i, sticky="ew", padx=2)
 
         widths = {
             "time": 70, "freq": 90, "snr": 70, "wpm": 60,
