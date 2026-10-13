@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import logging
+import calendar
 import queue
+import re
 import socket
 import threading
 import time
@@ -159,6 +161,45 @@ def parse_spot(line: str) -> Spot | None:
     )
 
 
+_MONTHS = {m: i for i, m in enumerate(
+    ("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"), 1)}
+_HIST_RE = re.compile(
+    r"(?:^|\s)(\d+\.\d+)\s+(\S+)\s+(\d{1,2})-([A-Za-z]{3})-(\d{4})\s+(\d{4})Z\s+(.*?)\s*<([^>]+)>\s*$")
+
+
+def parse_history(line: str, now: float | None = None) -> Spot | None:
+    """One line of the cluster's SH/DX answer (the last spots, sent once
+    after login), e.g.
+    ``  14025.0  K1ABC    13-Oct-2026 1159Z  CW 23 dB 28 WPM CQ   <S53WW-#>``.
+    ``received`` is the spot's own time, so old ones fade / expire as usual."""
+    # search, not match: a prompt without a newline can stand in front
+    m = _HIST_RE.search(line.rstrip("\r\n"))
+    if not m:
+        return None
+    freq_s, call, day, mon, year, hhmm, comment, spotter = m.groups()
+    month = _MONTHS.get(mon.upper())
+    if not month:
+        return None
+    try:
+        t = calendar.timegm((int(year), month, int(day), int(hhmm[:2]), int(hhmm[2:]), 0))
+        freq = float(freq_s)
+    except (ValueError, OverflowError):
+        return None
+    now = time.time() if now is None else now
+    rest = comment.split()
+    mode = rest[0] if rest else ""
+    snr = wpm = None
+    for idx, tok in enumerate(rest):
+        if tok == "dB" and idx:
+            snr = _to_int(rest[idx - 1])
+        elif tok == "WPM" and idx:
+            wpm = _to_int(rest[idx - 1])
+    spot_type = next((k for k in ("CQ", "NCDXF", "BEACON") if k in rest), "")
+    return Spot(dxcall=call, freq_khz=freq, mode=mode, snr=snr, wpm=wpm,
+                spot_type=spot_type, spotter=spotter, time_utc=hhmm + "Z",
+                received=min(float(t), now))
+
+
 class SpotterFilter:
     """Which skimmers' spots to keep: the chosen one (S53WW) and, while it has
     been quiet for ``quiet_s`` (offline?), backup skimmers - the listed
@@ -206,8 +247,11 @@ class RBNClient(threading.Thread):
         spotter_filter: str,
         out_queue: "queue.Queue[Spot]",
         on_status=None,
+        history: int = 30,
     ) -> None:
         super().__init__(daemon=True, name="rbn")
+        # after login ask for the last spots (SH/DX), so the list isn't empty
+        self.history = max(0, int(history or 0))
         self.host = host
         self.port = port
         self.callsign = callsign
@@ -259,17 +303,29 @@ class RBNClient(threading.Thread):
     def _connect_and_read(self) -> None:
         self._status(f"connecting to {self.host}:{self.port}")
         sock = socket.create_connection((self.host, self.port), timeout=30)
-        sock.settimeout(30)
+        sock.settimeout(1.0)   # wake up every second (login / SH/DX timing)
         self._sock = sock
         telnet = TelnetFilter()
         buf = ""
         logged_in = False
         login_deadline = time.monotonic() + 3.0
+        self._history_lines = 0
+        hist_at = None          # when to ask for the last spots
+        hist_step = 0           # 0: filtered on our skimmer, 1: plain, 2: done
         while not self._stop.is_set():
+            if logged_in and self.history and hist_step < 2:
+                now = time.monotonic()
+                if hist_at is None:
+                    hist_at = now + 2.0
+                elif now >= hist_at:
+                    if hist_step == 0 or not self._history_lines:
+                        self._ask_history(sock, filtered=(hist_step == 0))
+                    hist_step += 1
+                    hist_at = now + 5.0   # no answer to the filtered one: plain
             try:
                 chunk = sock.recv(4096)
             except socket.timeout:
-                if not logged_in:
+                if not logged_in and time.monotonic() > login_deadline:
                     self._send_login(sock)
                     logged_in = True
                 continue
@@ -296,7 +352,10 @@ class RBNClient(threading.Thread):
             line, buf = buf.split("\n", 1)
             spot = parse_spot(line)
             if spot is None:
-                continue
+                spot = parse_history(line)
+                if spot is None:
+                    continue
+                self._history_lines += 1
             if hasattr(self.spotter_filter, "accept"):
                 if not self.spotter_filter.accept(spot.spotter):
                     continue
@@ -307,6 +366,25 @@ class RBNClient(threading.Thread):
             except queue.Full:
                 pass
         return buf
+
+    def _primary(self) -> str:
+        f = self.spotter_filter
+        return (getattr(f, "primary", f) or "").upper()
+
+    def _ask_history(self, sock: socket.socket, filtered: bool) -> None:
+        """SH/DX: the last spots - first only our skimmer's (AR-Cluster
+        ``spotter=``), then, if that gave nothing, the plain last N."""
+        primary = self._primary()
+        if filtered and primary:
+            spotter = primary if "-" in primary else primary + "-#"
+            cmd = f"sh/dx/{max(self.history, 100)} spotter={spotter}"
+        else:
+            cmd = f"sh/dx/{self.history}"
+        try:
+            sock.sendall((cmd + "\r\n").encode("ascii", "ignore"))
+            log.info("RBN: %s", cmd)
+        except OSError as exc:
+            log.warning("RBN %s failed: %s", cmd, exc)
 
     def _send_login(self, sock: socket.socket) -> None:
         if not self.callsign:

@@ -52,6 +52,7 @@ class Config:
     rbn_port: int = 7000
     rbn_callsign: str = ""  # empty: taken from N1MM (see app)
     rbn_spotter: str = "S53WW"
+    rbn_history: int = 30     # at start ask RBN for the last spots (SH/DX); 0 = off
     # Backup when the chosen skimmer is quiet: listed prefixes, or (empty)
     # all skimmers on our continent; after this many minutes of silence
     backup_spotters: tuple[str, ...] = ()
@@ -151,6 +152,7 @@ def load_config(path: str) -> Config:
     cfg.rbn_port = i("rbn", "port", cfg.rbn_port)
     cfg.rbn_callsign = s("rbn", "callsign", cfg.rbn_callsign).strip().upper()
     cfg.rbn_spotter = s("rbn", "spotter", cfg.rbn_spotter)
+    cfg.rbn_history = max(0, i("rbn", "history", cfg.rbn_history))
     cfg.backup_spotters = tuple(
         b for b in s("rbn", "backup_spotters", "").replace(";", ",").replace(" ", ",").split(",") if b
     )
