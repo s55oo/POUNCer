@@ -5,8 +5,6 @@ from __future__ import annotations
 import logging
 import dataclasses
 import queue
-import sys
-import threading
 import time
 import tkinter as tk
 from tkinter import ttk
@@ -27,7 +25,6 @@ from .runhist import RARE_HOURS, RARE_RUN_PCT, RunHistory
 from . import summary as summarymod
 from .diag import DiagLog
 from . import settings as settingsmod
-from . import selftest
 from .team import Team
 from .update import Updater
 from .web import WebServer, pick_web_address
@@ -200,8 +197,6 @@ class PouncerApp:
         # phone band menu: (radio, band) a phone looks at -> last asked / payload
         self._web_views: dict[tuple[int, str], float] = {}
         self._web_view_cache: dict[tuple[int, str], dict] = {}
-        self._selftest_running = False   # taps wait while the self-test runs
-        self._selftest_win = None
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -262,7 +257,6 @@ class PouncerApp:
                             command=lambda: self._open_browser("settings")))
         flow.add(ttk.Button(flow, text="Diagnostics",
                             command=lambda: self._open_browser("diag")))
-        flow.add(ttk.Button(flow, text="Self-test", command=self._open_selftest))
         # SO2R: which radio (N1MM Entry Window A / B) clicks, F-keys and the
         # band follow go to; with one radio only A is used.
         self.radio_btn = flow.add(ttk.Button(flow, text=self._radio_btn_text(),
@@ -635,9 +629,6 @@ class PouncerApp:
             tr.step(name, detail)
 
     def _act_on_spot(self, spot: Spot, radio: int | None = None) -> None:
-        if getattr(self, "_selftest_running", False):
-            self.status_label.configure(text="Self-test running - tap ignored")
-            return
         nr = self._radio_nr(radio)
         diag = getattr(self, "diag", None)
         self._trace = diag.trace(
@@ -1559,222 +1550,6 @@ class PouncerApp:
         out.update(log=w.db_name, contest=w.contest_name,
                    station=w.station_call or self.own_call())
         return out
-
-    # ---- pre-contest self-test (main window only) ----------------------
-
-    def _open_selftest(self) -> None:
-        win = self._selftest_win
-        if win is not None and win.winfo_exists():
-            win.lift()
-            return
-        win = tk.Toplevel(self.root)
-        win.title("POUNCer self-test")
-        win.geometry("720x460")
-        self._selftest_win = win
-        top = ttk.Frame(win, padding=8)
-        top.pack(fill="x")
-        ttk.Label(top, wraplength=680, justify="left", text=(
-            "Checks N1MM, the log, RBN (and its last spots at start), the backup and SSB "
-            "servers and typing into N1MM - before the contest, not during a QSO. "
-            "Nothing transmits.")).pack(fill="x")
-        self._st_boxes = tk.BooleanVar(value=True)
-        self._st_qsy = tk.BooleanVar(value=False)
-        ttk.Checkbutton(top, variable=self._st_boxes, text=(
-            "Test Entry Window A / B: put TEST into the box with the cursor, read it back, "
-            "put back what was there")).pack(anchor="w", pady=(6, 0))
-        ttk.Checkbutton(top, variable=self._st_qsy, text=(
-            "Test QSY: each radio 1 kHz up and back (radio B: typed, so its box ends empty)")
-                        ).pack(anchor="w")
-        row = ttk.Frame(top)
-        row.pack(fill="x", pady=(6, 0))
-        self._st_run = ttk.Button(row, text="Run self-test", command=self._selftest_start)
-        self._st_run.pack(side="left")
-        ttk.Button(row, text="Copy result", command=self._selftest_copy).pack(side="left", padx=6)
-        self._st_sum = ttk.Label(row, text="", font=("Segoe UI", 10, "bold"))
-        self._st_sum.pack(side="left", padx=8)
-        body = ttk.Frame(win, padding=(8, 0, 8, 8))
-        body.pack(fill="both", expand=True)
-        text = tk.Text(body, wrap="word", height=14, font=("Consolas", 10))
-        sb = ttk.Scrollbar(body, orient="vertical", command=text.yview)
-        text.configure(yscrollcommand=sb.set, state="disabled")
-        text.pack(side="left", fill="both", expand=True)
-        sb.pack(side="right", fill="y")
-        for status, color in selftest.COLORS.items():
-            text.tag_configure(status, foreground=color, font=("Consolas", 10, "bold"))
-        self._st_text = text
-        self._st_results: list = []
-
-    def _selftest_start(self) -> None:
-        if self._selftest_running:
-            return
-        self._selftest_running = True
-        self._st_results = []
-        self._st_run.configure(state="disabled")
-        self._st_sum.configure(text="running...", foreground="")
-        self._st_text.configure(state="normal")
-        self._st_text.delete("1.0", "end")
-        self._st_text.configure(state="disabled")
-        q: "queue.Queue[tuple]" = queue.Queue()
-        checks = self._selftest_checks(self._st_boxes.get(), self._st_qsy.get())
-        threading.Thread(
-            target=lambda: q.put(("done", selftest.run(
-                checks, lambda *r: q.put(("row", *r))))),
-            name="selftest", daemon=True).start()
-        self.root.after(150, self._selftest_poll, q)
-
-    def _selftest_poll(self, q) -> None:
-        done = None
-        while True:
-            try:
-                item = q.get_nowait()
-            except queue.Empty:
-                break
-            if item[0] == "row":
-                _k, name, status, detail = item
-                self._st_results.append((name, status, detail))
-                if self._st_text.winfo_exists():
-                    t = self._st_text
-                    t.configure(state="normal")
-                    t.insert("end", f"{selftest.MARK[status]:>5}  ", status)
-                    t.insert("end", f"{name}: {detail}\n")
-                    t.see("end")
-                    t.configure(state="disabled")
-            else:
-                done = item[1]
-        if done is None:
-            self.root.after(150, self._selftest_poll, q)
-            return
-        self._selftest_running = False
-        for line in selftest.as_text(done, __version__).splitlines():
-            self.diag.event("SELFTEST", line)
-        if self._selftest_win is not None and self._selftest_win.winfo_exists():
-            failed = any(s == selftest.FAIL for _n, s, _d in done)
-            warn = any(s == selftest.WARN for _n, s, _d in done)
-            self._st_sum.configure(
-                text=selftest.summary(done),
-                foreground=selftest.COLORS[selftest.FAIL if failed else
-                                           selftest.WARN if warn else selftest.PASS])
-            self._st_run.configure(state="normal")
-            self._selftest_win.lift()       # back in front of N1MM
-            self._selftest_win.focus_force()
-        self.status_label.configure(text="Self-test: " + selftest.summary(done))
-
-    def _selftest_copy(self) -> None:
-        if not self._st_results:
-            return
-        self.root.clipboard_clear()
-        self.root.clipboard_append(selftest.as_text(self._st_results, __version__))
-        self._st_sum.configure(text="copied")
-
-    def _selftest_checks(self, boxes: bool, qsy: bool) -> list:
-        """The checks, in order (run in the self-test thread)."""
-        c = self.cfg
-        role = self.team.role() if self.team is not None else "off"
-        radios = list(self.state.radio_numbers())
-        client = self._rbn_clients.get(c.rbn_port) or next(iter(self._rbn_clients.values()), None)
-
-        def program():
-            st = self.updater.state
-            if st in ("available", "ready"):
-                return selftest.WARN, f"{__version__}: a new version is ready - {self.updater.text()}"
-            if st == "failed":
-                return selftest.WARN, f"{__version__}: could not check GitHub for updates"
-            return selftest.PASS, f"{__version__} ({self.updater.text()})"
-
-        def callsign():
-            if not c.rbn_callsign:
-                return selftest.FAIL, "no callsign: set [rbn] callsign or N1MM's station call"
-            return selftest.PASS, f"{c.rbn_callsign}, skimmer {c.rbn_spotter or 'ALL'}"
-
-        def feed():
-            age = time.time() - self._last_own_spot if self._last_own_spot else None
-            return selftest.check_feed(self.rbn_status, age, role,
-                                       bool(getattr(client, "on_backup", False)))
-
-        def history():
-            lines = getattr(client, "_history_lines", None) if client is not None else None
-            return selftest.check_history(c.rbn_history, lines, role)
-
-        def ssb():
-            if c.ssb_mode == "off" or not c.ssb_host:
-                return selftest.SKIP, "SSB off"
-            status, detail = selftest.probe(c.ssb_host, c.ssb_port)
-            return status, f"{detail}; SSB feed now: {self.ssb_status}"
-
-        def decimal():
-            try:
-                sep = decimal_separator()
-            except Exception:
-                sep = "?"
-            if c.freq_decimal in (".", ","):
-                sep = c.freq_decimal
-            return selftest.check_decimal(sep, self._freq_text(14025.3))
-
-        checks = [
-            ("Program", program),
-            ("N1MM radio info", lambda: selftest.check_radios(
-                {nr: self.state.snapshot(nr) for nr in radios})),
-            ("N1MM log", lambda: selftest.check_log(self.worked.log_open, self.worked.log_state)),
-            ("Callsign", callsign),
-            ("RBN feed", feed),
-            ("SH/DX at start", history),
-            ("RBN server", lambda: selftest.probe(c.rbn_host, c.rbn_port)),
-            ("RBN backup server", lambda: selftest.probe(c.rbn_backup_host, c.rbn_backup_port)),
-            ("SSB cluster", ssb),
-            ("Login calls", lambda: selftest.check_login_clash(
-                c.rbn_callsign, c.rbn_backup_host, c.rbn_backup_port,
-                c.ssb_host, c.ssb_port, c.ssb_login, c.ssb_mode)),
-            ("Typed frequency", decimal),
-        ]
-        for nr in radios if boxes else ():
-            checks.append((f"Entry Window {selftest._tag(nr)}", lambda n=nr: self._selftest_box(n)))
-        for nr in radios if qsy else ():
-            checks.append((f"QSY radio {selftest._tag(nr)}", lambda n=nr: self._selftest_qsy(n)))
-        return checks
-
-    def _selftest_box(self, nr: int):
-        if sys.platform != "win32":
-            return selftest.SKIP, "Windows only"
-        hwnd = self.state.entry_window_hwnd(nr)
-        if not hwnd:
-            return selftest.FAIL, "N1MM sends no Entry Window handle for this radio"
-        if not force_foreground(hwnd):
-            return selftest.FAIL, "could not bring the Entry Window to the front"
-        time.sleep(0.2)
-        return selftest.box_roundtrip(lambda: focused_edit_text(hwnd),
-                                      lambda t: set_focused_edit_text(hwnd, t))
-
-    def _selftest_qsy(self, nr: int):
-        snap = self.state.snapshot(nr)
-        f0 = snap.get("freq_khz") if snap else None
-        if f0 is None:
-            return selftest.SKIP, "no frequency from N1MM"
-        typed = self._types_qsy(nr)
-        if typed and sys.platform != "win32":
-            return selftest.SKIP, "Windows only"
-        hwnd = self.state.entry_window_hwnd(nr)
-
-        def move(khz: float) -> bool:
-            if typed:
-                if not (hwnd and force_foreground(hwnd)):
-                    return False
-                time.sleep(0.15)
-                self._enter_text(hwnd, self._freq_text(khz))
-                send_enter()
-                return True
-            try:
-                self.controller.set_frequency(khz, radio_nr=nr)
-            except OSError:
-                return False
-            return True
-
-        def freq():
-            s = self.state.snapshot(nr)
-            return s.get("freq_khz") if s else None
-
-        status, detail = selftest.qsy_roundtrip(
-            freq, move, f0, wait_s=max(3.0, getattr(self.cfg, "qsy_wait_ms", 0) / 1000 + 1))
-        return status, ("typed: " if typed else "UDP: ") + detail
 
     def _open_browser(self, page: str = "") -> None:
         """Touch / big-button view = the phone page in the default browser."""
