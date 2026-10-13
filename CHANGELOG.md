@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## v0.7.34 — 2026-10-13 — radio B frequency typed key by key again
+
+- The radio B tap code was the same from v0.7.24 to v0.7.31; the one change
+  around the time B worked best was v0.7.24, which put B's **frequency**
+  into N1MM's box in one go (WM_SETTEXT) instead of typing it. B's
+  frequency is now **typed key by key again, as up to v0.7.23** (clear the
+  box, type e.g. 14025,3, Enter, 0.3 s). Only the **call** still goes in in
+  one go with the check (no "PHB9CBR/P"), plus v0.7.33's guard if N1MM's
+  QSY comes late. Radio A unchanged.
+
 ## v0.7.33 — 2026-10-13 — radio B: frequency first, then the call
 
 - v0.7.32 was too quick on radio B: the call went in before N1MM had moved
