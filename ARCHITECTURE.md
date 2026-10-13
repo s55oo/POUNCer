@@ -416,6 +416,10 @@ or the tick draining a web request).
 
 ---
 
+Keyboard: with `[ui] forward_fkeys` (default true) the root `bind_all`s
+`<F1>`-`<F12>` (and `<Return>` / `<KP_Enter>` when `Enter` is in `fkeys`)
+to `_forward_key(key)` → `_press_key(key)`, returning `"break"`.
+
 ## 10. Build & run
 
 ```

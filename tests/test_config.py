@@ -105,5 +105,15 @@ class FilterStartTests(unittest.TestCase):
         self.assertEqual(self._load("[ui]\nfilter_start = x\n").filter_start, "")
 
 
+class ForwardKeysTests(unittest.TestCase):
+    def test_forward_fkeys(self) -> None:
+        self.assertTrue(load_config("").forward_fkeys)
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "c.ini")
+            with open(path, "w") as fh:
+                fh.write("[ui]\nforward_fkeys = false\n")
+            self.assertFalse(load_config(path).forward_fkeys)
+
+
 if __name__ == "__main__":
     unittest.main()
