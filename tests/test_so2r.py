@@ -198,6 +198,37 @@ class WebRadioTests(unittest.TestCase):
             ("band", "40m", 2), ("tune", 25, 1), ("key", "F3", None),
         ])
 
+    def test_band_param_asks_for_that_bands_list(self) -> None:
+        import json
+        import urllib.request
+        from pouncer.web import WebServer
+        got = []
+        n = lambda *a, **k: None
+        web = WebServer("127.0.0.1", 0,
+                        lambda radio=None, band=None: got.append((radio, band)) or {"band": band},
+                        n, n, n, n, n, n)
+        web.start()
+        try:
+            for path in ("/api/spots?band=15m&radio=B", "/api/spots?band=40m", "/api/spots?radio=2"):
+                with urllib.request.urlopen(f"http://127.0.0.1:{web.port}{path}", timeout=5) as r:
+                    json.load(r)
+        finally:
+            web.stop()
+        self.assertEqual(got, [(2, "15m"), (None, "40m"), (2, None)])
+
+    def test_app_builds_the_viewed_band_next_tick(self) -> None:
+        app = _import_app()
+        f = types.SimpleNamespace(
+            radio=1, _web_cache={2: {"radio": 2, "band": "40m"}},
+            _web_views={}, _web_view_cache={})
+        got = app.PouncerApp._web_spots(f, 2, "15m")
+        self.assertEqual(got["pending"], "15m")                  # not built yet
+        self.assertIn((2, "15m"), f._web_views)
+        f._web_view_cache[(2, "15m")] = {"radio": 2, "band": "15m", "view": True}
+        self.assertTrue(app.PouncerApp._web_spots(f, 2, "15m")["view"])
+        self.assertEqual(app.PouncerApp._web_spots(f, 2, "40m")["band"], "40m")   # its own band
+        self.assertEqual(app.PouncerApp._web_spots(f, 2)["band"], "40m")
+
     def test_page_has_radio_switch(self) -> None:
         from pouncer.web import INDEX_HTML, HELP_HTML
         self.assertIn('id="radiosw"', INDEX_HTML)
@@ -205,6 +236,7 @@ class WebRadioTests(unittest.TestCase):
         self.assertIn("Two radios", HELP_HTML)
         self.assertIn("data.freqs", INDEX_HTML)                 # A over B in the header
         self.assertIn("lastData.rbands", INDEX_HTML)            # band menu: row per radio
+        self.assertIn("pouncer.view", INDEX_HTML)               # band menu = show band, no QSY
 
 
 class TestOptionsPageTests(unittest.TestCase):

@@ -1,5 +1,18 @@
 # POUNCer — Changelog
 
+## v0.7.16 — 2026-10-13 — band menu shows a band, tap QSYs
+
+- **Band menu (phone) no longer QSYs the radio** - it shows **that band's
+  spots** for the radio (A or B). Tap a station there and the radio goes to
+  it exactly like any spot tap (which works for A and B). Reason: in SO2R
+  the band QSY for radio B moved radio A, also with Entry Window B in front.
+- Small line: "15m list · B on 20m ✕" while looking at another band - tap
+  it to go back. The list follows the radio again as soon as the radio
+  changes band (e.g. after the tap). Menu: green = band shown, blue ring =
+  band the radio is on. A band in B's row switches the phone to radio B.
+- `/api/spots?band=15m` (with `radio`): the list of that band; POUNCer
+  builds it on its next tick for as long as a phone asks (10 s).
+
 ## v0.7.15 — 2026-10-13 — contest summary, SO2R band fix
 
 - **Contest summary** page (`/summary`, its own page like the help): **Σ**
