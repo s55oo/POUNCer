@@ -102,9 +102,11 @@ spotted callsign into the N1MM Entry Window.
   big tiles. The TX/log key buttons sit in a column on the right of the list
   (F2 at the top, each key two rows tall); they are green and turn red when
   pressed.
-  The header shows the radio frequency; **tap it to change band** (160, 80,
-  40, 20, 15, 10 m) - the radio goes to the last frequency you used on that
-  band, or a CW default.
+  The header shows the radio frequency; **tap it to pick a band** (160, 80,
+  40, 20, 15, 10 m): the list then shows **that band's spots** - the radio
+  stays where it is until you **tap a station** there, which QSYs it as
+  usual. "15m list · on 20m ✕" in the small line (tap it to go back to the
+  radio's band); once the radio changes band the list follows it again.
 * **TX / log buttons** - the main window and the phone page all
   show buttons for `[ui] fkeys` (default `F2:RPRT F3:TU F4:CALL F5:HisCALL F7:? Enter`). An F-key
   button presses that function key in the focused N1MM Entry Window, so N1MM
@@ -155,8 +157,10 @@ the **Radio A (A/B)** button does the same for clicks and keyboard F-keys.
 `[n1mm] default_radio = A` / `B` sets the start radio. With one radio
 nothing changes. The frequency in the top row then shows **both radios** -
 A with B under it; the radio this phone works is the big one. Tapping it
-opens the band menu with a row for **radio A** and a row for **radio B**,
-so either radio's band can be changed from any phone.
+opens the band menu with a row for **radio A** and a row for **radio B**
+(green = the band shown, blue ring = the band the radio is on): pick a band
+in B's row and the phone works radio B and shows that band's spots; tap a
+station to QSY radio B there.
 
 ## Contest summary
 

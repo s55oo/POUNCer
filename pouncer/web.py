@@ -225,6 +225,8 @@ INDEX_HTML = """<!doctype html>
   .bandgrid button { background: #263238; color: #fff; border: 0; border-radius: 10px;
     font: inherit; font-size: 22px; font-weight: 800; padding: 16px 0; cursor: pointer; }
   .bandgrid button.cur { background: #2e7d32; }
+  .bandgrid button.here { box-shadow: inset 0 0 0 2px #4fc3f7; }
+  .viewtag { color: #4fc3f7; font-weight: 700; cursor: pointer; }
   .bandgrid .radiohead { grid-column: 1 / -1; font-size: 14px; opacity: .7; margin-top: 6px; }
   .bandgrid .radiohead.mine { opacity: 1; font-weight: 700; }
   .bandgrid .radiohead i { font-style: normal; font-weight: 700; color: #64b5f6; }
@@ -369,7 +371,7 @@ INDEX_HTML = """<!doctype html>
   <button class="sheet-close" id="rmno">Cancel</button>
 </div></div>
 <div id="bandsheet"><div class="sheet">
-  <div class="sheet-title">Change band <span>(QSY the radio)</span></div>
+  <div class="sheet-title">Show band <span>(tap a station there to QSY)</span></div>
   <div class="bandgrid" id="bandgrid"></div>
   <button class="sheet-close" id="alertbtn">Alerts: on</button>
   <a class="sheet-close helplink" href="/summary">Contest summary</a>
@@ -394,6 +396,13 @@ INDEX_HTML = """<!doctype html>
   // SO2R: radio this phone works (1 = A, 2 = B); null = POUNCer's default
   let myRadio = null;
   try { const v = localStorage.getItem('pouncer.radio'); if (v === '1' || v === '2') myRadio = Number(v); } catch (e) {}
+  // Band menu: the band whose spots a radio's list shows, without moving the
+  // radio ({radio: {band, from}}; from = the radio's band when picked - once
+  // the radio changes band, e.g. by tapping a station there, the list
+  // follows the radio again). Tapping a station QSYs as always.
+  let views = {};
+  try { views = JSON.parse(localStorage.getItem('pouncer.view') || '{}') || {}; } catch (e) { views = {}; }
+  function saveViews() { try { localStorage.setItem('pouncer.view', JSON.stringify(views)); } catch (e) {} }
   function rp(params) {           // add ?radio= to a request when chosen
     const q = new URLSearchParams(params || {});
     if (myRadio) q.set('radio', myRadio);
@@ -723,8 +732,20 @@ INDEX_HTML = """<!doctype html>
     // team POUNCers on different versions
     const vd = (data.team || '').indexOf('VERSIONS DIFFER');
     if (vd >= 0) meta = '<span class="warn" title="' + esc(data.team) + '">\u26a0 ' + esc(data.team.slice(vd)) + '</span> &middot; ' + meta;
+    {
+      const v = views[String(cur)];
+      if (v && data.radio_band && (v.from !== data.radio_band || v.band === data.radio_band)) {
+        delete views[String(cur)];   // the radio changed band: follow it again
+        saveViews();
+      }
+    }
+    if (data.view) meta = '<span class="viewtag" id="viewtag" title="Tap: back to the band the radio is on">' +
+      esc(data.band) + ' list &middot; ' + (radioSw.hidden ? 'radio' : (cur === 2 ? 'B' : 'A')) +
+      ' on ' + esc(data.radio_band || '?') + ' \u2715</span> &middot; ' + meta;
     if (calm) meta = '<span class="calmtag" title="Calm list: tiles keep their place, re-sorted every 15 s">calm</span> &middot; ' + meta;
     metaEl.innerHTML = meta;
+    const vt = document.getElementById('viewtag');
+    if (vt) vt.onclick = () => { delete views[String(cur)]; saveViews(); selKey = ''; refresh(); };
     const cols = columns();
     const spots = arrange(data);
     shown = spots;
@@ -878,10 +899,12 @@ INDEX_HTML = """<!doctype html>
   function openBands() {
     const bands = lastData.contest_bands || ['160m','80m','40m','20m','15m','10m'];
     bandGrid.textContent = '';
-    const addRow = (nr, cur) => bands.forEach(b => {
+    const shownBand = (nr, real) => (views[String(nr)] && views[String(nr)].band) || real;
+    const addRow = (nr, real) => bands.forEach(b => {
       const btn = document.createElement('button');
       btn.textContent = b;
-      if (b === cur) btn.classList.add('cur');
+      if (b === shownBand(nr || (lastData.radio || 1), real)) btn.classList.add('cur');
+      if (b === real) btn.classList.add('here');   // the radio is on this band
       btn.onclick = () => chooseBand(b, nr);
       bandGrid.appendChild(btn);
     });
@@ -901,23 +924,33 @@ INDEX_HTML = """<!doctype html>
         addRow(nr, rb[String(nr)]);
       });
     } else {
-      addRow(null, lastData.band);
+      addRow(null, lastData.radio_band || lastData.band);
     }
     bandSheet.classList.add('show');
   }
   function closeBands() { bandSheet.classList.remove('show'); }
-  async function chooseBand(b, nr) {
+  // Band menu: show that band's spots for the radio - the radio stays where
+  // it is until you tap a station (that QSY works for A and B alike).
+  function chooseBand(b, nr) {
     closeBands();
-    try {
-      const q = rp({band: b});
-      if (nr) q.set('radio', nr);          // SO2R: the radio of that row
-      const r = await fetch('/api/band?' + q);
-      const j = await r.json();
-      toast(j.ok ? ('QSY ' + (nr ? (nr === 2 ? 'B ' : 'A ') : '') + b) : ('Failed: ' + (j.error || 'error')));
-    } catch (e) {
-      toast('Failed: ' + e);
+    const cur = lastData.radio === 2 ? 2 : 1;
+    if (nr && nr !== cur) {              // SO2R: B's row while on A -> work B
+      myRadio = nr;
+      try { localStorage.setItem('pouncer.radio', String(nr)); } catch (e) {}
     }
-    setTimeout(refresh, 600);
+    const r = nr || cur;
+    const real = (lastData.rbands || {})[String(r)] || (r === cur ? lastData.radio_band : '') || '';
+    const tag = nr ? (r === 2 ? 'B' : 'A') + ': ' : '';
+    if (b === real) {
+      delete views[String(r)];
+      toast(tag + b + ' (the radio is there)');
+    } else {
+      views[String(r)] = {band: b, from: real};
+      toast(tag + b + ' spots - tap a station to QSY');
+    }
+    saveViews();
+    selKey = '';
+    refresh();
   }
   bandEl.onclick = openBands;
   document.getElementById('bandclose').onclick = closeBands;
@@ -988,8 +1021,16 @@ INDEX_HTML = """<!doctype html>
   };
   async function refresh() {
     try {
-      const r = await fetch('/api/spots?' + rp(), {cache: 'no-store'});
+      const q = rp();
+      const vr = String(myRadio || lastData.radio || 1);
+      if (views[vr] && views[vr].band) q.set('band', views[vr].band);
+      const r = await fetch('/api/spots?' + q, {cache: 'no-store'});
       const data = await r.json();
+      if (data.pending) {            // POUNCer builds that band's list next tick
+        metaEl.textContent = 'loading ' + data.pending + ' spots...';
+        setTimeout(refresh, 300);
+        return;
+      }
       // Holding a tile / remove box open: keep the list still (the redraw
       // would cancel the hold); show the fresh data afterwards.
       if (pressing || document.getElementById('rmsheet').classList.contains('show') ||
@@ -1073,8 +1114,11 @@ spots you still need there. Nothing here transmits except the F-keys.</p>
 <h2>Top row</h2>
 <dl>
   <dt><span class="k">7020.0 &#9662;</span></dt>
-  <dd>The radio frequency (kHz). Tap it to pick another band (160-10 m): the radio
-    goes to the last frequency you used there. No transmit.</dd>
+  <dd>The radio frequency (kHz). Tap it to pick a band (160-10 m): the list shows
+    <b>that band's spots</b> - the radio is not moved. Tap a station there to QSY to it.
+    <span class="sky">15m list &middot; on 20m &#10005;</span> in the small line while you
+    look at another band; tap it to go back. When the radio changes band (e.g. after
+    that tap) the list follows the radio again. No transmit.</dd>
   <dt><span class="k red">CLR</span></dt>
   <dd>Clear every spot (e.g. old spots from before the contest). New ones come in
     again from RBN. <b>Undo</b> in the pop-up for 5 s.</dd>
@@ -1180,8 +1224,9 @@ worked from spots. POUNCer keeps the taps in <code>cache\\taps.jsonl</code> (14 
   <dt><span class="k">A 7020.0<br>B 14025.3</span></dt>
   <dd>With two radios the frequency shows both: A on top, B under it. The radio this
     phone works is big and bright. Tap it for the band menu: a row of bands for
-    <b>radio A</b> and one for <b>radio B</b> (each with its band now in green) - so you
-    can change the band of either radio, whichever one this phone works.</dd>
+    <b>radio A</b> and one for <b>radio B</b> (green = the band shown, blue ring = the
+    band the radio is on). A band in B's row: this phone works radio B and shows that
+    band's spots; tap a station to QSY radio B there.</dd>
 </dl>
 
 <h2>Bottom row</h2>
@@ -1538,7 +1583,15 @@ class _Handler(BaseHTTPRequestHandler):
             self._send(200, page.encode("utf-8"), "text/html; charset=utf-8")
             return
         if parsed.path == "/api/spots":
-            self._send_json(self._call(self.server.get_spots, parsed))
+            band = (parse_qs(parsed.query).get("band") or [""])[0].strip()
+            if band:   # band menu: the list of another band (no QSY)
+                radio = self._radio(parsed)
+                kw = {"band": band}
+                if radio is not None:
+                    kw["radio"] = radio
+                self._send_json(self.server.get_spots(**kw))
+            else:
+                self._send_json(self._call(self.server.get_spots, parsed))
             return
         if parsed.path == "/api/qsy":
             q = parse_qs(parsed.query)

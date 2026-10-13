@@ -37,6 +37,7 @@ log = logging.getLogger(__name__)
 
 REFRESH_MS = 500
 WEB_MAX_SPOTS = 60
+WEB_VIEW_S = 10  # keep building a band a phone looks at this long after its last ask
 RADIO_ALIVE_SECONDS = 30
 ON_FREQ_KHZ = 0.5  # a spot this close to the radio frequency = "tuned to it"
 ON_FREQ_STAY_KHZ = 0.5  # RBN re-spot within this = station still on that frequency
@@ -177,6 +178,9 @@ class PouncerApp:
         self._filter_width: str | None = config.filter_start or None
         self._web_queue: "queue.Queue[tuple]" = queue.Queue()
         self._web_cache: dict[int, dict] = {}  # radio -> phone payload
+        # phone band menu: (radio, band) a phone looks at -> last asked / payload
+        self._web_views: dict[tuple[int, str], float] = {}
+        self._web_view_cache: dict[tuple[int, str], dict] = {}
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -501,20 +505,29 @@ class PouncerApp:
             # one payload per radio: each phone shows its own radio's band
             radios = set(self.state.radio_numbers()) | {1, self.radio}
             self._web_cache = {r: self._build_web_payload(r) for r in sorted(radios)}
+            # bands phones look at without the radio being there (asked < 10 s ago)
+            now = time.time()
+            views = {k: t for k, t in dict(self._web_views).items() if now - t < WEB_VIEW_S}
+            self._web_views = views
+            self._web_view_cache = {k: self._build_web_payload(*k) for k in views}
             # ZeroTier can come up after POUNCer starts: re-check every minute.
             if time.time() - self._web_addr_checked >= 60:
                 self._refresh_web_address()
         self.root.after(REFRESH_MS, self._tick)
 
-    def _build_web_payload(self, radio: int | None = None) -> dict:
+    def _build_web_payload(self, radio: int | None = None, view_band: str | None = None) -> dict:
         radio = radio or self.radio
+        real_band = self._current_band(radio)
         spots = sorted(
-            self._visible_spots(radio),
+            self._visible_spots(radio, view_band),
             key=lambda s: s.snr if s.snr is not None else -999,
             reverse=True,
         )[:WEB_MAX_SPOTS]
         return {
-            "band": self._current_band(radio),
+            # band of the list: the radio's, or the one picked in the band menu
+            "band": view_band or real_band,
+            "radio_band": real_band,
+            "view": bool(view_band and view_band != real_band),
             "freq": self._radio_khz(radio),
             # SO2R: radio this payload is for (1 = A, 2 = B) and the radios
             # N1MM reports - the page shows its A / B switch with two
@@ -570,9 +583,17 @@ class PouncerApp:
             ],
         }
 
-    def _web_spots(self, radio: int | None = None) -> dict:
+    def _web_spots(self, radio: int | None = None, band: str | None = None) -> dict:
+        """Phone list: the radio's band, or ``band`` from the band menu (the
+        radio isn't moved - tapping a station there QSYs it)."""
         cache = self._web_cache
-        return cache.get(radio or self.radio) or cache.get(self.radio) or cache.get(1) or {}
+        base = cache.get(radio or self.radio) or cache.get(self.radio) or cache.get(1) or {}
+        if not band or band not in CONTEST_BANDS or band == base.get("band"):
+            return base
+        key = (base.get("radio") or radio or self.radio, band)
+        self._web_views[key] = time.time()        # the next tick builds it
+        got = self._web_view_cache.get(key)
+        return got if got is not None else {**base, "pending": band}
 
     def _web_qsy(self, call: str, freq: float, mode: str, radio: int | None = None) -> None:
         self._web_queue.put(("qsy", call, float(freq), mode, radio))
@@ -1111,10 +1132,11 @@ class PouncerApp:
         self.root.update_idletasks()
         self.updater.restart(before_exit=self._shutdown)
 
-    def _visible_spots(self, radio: int | None = None) -> list[Spot]:
+    def _visible_spots(self, radio: int | None = None, band: str | None = None) -> list[Spot]:
         """Spots matching the band of the radio (default: the main window's
-        A / B choice), modes and worked filter."""
-        band = self._current_band(radio)
+        A / B choice) - or ``band`` (phone band menu: look at another band) -
+        modes and worked filter."""
+        band = band or self._current_band(radio)
         if radio is None and band != self._last_band:
             self._last_band = band
         modes = {m.upper() for m in self.cfg.follow_modes}
