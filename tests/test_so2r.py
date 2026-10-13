@@ -103,7 +103,7 @@ class AppRadioTests(unittest.TestCase):
         for name in ("_radio_nr", "_radio_tag", "_so2r", "_current_band", "_radio_khz",
                      "_focus_radio", "_qsy", "_types_qsy", "_snapshot_focus", "_return_focus",
                      "_wait_for_qsy", "_check_call", "_freq_text",
-                     "_settext", "_enter_text"):
+                     "_settext", "_enter_text", "_wait_box_taken"):
             setattr(f, name, getattr(app.PouncerApp, name).__get__(f))
         return f
 
@@ -403,3 +403,37 @@ class TestOptionsPageTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RadioBSpeedTests(unittest.TestCase):
+    """Radio B (typed QSY) must not sit out the full wait for N1MM's
+    frequency report: v0.7.21-0.7.31 took ~2.7 s per tap, v0.7.18 ~0.65 s."""
+
+    def test_b_tap_is_fast_even_without_n1mm_report(self) -> None:
+        app = _import_app()
+        f = AppRadioTests._fake(AppRadioTests(), app, radio=2)
+        f.cfg.qsy_wait_ms, f.cfg.qsy_settle_ms, f.cfg.type_mode = 1500, 250, "settext"
+        f.cfg.freq_decimal, f.cfg.return_focus = ",", False
+        clock = [1000.0]
+        box = {"t": ""}
+
+        def settext(h, t):
+            box["t"] = t
+            return True
+
+        def enter():
+            box["t"] = ""          # N1MM takes the frequency out of the box
+            return True
+        # N1MM never reports radio B's new frequency (the slow case)
+        with mock.patch.object(app, "force_foreground", return_value=True), \
+                mock.patch.object(app, "set_focused_edit_text", side_effect=settext), \
+                mock.patch.object(app, "focused_edit_text", side_effect=lambda h: box["t"]), \
+                mock.patch.object(app, "send_enter", side_effect=enter), \
+                mock.patch.object(app.time, "time", side_effect=lambda: clock[0]), \
+                mock.patch.object(app.time, "sleep", side_effect=lambda s: clock.__setitem__(0, clock[0] + s)):
+            spot = app.Spot(dxcall="K1ABC", freq_khz=7011.0, mode="CW", snr=10, wpm=28,
+                            spot_type="CQ", spotter="S53WW", time_utc="1200Z", received=0)
+            app.PouncerApp._act_on_spot(f, spot, 2)
+        took = clock[0] - 1000.0
+        self.assertLess(took, 1.2, took)        # was 2.4+ s
+        self.assertEqual(box["t"], "K1ABC")

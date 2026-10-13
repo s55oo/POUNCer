@@ -44,6 +44,7 @@ REFRESH_MS = 500
 WEB_MAX_SPOTS = 60
 WEB_VIEW_S = 10  # keep building a band a phone looks at this long after its last ask
 RADIO_ALIVE_SECONDS = 30
+TYPED_QSY_WAIT_S = 0.4  # radio B (typed QSY): wait at most this for N1MM's frequency report
 ON_FREQ_KHZ = 0.5  # a spot this close to the radio frequency = "tuned to it"
 ON_FREQ_STAY_KHZ = 0.5  # RBN re-spot within this = station still on that frequency
 ON_FREQ_GAP_S = 20 * 60  # ... and within 20 min of the last spot (skimmers re-spot sparsely)
@@ -516,12 +517,17 @@ class PouncerApp:
         if N1MM reports it, else the active one (SO1R: always the one radio)."""
         return self.state.active_radio_nr(radio or self.radio)
 
-    def _wait_for_qsy(self, nr: int, khz: float) -> bool:
+    def _wait_for_qsy(self, nr: int, khz: float, max_s: float | None = None) -> bool:
         """Wait until N1MM reports radio ``nr`` on ``khz`` (it may wipe the
         callsign when the radio moves - typing before that lost the call),
-        then a little more. False if it never came (we type anyway)."""
+        then a little more. False if it never came (we type anyway).
+        ``max_s``: wait at most this long (typed radio B QSY - N1MM already
+        took the frequency, so its report is only a bonus there)."""
         wait = getattr(self.cfg, "qsy_wait_ms", 0) / 1000
         settle = getattr(self.cfg, "qsy_settle_ms", 0) / 1000
+        if max_s is not None:
+            wait = min(wait, max_s)
+            settle = min(settle, 0.1)
         end = time.time() + wait
         while True:
             snap = self.state.snapshot(nr)
@@ -600,10 +606,15 @@ class PouncerApp:
             if focused:
                 time.sleep(0.15)
 
+        t0 = time.time()
         if not self._qsy(nr, spot.freq_khz, hwnd, focused):
             return
         self.taps.record(spot.dxcall, spot.freq_khz)   # for the contest summary
-        landed = self._wait_for_qsy(nr, spot.freq_khz)
+        # radio B (typed): N1MM has taken the frequency already, so don't
+        # sit out the full wait for its report - the call check below
+        # puts the call in again if N1MM's wipe comes late
+        landed = self._wait_for_qsy(nr, spot.freq_khz,
+                                    TYPED_QSY_WAIT_S if self._types_qsy(nr) else None)
 
         msg = f"QSY {self._radio_tag(nr)}{spot.freq_khz:.1f} kHz -> {spot.dxcall}"
         if self.set_call_var.get():
@@ -632,6 +643,7 @@ class PouncerApp:
         if self.cfg.focus_n1mm:
             msg += " [N1MM focused]" if focused else " [N1MM focus failed]"
         msg += self._return_focus(snap, hwnd)
+        msg += f" ({time.time() - t0:.1f} s)"
         self.status_label.configure(text=msg)
 
     def _tick(self) -> None:
@@ -1120,7 +1132,7 @@ class PouncerApp:
             text = self._freq_text(khz)
             self._enter_text(hwnd, text)   # e.g. 14025,3 on a Slovenian PC
             send_enter()
-            time.sleep(0.3)   # let N1MM tune and clear the box before the call
+            self._wait_box_taken(hwnd, text)
             return True
         try:
             self.controller.set_frequency(khz, radio_nr=nr)
@@ -1128,6 +1140,21 @@ class PouncerApp:
             self.status_label.configure(text=f"N1MM QSY failed: {exc}")
             return False
         return True
+
+    def _wait_box_taken(self, hwnd, text: str, max_s: float = 0.5) -> None:
+        """After Enter: wait until N1MM has taken the typed frequency out of
+        the box (it tunes then) - usually a few tens of ms - instead of a
+        fixed 0.3 s. Can't read the box (keys mode): the old 0.3 s."""
+        if not self._settext() or focused_edit_text(hwnd) is None:
+            time.sleep(0.3)
+            return
+        end = time.time() + max_s
+        while time.time() < end:
+            got = focused_edit_text(hwnd)
+            if got is None or got.strip() != text:
+                time.sleep(0.05)    # a moment for N1MM to finish the QSY
+                return
+            time.sleep(0.03)
 
     def _focus_radio(self, nr: int) -> bool:
         """SO2R: bring that radio's Entry Window (A / B) to the front before a
