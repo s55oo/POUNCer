@@ -67,7 +67,8 @@ class Config:
     n1mm_control_port: int = 13064
     n1mm_radionr: int = 1
     default_radio: int = 1  # SO2R: radio a tap goes to at start (1 = A, 2 = B)
-    radio_b_qsy: str = "type"  # SO2R radio B QSY: "type" (kHz + Enter in Entry Window B) or "udp"
+    radio_b_qsy: str = "type"
+    freq_decimal: str = "auto"  # typed frequency: auto (Windows setting), "." or ","  # SO2R radio B QSY: "type" (kHz + Enter in Entry Window B) or "udp"
     set_callsign: bool = True
     wipe_before_call: bool = True
     focus_n1mm: bool = True
@@ -169,6 +170,8 @@ def load_config(path: str) -> Config:
     cfg.default_radio = parse_radio(s("n1mm", "default_radio", ""), cfg.n1mm_radionr)
     qb = s("n1mm", "radio_b_qsy", cfg.radio_b_qsy).strip().lower()
     cfg.radio_b_qsy = qb if qb in ("type", "udp") else "type"
+    fd = s("n1mm", "freq_decimal", cfg.freq_decimal).strip().lower()
+    cfg.freq_decimal = fd if fd in ("auto", ".", ",") else "auto"
     cfg.set_callsign = b("n1mm", "set_callsign", cfg.set_callsign)
     cfg.wipe_before_call = b("n1mm", "wipe_before_call", cfg.wipe_before_call)
     cfg.focus_n1mm = b("n1mm", "focus_n1mm", cfg.focus_n1mm)

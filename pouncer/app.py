@@ -25,7 +25,7 @@ from .team import Team
 from .update import Updater
 from .web import WebServer, pick_web_address
 from .win32 import (
-    focus_snapshot, focused_edit_text, force_foreground, is_n1mm_running, restore_focus,
+    decimal_separator, focus_snapshot, focused_edit_text, force_foreground, is_n1mm_running, restore_focus,
     send_cw_speed,
     send_enter, send_filter_toggle, window_pid,
     send_fkey,
@@ -996,6 +996,15 @@ class PouncerApp:
         (N1MM's UDP QSY command moved radio A there)."""
         return nr == 2 and self._so2r() and getattr(self.cfg, "radio_b_qsy", "type") == "type"
 
+    def _freq_text(self, khz: float) -> str:
+        """kHz as N1MM reads it when typed: 14000.1 -> "14000,1" with a
+        comma decimal sign (Windows setting), "14001" without decimals."""
+        text = f"{khz:.3f}".rstrip("0").rstrip(".")
+        sep = getattr(self.cfg, "freq_decimal", "auto")
+        if sep == "auto":
+            sep = decimal_separator()
+        return text.replace(".", sep if sep in (".", ",") else ".")
+
     def _qsy(self, nr: int, khz: float, hwnd, focused: bool) -> bool:
         """QSY radio ``nr``. Radio A: N1MM's UDP command. SO2R radio B: type
         the frequency in kHz into its Entry Window and press Enter - N1MM
@@ -1007,7 +1016,7 @@ class PouncerApp:
                     text="QSY B failed: Entry Window B not in front (N1MM focus failed)")
                 return False
             clear_focused_edit(hwnd)
-            type_text(f"{khz:.3f}".rstrip("0").rstrip("."))   # e.g. 14025.3
+            type_text(self._freq_text(khz))   # e.g. 14025,3 on a Slovenian PC
             send_enter()
             time.sleep(0.3)   # let N1MM tune and clear the box before the call
             return True

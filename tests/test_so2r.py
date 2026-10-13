@@ -102,7 +102,7 @@ class AppRadioTests(unittest.TestCase):
         f._band_memory, f._tune_last = {}, {}
         for name in ("_radio_nr", "_radio_tag", "_so2r", "_current_band", "_radio_khz",
                      "_focus_radio", "_qsy", "_types_qsy", "_snapshot_focus", "_return_focus",
-                     "_wait_for_qsy", "_check_call"):
+                     "_wait_for_qsy", "_check_call", "_freq_text"):
             setattr(f, name, getattr(app.PouncerApp, name).__get__(f))
         return f
 
@@ -189,6 +189,20 @@ class AppRadioTests(unittest.TestCase):
         self.assertIn(("sleep", 0.25), events[:first_type])     # settled after the QSY
         self.assertLess(events.index(("sleep", 0.25)), events.index(("wipe",)))
         self.assertEqual([e for e in events if e[0] == "type"], [("type", "DL1AA")] * 2)
+
+    def test_typed_frequency_uses_the_windows_decimal_sign(self) -> None:
+        # bug: "14000.1" typed on a Slovenian PC -> N1MM read 140001 kHz
+        app = _import_app()
+        f = self._fake(app)
+        f.cfg.freq_decimal = "auto"
+        with mock.patch.object(app, "decimal_separator", return_value=","):
+            self.assertEqual(f._freq_text(14000.1), "14000,1")
+            self.assertEqual(f._freq_text(14001.0), "14001")
+            self.assertEqual(f._freq_text(7012.05), "7012,05")
+        with mock.patch.object(app, "decimal_separator", return_value="."):
+            self.assertEqual(f._freq_text(14000.1), "14000.1")
+        f.cfg.freq_decimal = ","
+        self.assertEqual(f._freq_text(21025.3), "21025,3")
 
     def test_tap_on_radio_a_uses_udp(self) -> None:
         app = _import_app()
