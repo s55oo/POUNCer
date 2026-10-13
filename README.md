@@ -198,6 +198,15 @@ N1MM reported the new frequency, the call put in and what N1MM's box really
 showed), keys, RBN connection changes and the settings at start. **Copy
 all** and send it when something goes wrong. Also in `cache\diag.log`.
 
+## SSB
+
+RBN has no SSB, so for SSB POUNCer uses a **DX cluster** (human spots,
+default azure.s53m.com:8000, only spotters in Europe). The list follows the
+radio: on USB / LSB it shows SSB spots, on CW the RBN CW spots - per radio,
+so SO2R with one radio on CW and one on SSB works. The cluster is connected
+only while needed (light "SSB cluster"). `[ssb]` in config.ini or the
+Settings page.
+
 ## Backup when RBN is down
 
 If RBN's telnet fails twice in a row or sends nothing for 2 minutes,

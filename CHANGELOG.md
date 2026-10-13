@@ -1,5 +1,23 @@
 # POUNCer — Changelog
 
+## v0.7.28 — 2026-10-13 — SSB
+
+- **SSB contests.** RBN skimmers don't decode SSB, so SSB spots come from a
+  **DX cluster** (human spots): **azure.s53m.com:8000**, only spots from
+  **spotters in Europe**. The mode is guessed from the spot comment
+  (SSB / USB / LSB / CW / FT8 ...) or else the band plan (phone segment).
+- **The list follows the radio mode**, per radio: radio on USB / LSB = SSB
+  spots, on CW = the RBN CW spots as before - so in SO2R radio A can be on
+  CW and radio B on SSB. On SSB the WPM keys are hidden.
+- The cluster is connected only while a radio is on SSB (and on a team
+  master, which passes the SSB spots on to the others; 15 min after the
+  last SSB). It gets the last 30 spots at start (SH/DX). Light **SSB
+  cluster** in the main window; events in the diagnostic log.
+- `[ssb] mode = auto|always|off`, `host`, `port`, `spotters = EU` (or ALL /
+  NA / ...), `history`, `login` (e.g. S55OO-2 if the cluster already has
+  you as the RBN backup), `commands`, `follow_radio_mode`; also on the
+  Settings page.
+
 ## v0.7.27 — 2026-10-13 — settings page
 
 - **Settings page** (`/settings`: **Settings** button in the main window,

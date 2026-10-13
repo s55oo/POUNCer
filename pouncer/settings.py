@@ -64,6 +64,22 @@ SETTINGS: list[dict] = [
     {"key": "rbn.backup_commands", "attr": "rbn_backup_commands", "kind": "text",
      "live": False, "group": "RBN", "label": "Backup commands after login",
      "help": "Comma separated, e.g. set/skimmer."},
+    {"key": "ssb.follow_radio_mode", "attr": "follow_radio_mode", "kind": "bool",
+     "live": True, "group": "SSB",
+     "label": "List follows the radio mode",
+     "help": "Radio on USB / LSB = SSB spots (DX cluster), on CW = RBN CW spots."},
+    {"key": "ssb.mode", "attr": "ssb_mode", "kind": "choice", "choices": ["auto", "always", "off"],
+     "live": True, "group": "SSB", "label": "DX cluster for SSB",
+     "help": "auto = connect while a radio is on SSB (and on a team master)."},
+    {"key": "ssb.spotters", "attr": "ssb_spotters", "kind": "text", "live": False,
+     "group": "SSB", "label": "Spotters from", "help": "EU, NA, AS, ... or ALL."},
+    {"key": "ssb.host", "attr": "ssb_host", "kind": "text", "live": False,
+     "group": "SSB", "label": "DX cluster", "help": ""},
+    {"key": "ssb.port", "attr": "ssb_port", "kind": "int", "min": 1, "max": 65535,
+     "live": False, "group": "SSB", "label": "DX cluster port", "help": ""},
+    {"key": "ssb.login", "attr": "ssb_login", "kind": "text", "live": False,
+     "group": "SSB", "label": "Login call",
+     "help": "Empty = your call. E.g. S55OO-2 if the cluster already has you as the RBN backup."},
     {"key": "ui.auto_update", "attr": "auto_update", "kind": "bool", "live": False,
      "group": "Program", "label": "Auto-update from GitHub", "help": ""},
 ]
@@ -115,7 +131,7 @@ def parse(item: dict, text: str):
         return parts, ", ".join(parts)
     if any(ch in text for ch in "\r\n[]"):
         raise ValueError(f"{item['label']}: no line breaks or brackets")
-    if item["attr"] == "rbn_spotter":
+    if item["attr"] in ("rbn_spotter", "ssb_spotters", "ssb_login"):
         text = text.upper()
     return text, text
 

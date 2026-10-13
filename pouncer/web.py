@@ -225,6 +225,7 @@ INDEX_HTML = """<!doctype html>
   .bandgrid button { background: #263238; color: #fff; border: 0; border-radius: 10px;
     font: inherit; font-size: 22px; font-weight: 800; padding: 16px 0; cursor: pointer; }
   .bandgrid button.cur { background: #2e7d32; }
+  .footbar .wpm[hidden] { display: none; }
   .bandgrid button.here { box-shadow: inset 0 0 0 2px #4fc3f7; }
   .viewtag { color: #4fc3f7; font-weight: 700; cursor: pointer; }
   #bandfor i { font-style: normal; color: #64b5f6; } #bandfor i.r2 { color: #ffb74d; }
@@ -745,6 +746,9 @@ INDEX_HTML = """<!doctype html>
     const vt = document.getElementById('viewtag');
     if (vt) vt.onclick = () => { delete views[String(cur)]; saveViews(); selKey = ''; refresh(); };
     const cols = columns();
+    // SSB (radio on USB / LSB): no CW speed keys, no "SSB" on every tile
+    const ssbOnly = (data.modes || []).length === 1 && data.modes[0] === 'SSB';
+    document.querySelectorAll('.footbar .wpm').forEach(b => { b.hidden = ssbOnly; });
     const spots = arrange(data);
     shown = spots;
     const rows = Math.max(1, Math.ceil(spots.length / cols));
@@ -786,7 +790,7 @@ INDEX_HTML = """<!doctype html>
         esc(s.call) + (rare ? '<span class="rare">\u26a1</span>' : '') + '</span>' +
         '<span class="detail"><span><b class="fq">' + s.freq.toFixed(1) + '</b>' +
         // mode only when it isn't CW (in a CW contest it always is)
-        (s.mode && s.mode.toUpperCase() !== 'CW' ? ' ' + esc(s.mode) : '') +
+        (s.mode && s.mode.toUpperCase() !== 'CW' && !ssbOnly ? ' ' + esc(s.mode) : '') +
         (s.run != null ? ' R' + s.run + '%' + (s.rec ? '*' : '') : '') +
         (s.hours != null ? ' ~' + Math.round(s.hours) + 'h' : '') +
         '</span> <span>' +
@@ -1196,6 +1200,12 @@ open: QSOs and how many came <b>from POUNCer</b> (you tapped that call on that b
 15 minutes before logging it), multipliers and how many came from spots, rate on the
 air, best 60 minutes, a per-band table, rate per hour and the list of multipliers you
 worked from spots. POUNCer keeps the taps in <code>cache\\taps.jsonl</code> (14 days).</p>
+
+<h2>SSB</h2>
+<p>RBN has no SSB, so on SSB the spots come from a <b>DX cluster</b> (human spots, only from
+spotters in Europe). The list follows the radio: radio on USB / LSB = SSB spots, on CW =
+the RBN CW spots - per radio (A / B). On SSB the WPM keys are hidden. Settings: <b>SSB</b>
+on the Settings page.</p>
 
 <h2>Settings</h2>
 <p><b>Settings</b> in the band menu (or the <b>Settings</b> button in the main window): the

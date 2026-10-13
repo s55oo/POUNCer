@@ -114,6 +114,16 @@ class Config:
     fade_minutes: int = 5  # phone: tile fades when not re-spotted this long
     trigger: str = "single"
 
+    # SSB: human DX-cluster spots (RBN has no SSB) - auto = when a radio is
+    # on USB/LSB (and on a team master), always, off
+    ssb_mode: str = "auto"
+    ssb_host: str = "azure.s53m.com"
+    ssb_port: int = 8000
+    ssb_spotters: str = "EU"     # spotter continent (EU, NA, ... or ALL)
+    ssb_history: int = 30
+    ssb_login: str = ""          # empty = the RBN callsign
+    ssb_commands: tuple = ()
+    follow_radio_mode: bool = True   # radio on USB/LSB -> SSB spots, CW -> CW
     web_enabled: bool = True
     web_remote_settings: bool = False  # settings page: change from other devices too
     config_path: str = ""              # the config.ini that was read (settings page writes it)
@@ -225,6 +235,15 @@ def load_config(path: str) -> Config:
         s("ui", "fkeys", s("web", "fkeys", ",".join(f"{k}:{v}" for k, v in cfg.fkeys)))
     )
 
+    sm = s("ssb", "mode", cfg.ssb_mode).strip().lower()
+    cfg.ssb_mode = sm if sm in ("auto", "always", "off") else "auto"
+    cfg.ssb_host = s("ssb", "host", cfg.ssb_host).strip()
+    cfg.ssb_port = i("ssb", "port", cfg.ssb_port)
+    cfg.ssb_spotters = s("ssb", "spotters", cfg.ssb_spotters).strip().upper() or "EU"
+    cfg.ssb_history = max(0, i("ssb", "history", cfg.ssb_history))
+    cfg.ssb_login = s("ssb", "login", "").strip()
+    cfg.ssb_commands = tuple(c.strip() for c in s("ssb", "commands", "").split(",") if c.strip())
+    cfg.follow_radio_mode = b("ssb", "follow_radio_mode", cfg.follow_radio_mode)
     cfg.web_enabled = b("web", "enabled", cfg.web_enabled)
     cfg.web_remote_settings = b("web", "remote_settings", cfg.web_remote_settings)
     cfg.web_host = s("web", "host", cfg.web_host).strip()

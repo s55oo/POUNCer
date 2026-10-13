@@ -242,5 +242,74 @@ class BackupServerTests(unittest.TestCase):
         self.assertEqual(rbn_light("logged in as S55OO", None, "solo"), (OK, "RBN"))
 
 
+class SsbClusterTests(unittest.TestCase):
+    def test_parse_human_spot_and_guess_mode(self) -> None:
+        from pouncer.rbn import guess_mode, parse_cluster_spot
+        s = parse_cluster_spot("DX de S50ABC:     14205.0  K1ABC        59 tnx QSO                 1200Z JN76")
+        self.assertEqual((s.spotter, s.freq_khz, s.dxcall, s.mode, s.time_utc),
+                         ("S50ABC", 14205.0, "K1ABC", "SSB", "1200Z"))
+        s = parse_cluster_spot("DX de DL1XX-#:   14025.0  W1AW         CW 22 dB 25 WPM CQ          1201Z")
+        self.assertEqual(s.mode, "CW")
+        self.assertEqual(guess_mode(7012.0), "CW")
+        self.assertEqual(guess_mode(7150.0), "SSB")
+        self.assertEqual(guess_mode(14074.0, "FT8 -12dB"), "FT8")
+        self.assertEqual(guess_mode(14020.0, "lsb up 5"), "SSB")       # the comment wins
+        self.assertIsNone(parse_cluster_spot("S55OO de S53M-8 >"))
+
+    def test_continent_filter(self) -> None:
+        from pouncer.rbn import ContinentFilter
+        cont = {"S50ABC": "EU", "K1TTT": "NA"}.get
+        f = ContinentFilter(cont, lambda: "EU", "EU")
+        self.assertTrue(f.accept("S50ABC-2"))
+        self.assertFalse(f.accept("K1TTT"))
+        self.assertTrue(ContinentFilter(cont, lambda: "EU", "ALL").accept("K1TTT"))
+
+    def test_cluster_client_keeps_eu_ssb_spots_only(self) -> None:
+        import queue
+        import socket
+        import threading
+        import time as _t
+        from pouncer.rbn import ContinentFilter, RBNClient
+        srv = socket.socket()
+        srv.bind(("127.0.0.1", 0))
+        srv.listen(1)
+        cmds = []
+
+        def server():
+            c, _ = srv.accept()
+            c.sendall(b"login: \r\nPlease enter your call: ")
+            buf = b""
+            while b"sh/dx" not in buf:
+                data = c.recv(1024)
+                if not data:
+                    return
+                buf += data
+            cmds.append(buf.decode())
+            c.sendall(b"DX de S50ABC:     14205.0  K1ABC        59 tnx QSO      1200Z\r\n"
+                      b"DX de K1TTT:      14210.0  W1AW         loud in NA      1200Z\r\n"
+                      b"DX de S51XX:      14020.0  OK1RR        cw              1200Z\r\n")
+            _t.sleep(1)
+            c.close()
+
+        th = threading.Thread(target=server, daemon=True)
+        th.start()
+        q = queue.Queue()
+        cont = {"S50ABC": "EU", "K1TTT": "NA", "S51XX": "EU"}.get
+        client = RBNClient("127.0.0.1", srv.getsockname()[1], "S55OO",
+                           ContinentFilter(cont, lambda: "EU", "EU"), q, history=30,
+                           kind="cluster", modes=("SSB",))
+        client.backup_commands = ("set/nobeep",)
+        client.start()
+        th.join(15)
+        client.stop()
+        srv.close()
+        self.assertIn("set/nobeep", cmds[0])
+        self.assertIn("sh/dx/30", cmds[0])
+        got = []
+        while not q.empty():
+            got.append(q.get())
+        self.assertEqual([(s.dxcall, s.mode) for s in got], [("K1ABC", "SSB")])
+
+
 if __name__ == "__main__":
     unittest.main()
