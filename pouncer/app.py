@@ -160,17 +160,20 @@ class PouncerApp:
         self.web: WebServer | None = None
         self.web_url = ""
         self._web_addr_checked = 0.0
-        self._band_memory: dict[str, float] = {}
+        self._band_memory: dict[tuple[int, str], float] = {}  # (radio, band) -> kHz
+        # SO2R: radio the main window acts on / follows (1 = A, 2 = B); the
+        # phone page sends its own choice with every request.
+        self.radio = config.default_radio
         self._last_radio_khz: float | None = None
         # Calls removed from the list by hand (long-press on the phone page),
         # per band; they stay hidden until POUNCer restarts.
         self._removed: set[tuple[str, str]] = set()
-        self._tune_target: float | None = None  # last -/+ step we sent
-        self._tune_time = 0.0  # last radio kHz per band
+        # last -/+ step sent, per radio: radio -> (target kHz, time)
+        self._tune_last: dict[int, tuple[float, float]] = {}
         # RX filter width POUNCer last set via Alt+' (None = unknown)
         self._filter_width: str | None = config.filter_start or None
         self._web_queue: "queue.Queue[tuple]" = queue.Queue()
-        self._web_cache: dict = {}
+        self._web_cache: dict[int, dict] = {}  # radio -> phone payload
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -225,6 +228,10 @@ class PouncerApp:
         flow.add(ttk.Button(flow, text="Clear spots", command=self._clear_spots), gap=12)
         flow.add(ttk.Button(flow, text="Reconnect log", command=self._reconnect_log))
         flow.add(ttk.Button(flow, text="Open in browser", command=self._open_browser))
+        # SO2R: which radio (N1MM Entry Window A / B) clicks, F-keys and the
+        # band follow go to; with one radio only A is used.
+        self.radio_btn = flow.add(ttk.Button(flow, text=self._radio_btn_text(),
+                                             command=self._toggle_radio), gap=12)
 
         # Function keys: always ONE row of equal buttons that share the width
         # (they get narrower with the window instead of wrapping).
@@ -420,8 +427,14 @@ class PouncerApp:
             return
         self._act_on_spot(spot)
 
-    def _act_on_spot(self, spot: Spot) -> None:
-        hwnd = self.state.entry_window_hwnd()
+    def _radio_nr(self, radio: int | None = None) -> int:
+        """N1MM radio number for a request: the chosen radio (A = 1, B = 2)
+        if N1MM reports it, else the active one (SO1R: always the one radio)."""
+        return self.state.active_radio_nr(radio or self.radio)
+
+    def _act_on_spot(self, spot: Spot, radio: int | None = None) -> None:
+        nr = self._radio_nr(radio)
+        hwnd = self.state.entry_window_hwnd(nr)  # that radio's Entry Window (A / B)
         focused = False
         if self.cfg.focus_n1mm and hwnd:
             focused = force_foreground(hwnd)
@@ -429,12 +442,12 @@ class PouncerApp:
                 time.sleep(0.15)
 
         try:
-            self.controller.set_frequency(spot.freq_khz)
+            self.controller.set_frequency(spot.freq_khz, radio_nr=nr)
         except OSError as exc:
             self.status_label.configure(text=f"N1MM QSY failed: {exc}")
             return
 
-        msg = f"QSY {spot.freq_khz:.1f} kHz -> {spot.dxcall}"
+        msg = f"QSY {self._radio_tag(nr)}{spot.freq_khz:.1f} kHz -> {spot.dxcall}"
         if self.set_call_var.get():
             can_type = focused or not self.cfg.focus_n1mm
             if can_type:
@@ -444,7 +457,6 @@ class PouncerApp:
                 if self.cfg.wipe_before_call:
                     # N1MM's own wipe ({WIPE} macro via its UDP command port,
                     # works whatever has the keyboard), plus Alt+W as backup
-                    nr = self.state.active_radio_nr()
                     try:
                         self.controller.send_radio_command("{WIPE}", nr, hwnd)
                     except OSError:
@@ -480,21 +492,28 @@ class PouncerApp:
             self._dirty = False
         self._drain_web()
         if self.web is not None:
-            self._web_cache = self._build_web_payload()
+            # one payload per radio: each phone shows its own radio's band
+            radios = set(self.state.radio_numbers()) | {1, self.radio}
+            self._web_cache = {r: self._build_web_payload(r) for r in sorted(radios)}
             # ZeroTier can come up after POUNCer starts: re-check every minute.
             if time.time() - self._web_addr_checked >= 60:
                 self._refresh_web_address()
         self.root.after(REFRESH_MS, self._tick)
 
-    def _build_web_payload(self) -> dict:
+    def _build_web_payload(self, radio: int | None = None) -> dict:
+        radio = radio or self.radio
         spots = sorted(
-            self._visible_spots(),
+            self._visible_spots(radio),
             key=lambda s: s.snr if s.snr is not None else -999,
             reverse=True,
         )[:WEB_MAX_SPOTS]
         return {
-            "band": self._current_band(),
-            "freq": self._radio_khz(),
+            "band": self._current_band(radio),
+            "freq": self._radio_khz(radio),
+            # SO2R: radio this payload is for (1 = A, 2 = B) and the radios
+            # N1MM reports - the page shows its A / B switch with two
+            "radio": radio,
+            "radios": self.state.radio_numbers(),
             "home_cont": self.home_cont,
             "station": self.own_call(),
             "team": self._team_text(),
@@ -542,23 +561,24 @@ class PouncerApp:
             ],
         }
 
-    def _web_spots(self) -> dict:
-        return self._web_cache
+    def _web_spots(self, radio: int | None = None) -> dict:
+        cache = self._web_cache
+        return cache.get(radio or self.radio) or cache.get(self.radio) or cache.get(1) or {}
 
-    def _web_qsy(self, call: str, freq: float, mode: str) -> None:
-        self._web_queue.put(("qsy", call, float(freq), mode))
+    def _web_qsy(self, call: str, freq: float, mode: str, radio: int | None = None) -> None:
+        self._web_queue.put(("qsy", call, float(freq), mode, radio))
 
-    def _web_key(self, key: str) -> None:
-        self._web_queue.put(("key", key))
+    def _web_key(self, key: str, radio: int | None = None) -> None:
+        self._web_queue.put(("key", key, radio))
 
     def _web_reconnect(self) -> None:
         self._web_queue.put(("reconnect",))
 
-    def _web_band(self, band: str) -> None:
-        self._web_queue.put(("band", band))
+    def _web_band(self, band: str, radio: int | None = None) -> None:
+        self._web_queue.put(("band", band, radio))
 
-    def _web_tune(self, hz: int) -> None:
-        self._web_queue.put(("tune", int(hz)))
+    def _web_tune(self, hz: int, radio: int | None = None) -> None:
+        self._web_queue.put(("tune", int(hz), radio))
 
     def _web_filter(self, width: str, fix: bool) -> None:
         self._web_queue.put(("filter", width, bool(fix)))
@@ -573,7 +593,7 @@ class PouncerApp:
             except queue.Empty:
                 return
             if item[0] == "key":
-                self._press_key(item[1])
+                self._press_key(item[1], item[2])
                 continue
             if item[0] == "clear":
                 if item[1]:
@@ -585,10 +605,10 @@ class PouncerApp:
                 self._reconnect_log()
                 continue
             if item[0] == "band":
-                self._qsy_band(item[1])
+                self._qsy_band(item[1], item[2])
                 continue
             if item[0] == "tune":
-                self._tune(item[1])
+                self._tune(item[1], item[2])
                 continue
             if item[0] == "filter":
                 self._set_filter(item[1], item[2])
@@ -596,11 +616,11 @@ class PouncerApp:
             if item[0] == "hide":
                 self._set_removed(item[1], item[2], item[3])
                 continue
-            _, call, freq, mode = item
+            _, call, freq, mode, radio = item
             spot = Spot(dxcall=call, freq_khz=freq, mode=mode or "CW",
                         snr=None, wpm=None, spot_type="", spotter="",
                         time_utc="", received=time.time())
-            self._act_on_spot(spot)
+            self._act_on_spot(spot, radio)
 
     @staticmethod
     def _key_text(key: str, label: str, sep: str) -> str:
@@ -610,18 +630,40 @@ class PouncerApp:
             return f"{big}{sep}{label}"
         return big
 
+    def _radio_btn_text(self) -> str:
+        return f"Radio {'AB'[self.radio - 1]} (A/B)"
+
+    def _toggle_radio(self) -> None:
+        """Main window A / B button: act on / follow the other radio."""
+        self.radio = 2 if self.radio == 1 else 1
+        self.radio_btn.configure(text=self._radio_btn_text())
+        self._dirty = True
+        note = "" if self.radio in self.state.radio_numbers() or not self.state.radio_numbers() \
+            else " - N1MM reports no radio B (SO1R): radio A is used"
+        self.status_label.configure(
+            text=f"Radio {'AB'[self.radio - 1]}: clicks, F-keys and band follow go to "
+                 f"N1MM Entry Window {'AB'[self.radio - 1]}{note}")
+
+    def _radio_tag(self, nr: int) -> str:
+        """'B: ' when two radios are in use, '' with one (SO1R)."""
+        return f"{'AB'[nr - 1] if nr in (1, 2) else nr}: " if self._so2r() else ""
+
+    def _so2r(self) -> bool:
+        return len(self.state.radio_numbers()) > 1
+
     def _forward_key(self, key: str) -> str:
         """A function key pressed on the keyboard in POUNCer: pass it to N1MM."""
         self._press_key(key)
         return "break"  # Tk does nothing else with it (F10 = no menu)
 
-    def _press_key(self, key: str) -> None:
+    def _press_key(self, key: str, radio: int | None = None) -> None:
         """A TX / log button was pressed: focus N1MM, then send the key.
 
         ``key`` is ``F1``-``F12`` (function-key message; transmits) or
-        ``Enter`` (logs the QSO in N1MM; does not transmit).
+        ``Enter`` (logs the QSO in N1MM; does not transmit). The key goes
+        to the chosen radio's Entry Window (A / B).
         """
-        hwnd = self.state.entry_window_hwnd()
+        hwnd = self.state.entry_window_hwnd(self._radio_nr(radio))
         focused = False
         if self.cfg.focus_n1mm and hwnd:
             focused = force_foreground(hwnd)
@@ -841,21 +883,21 @@ class PouncerApp:
         cont = self._continent(call)
         return cont is not None and cont != self.home_cont
 
-    def _tune(self, hz: int) -> None:
+    def _tune(self, hz: int, radio: int | None = None) -> None:
         """Footer -/+ buttons: move the VFO by hz via N1MM (no TX)."""
         now = time.time()
-        khz = next_tune_khz(
-            self._radio_khz(), self._tune_target, now - self._tune_time, hz,
-        )
+        nr = self._radio_nr(radio)
+        target, when = self._tune_last.get(nr, (None, 0.0))
+        khz = next_tune_khz(self._radio_khz(nr), target, now - when, hz)
         if khz is None:
             self.status_label.configure(text="Tune: no radio frequency from N1MM yet")
             return
         try:
-            self.controller.set_frequency(khz)
+            self.controller.set_frequency(khz, radio_nr=nr)
         except OSError as exc:
             self.status_label.configure(text=f"N1MM QSY failed: {exc}")
             return
-        self._tune_target, self._tune_time = khz, now
+        self._tune_last[nr] = (khz, now)
         self.status_label.configure(text=f"Tune {hz:+d} Hz -> {khz:.3f} kHz")
 
     def _filter_cat(self, width: str) -> str:
@@ -873,10 +915,10 @@ class PouncerApp:
         """
         cat = self._filter_cat(width)
         if cat:
-            nr = self.state.active_radio_nr()
+            nr = self._radio_nr()
             try:
                 self.controller.send_radio_command(
-                    cat_macro(cat, nr), nr, self.state.entry_window_hwnd()
+                    cat_macro(cat, nr), nr, self.state.entry_window_hwnd(nr)
                 )
             except OSError as exc:
                 self.status_label.configure(text=f"Filter: N1MM send failed: {exc}")
@@ -887,7 +929,7 @@ class PouncerApp:
         if not fix and width == self._filter_width:
             self.status_label.configure(text=f"Filter already {width}")
             return
-        hwnd = self.state.entry_window_hwnd()
+        hwnd = self.state.entry_window_hwnd(self._radio_nr())
         if self.cfg.focus_n1mm and hwnd and force_foreground(hwnd):
             time.sleep(0.15)
         if not send_filter_toggle():
@@ -915,40 +957,44 @@ class PouncerApp:
         self.status_label.configure(text=msg)
 
     def _remember_band_freq(self) -> None:
-        """Remember the radio's last frequency on each band (for band QSY)."""
-        snap = self.state.snapshot()
-        if snap and snap.get("freq_khz") and snap.get("band"):
-            self._band_memory[snap["band"]] = snap["freq_khz"]
+        """Remember each radio's last frequency on each band (for band QSY)."""
+        for nr in self.state.radio_numbers():
+            snap = self.state.snapshot(nr)
+            if snap and snap.get("freq_khz") and snap.get("band"):
+                self._band_memory[(nr, snap["band"])] = snap["freq_khz"]
 
-    def _qsy_band(self, band: str) -> None:
+    def _qsy_band(self, band: str, radio: int | None = None) -> None:
         """Band picker: QSY to the last frequency used on ``band`` (or a CW
         default). Only a frequency change - never transmits."""
         if band not in CONTEST_BANDS:
             self.status_label.configure(text=f"Unknown band: {band}")
             return
-        khz = self._band_memory.get(band, DEFAULT_BAND_KHZ[band])
+        nr = self._radio_nr(radio)
+        khz = self._band_memory.get((nr, band), DEFAULT_BAND_KHZ[band])
         try:
-            self.controller.set_frequency(khz)
+            self.controller.set_frequency(khz, radio_nr=nr)
         except OSError as exc:
             self.status_label.configure(text=f"N1MM QSY failed: {exc}")
             return
-        self.status_label.configure(text=f"Band {band}: QSY {khz:.1f} kHz")
+        self.status_label.configure(text=f"Band {band}: QSY {self._radio_tag(nr)}{khz:.1f} kHz")
 
-    def _radio_khz(self) -> float | None:
-        """The radio's current frequency in kHz (from N1MM RadioInfo)."""
-        snap = self.state.snapshot()
+    def _radio_khz(self, radio: int | None = None) -> float | None:
+        """The (chosen) radio's frequency in kHz (from N1MM RadioInfo)."""
+        snap = self.state.snapshot(radio or self.radio)
         return (snap or {}).get("freq_khz") or None
 
-    def _current_band(self) -> str | None:
-        snap = self.state.snapshot()
+    def _current_band(self, radio: int | None = None) -> str | None:
+        """Band of the chosen radio (A / B): the list follows that radio."""
+        snap = self.state.snapshot(radio or self.radio)
         return (snap or {}).get("band")
 
     def _update_labels(self) -> None:
-        snap = self.state.snapshot()
+        snap = self.state.snapshot(self.radio)
         if snap and snap.get("freq_khz"):
             self.n1mm_label.configure(
                 text=(
-                    f"N1MM: {snap['freq_khz']:.2f} kHz  "
+                    f"N1MM{' radio ' + 'AB'[self._radio_nr() - 1] if self._so2r() else ''}:"
+                    f" {snap['freq_khz']:.2f} kHz  "
                     f"{snap.get('band') or '?'}  {snap.get('mode') or ''}"
                     f"   (updated {snap['age']:.0f}s ago)"
                 )
@@ -1027,10 +1073,11 @@ class PouncerApp:
         self.root.update_idletasks()
         self.updater.restart(before_exit=self._shutdown)
 
-    def _visible_spots(self) -> list[Spot]:
-        """Spots matching the current band, modes and worked filter."""
-        band = self._current_band()
-        if band != self._last_band:
+    def _visible_spots(self, radio: int | None = None) -> list[Spot]:
+        """Spots matching the band of the radio (default: the main window's
+        A / B choice), modes and worked filter."""
+        band = self._current_band(radio)
+        if radio is None and band != self._last_band:
             self._last_band = band
         modes = {m.upper() for m in self.cfg.follow_modes}
         own = self.own_call()
@@ -1059,8 +1106,9 @@ class PouncerApp:
                 else:
                     kept.append(s)
             items = kept
-            self._worked_hidden = hidden
-        else:
+            if radio is None:
+                self._worked_hidden = hidden
+        elif radio is None:
             self._worked_hidden = 0
         return items
 

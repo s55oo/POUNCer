@@ -153,6 +153,22 @@ returns the active radio's info plus derived `band` and `age`.
 
 ---
 
+### SO2R / SO2V: radio A / B
+
+N1MM sends one `RadioInfo` per radio (`RadioNr` = the radio the packet is
+about), each with that radio's own `EntryWindowHwnd` (Entry Window A / B).
+`RadioState` keeps all of them; `snapshot(nr)`, `entry_window_hwnd(nr)`,
+`active_radio_nr(nr)` pick a radio (falling back to the active one if N1MM
+hasn't reported it - SO1R), `radio_numbers()` lists them. QSY:
+`set_frequency(khz, radio_nr=n)` sends `<radionr>n</radionr>` and mouse
+button `Right` for radio 2 (docs: "Left = Radio 1, Right = Radio 2" in
+SO2V/SO2R). App: `self.radio` (main window, `[n1mm] default_radio`, A/B
+button) and an optional `radio` on `_act_on_spot`, `_press_key`, `_tune`,
+`_qsy_band`, `_current_band`, `_radio_khz`, `_visible_spots`; the phone
+sends `?radio=1|2` with `/api/spots|qsy|key|band|tune` (`Handler._call`
+adds `radio=` only when given) and `_web_cache` holds one payload per
+radio (`radio`, `radios` in it).
+
 ## 6. Worked-call detection (`worked.py`)
 
 N1MM stores each log as a SQLite `.s3db` in `Documents\N1MM Logger+`. **One file

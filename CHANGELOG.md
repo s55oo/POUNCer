@@ -1,5 +1,22 @@
 # POUNCer — Changelog
 
+## v0.7.11 — 2026-10-13 — SO2R: radio A / B
+
+- **Radio A / B** for SO2R / SO2V. On the phone page a **Radio A / Radio B**
+  switch (under the frequency; only shown when N1MM reports two radios)
+  chooses which radio this phone works: spot taps (QSY + call), F-keys,
+  ENTER, −/+ Hz and the band menu go to that radio, and the list follows
+  **that radio's band**. Each phone remembers its own choice, so one phone
+  can work radio A and another radio B. Main window: **Radio A (A/B)**
+  button (clicks, keyboard F-keys and the table follow it).
+- How (per N1MM's UDP docs): QSY packet with `radionr` 2 and mouse button
+  **Right** for radio 2 ("Left = Radio 1, Right = Radio 2" in SO2V/SO2R);
+  typing and keys go to that radio's own Entry Window (`EntryWindowHwnd`
+  of its RadioInfo packet - N1MM sends one per radio), and the {WIPE}
+  command carries its RadioNr.
+- `[n1mm] default_radio = A` (or B) - the radio at start; empty = `radionr`.
+  With one radio only A is used, exactly as before.
+
 ## v0.7.10 — 2026-10-13 — function keys from the keyboard
 
 - Main window: pressing **F1-F12 on the keyboard** while POUNCer is the

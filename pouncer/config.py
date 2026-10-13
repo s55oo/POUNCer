@@ -66,6 +66,7 @@ class Config:
     n1mm_control_ip: str = "127.0.0.1"
     n1mm_control_port: int = 13064
     n1mm_radionr: int = 1
+    default_radio: int = 1  # SO2R: radio a tap goes to at start (1 = A, 2 = B)
     set_callsign: bool = True
     wipe_before_call: bool = True
     focus_n1mm: bool = True
@@ -106,6 +107,16 @@ class Config:
     web_host: str = "0.0.0.0"
     web_port: int = 8080
     touch_view: bool = False  # open the phone page in the default browser at start
+
+
+def parse_radio(text: str, fallback: int = 1) -> int:
+    """"A" / "1" -> 1, "B" / "2" -> 2; anything else -> fallback (radionr)."""
+    t = (text or "").strip().upper()
+    if t in ("A", "1"):
+        return 1
+    if t in ("B", "2"):
+        return 2
+    return 2 if fallback == 2 else 1
 
 
 def load_config(path: str) -> Config:
@@ -151,6 +162,7 @@ def load_config(path: str) -> Config:
     cfg.n1mm_control_ip = s("n1mm", "control_ip", cfg.n1mm_control_ip)
     cfg.n1mm_control_port = i("n1mm", "control_port", cfg.n1mm_control_port)
     cfg.n1mm_radionr = i("n1mm", "radionr", cfg.n1mm_radionr)
+    cfg.default_radio = parse_radio(s("n1mm", "default_radio", ""), cfg.n1mm_radionr)
     cfg.set_callsign = b("n1mm", "set_callsign", cfg.set_callsign)
     cfg.wipe_before_call = b("n1mm", "wipe_before_call", cfg.wipe_before_call)
     cfg.focus_n1mm = b("n1mm", "focus_n1mm", cfg.focus_n1mm)
