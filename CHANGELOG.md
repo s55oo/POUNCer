@@ -1,5 +1,17 @@
 # POUNCer — Changelog
 
+## v0.7.21 — 2026-10-13 — call typed reliably after the QSY
+
+- **Fix: sometimes the frequency changed but the call didn't arrive in
+  the Entry Window.** POUNCer typed the call after fixed short pauses; when
+  N1MM / the radio took longer, N1MM's own "clear the call on QSY" wiped it
+  again. Now POUNCer **waits until N1MM reports the radio on the new
+  frequency** (max `qsy_wait_ms` = 1500), waits `qsy_settle_ms` (250) more,
+  then wipes and types the call - and afterwards **reads the callsign box**
+  and types the call once more if it isn't there ("[call typed again]" in
+  the status line).
+- `[n1mm] qsy_wait_ms`, `qsy_settle_ms` in config.ini.
+
 ## v0.7.20 — 2026-10-13 — click the Update light to check now
 
 - Main window: the **Update** light ("Up to date (0.7.20) ↻") is clickable -
