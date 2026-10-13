@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## v0.7.18 — 2026-10-13 — SO2R: radio B really QSYs
+
+- **Fix: a tap with radio B chosen put the call into Entry Window B but
+  moved radio A.** N1MM's UDP QSY command (radio 2) moved radio A in SO2R.
+  Radio B is now QSYed like by hand: POUNCer brings Entry Window B to the
+  front, types the frequency in kHz (e.g. `14025.3`) into it and presses
+  Enter - N1MM tunes radio B, no transmit - then wipes it and types the
+  call. Same for −/+ Hz on B. Radio A unchanged (UDP command).
+- `[n1mm] radio_b_qsy = type` (default) or `udp` (the old way).
+
 ## v0.7.17 — 2026-10-13 — one band menu for the A / B radio
 
 - Phone band menu: **one row of bands (160-10 m)** again, for the radio

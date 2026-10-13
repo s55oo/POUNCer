@@ -450,10 +450,7 @@ class PouncerApp:
             if focused:
                 time.sleep(0.15)
 
-        try:
-            self.controller.set_frequency(spot.freq_khz, radio_nr=nr)
-        except OSError as exc:
-            self.status_label.configure(text=f"N1MM QSY failed: {exc}")
+        if not self._qsy(nr, spot.freq_khz, hwnd, focused):
             return
         self.taps.record(spot.dxcall, spot.freq_khz)   # for the contest summary
 
@@ -928,6 +925,33 @@ class PouncerApp:
         cont = self._continent(call)
         return cont is not None and cont != self.home_cont
 
+    def _types_qsy(self, nr: int) -> bool:
+        """SO2R radio B: QSY by typing the frequency into Entry Window B
+        (N1MM's UDP QSY command moved radio A there)."""
+        return nr == 2 and self._so2r() and getattr(self.cfg, "radio_b_qsy", "type") == "type"
+
+    def _qsy(self, nr: int, khz: float, hwnd, focused: bool) -> bool:
+        """QSY radio ``nr``. Radio A: N1MM's UDP command. SO2R radio B: type
+        the frequency in kHz into its Entry Window and press Enter - N1MM
+        then tunes the radio of that window (no transmit). False = failed
+        (status line says why)."""
+        if self._types_qsy(nr):
+            if not (hwnd and focused):
+                self.status_label.configure(
+                    text="QSY B failed: Entry Window B not in front (N1MM focus failed)")
+                return False
+            clear_focused_edit(hwnd)
+            type_text(f"{khz:.3f}".rstrip("0").rstrip("."))   # e.g. 14025.3
+            send_enter()
+            time.sleep(0.3)   # let N1MM tune and clear the box before the call
+            return True
+        try:
+            self.controller.set_frequency(khz, radio_nr=nr)
+        except OSError as exc:
+            self.status_label.configure(text=f"N1MM QSY failed: {exc}")
+            return False
+        return True
+
     def _focus_radio(self, nr: int) -> bool:
         """SO2R: bring that radio's Entry Window (A / B) to the front before a
         QSY - like a spot tap does. With one radio nothing is needed (keeps
@@ -949,11 +973,8 @@ class PouncerApp:
         if khz is None:
             self.status_label.configure(text="Tune: no radio frequency from N1MM yet")
             return
-        self._focus_radio(nr)
-        try:
-            self.controller.set_frequency(khz, radio_nr=nr)
-        except OSError as exc:
-            self.status_label.configure(text=f"N1MM QSY failed: {exc}")
+        focused = self._focus_radio(nr)
+        if not self._qsy(nr, khz, self.state.entry_window_hwnd(nr), focused):
             return
         self._tune_last[nr] = (khz, now)
         self.status_label.configure(text=f"Tune {hz:+d} Hz -> {khz:.3f} kHz")
@@ -1029,11 +1050,8 @@ class PouncerApp:
             return
         nr = self._radio_nr(radio)
         khz = self._band_memory.get((nr, band), DEFAULT_BAND_KHZ[band])
-        self._focus_radio(nr)   # SO2R: N1MM QSYs the radio whose window has focus
-        try:
-            self.controller.set_frequency(khz, radio_nr=nr)
-        except OSError as exc:
-            self.status_label.configure(text=f"N1MM QSY failed: {exc}")
+        focused = self._focus_radio(nr)
+        if not self._qsy(nr, khz, self.state.entry_window_hwnd(nr), focused):
             return
         self.status_label.configure(text=f"Band {band}: QSY {self._radio_tag(nr)}{khz:.1f} kHz")
 
