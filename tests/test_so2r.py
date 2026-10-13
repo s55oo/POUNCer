@@ -289,6 +289,23 @@ class AppRadioTests(unittest.TestCase):
         self.assertEqual(focused, [2222, 2222])
         self.assertEqual(typed, ["14020", "7012.05"])           # typed into Entry Window B
 
+    def test_ssb_radio_shows_ssb_spots(self) -> None:
+        # radio B on USB -> its list is SSB (cluster) spots, radio A stays CW
+        app = _import_app()
+        f = self._fake(app, radio=1)
+        f.cfg.follow_radio_mode, f.cfg.follow_modes = True, ("CW",)
+        for name in ("_phone_radio", "_effective_modes"):
+            setattr(f, name, getattr(app.PouncerApp, name).__get__(f))
+        info = radio_info(2, 14205.0, 2222)
+        info["mode"] = "USB"
+        f.state.update(info)
+        self.assertEqual(f._effective_modes(2), ("SSB",))
+        self.assertEqual(f._effective_modes(1), ("CW",))
+        f.radio = 2
+        self.assertEqual(f._effective_modes(), ("SSB",))       # main window on B
+        f.cfg.follow_radio_mode = False
+        self.assertEqual(f._effective_modes(2), ("CW",))
+
     def test_band_follows_chosen_radio(self) -> None:
         app = _import_app()
         f = self._fake(app, radio=1)

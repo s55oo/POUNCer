@@ -200,6 +200,80 @@ def parse_history(line: str, now: float | None = None) -> Spot | None:
                 received=min(float(t), now))
 
 
+# Phone (SSB) segments, kHz (IARU Region 1 band plan, contest practice).
+SSB_SEGMENTS = (
+    (1840, 2000), (3600, 3800), (7060, 7200), (14100, 14350),
+    (18110, 18168), (21150, 21450), (24930, 24990), (28300, 29000), (50100, 50500),
+)
+_MODE_WORDS = {"SSB": "SSB", "USB": "SSB", "LSB": "SSB", "PH": "SSB", "PHONE": "SSB",
+               "CW": "CW", "RTTY": "RTTY", "FT8": "FT8", "FT4": "FT4"}
+
+
+def is_phone_freq(khz: float) -> bool:
+    return any(lo <= khz <= hi for lo, hi in SSB_SEGMENTS)
+
+
+def guess_mode(freq_khz: float, comment: str = "") -> str:
+    """Mode of a human cluster spot: a mode word in the comment, else the
+    band plan (phone segment = SSB, below it = CW)."""
+    for word in comment.upper().replace(",", " ").split():
+        if word in _MODE_WORDS:
+            return _MODE_WORDS[word]
+    if is_phone_freq(freq_khz):
+        return "SSB"
+    return "CW"
+
+
+def parse_cluster_spot(line: str) -> Spot | None:
+    """A human DX-cluster spot, e.g.
+    ``DX de S50ABC:   14205.0  K1ABC   59 tnx QSO   1200Z JN76``
+    (no mode column - guessed from the comment / band plan)."""
+    line = line.rstrip("\r\n")
+    if not line.startswith("DX de"):
+        return None
+    head, _, rest = line[5:].partition(":")
+    spotter = head.strip()
+    tok = rest.split()
+    if not spotter or len(tok) < 2:
+        return None
+    try:
+        freq = float(tok[0])
+    except ValueError:
+        return None
+    dxcall = tok[1]
+    comment = tok[2:]
+    time_utc = ""
+    for idx in range(len(comment) - 1, -1, -1):
+        w = comment[idx]
+        if len(w) == 5 and w.endswith("Z") and w[:4].isdigit():
+            time_utc = w
+            comment = comment[:idx]
+            break
+    text = " ".join(comment)
+    return Spot(dxcall=dxcall, freq_khz=freq, mode=guess_mode(freq, text), snr=None,
+                wpm=None, spot_type="", spotter=spotter, time_utc=time_utc,
+                received=time.time())
+
+
+class ContinentFilter:
+    """Human cluster spots: keep spotters on our continent (or all)."""
+
+    def __init__(self, continent_of=None, home_cont=None, wanted: str = "EU") -> None:
+        self.continent_of = continent_of
+        self.home_cont = home_cont or (lambda: "EU")
+        self.wanted = (wanted or "").strip().upper()
+        self.primary = ""
+
+    def accept(self, spotter: str) -> bool:
+        if self.wanted in ("", "ALL", "*"):
+            return True
+        if self.continent_of is None:
+            return True
+        base = (spotter or "").upper().split("-")[0]
+        want = self.home_cont() if self.wanted in ("HOME", "OWN") else self.wanted
+        return self.continent_of(base) == want
+
+
 class SpotterFilter:
     """Which skimmers' spots to keep: the chosen one (S53WW) and, while it has
     been quiet for ``quiet_s`` (offline?), backup skimmers - the listed
@@ -256,6 +330,9 @@ class RBNClient(threading.Thread):
         backup_commands: Iterable[str] = (),
         silent_s: float = 120,
         retry_primary_s: float = 600,
+        kind: str = "rbn",
+        modes: Iterable[str] = (),
+        name: str = "rbn",
     ) -> None:
         super().__init__(daemon=True, name="rbn")
         # Backup telnet server (a DX cluster passing on the RBN skimmer
@@ -268,6 +345,11 @@ class RBNClient(threading.Thread):
         self.retry_primary_s = retry_primary_s
         self.on_backup = False
         self._last_dx = time.monotonic()
+        self._login_at = 0.0
+        # "cluster": human DX-cluster spots (SSB); only ``modes`` are kept
+        self.kind = kind
+        self.modes = {m.upper() for m in modes}
+        self.name = name
         # after login ask for the last spots (SH/DX), so the list isn't empty
         self.history = max(0, int(history or 0))
         self.host = host
@@ -355,14 +437,14 @@ class RBNClient(threading.Thread):
         hist_step = 0           # 0: filtered on our skimmer, 1: plain, 2: done
         started = time.monotonic()
         self._last_dx = started
-        cmds_sent = not backup
+        cmds_sent = not (backup or self.kind == "cluster")
         while not self._stop.is_set():
             now = time.monotonic()
             if backup and now - started > self.retry_primary_s:
                 raise _BackToPrimary()
             if not backup and self.backup and logged_in and now - self._last_dx > self.silent_s:
                 raise ConnectionError(f"RBN sent no spots for {int(self.silent_s)} s")
-            if logged_in and not cmds_sent and now > login_deadline + 1:
+            if logged_in and not cmds_sent and now > self._login_at + 1:
                 for cmd in self.backup_commands:     # e.g. set/skimmer
                     try:
                         sock.sendall((cmd.strip() + "\r\n").encode("ascii", "ignore"))
@@ -411,12 +493,19 @@ class RBNClient(threading.Thread):
                 line = line[at:]
             if line.startswith("DX de"):
                 self._last_dx = time.monotonic()   # the feed is alive
-            spot = parse_spot(line)
+            if self.kind == "cluster":
+                spot = parse_cluster_spot(line)
+            else:
+                spot = parse_spot(line)
             if spot is None:
                 spot = parse_history(line)
                 if spot is None:
                     continue
                 self._history_lines += 1
+                if self.kind == "cluster":
+                    spot.mode = guess_mode(spot.freq_khz, spot.mode)
+            if self.modes and spot.mode.upper() not in self.modes:
+                continue
             if hasattr(self.spotter_filter, "accept"):
                 if not self.spotter_filter.accept(spot.spotter):
                     continue
@@ -448,6 +537,7 @@ class RBNClient(threading.Thread):
             log.warning("RBN %s failed: %s", cmd, exc)
 
     def _send_login(self, sock: socket.socket) -> None:
+        self._login_at = time.monotonic()
         if not self.callsign:
             self._status("no callsign: set [rbn] callsign in config.ini")
             return

@@ -56,6 +56,20 @@ def team_light(role: str, pouncers: int,
     return OFF, "Team off"
 
 
+def ssb_light(status: str, role: str = "solo") -> tuple[str, str]:
+    """SSB: the DX cluster for human spots (only while needed)."""
+    if role == "slave":
+        return OK, "SSB via master"
+    s = (status or "").lower()
+    if s in ("", "off"):
+        return OFF, "SSB off"
+    if s.startswith("logged in"):
+        return OK, "SSB cluster"
+    if s.startswith(("connecting", "starting")):
+        return WAIT, "SSB cluster"
+    return BAD, "SSB cluster"
+
+
 def web_light(enabled: bool, running: bool) -> tuple[str, str]:
     if not enabled:
         return OFF, "Phone off"

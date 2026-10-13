@@ -18,7 +18,9 @@ from .cty import Entity, load_cty, wpx_prefix
 from .n1mm import (
     N1MMController, RadioListener, RadioState, cat_macro, next_tune_khz,
 )
-from .rbn import OnFreqTracker, RBNClient, Spot, SpotterFilter, is_beacon, ports_for_modes
+from .rbn import (
+    ContinentFilter, OnFreqTracker, RBNClient, Spot, SpotterFilter, is_beacon, ports_for_modes,
+)
 from .runhist import RARE_HOURS, RARE_RUN_PCT, RunHistory
 from . import summary as summarymod
 from .diag import DiagLog
@@ -164,6 +166,10 @@ class PouncerApp:
         self.sort_col = config.sort if config.sort in self.columns else "snr"
         self.sort_reverse = self.sort_col == "snr"
         self.rbn_status = "starting"
+        self.ssb_status = "off"
+        self._ssb_status_q: "queue.Queue[str]" = queue.Queue()
+        self._ssb_client = None
+        self._ssb_last_needed = 0.0
         self.team: Team | None = None  # other POUNCers on the network
         self._team_queue: "queue.Queue[Spot]" = queue.Queue(maxsize=5000)
         self._last_own_spot = 0.0
@@ -416,7 +422,68 @@ class PouncerApp:
             self.cfg.follow_modes, self.cfg.rbn_port, self.cfg.rbn_ft8_port
         )
 
+    def _phone_radio(self, radio: int | None = None) -> bool:
+        """This radio is on USB / LSB / SSB (N1MM RadioInfo mode)."""
+        snap = self.state.snapshot(radio) if radio is not None or self.state.radio_numbers() else None
+        return bool(snap) and (snap.get("mode") or "").upper() in ("USB", "LSB", "SSB", "AM", "FM")
+
+    def _effective_modes(self, radio: int | None = None) -> tuple[str, ...]:
+        """Modes of the spots to show for a radio: SSB while it is on
+        USB / LSB (follow_radio_mode), else the configured ones (CW)."""
+        r = radio or getattr(self, "radio", None)
+        if getattr(self.cfg, "follow_radio_mode", False) and self._phone_radio(r):
+            return ("SSB",)
+        return tuple(self.cfg.follow_modes)
+
+    def _ssb_wanted(self) -> bool:
+        mode = getattr(self.cfg, "ssb_mode", "off")
+        if mode == "off" or not getattr(self.cfg, "ssb_host", ""):
+            return False
+        if self.team is not None and (time.time() - self.team.started < 3
+                                      or self.team.role() == "slave"):
+            return False            # the master passes SSB spots on
+        if mode == "always":
+            return True
+        if any(self._phone_radio(nr) for nr in self.state.radio_numbers()):
+            self._ssb_last_needed = time.time()
+            return True
+        if self.team is not None and self.team.role() == "master":
+            return True             # for the team's SSB stations
+        # keep it a while after the radio went back to CW
+        return time.time() - getattr(self, "_ssb_last_needed", 0) < 15 * 60
+
+    def _ensure_ssb_client(self) -> None:
+        want = self._ssb_wanted()
+        client = getattr(self, "_ssb_client", None)
+        if client is not None and not want:
+            client.stop()
+            self._ssb_client = None
+            self.ssb_status = "off"
+            self.diag.event("SSB", "cluster stopped")
+            return
+        if client is None and want:
+            self._ssb_client = RBNClient(
+                self.cfg.ssb_host, self.cfg.ssb_port,
+                self.cfg.ssb_login or self.cfg.rbn_callsign,
+                ContinentFilter(lambda call: self._continent(call), lambda: self.home_cont,
+                                self.cfg.ssb_spotters),
+                self.spot_queue,
+                on_status=self._ssb_status_put,
+                history=self.cfg.ssb_history,
+                backup_commands=self.cfg.ssb_commands,
+                kind="cluster", modes=("SSB",), name="ssb",
+            )
+            # cluster commands are sent like the backup's (after login)
+            self._ssb_client.backup_commands = tuple(self.cfg.ssb_commands)
+            self._ssb_client.start()
+            self.diag.event("SSB", f"cluster {self.cfg.ssb_host}:{self.cfg.ssb_port} started")
+            log.info("SSB cluster client started on %s:%s", self.cfg.ssb_host, self.cfg.ssb_port)
+
+    def _ssb_status_put(self, text: str) -> None:
+        self._ssb_status_q.put(text)
+
     def _ensure_rbn_clients(self) -> None:
+        self._ensure_ssb_client()
         desired = self._desired_rbn_ports()
         if self.team is not None:
             # Team: only the master talks to RBN; give discovery 3 s at start
@@ -693,7 +760,7 @@ class PouncerApp:
                 "cat" if self.cfg.filter_narrow_cat and self.cfg.filter_wide_cat
                 else "toggle"
             ),
-            "modes": list(self.cfg.follow_modes),
+            "modes": list(self._effective_modes(radio)),
             "worked": self.worked.status,
             "qsos": {
                 "total": self.worked.qso_count,
@@ -887,6 +954,14 @@ class PouncerApp:
             if status != self.rbn_status:
                 self.diag.event("RBN", status)
             self.rbn_status = status
+        while True:
+            try:
+                status = self._ssb_status_q.get_nowait()
+            except queue.Empty:
+                break
+            if status != self.ssb_status:
+                self.diag.event("SSB", status)
+            self.ssb_status = status
         radios = self.state.radio_numbers()
         if radios != self._diag_radios:
             self._diag_radios = radios
@@ -1293,6 +1368,7 @@ class PouncerApp:
             lights.log_light(self.worked.log_open, self.worked.log_state),
             lights.team_light(role, n, self.team.version_mismatch() if self.team else None),
             lights.web_light(self.cfg.web_enabled, self.web is not None),
+            lights.ssb_light(self.ssb_status, role),
             lights.warm_light(self.runhist is not None and self.cfg.warmup,
                               self.runhist.warm_status if self.runhist else ""),
             lights.update_light(self.updater.state, self.updater.text()),
@@ -1374,7 +1450,7 @@ class PouncerApp:
         band = band or self._current_band(radio)
         if radio is None and band != self._last_band:
             self._last_band = band
-        modes = {m.upper() for m in self.cfg.follow_modes}
+        modes = {m.upper() for m in self._effective_modes(radio)}
         own = self.own_call()
         items = [
             s for s in self.spots.values()
@@ -1567,6 +1643,9 @@ class PouncerApp:
         for client in self._rbn_clients.values():
             client.stop()
         self._rbn_clients.clear()
+        if getattr(self, "_ssb_client", None) is not None:
+            self._ssb_client.stop()
+            self._ssb_client = None
         if self._listener is not None:
             self._listener.stop()
         self.controller.close()
