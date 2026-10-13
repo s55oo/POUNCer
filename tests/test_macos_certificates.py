@@ -18,7 +18,7 @@ class CertificateHookTests(unittest.TestCase):
             return os.environ.get("SSL_CERT_FILE")
 
     def test_mac_uses_bundled_roots(self):
-        self.assertEqual(self.run_hook("darwin", {}), "/bundle/certificates/cacert.pem")
+        self.assertEqual(self.run_hook("darwin", {}), os.path.join("/bundle", "certificates", "cacert.pem"))
 
     def test_custom_trust_store_is_preserved(self):
         self.assertEqual(self.run_hook("darwin", {"SSL_CERT_FILE": "/custom.pem"}), "/custom.pem")
