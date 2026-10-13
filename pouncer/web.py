@@ -1207,7 +1207,8 @@ worked from spots. POUNCer keeps the taps in <code>cache\\taps.jsonl</code> (14 
     phone works is big and bright. Tap it for the band menu (160-10 m): it is for the
     radio chosen with the <b>A / B</b> key - with A it shows that band's spots for radio
     A, with B for radio B (green = the band shown, blue ring = the band the radio is on).
-    Tap a station there and that radio goes to it.</dd>
+    Tap a station there and that radio goes to it (radio B: POUNCer types the
+    frequency + Enter into Entry Window B, then the call - like you would by hand).</dd>
 </dl>
 
 <h2>Bottom row</h2>

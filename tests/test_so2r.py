@@ -95,13 +95,13 @@ class AppRadioTests(unittest.TestCase):
         f = types.SimpleNamespace(
             state=st, radio=radio, controller=ctl, sent=sent,
             taps=types.SimpleNamespace(record=lambda call, khz: sent.append(("tap", call, khz))),
-            cfg=types.SimpleNamespace(focus_n1mm=True, wipe_before_call=True),
+            cfg=types.SimpleNamespace(focus_n1mm=True, wipe_before_call=True, radio_b_qsy="type"),
             set_call_var=types.SimpleNamespace(get=lambda: True),
             status_label=types.SimpleNamespace(configure=lambda **kw: None),
         )
         f._band_memory, f._tune_last = {}, {}
         for name in ("_radio_nr", "_radio_tag", "_so2r", "_current_band", "_radio_khz",
-                     "_focus_radio"):
+                     "_focus_radio", "_qsy", "_types_qsy"):
             setattr(f, name, getattr(app.PouncerApp, name).__get__(f))
         return f
 
@@ -111,17 +111,48 @@ class AppRadioTests(unittest.TestCase):
         focused, typed = [], []
         spot = app.Spot(dxcall="K1ABC", freq_khz=7011.0, mode="CW", snr=10, wpm=28,
                         spot_type="CQ", spotter="S53WW", time_utc="1200Z", received=0)
+        enters = []
         with mock.patch.object(app, "force_foreground", side_effect=lambda h: focused.append(h) or True), \
                 mock.patch.object(app, "wipe_callsign"), \
                 mock.patch.object(app, "clear_focused_edit", return_value=True), \
                 mock.patch.object(app, "type_text", side_effect=typed.append), \
+                mock.patch.object(app, "send_enter", side_effect=lambda: enters.append(1) or True), \
                 mock.patch.object(app.time, "sleep"):
             app.PouncerApp._act_on_spot(f, spot, 2)   # the phone chose radio B
         self.assertEqual(focused, [2222])                       # Entry Window B
-        self.assertIn(("qsy", 7011.0, {"radio_nr": 2}), f.sent)  # QSY radio 2
+        # radio B is QSYed by typing the kHz + Enter into Entry Window B
+        # (N1MM's UDP QSY moved radio A in SO2R), then the call is typed
+        self.assertFalse([x for x in f.sent if x[0] == "qsy"])
+        self.assertEqual(typed, ["7011", "K1ABC"])
+        self.assertEqual(enters, [1])
         self.assertIn(("cmd", "{WIPE}", 2, 2222), f.sent)        # RadioNr 2
-        self.assertEqual(typed, ["K1ABC"])
         self.assertIn(("tap", "K1ABC", 7011.0), f.sent)          # for the summary
+
+    def test_tap_on_radio_a_uses_udp(self) -> None:
+        app = _import_app()
+        f = self._fake(app, radio=1)
+        typed = []
+        spot = app.Spot(dxcall="DL1AA", freq_khz=14025.3, mode="CW", snr=10, wpm=28,
+                        spot_type="CQ", spotter="S53WW", time_utc="1200Z", received=0)
+        with mock.patch.object(app, "force_foreground", return_value=True), \
+                mock.patch.object(app, "wipe_callsign"), \
+                mock.patch.object(app, "clear_focused_edit", return_value=True), \
+                mock.patch.object(app, "type_text", side_effect=typed.append), \
+                mock.patch.object(app, "send_enter") as enter, \
+                mock.patch.object(app.time, "sleep"):
+            app.PouncerApp._act_on_spot(f, spot, 1)
+        self.assertIn(("qsy", 14025.3, {"radio_nr": 1}), f.sent)
+        self.assertEqual(typed, ["DL1AA"])
+        enter.assert_not_called()
+
+    def test_radio_b_udp_option(self) -> None:
+        app = _import_app()
+        f = self._fake(app, radio=2)
+        f.cfg.radio_b_qsy = "udp"
+        with mock.patch.object(app, "force_foreground", return_value=True), \
+                mock.patch.object(app.time, "sleep"):
+            app.PouncerApp._qsy(f, 2, 7012.5, 2222, True)
+        self.assertIn(("qsy", 7012.5, {"radio_nr": 2}), f.sent)
 
     def test_key_goes_to_radio_b_window(self) -> None:
         app = _import_app()
@@ -139,12 +170,16 @@ class AppRadioTests(unittest.TestCase):
         app = _import_app()
         f = self._fake(app, radio=1)
         focused = []
+        typed = []
         with mock.patch.object(app, "force_foreground", side_effect=lambda h: focused.append(h) or True), \
+                mock.patch.object(app, "clear_focused_edit", return_value=True), \
+                mock.patch.object(app, "type_text", side_effect=typed.append), \
+                mock.patch.object(app, "send_enter", return_value=True), \
                 mock.patch.object(app.time, "sleep"):
             app.PouncerApp._qsy_band(f, "20m", 2)
             app.PouncerApp._tune(f, 50, 2)
         self.assertEqual(focused, [2222, 2222])
-        self.assertIn(("qsy", 14020.0, {"radio_nr": 2}), f.sent)
+        self.assertEqual(typed, ["14020", "7012.05"])           # typed into Entry Window B
 
     def test_band_follows_chosen_radio(self) -> None:
         app = _import_app()

@@ -56,6 +56,15 @@ class LoadConfigTests(unittest.TestCase):
             cfg = load_config(path)
             self.assertEqual(cfg.fkeys, (("F1", "CQ"), ("F4", "MyCall")))
 
+    def test_radio_b_qsy(self):
+        self.assertEqual(load_config("").radio_b_qsy, "type")
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "config.ini")
+            for text, want in (("udp", "udp"), ("TYPE", "type"), ("rubbish", "type")):
+                with open(path, "w", encoding="utf-8") as fh:
+                    fh.write(f"[n1mm]\nradio_b_qsy = {text}\n")
+                self.assertEqual(load_config(path).radio_b_qsy, want)
+
     def test_ui_fkeys_override_web(self):
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, "config.ini")
