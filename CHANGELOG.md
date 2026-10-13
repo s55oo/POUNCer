@@ -1,5 +1,22 @@
 # POUNCer — Changelog
 
+## v0.7.13 — 2026-10-13 — busy-contest test options, A + B frequency
+
+- **Test options** for busy contests (phone page), each on / off under
+  *Test options* on the help page (**?**), saved per phone:
+  - **Freq from my radio up** (button shows **Freq↑**; tap **Freq** twice
+    to switch): the frequency sort starts at the radio frequency instead of
+    the band bottom - the station you're on first, then up the band, the
+    ones below at the end. The list goes with you as you tune up; NEXT
+    walks up the band.
+  - **Calm list**: tiles stay where they are instead of reshuffling every
+    second. New stations are added at the end (yellow line), gone ones drop
+    out, SNR / time change in place; a full re-sort every 15 s, never within
+    3 s of touching / scrolling; sort, DX / MLT / ⚡, band or radio changes
+    re-sort at once. "calm" in the small line while on.
+- **SO2R: both frequencies** in the phone's top row - A with B under it,
+  the radio this phone works big and bright (payload `freqs`).
+
 ## v0.7.12 — 2026-10-13 — team version check
 
 - **Team version check.** Every POUNCer already announced its version to

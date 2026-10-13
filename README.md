@@ -153,7 +153,23 @@ spot list follows that radio's band. Every phone keeps its own choice -
 e.g. one phone for radio A, a second one for radio B. In the main window
 the **Radio A (A/B)** button does the same for clicks and keyboard F-keys.
 `[n1mm] default_radio = A` / `B` sets the start radio. With one radio
-nothing changes.
+nothing changes. The frequency in the top row then shows **both radios** -
+A with B under it; the radio this phone works is the big one.
+
+## Busy contests: test options (phone page)
+
+Two options to try, on / off under **Test options** on the help page (**?**),
+saved per phone:
+
+- **Freq from my radio up** (**Freq↑**; also: tap **Freq** twice) - the
+  frequency sort starts at the radio frequency: the station you're on first,
+  then the next ones up the band, the ones below you at the end. As you tune
+  up the list goes with you, and **NEXT** walks up the band.
+- **Calm list** - tiles keep their place instead of jumping every second:
+  new stations are added at the end (yellow line on top), gone ones drop out,
+  SNR / time update in place. The list is re-sorted every 15 s, never within
+  3 s of a touch or scroll; changing the sort, DX / MLT / ⚡, band or radio
+  re-sorts at once. "calm" starts the small line while it is on.
 
 ## Several POUNCers (team)
 

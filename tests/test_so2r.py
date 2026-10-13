@@ -186,6 +186,17 @@ class WebRadioTests(unittest.TestCase):
         self.assertIn('id="radiosw"', INDEX_HTML)
         self.assertIn("pouncer.radio", INDEX_HTML)
         self.assertIn("Two radios", HELP_HTML)
+        self.assertIn("data.freqs", INDEX_HTML)                 # A over B in the header
+
+
+class TestOptionsPageTests(unittest.TestCase):
+    def test_freq_from_radio_and_calm_options(self) -> None:
+        from pouncer.web import INDEX_HTML, HELP_HTML
+        for key in ("pouncer.freqfrom", "pouncer.calm"):
+            self.assertIn(key, INDEX_HTML)
+            self.assertIn(key, HELP_HTML)                       # on / off there
+        self.assertIn('id="opt-calm"', HELP_HTML)
+        self.assertIn('id="opt-freqfrom"', HELP_HTML)
 
 
 if __name__ == "__main__":
