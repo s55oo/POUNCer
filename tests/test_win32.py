@@ -68,5 +68,36 @@ class ClearEditOnWindowsTests(unittest.TestCase):
             u.DestroyWindow.argtypes = (wintypes.HWND,)
             u.DestroyWindow(top)
 
+    def test_restore_focus_puts_cursor_back(self) -> None:
+        import ctypes
+        from ctypes import wintypes
+        u = ctypes.windll.user32
+        u.CreateWindowExW.restype = wintypes.HWND
+        u.CreateWindowExW.argtypes = (
+            wintypes.DWORD, wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.DWORD,
+            ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+            wintypes.HWND, wintypes.HMENU, wintypes.HINSTANCE, wintypes.LPVOID)
+        WS_OVERLAPPEDWINDOW, WS_CHILD, WS_VISIBLE = 0x00CF0000, 0x40000000, 0x10000000
+        top = u.CreateWindowExW(0, "STATIC", "pouncer test", WS_OVERLAPPEDWINDOW,
+                                0, 0, 200, 100, None, None, None, None)
+        if not top:
+            self.skipTest("cannot create a window here")
+        try:
+            call = u.CreateWindowExW(0, "EDIT", "K1ABC", WS_CHILD | WS_VISIBLE,
+                                     0, 0, 150, 20, top, None, None, None)
+            exch = u.CreateWindowExW(0, "EDIT", "599 15", WS_CHILD | WS_VISIBLE,
+                                     0, 30, 150, 20, top, None, None, None)
+            u.SetFocus.argtypes = (wintypes.HWND,)
+            u.GetFocus.restype = wintypes.HWND
+            u.SetFocus(call)
+            win32.restore_focus({"fg": top, "focus": exch, "sel": (2, 4), "pid": 0})
+            self.assertEqual(u.GetFocus(), exch)            # back in the exchange box
+            start, end = wintypes.DWORD(0), wintypes.DWORD(0)
+            u.SendMessageW(exch, 0x00B0, ctypes.addressof(start), ctypes.addressof(end))
+            self.assertEqual((start.value, end.value), (2, 4))   # same cursor / selection
+        finally:
+            u.DestroyWindow.argtypes = (wintypes.HWND,)
+            u.DestroyWindow(top)
+
 if __name__ == "__main__":
     unittest.main()

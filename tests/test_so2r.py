@@ -101,7 +101,7 @@ class AppRadioTests(unittest.TestCase):
         )
         f._band_memory, f._tune_last = {}, {}
         for name in ("_radio_nr", "_radio_tag", "_so2r", "_current_band", "_radio_khz",
-                     "_focus_radio", "_qsy", "_types_qsy"):
+                     "_focus_radio", "_qsy", "_types_qsy", "_snapshot_focus", "_return_focus"):
             setattr(f, name, getattr(app.PouncerApp, name).__get__(f))
         return f
 
@@ -127,6 +127,39 @@ class AppRadioTests(unittest.TestCase):
         self.assertEqual(enters, [1])
         self.assertIn(("cmd", "{WIPE}", 2, 2222), f.sent)        # RadioNr 2
         self.assertIn(("tap", "K1ABC", 7011.0), f.sent)          # for the summary
+
+    def test_cursor_returns_to_where_it_was(self) -> None:
+        # typing the exchange in Entry Window A, tap a station for radio B:
+        # B gets QSY + call, then the cursor goes back to A's exchange box
+        app = _import_app()
+        f = self._fake(app, radio=2)
+        f.cfg.return_focus = True
+        snap = {"fg": 1111, "focus": 5555, "sel": (3, 3), "pid": 42}
+        restored = []
+        spot = app.Spot(dxcall="K1ABC", freq_khz=7011.0, mode="CW", snr=10, wpm=28,
+                        spot_type="CQ", spotter="S53WW", time_utc="1200Z", received=0)
+        status = []
+        f.status_label = types.SimpleNamespace(configure=lambda **kw: status.append(kw["text"]))
+        with mock.patch.object(app, "force_foreground", return_value=True), \
+                mock.patch.object(app, "focus_snapshot", return_value=snap), \
+                mock.patch.object(app, "window_pid", return_value=42), \
+                mock.patch.object(app, "restore_focus", side_effect=lambda s: restored.append(s) or True), \
+                mock.patch.object(app, "wipe_callsign"), \
+                mock.patch.object(app, "clear_focused_edit", return_value=True), \
+                mock.patch.object(app, "type_text"), \
+                mock.patch.object(app, "send_enter", return_value=True), \
+                mock.patch.object(app.time, "sleep"):
+            app.PouncerApp._act_on_spot(f, spot, 2)
+            self.assertEqual(restored, [snap])
+            self.assertIn("cursor back in Entry Window A", status[-1])
+            # already in Entry Window B, or in another program: stay
+            restored.clear()
+            snap.update(fg=2222)
+            app.PouncerApp._act_on_spot(f, spot, 2)
+            snap.update(fg=9999)
+            with mock.patch.object(app, "window_pid", side_effect=lambda h: 7 if h == 2222 else 42):
+                app.PouncerApp._act_on_spot(f, spot, 2)
+            self.assertEqual(restored, [])
 
     def test_tap_on_radio_a_uses_udp(self) -> None:
         app = _import_app()

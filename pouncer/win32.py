@@ -230,6 +230,67 @@ def clear_focused_edit(window_hwnd: int) -> bool:
     return True
 
 
+_EM_GETSEL = 0x00B0
+_EM_SETSEL = 0x00B1
+
+
+def window_pid(hwnd: int) -> int:
+    """Process id of a window (0 if unknown)."""
+    if not _WIN or not hwnd:
+        return 0
+    pid = wintypes.DWORD(0)
+    _user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+    return int(pid.value)
+
+
+def focus_snapshot() -> dict | None:
+    """Where the keyboard is now: the foreground window, the control with the
+    focus in it (e.g. N1MM's callsign or exchange box) and the cursor /
+    selection in that box - to put it all back with ``restore_focus``."""
+    if not _WIN:
+        return None
+    fg = _user32.GetForegroundWindow()
+    if not fg:
+        return None
+    thread = _user32.GetWindowThreadProcessId(fg, None)
+    info = _GUITHREADINFO()
+    info.cbSize = ctypes.sizeof(_GUITHREADINFO)
+    focus = 0
+    if thread and _user32.GetGUIThreadInfo(thread, ctypes.byref(info)):
+        focus = info.hwndFocus or 0
+    sel = None
+    if focus:
+        start, end = wintypes.DWORD(0), wintypes.DWORD(0)
+        _user32.SendMessageW(focus, _EM_GETSEL, ctypes.addressof(start), ctypes.addressof(end))
+        sel = (int(start.value), int(end.value))
+    return {"fg": int(fg), "focus": int(focus or 0), "sel": sel, "pid": window_pid(fg)}
+
+
+def restore_focus(snap: dict | None) -> bool:
+    """Bring back the window, the focused box and the cursor of a
+    ``focus_snapshot``. True if the window came back."""
+    if not _WIN or not snap or not snap.get("fg"):
+        return False
+    ok = force_foreground(snap["fg"])
+    focus = snap.get("focus")
+    if not focus or not _user32.IsWindow(focus):
+        return ok
+    cur_thread = _kernel32.GetCurrentThreadId()
+    target = _user32.GetWindowThreadProcessId(focus, None)
+    attached = False
+    if target and target != cur_thread:
+        attached = bool(_user32.AttachThreadInput(cur_thread, target, True))
+    try:
+        _user32.SetFocus(focus)
+        sel = snap.get("sel")
+        if sel:
+            _user32.SendMessageW(focus, _EM_SETSEL, sel[0], ctypes.c_void_p(sel[1]))
+    finally:
+        if attached:
+            _user32.AttachThreadInput(cur_thread, target, False)
+    return ok
+
+
 def type_text(text: str) -> bool:
     """Type literal text into the focused control via unicode keystrokes."""
     if not _WIN:

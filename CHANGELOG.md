@@ -1,5 +1,18 @@
 # POUNCer — Changelog
 
+## v0.7.19 — 2026-10-13 — SO2R: cursor goes back where it was
+
+- **SO2R / SO2V: after a tap (or −/+ Hz) for the other radio the cursor
+  returns to where you were** - the same Entry Window, the same box
+  (callsign, exchange, ...) and the same cursor position / selection. E.g.
+  typing the exchange in Entry Window A, tap a station for radio B on the
+  phone: radio B QSYs and gets the call, then the cursor is back in A's
+  exchange box. Status line: "[cursor back in Entry Window A]". Only when
+  the cursor was in the *other* N1MM Entry Window (not when you were in
+  POUNCer's own window or another program). N1MM's green dot (receive /
+  keyboard focus) follows the cursor back.
+- `[n1mm] return_focus = true` (false = stay in the other radio's window).
+
 ## v0.7.18 — 2026-10-13 — SO2R: radio B really QSYs
 
 - **Fix: a tap with radio B chosen put the call into Entry Window B but
