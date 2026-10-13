@@ -1,5 +1,10 @@
 # POUNCer — Changelog
 
+## v0.7.7 — 2026-10-13 — Restart button restarts at once
+
+- The blue **Restart -> vX** button (update ready) now restarts POUNCer
+  right away with the new version - no "are you sure" question.
+
 ## v0.7.6 — 2026-10-13 — touch view = the browser page
 
 - The separate Tk **touch view** window is removed. Its place is taken by

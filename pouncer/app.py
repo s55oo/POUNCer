@@ -1007,12 +1007,9 @@ class PouncerApp:
             self.lights_frame.add(self._restart_btn)
 
     def _restart_for_update(self) -> None:
-        from tkinter import messagebox
-        if not messagebox.askyesno(
-                "POUNCer update",
-                f"Restart POUNCer now with {self.updater.new_version}?\n"
-                "(Otherwise it is used from the next start.)"):
-            return
+        """Restart button: quit and start the new version right away."""
+        self.status_label.configure(text=f"Restarting with {self.updater.new_version}...")
+        self.root.update_idletasks()
         self.updater.restart(before_exit=self._shutdown)
 
     def _visible_spots(self) -> list[Spot]:
