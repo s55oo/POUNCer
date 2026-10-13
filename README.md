@@ -158,6 +158,16 @@ A with B under it; the radio this phone works is the big one. Tapping it
 opens the band menu with a row for **radio A** and a row for **radio B**,
 so either radio's band can be changed from any phone.
 
+## Contest summary
+
+**Σ** on the phone page (next to **?**, also in the band menu) or the
+**Summary** button in the main window opens a summary of the log N1MM has
+open: QSOs and how many came **from POUNCer** (you tapped that call on that
+band - tile, NEXT or main window - up to 15 minutes before it was logged),
+multipliers and how many came from spots, QSOs per hour on the air, best
+60 minutes, a per-band table, rate per hour (bars) and every multiplier
+worked from a spot. Taps are kept in `cache\taps.jsonl` for 14 days.
+
 ## Busy contests: test options (phone page)
 
 Two options to try, on / off under **Test options** on the help page (**?**),

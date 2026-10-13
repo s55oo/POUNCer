@@ -94,6 +94,7 @@ class AppRadioTests(unittest.TestCase):
         ctl.send_radio_command.side_effect = lambda cmd, nr, hwnd: sent.append(("cmd", cmd, nr, hwnd))
         f = types.SimpleNamespace(
             state=st, radio=radio, controller=ctl, sent=sent,
+            taps=types.SimpleNamespace(record=lambda call, khz: sent.append(("tap", call, khz))),
             cfg=types.SimpleNamespace(focus_n1mm=True, wipe_before_call=True),
             set_call_var=types.SimpleNamespace(get=lambda: True),
             status_label=types.SimpleNamespace(configure=lambda **kw: None),
@@ -118,6 +119,7 @@ class AppRadioTests(unittest.TestCase):
         self.assertIn(("qsy", 7011.0, {"radio_nr": 2}), f.sent)  # QSY radio 2
         self.assertIn(("cmd", "{WIPE}", 2, 2222), f.sent)        # RadioNr 2
         self.assertEqual(typed, ["K1ABC"])
+        self.assertIn(("tap", "K1ABC", 7011.0), f.sent)          # for the summary
 
     def test_key_goes_to_radio_b_window(self) -> None:
         app = _import_app()

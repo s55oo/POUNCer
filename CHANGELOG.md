@@ -1,5 +1,19 @@
 # POUNCer — Changelog
 
+## v0.7.15 — 2026-10-13 — contest summary
+
+- **Contest summary** page (`/summary`, its own page like the help): **Σ**
+  next to **?** on the phone page, "Contest summary" in the band menu, and a
+  **Summary** button in the main window (opens it in the browser). Shows for
+  the open N1MM log: QSOs, QSOs **from POUNCer** (call tapped on that band up
+  to 15 min before it was logged) and %, multipliers and mults from spots,
+  QSOs / hour on the air (gaps of 30 min+ = off time), best 60 minutes,
+  tapped stations worked, a per-band table, rate per hour as bars (POUNCer
+  part green) and the list of multipliers worked from spots. Updates every
+  minute; Refresh button.
+- Every tap (tile, NEXT, main window) is kept in `cache\taps.jsonl`
+  (14 days) so a restart doesn't lose them. New module `pouncer/summary.py`.
+
 ## v0.7.14 — 2026-10-13 — SO2R band menu for both radios
 
 - Phone, SO2R: tapping the frequency opens the band menu with **a row for
