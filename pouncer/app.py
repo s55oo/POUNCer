@@ -907,6 +907,18 @@ class PouncerApp:
         cont = self._continent(call)
         return cont is not None and cont != self.home_cont
 
+    def _focus_radio(self, nr: int) -> bool:
+        """SO2R: bring that radio's Entry Window (A / B) to the front before a
+        QSY - like a spot tap does. With one radio nothing is needed (keeps
+        the band menu / tune from stealing focus as before)."""
+        if not self._so2r() or not self.cfg.focus_n1mm:
+            return False
+        hwnd = self.state.entry_window_hwnd(nr)
+        if not hwnd or not force_foreground(hwnd):
+            return False
+        time.sleep(0.15)
+        return True
+
     def _tune(self, hz: int, radio: int | None = None) -> None:
         """Footer -/+ buttons: move the VFO by hz via N1MM (no TX)."""
         now = time.time()
@@ -916,6 +928,7 @@ class PouncerApp:
         if khz is None:
             self.status_label.configure(text="Tune: no radio frequency from N1MM yet")
             return
+        self._focus_radio(nr)
         try:
             self.controller.set_frequency(khz, radio_nr=nr)
         except OSError as exc:
@@ -995,6 +1008,7 @@ class PouncerApp:
             return
         nr = self._radio_nr(radio)
         khz = self._band_memory.get((nr, band), DEFAULT_BAND_KHZ[band])
+        self._focus_radio(nr)   # SO2R: N1MM QSYs the radio whose window has focus
         try:
             self.controller.set_frequency(khz, radio_nr=nr)
         except OSError as exc:

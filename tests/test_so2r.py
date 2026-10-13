@@ -99,7 +99,9 @@ class AppRadioTests(unittest.TestCase):
             set_call_var=types.SimpleNamespace(get=lambda: True),
             status_label=types.SimpleNamespace(configure=lambda **kw: None),
         )
-        for name in ("_radio_nr", "_radio_tag", "_so2r", "_current_band", "_radio_khz"):
+        f._band_memory, f._tune_last = {}, {}
+        for name in ("_radio_nr", "_radio_tag", "_so2r", "_current_band", "_radio_khz",
+                     "_focus_radio"):
             setattr(f, name, getattr(app.PouncerApp, name).__get__(f))
         return f
 
@@ -130,6 +132,19 @@ class AppRadioTests(unittest.TestCase):
                 mock.patch.object(app.time, "sleep"):
             app.PouncerApp._press_key(f, "F2")
         self.assertEqual(focused, [2222])
+
+    def test_band_menu_on_radio_b_focuses_window_b(self) -> None:
+        # bug v0.7.14: band QSY for B moved A - N1MM QSYs the focused radio,
+        # so Entry Window B must be in front first (like a spot tap)
+        app = _import_app()
+        f = self._fake(app, radio=1)
+        focused = []
+        with mock.patch.object(app, "force_foreground", side_effect=lambda h: focused.append(h) or True), \
+                mock.patch.object(app.time, "sleep"):
+            app.PouncerApp._qsy_band(f, "20m", 2)
+            app.PouncerApp._tune(f, 50, 2)
+        self.assertEqual(focused, [2222, 2222])
+        self.assertIn(("qsy", 14020.0, {"radio_nr": 2}), f.sent)
 
     def test_band_follows_chosen_radio(self) -> None:
         app = _import_app()
