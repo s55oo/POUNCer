@@ -181,6 +181,14 @@ with A it shows that band's spots for radio A, with B for radio B (green =
 the band shown, blue ring = the band the radio is on). Tap a station there
 and that radio goes to it.
 
+## Diagnostic log
+
+**Diagnostics** (main window) or "Diagnostic log" (phone band menu) shows
+what POUNCer did, step by step - every tap with timings (focus, QSY, when
+N1MM reported the new frequency, the call put in and what N1MM's box really
+showed), keys, RBN connection changes and the settings at start. **Copy
+all** and send it when something goes wrong. Also in `cache\diag.log`.
+
 ## Backup when RBN is down
 
 If RBN's telnet fails twice in a row or sends nothing for 2 minutes,
