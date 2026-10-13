@@ -145,7 +145,8 @@ never restarts by itself in the middle of a contest. `[ui] auto_update`.
 ## Two radios (SO2R / SO2V)
 
 When N1MM runs two radios (it then has Entry Windows **A** and **B**), the
-phone page shows a **Radio A / Radio B** switch under the frequency. It
+phone page shows an **A / B** key in the top row, next to the frequency
+(CLR-sized; A blue, B orange). It
 chooses which radio that phone works: taps (QSY + callsign), F-keys,
 ENTER, −/+ Hz and the band menu go to that radio's Entry Window, and the
 spot list follows that radio's band. Every phone keeps its own choice -

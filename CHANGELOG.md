@@ -2,8 +2,9 @@
 
 ## v0.7.11 — 2026-10-13 — SO2R: radio A / B
 
-- **Radio A / B** for SO2R / SO2V. On the phone page a **Radio A / Radio B**
-  switch (under the frequency; only shown when N1MM reports two radios)
+- **Radio A / B** for SO2R / SO2V. On the phone page a **A / B** key
+  (top row, next to the frequency, CLR-sized; only shown when N1MM reports
+  two radios - A blue, B orange)
   chooses which radio this phone works: spot taps (QSY + call), F-keys,
   ENTER, −/+ Hz and the band menu go to that radio, and the list follows
   **that radio's band**. Each phone remembers its own choice, so one phone

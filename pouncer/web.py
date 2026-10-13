@@ -172,11 +172,26 @@ INDEX_HTML = """<!doctype html>
   #rmsheet .rm { background: #c62828; }
   .top { display: flex; align-items: center; gap: 10px; }
   /* SO2R radio A / B switch (only shown when N1MM reports two radios) */
-  button.radiosw { flex: 0 0 auto; border: 0; border-radius: 7px; font: inherit;
-    font-size: 14px; font-weight: 800; padding: 4px 10px; cursor: pointer;
-    background: #1565c0; color: #fff; margin-top: 4px; }
-  button.radiosw.b { background: #ef6c00; }
-  button.radiosw[hidden] { display: none; }
+  .sorts button.radiosw { background: #1565c0; color: #fff; font-weight: 800; }
+  .sorts button.radiosw.b { background: #ef6c00; }
+  .sorts button.radiosw[hidden] { display: none; }
+  /* SO2R: the A/B key is as wide as CLR; the row gets a bit tighter so the
+     frequency still fits (only while the switch is shown) */
+  .sorts button.radiosw { min-width: 2.6em; }
+  @media (max-width: 480px) {
+    header.so2r .sorts { gap: 2px; }
+    header.so2r .sorts button { padding: 7px 4px; font-size: 13px; }
+    header.so2r .sorts button.radiosw { min-width: 2.4em; }
+    header.so2r button.band::after { display: none; }
+    header.so2r .top { gap: 4px; }
+    header.so2r button.band { font-size: 15px; padding-right: 2px; }
+  }
+  @media (max-width: 400px) {
+    header.so2r .sorts button { padding: 7px 3px; }
+  }
+  @media (max-width: 370px) {
+    header.so2r .sorts button { padding: 6px 2px; font-size: 12px; }
+  }
 
   .top .title { flex: 1 1 auto; min-width: 0; white-space: nowrap;
     overflow: hidden; text-overflow: ellipsis; }
@@ -290,6 +305,7 @@ INDEX_HTML = """<!doctype html>
   <button class="title band" id="band" title="Change band">POUNCer</button>
   <div class="sorts">
     <span>Sort:</span>
+    <button class="radiosw" id="radiosw" hidden title="SO2R: radio A or B - taps, keys and the band list go to this radio (N1MM Entry Window A / B)">A</button>
     <button class="clr" id="clr" title="Clear all spots (e.g. old spots before the contest). Undo for 5 s">CLR</button>
     <button data-sort="time">Time</button>
     <button data-sort="freq">Freq</button>
@@ -300,8 +316,7 @@ INDEX_HTML = """<!doctype html>
     <button class="reconnect" id="reconnect" title="Re-read which log N1MM has open">&#x21bb;<span class="lbl"> Log</span></button>
   </div>
   </div>
-  <div class="metarow"><button class="radiosw" id="radiosw" hidden title="SO2R: radio A or B - taps, keys and the band list go to this radio (N1MM Entry Window A / B)">Radio A</button>
-    <div class="meta" id="meta">connecting...</div>
+  <div class="metarow"><div class="meta" id="meta">connecting...</div>
     <a class="help" href="/help" title="What every button does">?</a></div>
   <div id="logwarn"><span class="msg" id="logmsg"></span>
     <button id="logbtn">Reconnect</button></div>
@@ -595,7 +610,8 @@ INDEX_HTML = """<!doctype html>
     const radioSw = document.getElementById('radiosw');
     const cur = data.radio === 2 ? 2 : 1;
     radioSw.hidden = !((data.radios || []).length > 1 || cur === 2);
-    radioSw.textContent = 'Radio ' + (cur === 2 ? 'B' : 'A');
+    document.querySelector('header').classList.toggle('so2r', !radioSw.hidden);
+    radioSw.textContent = cur === 2 ? 'B' : 'A';
     radioSw.classList.toggle('b', cur === 2);
     // Radio frequency in kHz (falls back to the band, then "ALL band").
     const where = (typeof data.freq === 'number' && data.freq > 0)
@@ -1028,8 +1044,8 @@ page.</p>
 
 <h2>Two radios (SO2R / SO2V)</h2>
 <dl>
-  <dt><span class="k blue">Radio A</span> <span class="k" style="background:#ef6c00">Radio B</span></dt>
-  <dd>Under the frequency; only shown when N1MM runs two radios. Tap to switch which radio this phone works: taps, the
+  <dt><span class="k blue">A</span> <span class="k" style="background:#ef6c00">B</span></dt>
+  <dd>Next to the frequency, before CLR; only shown when N1MM runs two radios. Tap to switch which radio this phone works: taps, the
     F-keys, ENTER, &minus;/+ Hz and the band menu go to that radio (N1MM Entry Window A or
     B), and the list shows that radio's band. Each phone remembers its own choice, so
     one phone can work radio A and another radio B.</dd>
