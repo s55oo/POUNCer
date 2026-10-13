@@ -95,6 +95,12 @@ class ClearEditOnWindowsTests(unittest.TestCase):
             start, end = wintypes.DWORD(0), wintypes.DWORD(0)
             u.SendMessageW(exch, 0x00B0, ctypes.addressof(start), ctypes.addressof(end))
             self.assertEqual((start.value, end.value), (2, 4))   # same cursor / selection
+            # a call put in one go: text and cursor at its end
+            u.SetFocus(call)
+            self.assertTrue(win32.set_focused_edit_text(top, "HB9CBR/P"))
+            self.assertEqual(win32.focused_edit_text(top), "HB9CBR/P")
+            u.SendMessageW(call, 0x00B0, ctypes.addressof(start), ctypes.addressof(end))
+            self.assertEqual((start.value, end.value), (8, 8))
         finally:
             u.DestroyWindow.argtypes = (wintypes.HWND,)
             u.DestroyWindow(top)

@@ -330,6 +330,29 @@ def focused_edit_text(window_hwnd: int) -> str | None:
     return buf.value
 
 
+def set_focused_edit_text(window_hwnd: int, text: str) -> bool:
+    """Put ``text`` into the focused text box of ``window_hwnd``'s thread in
+    one go (WM_SETTEXT) with the cursor at its end. Unlike typed keystrokes
+    nothing can get mixed up when the PC is slow (keys still waiting in the
+    queue landed in front of the call: "PHB9CBR/P"). The box still raises
+    its change event, so N1MM sees the new call. False if no text box."""
+    if not _WIN or not window_hwnd:
+        return False
+    thread = _user32.GetWindowThreadProcessId(window_hwnd, None)
+    info = _GUITHREADINFO()
+    info.cbSize = ctypes.sizeof(_GUITHREADINFO)
+    if not thread or not _user32.GetGUIThreadInfo(thread, ctypes.byref(info)) or not info.hwndFocus:
+        return False
+    focus = info.hwndFocus
+    cls = ctypes.create_unicode_buffer(256)
+    _user32.GetClassNameW(focus, cls, 256)
+    if "EDIT" not in cls.value.upper():
+        return False
+    _user32.SendMessageW(focus, _WM_SETTEXT, 0, ctypes.c_wchar_p(text))
+    _user32.SendMessageW(focus, _EM_SETSEL, len(text), ctypes.c_void_p(len(text)))
+    return True
+
+
 def type_text(text: str) -> bool:
     """Type literal text into the focused control via unicode keystrokes."""
     if not _WIN:

@@ -102,7 +102,8 @@ class AppRadioTests(unittest.TestCase):
         f._band_memory, f._tune_last = {}, {}
         for name in ("_radio_nr", "_radio_tag", "_so2r", "_current_band", "_radio_khz",
                      "_focus_radio", "_qsy", "_types_qsy", "_snapshot_focus", "_return_focus",
-                     "_wait_for_qsy", "_check_call", "_freq_text"):
+                     "_wait_for_qsy", "_check_call", "_freq_text",
+                     "_settext", "_enter_text"):
             setattr(f, name, getattr(app.PouncerApp, name).__get__(f))
         return f
 
@@ -164,10 +165,10 @@ class AppRadioTests(unittest.TestCase):
 
     def test_call_typed_only_after_n1mm_reports_new_frequency(self) -> None:
         # N1MM can wipe the call when the radio moves: wait for the new
-        # frequency in RadioInfo, then type; retype if the box lost it
+        # frequency in RadioInfo, then put the call in; again if it got lost
         app = _import_app()
         f = self._fake(app, radio=1)
-        f.cfg.qsy_wait_ms, f.cfg.qsy_settle_ms = 1500, 250
+        f.cfg.qsy_wait_ms, f.cfg.qsy_settle_ms, f.cfg.type_mode = 1500, 250, "settext"
         events = []
 
         def fake_sleep(sec):
@@ -175,20 +176,43 @@ class AppRadioTests(unittest.TestCase):
             if len([e for e in events if e[0] == "sleep"]) == 3:   # radio arrives
                 f.state.update(radio_info(1, 14031.0, 1111))
 
-        boxes = iter(["", "DL1AA"])     # first check: N1MM cleared it
-        spot = app.Spot(dxcall="DL1AA", freq_khz=14031.0, mode="CW", snr=10, wpm=28,
+        boxes = iter(["", "HB9CBR/P"])     # first check: the late wipe cleared it
+        spot = app.Spot(dxcall="HB9CBR/P", freq_khz=14031.0, mode="CW", snr=10, wpm=28,
                         spot_type="CQ", spotter="S53WW", time_utc="1200Z", received=0)
+        status = []
+        f.status_label = types.SimpleNamespace(configure=lambda **kw: status.append(kw["text"]))
         with mock.patch.object(app, "force_foreground", return_value=True), \
-                mock.patch.object(app, "wipe_callsign", side_effect=lambda: events.append(("wipe",))), \
-                mock.patch.object(app, "clear_focused_edit", return_value=True), \
+                mock.patch.object(app, "wipe_callsign", side_effect=lambda: events.append(("altw",))), \
+                mock.patch.object(app, "set_focused_edit_text",
+                                  side_effect=lambda h, t: events.append(("set", t)) or True), \
                 mock.patch.object(app, "type_text", side_effect=lambda t: events.append(("type", t))), \
                 mock.patch.object(app, "focused_edit_text", side_effect=lambda h: next(boxes)), \
                 mock.patch.object(app.time, "sleep", side_effect=fake_sleep):
             app.PouncerApp._act_on_spot(f, spot, 1)
-        first_type = events.index(("type", "DL1AA"))
-        self.assertIn(("sleep", 0.25), events[:first_type])     # settled after the QSY
-        self.assertLess(events.index(("sleep", 0.25)), events.index(("wipe",)))
-        self.assertEqual([e for e in events if e[0] == "type"], [("type", "DL1AA")] * 2)
+        first_set = events.index(("set", "HB9CBR/P"))
+        self.assertIn(("sleep", 0.25), events[:first_set])       # settled after the QSY
+        # set in one go (no keystrokes that a slow PC could mix up), twice
+        self.assertEqual([e for e in events if e[0] in ("set", "type")], [("set", "HB9CBR/P")] * 2)
+        self.assertNotIn(("altw",), events)                      # no queued Alt+W either
+        self.assertIn("call put in again", status[-1])
+
+    def test_keys_mode_never_retypes(self) -> None:
+        # typed keys: a slow PC may still be typing - typing again mixed
+        # them up ("PHB9CBR/P"), so no second attempt
+        app = _import_app()
+        f = self._fake(app, radio=1)
+        f.cfg.type_mode = "keys"
+        typed = []
+        spot = app.Spot(dxcall="HB9CBR/P", freq_khz=14031.0, mode="CW", snr=10, wpm=28,
+                        spot_type="CQ", spotter="S53WW", time_utc="1200Z", received=0)
+        with mock.patch.object(app, "force_foreground", return_value=True), \
+                mock.patch.object(app, "wipe_callsign"), \
+                mock.patch.object(app, "clear_focused_edit", return_value=True), \
+                mock.patch.object(app, "type_text", side_effect=typed.append), \
+                mock.patch.object(app, "focused_edit_text", return_value="HB9C"), \
+                mock.patch.object(app.time, "sleep"):
+            app.PouncerApp._act_on_spot(f, spot, 1)
+        self.assertEqual(typed, ["HB9CBR/P"])
 
     def test_typed_frequency_uses_the_windows_decimal_sign(self) -> None:
         # bug: "14000.1" typed on a Slovenian PC -> N1MM read 140001 kHz

@@ -26,7 +26,7 @@ from .update import Updater
 from .web import WebServer, pick_web_address
 from .win32 import (
     decimal_separator, focus_snapshot, focused_edit_text, force_foreground, is_n1mm_running, restore_focus,
-    send_cw_speed,
+    send_cw_speed, set_focused_edit_text,
     send_enter, send_filter_toggle, window_pid,
     send_fkey,
     type_text,
@@ -462,18 +462,34 @@ class PouncerApp:
                 return wait == 0
             time.sleep(0.05)
 
+    def _settext(self) -> bool:
+        return getattr(self.cfg, "type_mode", "settext") == "settext"
+
+    def _enter_text(self, hwnd, text: str) -> bool:
+        """Put text into the focused N1MM box: in one go (settext - nothing
+        can get mixed up), or cleared + typed key by key. True if the box
+        was set / cleared."""
+        if self._settext() and hwnd and set_focused_edit_text(hwnd, text):
+            return True
+        cleared = clear_focused_edit(hwnd) if hwnd else False
+        type_text(text)
+        return cleared
+
     def _check_call(self, hwnd, call: str) -> str:
-        """The call really in the callsign box? If not (N1MM cleared it),
-        type it once more."""
-        if not hwnd:
+        """The call really in the callsign box? If not (e.g. N1MM's wipe
+        came late), put it in again - up to 3 times. Only with settext: with
+        typed keys a slow PC may still be typing, and typing again would mix
+        the two ("PHB9CBR/P")."""
+        if not hwnd or not self._settext():
             return ""
-        time.sleep(0.1)
-        got = focused_edit_text(hwnd)
-        if got is None or got.strip().upper() == call.strip().upper():
-            return ""
-        clear_focused_edit(hwnd)
-        type_text(call)
-        return " [call typed again]"
+        want = call.strip().upper()
+        for attempt in range(3):
+            time.sleep(0.15)
+            got = focused_edit_text(hwnd)
+            if got is None or got.strip().upper() == want:
+                return " [call put in again]" if attempt else ""
+            set_focused_edit_text(hwnd, call)
+        return " [call not confirmed in N1MM]"
 
     def _snapshot_focus(self):
         """SO2R: where the cursor is before we go to the other radio's window."""
@@ -531,11 +547,11 @@ class PouncerApp:
                         self.controller.send_radio_command("{WIPE}", nr, hwnd)
                     except OSError:
                         pass
-                    wipe_callsign()
+                    if not self._settext():
+                        wipe_callsign()   # Alt+W key: only when typing keys
                     time.sleep(0.2)  # let N1MM finish the wipe before we type
-                cleared = clear_focused_edit(hwnd) if hwnd else False
-                type_text(spot.dxcall)
-                msg += " (call typed, no TX)" + ("" if cleared else " [box not cleared]")
+                how = self._enter_text(hwnd, spot.dxcall)
+                msg += " (call typed, no TX)" + ("" if how else " [box not cleared]")
                 msg += self._check_call(hwnd, spot.dxcall)
                 if not landed:
                     msg += " [N1MM didn't report the new frequency]"
@@ -1016,8 +1032,7 @@ class PouncerApp:
                 self.status_label.configure(
                     text="QSY B failed: Entry Window B not in front (N1MM focus failed)")
                 return False
-            clear_focused_edit(hwnd)
-            type_text(self._freq_text(khz))   # e.g. 14025,3 on a Slovenian PC
+            self._enter_text(hwnd, self._freq_text(khz))   # e.g. 14025,3 on a Slovenian PC
             send_enter()
             time.sleep(0.3)   # let N1MM tune and clear the box before the call
             return True
