@@ -148,6 +148,13 @@ is required.
 
 ## Main window menu
 
+<p align="center"><img src="docs/main-window.png" width="720"
+  alt="POUNCer 0.7.39 main window: menu bar File / View / Settings / Help, team bar, connection lights, N1MM / RBN / Log lines, sort and A/B buttons, F-key row and the spot list"></p>
+
+*The Windows main window (0.7.39): menu bar, team bar, connection lights
+(RBN, N1MM, Log, Team, Phone, SSB, Warm-up, Update), the N1MM / RBN / Log
+lines, Sort and A/B buttons, the F-key row and the spot list.*
+
 The options and actions are in the menu bar (sort, the A / B key and the
 F-keys stay as buttons - they're used all contest long):
 
