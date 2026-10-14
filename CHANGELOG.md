@@ -12,6 +12,9 @@
   logs give only the band edge (28000, 14000 ...) as frequency; those QSOs
   are left out of the run %. Applies to the CW list too (rebuilt), and the
   per-call cache starts fresh (`runhist4.json`).
+- Lists built 2026-10-14: **CW 39 404 stations** (was 46 044 - the rest had
+  only band-only logs), **SSB 47 933 stations**, from 117 372 submitted +
+  40 326 reconstructed SSB logs (CW: 100 146 + 32 844), 2021-2026.
 - Main window: "Warm-up: CW n + SSB m stations known in advance".
 
 ## v0.7.34 — 2026-10-13 — radio B frequency typed key by key again
