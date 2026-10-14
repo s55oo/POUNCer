@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## v0.7.38 — 2026-10-14 — after radio B, focus back to A (option)
+
+- New setting **After radio B: focus back to A** (Settings page, SO2R /
+  SO2V; `[n1mm] focus_back_to_a`, default off): every tap or -/+ for radio
+  B - QSY and call into Entry Window B as before - ends by bringing Entry
+  Window A to the front, so the keyboard (and N1MM's focus) is on A again,
+  wherever the cursor was before. Off = "Cursor back where it was" as
+  before. Used at once, no restart. Status line: "[focus back on A]".
+
 ## v0.7.37 — 2026-10-14 — radio B: udp-left is the default
 
 - Tested on S55OO's SO2V: **udp-left** (N1MM's UDP QSY for radio 2 with
