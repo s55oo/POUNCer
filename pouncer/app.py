@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import dataclasses
 import queue
+import sys
 import time
 import tkinter as tk
 from tkinter import ttk
@@ -24,6 +25,7 @@ from .rbn import (
 from .runhist import RARE_HOURS, RARE_RUN_PCT, RunHistory
 from . import summary as summarymod
 from . import settings as settingsmod
+from .settings_window import SettingsWindow
 from .team import Team
 from .update import Updater
 from .web import WebServer, pick_web_address
@@ -40,6 +42,7 @@ from .worked import WorkedLog, n1mm_station_call, same_station
 
 log = logging.getLogger(__name__)
 
+GITHUB_URL = "https://github.com/s55oo/POUNCer"
 REFRESH_MS = 500
 WEB_MAX_SPOTS = 60
 WEB_VIEW_S = 10  # keep building a band a phone looks at this long after its last ask
@@ -200,6 +203,13 @@ class PouncerApp:
         # Narrow windows are fine: text lines wrap and the buttons flow onto
         # more rows instead of being cut off at the right edge.
         self.root.minsize(420, 300)
+        self.set_call_var = tk.BooleanVar(value=self.cfg.set_callsign)
+        self.hide_worked_var = tk.BooleanVar(value=self.cfg.worked_hide)
+        self._settings_win = SettingsWindow(
+            self.root, lambda: settingsmod.current(self.cfg), self._save_setting,
+            restart=(self._restart_now if self.updater.exe else None),
+            config_path=self.cfg.config_path)
+        self._build_menu()
 
         header = ttk.Frame(self.root, padding=(8, 6, 8, 2))
         header.pack(fill="x")
@@ -231,24 +241,8 @@ class PouncerApp:
             self._sort_buttons[col] = btn
         self._update_sort_buttons()
 
-        self.set_call_var = tk.BooleanVar(value=self.cfg.set_callsign)
-        flow.add(ttk.Checkbutton(
-            flow, text="Also enter callsign in N1MM", variable=self.set_call_var
-        ), gap=12)
-
-        self.hide_worked_var = tk.BooleanVar(value=self.cfg.worked_hide)
-        flow.add(ttk.Checkbutton(
-            flow, text="Hide worked (same band+mode)",
-            variable=self.hide_worked_var, command=self._on_toggle_worked,
-        ), gap=12)
-
-        flow.add(ttk.Button(flow, text="Clear spots", command=self._clear_spots), gap=12)
-        flow.add(ttk.Button(flow, text="Reconnect log", command=self._reconnect_log))
-        flow.add(ttk.Button(flow, text="Open in browser", command=self._open_browser))
-        flow.add(ttk.Button(flow, text="Summary",
-                            command=lambda: self._open_browser("summary")))
-        flow.add(ttk.Button(flow, text="Settings",
-                            command=lambda: self._open_browser("settings")))
+        # (the options and actions are in the menu bar: File / View /
+        # Settings / Help)
         # SO2R: which radio (N1MM Entry Window A / B) clicks, F-keys and the
         # band follow go to; with one radio only A is used.
         self.radio_btn = flow.add(ttk.Button(flow, text=self._radio_btn_text(),
@@ -309,6 +303,80 @@ class PouncerApp:
         bottom.pack(fill="x")
         self.web_label = self._wrap_label(bottom, "Phone view: starting...")
         self.status_label = self._wrap_label(bottom, "")
+
+    def _build_menu(self) -> None:
+        """Menu bar: File / View / Settings... / Help - the actions and
+        options that used to be a row of buttons (sort, A / B and the F-keys
+        stay as buttons: they're used all contest long)."""
+        bar = tk.Menu(self.root)
+        file = tk.Menu(bar, tearoff=False)
+        file.add_command(label="Open the config folder", command=self._open_config_folder)
+        file.add_command(label="Reconnect log", command=self._reconnect_log)
+        file.add_separator()
+        file.add_command(label="Restart POUNCer", command=self._restart_now,
+                         state="normal" if self.updater.exe else "disabled")
+        file.add_command(label="Exit", command=self._shutdown_and_quit)
+        bar.add_cascade(label="File", menu=file)
+        view = tk.Menu(bar, tearoff=False)
+        view.add_checkbutton(label="Also enter callsign in N1MM", variable=self.set_call_var)
+        view.add_checkbutton(label="Hide worked (same band + mode)",
+                             variable=self.hide_worked_var, command=self._on_toggle_worked)
+        view.add_separator()
+        view.add_command(label="Clear spots", command=self._clear_spots)
+        view.add_command(label="Contest summary", command=lambda: self._open_browser("summary"))
+        view.add_command(label="Phone page in the browser", command=self._open_browser)
+        bar.add_cascade(label="View", menu=view)
+        bar.add_command(label="Settings...", command=self._settings_win.open)
+        helpm = tk.Menu(bar, tearoff=False)
+        helpm.add_command(label="What every button does", command=lambda: self._open_browser("help"))
+        helpm.add_command(label="Check for a new version", command=self._on_update_click)
+        helpm.add_command(label="POUNCer on GitHub", command=lambda: self._open_url(GITHUB_URL))
+        helpm.add_separator()
+        helpm.add_command(label=f"About POUNCer {__version__}", command=self._about)
+        bar.add_cascade(label="Help", menu=helpm)
+        self.root.configure(menu=bar)
+        self.menubar = bar
+
+    def _open_url(self, url: str) -> None:
+        import webbrowser
+        try:
+            webbrowser.open(url, new=2)
+        except Exception as exc:
+            self.status_label.configure(text=f"Could not open the browser: {exc}")
+
+    def _open_config_folder(self) -> None:
+        import os
+        folder = os.path.dirname(self.cfg.config_path) if self.cfg.config_path else os.getcwd()
+        try:
+            if sys.platform == "win32":
+                os.startfile(folder)            # Explorer
+            else:
+                import subprocess
+                subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", folder])
+            self.status_label.configure(text=f"Opened {folder}")
+        except Exception as exc:
+            self.status_label.configure(text=f"Could not open {folder}: {exc}")
+
+    def _restart_now(self) -> None:
+        """Menu File > Restart / Settings window: start POUNCer again."""
+        self.status_label.configure(text="Restarting...")
+        self.root.update_idletasks()
+        self.updater.restart(before_exit=self._shutdown)
+
+    def _shutdown_and_quit(self) -> None:
+        """File > Exit: close the window; run() then shuts everything down."""
+        try:
+            self.root.destroy()
+        except tk.TclError:
+            pass
+
+    def _about(self) -> None:
+        from tkinter import messagebox
+        messagebox.showinfo("About POUNCer", (
+            f"POUNCer {__version__}\n"
+            "Search & pounce helper for N1MM Logger+: RBN / DX-cluster spots for "
+            "your band, one tap to tune radio A or B and put the call in.\n\n"
+            f"Settings: {self.cfg.config_path or 'config.ini'}\n{GITHUB_URL}"), parent=self.root)
 
     @staticmethod
     def _wrap_label(parent, text: str) -> ttk.Label:
@@ -836,9 +904,7 @@ class PouncerApp:
                 self._reconnect_log()
                 continue
             if item[0] == "restart":       # settings page: start POUNCer again
-                self.status_label.configure(text="Restarting (settings changed)...")
-                self.root.update_idletasks()
-                self.updater.restart(before_exit=self._shutdown)
+                self._restart_now()
                 continue
             if item[0] == "band":
                 self._qsy_band(item[1], item[2])

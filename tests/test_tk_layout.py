@@ -76,3 +76,92 @@ class TkLayoutTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipIf(tk is None, "tkinter not available")
+class TkSettingsWindowTests(unittest.TestCase):
+    """The exe's Settings window and menu bar (real Tk, e.g. the Windows build)."""
+
+    def setUp(self) -> None:
+        try:
+            self.root = tk.Tk()
+        except tk.TclError as exc:  # no display
+            self.skipTest(f"no Tk display: {exc}")
+
+    def tearDown(self) -> None:
+        self.root.destroy()
+
+    def test_tabs_save_and_restart_button(self) -> None:
+        import types
+        from pouncer import settings as settingsmod
+        from pouncer.settings_window import SettingsWindow, group_items
+
+        cfg = types.SimpleNamespace(**{it["attr"]: None for it in settingsmod.SETTINGS})
+        cfg.qsy_wait_ms, cfg.focus_back_to_a, cfg.radio_b_qsy = 1500, False, "udp-left"
+        cfg.rbn_spotter, cfg.rbn_backup_commands, cfg.default_radio = "S53WW", (), 1
+        saved, restarted = [], []
+
+        def save(key, text):
+            saved.append((key, text))
+            if key == "n1mm.qsy_wait_ms" and text == "abc":
+                return {"ok": False, "error": "not a number"}
+            item = settingsmod.BY_KEY[key]
+            return {"ok": True, "live": item["live"], "value": text}
+
+        w = SettingsWindow(self.root, lambda: settingsmod.current(cfg), save,
+                           restart=lambda: restarted.append(1), config_path="C:/x/config.ini")
+        w.open()
+        self.root.update()
+        groups = [g for g, _ in group_items(settingsmod.current(cfg))]
+        book = [c for c in w.win.winfo_children() if c.winfo_class() == "TNotebook"][0]
+        self.assertEqual([book.tab(t, "text") for t in book.tabs()], groups)
+        # number: Enter saves, bad value refused
+        w.vars["n1mm.qsy_wait_ms"].set("abc")
+        w._save(settingsmod.BY_KEY["n1mm.qsy_wait_ms"] | {"kind": "int"}, "abc")
+        self.assertEqual(w.state["n1mm.qsy_wait_ms"].cget("text"), "not a number")
+        w._save(settingsmod.BY_KEY["n1mm.qsy_wait_ms"], "2000")
+        self.assertEqual(w.state["n1mm.qsy_wait_ms"].cget("text"), "Saved - in use now")
+        # tick box
+        w.vars["n1mm.focus_back_to_a"].set(True)
+        w._save(settingsmod.BY_KEY["n1mm.focus_back_to_a"], "true")
+        self.assertIn(("n1mm.focus_back_to_a", "true"), saved)
+        # a restart setting shows the Restart button
+        self.assertFalse(w.restart_btn.winfo_ismapped())
+        w._save(settingsmod.BY_KEY["rbn.spotter"], "S50R")
+        self.root.update()
+        self.assertEqual(w.state["rbn.spotter"].cget("text"), "Saved - used after a restart")
+        self.assertTrue(w.restart_btn.winfo_ismapped())
+        w.restart_btn.invoke()
+        self.assertEqual(restarted, [1])
+        # unchanged value (just leaving the box) doesn't save again
+        n = len(saved)
+        w._save(settingsmod.BY_KEY["rbn.spotter"], "S50R")
+        self.assertEqual(len(saved), n)
+        w.open()                                   # second open: same window
+        self.assertEqual(len([c for c in self.root.winfo_children()
+                              if c.winfo_class() == "Toplevel"]), 1)
+
+    def test_menu_bar(self) -> None:
+        import types
+        from pouncer.app import PouncerApp
+
+        f = types.SimpleNamespace(
+            root=self.root, set_call_var=tk.BooleanVar(value=True),
+            hide_worked_var=tk.BooleanVar(value=False),
+            updater=types.SimpleNamespace(exe="C:/x/POUNCer.exe"),
+            _settings_win=types.SimpleNamespace(open=lambda: None),
+            cfg=types.SimpleNamespace(config_path="C:/x/config.ini"),
+        )
+        for name in ("_open_config_folder", "_reconnect_log", "_restart_now", "_shutdown_and_quit",
+                     "_on_toggle_worked", "_clear_spots", "_open_browser", "_on_update_click",
+                     "_open_url", "_about"):
+            setattr(f, name, lambda *a, **k: None)
+        PouncerApp._build_menu(f)
+        bar = f.menubar
+        labels = [bar.entrycget(i, "label") for i in range(bar.index("end") + 1)]
+        self.assertEqual(labels, ["File", "View", "Settings...", "Help"])
+        view = self.root.nametowidget(bar.entrycget(1, "menu"))
+        vlabels = [view.entrycget(i, "label") for i in range(view.index("end") + 1)
+                   if view.type(i) != "separator"]
+        self.assertIn("Hide worked (same band + mode)", vlabels)
+        self.assertIn("Contest summary", vlabels)

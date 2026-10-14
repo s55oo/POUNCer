@@ -1,5 +1,20 @@
 # POUNCer — Changelog
 
+## v0.7.39 — 2026-10-14 — menu bar and settings window in the exe
+
+- **Menu bar** in the main window instead of the long row of buttons:
+  **File** (open the config folder, Reconnect log, Restart POUNCer, Exit),
+  **View** (Also enter callsign, Hide worked, Clear spots, Contest summary,
+  Phone page in the browser), **Settings...**, **Help** (what every button
+  does, check for a new version, POUNCer on GitHub, About). Sort, A / B and
+  the F-keys stay as buttons; the spot list gets the room.
+- **Settings window** (Settings...): the same settings as the browser's
+  Settings page, on tabs - Tap -> N1MM, SO2R / SO2V, RBN, SSB, Program.
+  Tick boxes and lists save at once, numbers and text with Enter or when
+  leaving the box; "Saved - in use now" / "used after a restart" (↻) under
+  each, **Restart POUNCer** button when needed. Works without the phone view
+  too. Both use the same list and the same save, so they always agree.
+
 ## v0.7.38 — 2026-10-14 — after radio B, focus back to A (option)
 
 - New setting **After radio B: focus back to A** (Settings page, SO2R /
