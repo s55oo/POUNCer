@@ -595,6 +595,26 @@ class PouncerApp:
         except Exception:   # never let this stop a QSY
             return None
 
+    def _after_radio(self, nr: int, snap, target_hwnd) -> str:
+        """Where the cursor goes after a tap / tune: radio B with "focus
+        back to A" on -> Entry Window A, always; else back where it was."""
+        if nr == 2 and self._so2r() and getattr(self.cfg, "focus_back_to_a", False):
+            return self._focus_a(target_hwnd)
+        return self._return_focus(snap, target_hwnd)
+
+    def _focus_a(self, b_hwnd) -> str:
+        """SO2R / SO2V: after radio B, bring Entry Window A to the front -
+        the keyboard is on radio A again (N1MM's focus = A)."""
+        a_hwnd = self.state.entry_window_hwnd(1)
+        if not a_hwnd or a_hwnd == b_hwnd:
+            return ""
+        time.sleep(0.1)
+        try:
+            ok = force_foreground(a_hwnd)
+        except Exception:   # never let this stop a QSY
+            ok = False
+        return " [focus back on A]" if ok else " [focus back on A failed]"
+
     def _return_focus(self, snap, target_hwnd) -> str:
         """Put the cursor back (window, box, position) if it was in ANOTHER
         N1MM Entry Window than the one we used. Returns a status note."""
@@ -659,7 +679,7 @@ class PouncerApp:
                 msg += " (call skipped: N1MM not focused)"
         if self.cfg.focus_n1mm:
             msg += " [N1MM focused]" if focused else " [N1MM focus failed]"
-        msg += self._return_focus(snap, hwnd)
+        msg += self._after_radio(nr, snap, hwnd)
         msg += f" ({time.time() - t0:.1f} s)"
         self.status_label.configure(text=msg)
 
@@ -1191,7 +1211,7 @@ class PouncerApp:
         if not self._qsy(nr, khz, hwnd, focused):
             return
         self._tune_last[nr] = (khz, now)
-        note = self._return_focus(snap, hwnd) if focused else ""
+        note = self._after_radio(nr, snap, hwnd) if focused else ""
         self.status_label.configure(text=f"Tune {hz:+d} Hz -> {khz:.3f} kHz{note}")
 
     def _filter_cat(self, width: str) -> str:

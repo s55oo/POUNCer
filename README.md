@@ -187,7 +187,10 @@ command with Right. Either way the call then goes into Entry Window B
 after N1MM reports the new frequency. After a tap
 for the other radio the cursor goes back to where it was - same Entry
 Window, same box (callsign / exchange) and cursor position
-(`[n1mm] return_focus = true`). With one radio
+(`[n1mm] return_focus = true`). Or, with **After radio B: focus back to
+A** (`[n1mm] focus_back_to_a = true`, Settings page), every tap or -/+ for
+radio B ends with the cursor in Entry Window A, wherever it was - you keep
+running on A while B pounces. With one radio
 nothing changes. The frequency in the top row then shows **both radios** -
 A with B under it; the radio this phone works is the big one. Tapping it
 opens one band menu (160-10 m) for the radio chosen with the **A / B** key:

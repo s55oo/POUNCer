@@ -49,6 +49,11 @@ SETTINGS: list[dict] = [
      "live": True, "group": "SO2R / SO2V",
      "label": "Cursor back where it was",
      "help": "After a tap for the other radio: back to the same Entry Window and box."},
+    {"key": "n1mm.focus_back_to_a", "attr": "focus_back_to_a", "kind": "bool",
+     "live": True, "group": "SO2R / SO2V",
+     "label": "After radio B: focus back to A",
+     "help": "Every tap (or -/+) for radio B ends with the cursor in Entry Window A, "
+             "wherever it was before. Off = 'Cursor back where it was' decides."},
     {"key": "n1mm.default_radio", "attr": "default_radio", "kind": "choice",
      "choices": ["A", "B"], "live": False, "group": "SO2R / SO2V",
      "label": "Radio at start", "help": "Which radio the main window works at start."},

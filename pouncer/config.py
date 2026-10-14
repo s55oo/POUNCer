@@ -78,6 +78,7 @@ class Config:
     wipe_before_call: bool = True
     focus_n1mm: bool = True
     return_focus: bool = True
+    focus_back_to_a: bool = False  # SO2R/SO2V: after a radio B tap, always to Entry Window A
     type_mode: str = "settext"  # how calls / frequencies go into N1MM: settext or keys
     qsy_wait_ms: int = 1500    # after a QSY: wait (max) until N1MM reports the new frequency
     qsy_settle_ms: int = 250   # ... then this long before wiping / typing the call  # SO2R: after a tap on the other radio, cursor back where it was
@@ -200,6 +201,7 @@ def load_config(path: str) -> Config:
     cfg.wipe_before_call = b("n1mm", "wipe_before_call", cfg.wipe_before_call)
     cfg.focus_n1mm = b("n1mm", "focus_n1mm", cfg.focus_n1mm)
     cfg.return_focus = b("n1mm", "return_focus", cfg.return_focus)
+    cfg.focus_back_to_a = b("n1mm", "focus_back_to_a", cfg.focus_back_to_a)
     cfg.qsy_wait_ms = max(0, i("n1mm", "qsy_wait_ms", cfg.qsy_wait_ms))
     tm = s("n1mm", "type_mode", cfg.type_mode).strip().lower()
     cfg.type_mode = tm if tm in ("settext", "keys") else "settext"

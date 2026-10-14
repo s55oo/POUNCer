@@ -103,7 +103,7 @@ class AppRadioTests(unittest.TestCase):
         for name in ("_radio_nr", "_radio_tag", "_so2r", "_current_band", "_radio_khz",
                      "_focus_radio", "_qsy", "_types_qsy", "_snapshot_focus", "_return_focus",
                      "_wait_for_qsy", "_check_call", "_freq_text",
-                     "_settext", "_enter_text"):
+                     "_settext", "_enter_text", "_after_radio", "_focus_a"):
             setattr(f, name, getattr(app.PouncerApp, name).__get__(f))
         return f
 
@@ -503,3 +503,45 @@ class RadioBTimingTests(unittest.TestCase):
         took, call = self._run(report_after=99, wipe_after=None)
         self.assertEqual(call, "K1ABC")
         self.assertLess(took, 3.5, took)
+
+
+class FocusBackToATests(unittest.TestCase):
+    """[n1mm] focus_back_to_a: after a radio B tap the cursor goes to Entry Window A."""
+
+    def _tap_b(self, on: bool, snap=None):
+        app = _import_app()
+        f = AppRadioTests._fake(AppRadioTests(), app, radio=2)
+        f.cfg.radio_b_qsy, f.cfg.return_focus, f.cfg.focus_back_to_a = "udp-left", True, on
+        f.cfg.qsy_wait_ms = f.cfg.qsy_settle_ms = 0
+        f.set_call_var = types.SimpleNamespace(get=lambda: False)
+        msgs, fronts, restored = [], [], []
+        f.status_label = types.SimpleNamespace(configure=lambda **kw: msgs.append(kw["text"]))
+        spot = app.Spot(dxcall="K1ABC", freq_khz=7011.0, mode="CW", snr=10, wpm=28,
+                        spot_type="CQ", spotter="S53WW", time_utc="1200Z", received=0)
+        with mock.patch.object(app, "force_foreground", side_effect=lambda h: fronts.append(h) or True), \
+                mock.patch.object(app, "focus_snapshot", return_value=snap), \
+                mock.patch.object(app, "window_pid", return_value=42), \
+                mock.patch.object(app, "restore_focus", side_effect=lambda s: restored.append(s) or True), \
+                mock.patch.object(app.time, "sleep"):
+            app.PouncerApp._act_on_spot(f, spot, 2)
+        return fronts, restored, msgs[-1]
+
+    def test_on_goes_to_a(self) -> None:
+        # cursor was in POUNCer / anywhere: still ends in Entry Window A
+        fronts, restored, msg = self._tap_b(True, snap={"fg": 999, "focus": 0, "sel": None, "pid": 7})
+        self.assertEqual(fronts, [2222, 1111])          # B for the QSY + call, then A
+        self.assertEqual(restored, [])
+        self.assertIn("focus back on A", msg)
+
+    def test_off_keeps_cursor_back_where_it_was(self) -> None:
+        snap = {"fg": 1111, "focus": 5555, "sel": (3, 3), "pid": 42}
+        fronts, restored, msg = self._tap_b(False, snap=snap)
+        self.assertEqual(fronts, [2222])
+        self.assertEqual(restored, [snap])
+        self.assertNotIn("focus back on A", msg)
+
+    def test_radio_a_tap_unchanged(self) -> None:
+        app = _import_app()
+        f = AppRadioTests._fake(AppRadioTests(), app, radio=1)
+        f.cfg.focus_back_to_a = True
+        self.assertEqual(app.PouncerApp._after_radio(f, 1, None, 1111), "")
