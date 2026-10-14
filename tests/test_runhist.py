@@ -77,6 +77,11 @@ class HelperTests(unittest.TestCase):
         mixed = [14025.0, 14031.0, 14025.0, 14036.0, 14025.0, 14040.0]
         self.assertEqual(run_share(cabrillo(mixed))[0], 2)
 
+    def test_band_only_frequencies_are_not_a_run(self) -> None:
+        # logs without CAT: every QSO on "28000" - not 100% running (common on SSB)
+        self.assertEqual(run_share(cabrillo([28000.0] * 50)), (0, 0))
+        self.assertEqual(run_share(cabrillo([14000.0] * 5 + [14250.0] * 5)), (4, 5))
+
 
 class RunHistoryTests(unittest.TestCase):
     def test_lookup_in_background_and_cached(self) -> None:
@@ -256,6 +261,63 @@ class RunHistoryTests(unittest.TestCase):
                 time.sleep(0.05)
             self.assertEqual(rh2.get("M0KTZ", "CQWWCW", "CW")["hours"], 3.5)
             self.assertEqual(urls, [])
+
+    def _blob(self, d, rows, name):
+        path = os.path.join(d, name)
+        con = sqlite3.connect(path)
+        con.execute("CREATE TABLE warm (call TEXT, contest TEXT, mode TEXT, run INTEGER,"
+                    " hours REAL, rec INTEGER, logs INTEGER, newest INTEGER)")
+        con.executemany("INSERT INTO warm VALUES (?,?,?,?,?,?,?,?)", rows)
+        con.execute("CREATE TABLE info (key TEXT PRIMARY KEY, value TEXT)")
+        con.execute("INSERT INTO info VALUES ('contests', 'CQWW SSB')")
+        con.commit()
+        con.close()
+        with open(path, "rb") as fh:
+            return fh.read()
+
+    def test_separate_ssb_list(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            cw = self._blob(d, [("M0KTZ", "CQWW", "CW", 6, 3.5, 0, 2, 2025),
+                                ("S50R", "CQWW", "CW", 80, 20.0, 0, 5, 2025)], "cw.sqlite")
+            ssb = self._blob(d, [("M0KTZ", "CQWW", "PH", 70, 30.0, 0, 3, 2025)], "ssb.sqlite")
+            rh = RunHistory(os.path.join(d, "cache"),
+                            fetch=lambda url: ssb if "ssb" in url else cw)
+            rh.warm_up("http://x/warm.sqlite", ssb_url="http://x/warm-ssb.sqlite")
+            for _ in range(100):
+                if "SSB" in rh.warm_status and "CW" in rh.warm_status:
+                    break
+                time.sleep(0.05)
+            # same station, different activity on CW and on SSB
+            self.assertEqual(rh.get("M0KTZ", "CQWWCW", "CW")["run"], 6)
+            self.assertEqual(rh.get("M0KTZ", "CQWWSSB", "SSB")["run"], 70)
+            self.assertEqual(rh.get("M0KTZ", "CQWWSSB", "USB")["hours"], 30.0)
+            self.assertIn("CW 2", rh.warm_status)
+            self.assertIn("SSB 1", rh.warm_status)
+            self.assertIn("known in advance", rh.warm_status)
+            for _ in range(100):
+                if os.path.exists(os.path.join(d, "cache", "warm-up-ssb.txt")):
+                    break
+                time.sleep(0.05)
+            with open(os.path.join(d, "cache", "warm-up-ssb.txt"), encoding="utf-8") as fh:
+                self.assertIn("(SSB)", fh.read())
+            self.assertTrue(os.path.exists(os.path.join(d, "cache", "warm-ssb.sqlite")))
+
+    def test_ssb_list_missing_keeps_cw(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            cw = self._blob(d, [("S50R", "CQWW", "CW", 80, 20.0, 0, 5, 2025)], "cw.sqlite")
+
+            def fetch(url):
+                if "ssb" in url:
+                    raise OSError("HTTP 404")
+                return cw
+            rh = RunHistory(os.path.join(d, "cache"), fetch=fetch)
+            rh.warm_up("http://x/warm.sqlite", ssb_url="http://x/warm-ssb.sqlite")
+            for _ in range(100):
+                if "CW 1" in rh.warm_status and "SSB list" in rh.warm_status:
+                    break
+                time.sleep(0.05)
+            self.assertIn("CW 1 stations known in advance", rh.warm_status)
+            self.assertIn("SSB list: warm-up download failed", rh.warm_status)
 
     def test_warm_up_offline_is_harmless(self) -> None:
         with tempfile.TemporaryDirectory() as d:
