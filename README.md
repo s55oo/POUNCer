@@ -63,11 +63,11 @@ bottom.*
   N1MM"** banner (and the main window says so in its Log line). Spots are still
   shown, but nothing can be hidden as worked. POUNCer looks again every 2 s, so
   the banner clears on its own once you open a log; the **Reconnect** button
-  (banner, the **Log** button next to Sort, or *Reconnect log* in the main
-  window) re-reads which log N1MM has open immediately.
+  (banner, the **Log** button next to Sort, or *File > Reconnect log* in the
+  main window) re-reads which log N1MM has open immediately.
 * **Touch / big-button view** - the phone page in your PC's default browser
-  (touch screen, second monitor): the **Open in browser** button in the main
-  window opens it (or set `[ui] touch_view = true` to open it at startup).
+  (touch screen, second monitor): *View > Phone page in the browser* in the
+  main window opens it (or set `[ui] touch_view = true` to open it at startup).
   The old separate Tk touch window is gone - one view for everything.
 * **Phone view (web)** - a small local web server (stdlib only) serves the same
   needed spots as big tap tiles for a phone/browser. Tapping a tile QSYs and
@@ -146,6 +146,19 @@ bottom.*
 Only the Python standard library is used (tkinter for the GUI). No pip install
 is required.
 
+## Main window menu
+
+The options and actions are in the menu bar (sort, the A / B key and the
+F-keys stay as buttons - they're used all contest long):
+
+* **File** - open the config folder (Explorer), Reconnect log, Restart
+  POUNCer, Exit.
+* **View** - *Also enter callsign in N1MM* and *Hide worked* (tick), Clear
+  spots, Contest summary, Phone page in the browser.
+* **Settings...** - the settings window (below).
+* **Help** - what every button does, check for a new version, POUNCer on
+  GitHub, About.
+
 ## Connection lights (Windows window)
 
 Under the MASTER / SLAVE bar a row of lights shows at a glance that
@@ -198,14 +211,19 @@ with A it shows that band's spots for radio A, with B for radio B (green =
 the band shown, blue ring = the band the radio is on). Tap a station there
 and that radio goes to it.
 
-## Settings page
+## Settings
 
-**Settings** (main window, or the phone's band menu) changes the most-used
-settings in the browser - wait times, settext / keys, radio B, decimal sign,
-cursor back, skimmer, backup server, auto-update - and writes them into this
-POUNCer's config.ini (only that line; comments stay). Most work at once, the
-ones marked ↻ after **Restart POUNCer**. Only from the browser on the PC
-itself unless `[web] remote_settings = true`.
+**Settings...** in the main window's menu bar opens the settings window: the
+most-used settings on tabs (*Tap -> N1MM*, *SO2R / SO2V*, *RBN*, *SSB*,
+*Program*) - wait times, settext / keys, radio B, focus back to A, decimal
+sign, cursor back, skimmer, backup server, SSB cluster, auto-update. A tick
+box or list is saved at once, a number or text with Enter (or when you leave
+the box), straight into this POUNCer's config.ini (only that line; comments
+stay). Most work at once, the ones marked ↻ after **Restart POUNCer**.
+
+The same settings are on the **Settings** page in the browser (the phone's
+band menu, `/settings`) - only from the browser on the PC itself unless
+`[web] remote_settings = true`.
 
 ## SSB
 
@@ -232,7 +250,7 @@ list has stations to click straight away. `[rbn] history = 30` (0 = off).
 ## Contest summary
 
 **Σ** on the phone page (next to **?**, also in the band menu) or the
-**Summary** button in the main window opens a summary of the log N1MM has
+*View > Contest summary* in the main window opens a summary of the log N1MM has
 open: QSOs and how many came **from POUNCer** (you tapped that call on that
 band - tile, NEXT or main window - up to 15 minutes before it was logged),
 multipliers and how many came from spots, QSOs per hour on the air, best

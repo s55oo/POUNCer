@@ -1195,7 +1195,7 @@ page.</p>
 
 <h2>Contest summary</h2>
 <p><span class="k">&Sigma;</span> next to <span class="k">?</span> (also in the band menu, and the
-<b>Summary</b> button in the main window) opens the contest summary of the log N1MM has
+<b>View &gt; Contest summary</b> in the main window) opens the contest summary of the log N1MM has
 open: QSOs and how many came <b>from POUNCer</b> (you tapped that call on that band up to
 15 minutes before logging it), multipliers and how many came from spots, rate on the
 air, best 60 minutes, a per-band table, rate per hour and the list of multipliers you
@@ -1208,7 +1208,7 @@ the RBN CW spots - per radio (A / B). On SSB the WPM keys are hidden. Settings: 
 on the Settings page.</p>
 
 <h2>Settings</h2>
-<p><b>Settings</b> in the band menu (or the <b>Settings</b> button in the main window): the
+<p><b>Settings</b> in the band menu (or <b>Settings...</b> in the main window's menu bar, a window with tabs): the
 most-used settings of config.ini - wait times and how the call goes into N1MM, radio B,
 cursor back, skimmer, backup server, auto-update - changed in the browser and written into
 config.ini. Most work at once; the ones marked &#8635; after a restart (Restart button).
