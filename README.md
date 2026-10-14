@@ -175,7 +175,9 @@ the **Radio A (A/B)** button does the same for clicks and keyboard F-keys.
 `[n1mm] default_radio = A` / `B` sets the start radio. Radio B is
 QSYed by typing the frequency (kHz) + Enter into Entry Window B, as you
 would by hand - N1MM's UDP QSY command moved radio A in SO2R
-(`[n1mm] radio_b_qsy = type`, or `udp` for the UDP command). After a tap
+(`[n1mm] radio_b_qsy = type`). `udp-left` = N1MM's UDP command for radio 2
+with mouse button Left, nothing typed (as SP_Helper does); `udp` = the same
+with Right. Either way the call then goes into Entry Window B. After a tap
 for the other radio the cursor goes back to where it was - same Entry
 Window, same box (callsign / exchange) and cursor position
 (`[n1mm] return_focus = true`). With one radio

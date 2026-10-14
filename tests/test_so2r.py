@@ -241,7 +241,7 @@ class AppRadioTests(unittest.TestCase):
                 mock.patch.object(app, "send_enter") as enter, \
                 mock.patch.object(app.time, "sleep"):
             app.PouncerApp._act_on_spot(f, spot, 1)
-        self.assertIn(("qsy", 14025.3, {"radio_nr": 1}), f.sent)
+        self.assertIn(("qsy", 14025.3, {"mousebutton": None, "radio_nr": 1}), f.sent)
         self.assertEqual(typed, ["DL1AA"])
         enter.assert_not_called()
 
@@ -252,7 +252,38 @@ class AppRadioTests(unittest.TestCase):
         with mock.patch.object(app, "force_foreground", return_value=True), \
                 mock.patch.object(app.time, "sleep"):
             app.PouncerApp._qsy(f, 2, 7012.5, 2222, True)
-        self.assertIn(("qsy", 7012.5, {"radio_nr": 2}), f.sent)
+        self.assertIn(("qsy", 7012.5, {"mousebutton": None, "radio_nr": 2}), f.sent)   # Right
+
+    def test_radio_b_udp_left_option(self) -> None:
+        # as SP_Helper: radio 2 by UDP with mouse button Left, nothing typed
+        app = _import_app()
+        f = self._fake(app, radio=2)
+        f.cfg.radio_b_qsy = "udp-left"
+        with mock.patch.object(app, "force_foreground", return_value=True), \
+                mock.patch.object(app, "type_text") as typed, \
+                mock.patch.object(app, "send_enter") as enter, \
+                mock.patch.object(app.time, "sleep"):
+            app.PouncerApp._qsy(f, 2, 7012.5, 2222, True)
+            app.PouncerApp._qsy(f, 1, 14025.0, 1111, True)       # radio A unchanged
+        self.assertEqual([x for x in f.sent if x[0] == "qsy"],
+                         [("qsy", 7012.5, {"mousebutton": "Left", "radio_nr": 2}),
+                          ("qsy", 14025.0, {"mousebutton": None, "radio_nr": 1})])
+        typed.assert_not_called()
+        enter.assert_not_called()
+
+    def test_udp_left_packet(self) -> None:
+        rx = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        rx.bind(("127.0.0.1", 0))
+        rx.settimeout(2)
+        ctl = N1MMController("127.0.0.1", rx.getsockname()[1], radionr=1)
+        try:
+            ctl.set_frequency(7012.5, mousebutton="Left", radio_nr=2)
+            pkt = rx.recv(4096).decode()
+        finally:
+            ctl.close()
+            rx.close()
+        self.assertIn("<radionr>2</radionr>", pkt)
+        self.assertIn("<mousebutton>Left</mousebutton>", pkt)
 
     def test_key_goes_to_radio_b_window(self) -> None:
         app = _import_app()

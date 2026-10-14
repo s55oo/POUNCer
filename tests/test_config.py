@@ -61,7 +61,7 @@ class LoadConfigTests(unittest.TestCase):
         self.assertEqual(load_config("").freq_decimal, "auto")
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, "config.ini")
-            for text, want in (("udp", "udp"), ("TYPE", "type"), ("rubbish", "type")):
+            for text, want in (("udp", "udp"), ("UDP-Left", "udp-left"), ("TYPE", "type"), ("rubbish", "type")):
                 with open(path, "w", encoding="utf-8") as fh:
                     fh.write(f"[n1mm]\nradio_b_qsy = {text}\n")
                 self.assertEqual(load_config(path).radio_b_qsy, want)

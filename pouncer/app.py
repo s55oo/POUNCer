@@ -651,7 +651,7 @@ class PouncerApp:
                 how = self._enter_text(hwnd, spot.dxcall)
                 msg += " (call typed, no TX)" + ("" if how else " [box not cleared]")
                 msg += self._check_call(hwnd, spot.dxcall)
-                if not landed and self._types_qsy(nr):
+                if not landed and nr == 2 and self._so2r():
                     landed = self._guard_call(hwnd, spot.dxcall, nr, spot.freq_khz)
                 if not landed:
                     msg += " [N1MM didn't report the new frequency]"
@@ -1153,8 +1153,12 @@ class PouncerApp:
             send_enter()
             time.sleep(0.3)   # let N1MM tune and clear the box before the call
             return True
+        # radio B by UDP: "udp-left" = radio 2 with mouse button Left (as
+        # SP_Helper does; "Right" moved VFO A here), "udp" = Right (N1MM docs)
+        button = ("Left" if nr == 2 and self._so2r()
+                  and getattr(self.cfg, "radio_b_qsy", "type") == "udp-left" else None)
         try:
-            self.controller.set_frequency(khz, radio_nr=nr)
+            self.controller.set_frequency(khz, mousebutton=button, radio_nr=nr)
         except OSError as exc:
             self.status_label.configure(text=f"N1MM QSY failed: {exc}")
             return False

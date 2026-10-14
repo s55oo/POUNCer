@@ -1,5 +1,18 @@
 # POUNCer — Changelog
 
+## v0.7.36 — 2026-10-14 — radio B QSY option "udp-left" (to test)
+
+- New choice for **How radio B is QSYed** (Settings page, or `[n1mm]
+  radio_b_qsy`): **udp-left** = N1MM's UDP QSY command for radio 2 with
+  mouse button **Left**, nothing typed - the way S53ZO's SP_Helper tunes
+  radio 2. Our "udp" sent mouse button Right (as N1MM's docs say), which
+  moved VFO A on S55OO's SO2V. The **call** still goes into Entry Window B
+  as now: after N1MM reports the new frequency, in one go, checked, and kept
+  in the box if N1MM's QSY wipe comes late (now for every radio B mode).
+- Choices: `type` (default, frequency typed + Enter), `udp-left`, `udp`
+  (Right). Switch on the Settings page - used at once, no restart - and keep
+  the one that works best.
+
 ## v0.7.35 — 2026-10-14 — separate run history for SSB contests
 
 - **SSB warm-up list.** Run % and hours on the air for SSB contests now come
