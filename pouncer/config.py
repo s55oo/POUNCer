@@ -103,7 +103,7 @@ class Config:
     run_history_dir: str = ""  # default: "cache" next to config.ini
     run_server: str = ""  # optional run list server URL (server/runlist.py)
     run_list: str = "runlist.sqlite"  # ready-made run list file (next to config.ini)
-    warmup: bool = True  # download the warm-up list (big CW contests) at start
+    warmup: bool = True  # download the warm-up lists (big CW and SSB contests) at start
     auto_update: bool = True  # exe: download a newer release, used from the next start
     forward_fkeys: bool = True  # F1-F12 pressed in POUNCer go to N1MM
     team: bool = True       # work together with other POUNCers on the network

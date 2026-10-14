@@ -30,8 +30,10 @@ from urllib.parse import quote
 
 log = logging.getLogger(__name__)
 
-# Warm-up list (server/warmlist.py, built by GitHub Actions in POUNCer's repo)
+# Warm-up lists (server/warmlist.py, built by GitHub Actions in POUNCer's repo):
+# CW contests and, separately, the phone (SSB) versions - activity differs.
 WARMUP_URL = "https://github.com/s55oo/POUNCer/releases/download/warmup/warm.sqlite"
+WARMUP_SSB_URL = "https://github.com/s55oo/POUNCer/releases/download/warmup/warm-ssb.sqlite"
 ARCHIVE_URL = "https://raw.githubusercontent.com/s53zo/Hamradio-Contest-logs-Archives/main/"
 YEARS_BACK = 6        # logs of the last 6 years (+ this year) are used
 MAX_LOGS = 6          # at most this many logs per call (downloaded in parallel)
@@ -42,6 +44,10 @@ RUN_KHZ = 0.3         # same frequency (kHz) as one of the last 2 QSOs = running
 RARE_RUN_PCT = 30     # runs less than this % of QSOs = "rarely runs" (marked)
 RARE_HOURS = 6        # on the air less than this many hours = rare (marked)
 OFF_MINUTES = 30      # a pause longer than this between QSOs = off time
+# Logs without CAT give only the band edge as frequency (28000, 14000 ...):
+# every QSO "on the same frequency" would look like one long run. Those QSOs
+# are left out of the run % (common in SSB logs).
+BAND_ONLY_KHZ = {1800, 3500, 7000, 10100, 14000, 18068, 21000, 24890, 28000, 50000}
 
 # N1MM contest name prefix -> archive contest folder.
 CONTESTS = {
@@ -126,7 +132,7 @@ def run_share(cabrillo: str) -> tuple[int, int]:
             freq = float(parts[1])
         except (IndexError, ValueError):
             continue
-        if freq < 1800:  # band given instead of kHz - can't tell
+        if freq < 1800 or freq in BAND_ONLY_KHZ:  # band only, no real kHz - can't tell
             continue
         band = int(freq // 1000)
         prev = last.setdefault(band, [])
@@ -148,8 +154,8 @@ class RunHistory:
         self.cache_dir = cache_dir
         self.base_url = base_url
         self._fetch = fetch or self._http_get
-        # v3: last 6 years of logs (older entries were from one log only)
-        self._file = os.path.join(cache_dir, "runhist3.json")
+        # v4: band-only frequencies (no CAT) no longer count as running
+        self._file = os.path.join(cache_dir, "runhist4.json")
         self._lock = threading.Lock()
         # "CALL|CONTEST|MODE" -> {"run": %, "hours": h, "rec": bool} or None
         self._results: dict[str, dict | None] = {}
@@ -177,44 +183,71 @@ class RunHistory:
         for i in range(WORKERS):
             threading.Thread(target=self._worker, name=f"runhist{i}", daemon=True).start()
 
-    def warm_up(self, url: str = WARMUP_URL, max_age_days: float = 30) -> None:
-        """In the background: load the ready-made warm-up list (run % and hours
-        for every station of the big CW contests, built on GitHub) from the
-        cache, and download a fresh one if it is missing or older than
-        ``max_age_days``."""
-        def run() -> None:
-            path = os.path.join(self.cache_dir, "warm.sqlite")
-            if os.path.exists(path):
-                self._load_warm(path, downloaded=False)
-            fresh = os.path.exists(path) and (
-                time.time() - os.path.getmtime(path) < max_age_days * 86400)
-            if fresh:
-                return
-            try:
-                data = self._fetch(url)
-                if not data.startswith(b"SQLite format 3"):
-                    raise ValueError("not a SQLite file")
-                os.makedirs(self.cache_dir, exist_ok=True)
-                with open(path + ".part", "wb") as fh:
-                    fh.write(data)
-                os.replace(path + ".part", path)
-            except Exception as exc:  # offline etc.: keep what we have
-                self.warm_status = f"warm-up download failed: {exc}"
-                log.info("warm-up download from %s failed: %s", url, exc)
-                return
-            self._load_warm(path, downloaded=True, url=url, max_age_days=max_age_days)
+    def warm_up(self, url: str = WARMUP_URL, max_age_days: float = 30,
+                ssb_url: str | None = WARMUP_SSB_URL) -> None:
+        """In the background: load the ready-made warm-up lists (run % and
+        hours for every station of the big contests, built on GitHub) - the
+        CW one and, separately, the SSB one - from the cache, and download a
+        fresh one if it is missing or older than ``max_age_days``."""
+        lists = [("CW", url, "warm.sqlite", "warm-up.txt")]
+        if ssb_url:
+            lists.append(("SSB", ssb_url, "warm-ssb.sqlite", "warm-up-ssb.txt"))
+        for kind, u, name, txt in lists:
+            threading.Thread(target=self._warm_one, args=(kind, u, name, txt, max_age_days),
+                             name=f"warmup-{kind}", daemon=True).start()
 
-        threading.Thread(target=run, name="warmup", daemon=True).start()
+    def _warm_one(self, kind: str, url: str, name: str, txt: str, max_age_days: float) -> None:
+        path = os.path.join(self.cache_dir, name)
+        if os.path.exists(path):
+            self._load_warm(path, downloaded=False, kind=kind, txt=txt)
+        fresh = os.path.exists(path) and (
+            time.time() - os.path.getmtime(path) < max_age_days * 86400)
+        if fresh:
+            return
+        try:
+            data = self._fetch(url)
+            if not data.startswith(b"SQLite format 3"):
+                raise ValueError("not a SQLite file")
+            os.makedirs(self.cache_dir, exist_ok=True)
+            with open(path + ".part", "wb") as fh:
+                fh.write(data)
+            os.replace(path + ".part", path)
+        except Exception as exc:  # offline etc.: keep what we have
+            if not os.path.exists(path):
+                self._set_warm(kind, None, f"warm-up download failed: {exc}")
+            log.info("warm-up %s download from %s failed: %s", kind, url, exc)
+            return
+        self._load_warm(path, downloaded=True, url=url, max_age_days=max_age_days,
+                        kind=kind, txt=txt)
+
+    def _set_warm(self, kind: str, n: int | None, text: str) -> None:
+        """One list's state -> ``warm_status`` for all, e.g. "CW 46044 + SSB
+        38120 stations known in advance (downloaded 2026-10-14 08:30)"."""
+        with self._lock:
+            states = getattr(self, "_warm_states", {})
+            states[kind] = (n, text)
+            self._warm_states = states
+            ok = [(k, v) for k, v in states.items() if v[0]]
+            bad = [f"{k} list: {v[1]}" for k, v in states.items() if not v[0]]
+            if ok:
+                when = max(v[1] for _k, v in ok)
+                status = (" + ".join(f"{k} {v[0]}" for k, v in ok)
+                          + f" stations known in advance (downloaded {when})")
+                self.warm_status = "; ".join([status] + bad)
+            else:
+                self.warm_status = "; ".join(bad)
 
     def _load_warm(self, path: str, downloaded: bool, url: str = "",
-                   max_age_days: float = 30) -> None:
-        """Load warm.sqlite; status shows when it was downloaded. After a new
-        download also write ``warm-up.txt`` next to it (what, when, from where)."""
+                   max_age_days: float = 30, kind: str = "CW",
+                   txt: str = "warm-up.txt") -> None:
+        """Load a warm-up list; status shows when it was downloaded. After a
+        new download also write ``txt`` next to it (what, when, from where)."""
         n = self.load_run_list(path)
         if not n:
+            self._set_warm(kind, None, "list unreadable")
             return
         when = time.strftime("%Y-%m-%d %H:%M", time.localtime(os.path.getmtime(path)))
-        self.warm_status = f"{n} stations known in advance (downloaded {when})"
+        self._set_warm(kind, n, when)
         if not downloaded:
             return
         info = {}
@@ -229,7 +262,7 @@ class RunHistory:
         refresh = time.strftime("%Y-%m-%d", time.localtime(
             os.path.getmtime(path) + max_age_days * 86400))
         lines = [
-            "POUNCer warm-up list",
+            f"POUNCer warm-up list ({kind})",
             f"Downloaded:  {when}",
             f"Stations:    {n}",
             f"Contests:    {info.get('contests', '?')}",
@@ -237,14 +270,14 @@ class RunHistory:
             f"Built:       {info.get('built', '?')}",
             f"From:        {url}",
             f"Next check:  {refresh} (downloaded again after that)",
-            "File:        warm.sqlite (delete it to download again)",
+            f"File:        {os.path.basename(path)} (delete it to download again)",
         ]
         try:
-            with open(os.path.join(self.cache_dir, "warm-up.txt"), "w",
+            with open(os.path.join(self.cache_dir, txt), "w",
                       encoding="utf-8") as fh:
                 fh.write("\n".join(lines) + "\n")
         except OSError as exc:
-            log.info("warm-up.txt: %s", exc)
+            log.info("%s: %s", txt, exc)
 
     def load_run_list(self, path: str) -> int:
         """Load a ready-made run list (runlist.sqlite from server/runlist.py):
@@ -274,7 +307,8 @@ class RunHistory:
         with self._lock:
             for call, contest, mode, value in rows:
                 self._results.setdefault(f"{call.upper()}|{contest}|{mode}", value)
-        self.warm_status = f"{len(rows)} stations known in advance"
+        if not getattr(self, "_warm_states", None):
+            self.warm_status = f"{len(rows)} stations known in advance"
         log.info("run list %s: %d entries", path, len(rows))
         return len(rows)
 

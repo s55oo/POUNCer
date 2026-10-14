@@ -127,7 +127,7 @@ class PouncerApp:
         # Every tapped station (for the contest summary): cache\taps.jsonl
         self.taps = summarymod.TapLog(config.run_history_dir or "cache")
         if self.runhist is not None and config.warmup:
-            self.runhist.warm_up()  # every station of CQWW / ARRL DX / WPX CW
+            self.runhist.warm_up()  # CQWW / ARRL DX / WPX: CW list + separate SSB list
         # Callsign -> continent (N1MM's wl_cty.dat) for EU / DX marking.
         self.cty = load_cty(config.cty_file, config.n1mm_ini)
         self._home_call: str | None = None

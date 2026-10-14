@@ -95,12 +95,17 @@ bottom.*
   (`[ui] run_history`, cached in a `cache` folder). The **⚡** header button
   sorts the rarely-running stations to the top. A new call is known in about
   a second (8 looked up at a time; instant once cached).
-  **Warm-up:** at start POUNCer downloads (once, ~3 MB, refreshed after 30
-  days) a ready list of **46 044 stations** from CQWW CW, ARRL DX CW and
-  CQ WPX CW 2021-2026 (submitted + reconstructed logs), so those marks are
-  there the moment a call is spotted (`[ui] warmup`; built by
-  `server/warmlist.py`, release `warmup`). Stored as `cache\warm.sqlite`;
-  `cache\warm-up.txt` and the main window say when it was downloaded.
+  **Warm-up:** at start POUNCer downloads (once, refreshed after 30 days)
+  ready lists: **CW** - about 46 000 stations from CQWW CW, ARRL DX CW and
+  CQ WPX CW - and, **separately, SSB** - the same contests' phone versions
+  (CQWW SSB, ARRL DX SSB, CQ WPX SSB), since who runs and for how long is
+  different on SSB. Last 5 years, submitted + reconstructed logs, so the
+  marks are there the moment a call is spotted; an SSB spot gets the SSB
+  numbers (`[ui] warmup`; built by `server/warmlist.py`, release `warmup`).
+  Stored as `cache\warm.sqlite` and `cache\warm-ssb.sqlite`;
+  `cache\warm-up.txt` / `warm-up-ssb.txt` and the main window say when
+  they were downloaded. QSOs logged without CAT (only the band edge, e.g.
+  28000) don't count as running.
   Calls not in it are looked up live.
   Or put a ready-made **`runlist.sqlite`** next to `config.ini`
   (`[ui] run_list`) - loads at start, no download.

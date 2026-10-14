@@ -79,10 +79,10 @@ def web_light(enabled: bool, running: bool) -> tuple[str, str]:
 def warm_light(enabled: bool, status: str) -> tuple[str, str]:
     if not enabled:
         return OFF, "Warm-up off"
+    if "known in advance" in status:     # (one of CW / SSB may still be missing)
+        return OK, "Warm-up"
     if "failed" in status:
         return BAD, "Warm-up"
-    if "known in advance" in status:
-        return OK, "Warm-up"
     return WAIT, "Warm-up"
 
 

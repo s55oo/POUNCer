@@ -37,6 +37,8 @@ class LightsTests(unittest.TestCase):
         self.assertEqual(L.warm_light(True, "")[0], L.WAIT)
         self.assertEqual(L.warm_light(True, "46044 stations known in advance (downloaded x)")[0], L.OK)
         self.assertEqual(L.warm_light(True, "warm-up download failed: offline")[0], L.BAD)
+        self.assertEqual(L.warm_light(True, "CW 46044 stations known in advance (downloaded x);"
+                                            " SSB list: warm-up download failed: 404")[0], L.OK)
         self.assertEqual(L.warm_light(False, "")[0], L.OFF)
         for state in (L.OK, L.WAIT, L.BAD, L.OFF):
             self.assertTrue(L.COLORS[state].startswith("#"))

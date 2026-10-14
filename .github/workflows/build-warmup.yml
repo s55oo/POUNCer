@@ -1,9 +1,10 @@
 name: Build warm-up list
 
 # Run % and hours on the air for every station of CQWW CW, ARRL DX CW and
-# CQ WPX CW (last 5 years), from S53ZO's public contest-log archive
-# (server/warmlist.py). Published as the asset warm.sqlite of the release
-# "warmup", which POUNCer downloads at start ([ui] warmup).
+# CQ WPX CW (warm.sqlite) and, separately, of their SSB versions
+# (warm-ssb.sqlite), last 5 years, from S53ZO's public contest-log archive
+# (server/warmlist.py). Published as assets of the release "warmup", which
+# POUNCer downloads at start ([ui] warmup).
 
 # Built once (the archive's logs for these contests don't change); run it
 # again by hand ("Run workflow") e.g. after a new contest's logs are published.
@@ -23,18 +24,22 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Build warm.sqlite
-        run: python server/warmlist.py --years 5 --data "$RUNNER_TEMP/warm-data" --out warm.sqlite
+      - name: Build warm.sqlite (CW contests)
+        run: python server/warmlist.py --set cw --years 5 --data "$RUNNER_TEMP/warm-data" --out warm.sqlite
+
+      - name: Build warm-ssb.sqlite (SSB contests)
+        run: python server/warmlist.py --set ssb --years 5 --data "$RUNNER_TEMP/warm-data" --out warm-ssb.sqlite
 
       - name: Publish (release "warmup", not marked latest)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           n=$(python -c "import sqlite3;print(sqlite3.connect('warm.sqlite').execute('select count(*) from warm').fetchone()[0])")
-          notes="Warm-up list for POUNCer: run % and hours on the air for $n stations of CQWW CW, ARRL DX CW and CQ WPX CW (last 5 years), from S53ZO's public contest-log archive. POUNCer downloads it by itself."
+          s=$(python -c "import sqlite3;print(sqlite3.connect('warm-ssb.sqlite').execute('select count(*) from warm').fetchone()[0])")
+          notes="Warm-up lists for POUNCer: run % and hours on the air for $n stations of CQWW CW, ARRL DX CW and CQ WPX CW (warm.sqlite) and, separately, $s stations of CQWW SSB, ARRL DX SSB and CQ WPX SSB (warm-ssb.sqlite), last 5 years, from S53ZO's public contest-log archive. POUNCer downloads them by itself."
           if gh release view warmup >/dev/null 2>&1; then
-            gh release upload warmup warm.sqlite --clobber
+            gh release upload warmup warm.sqlite warm-ssb.sqlite --clobber
             gh release edit warmup --notes "$notes"
           else
-            gh release create warmup warm.sqlite --title "POUNCer warm-up list" --notes "$notes" --prerelease --latest=false --target "$GITHUB_SHA"
+            gh release create warmup warm.sqlite warm-ssb.sqlite --title "POUNCer warm-up list" --notes "$notes" --prerelease --latest=false --target "$GITHUB_SHA"
           fi

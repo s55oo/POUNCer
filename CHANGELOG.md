@@ -1,5 +1,19 @@
 # POUNCer — Changelog
 
+## v0.7.35 — 2026-10-14 — separate run history for SSB contests
+
+- **SSB warm-up list.** Run % and hours on the air for SSB contests now come
+  from SSB logs only: a second list, `warm-ssb.sqlite`, built from **CQWW
+  SSB, ARRL DX SSB and CQ WPX SSB** (last 5 years, submitted +
+  reconstructed logs), downloaded at start next to the CW one. A station
+  that runs all weekend on CW but only S&Ps on SSB is marked by its SSB
+  habits on an SSB spot. Live lookups were already per mode.
+- **Logs without CAT no longer look like a 100% runner**: many (mostly SSB)
+  logs give only the band edge (28000, 14000 ...) as frequency; those QSOs
+  are left out of the run %. Applies to the CW list too (rebuilt), and the
+  per-call cache starts fresh (`runhist4.json`).
+- Main window: "Warm-up: CW n + SSB m stations known in advance".
+
 ## v0.7.34 — 2026-10-13 — radio B frequency typed key by key again
 
 - The radio B tap code was the same from v0.7.24 to v0.7.31; the one change
