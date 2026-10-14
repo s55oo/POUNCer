@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.7.37 — 2026-10-14 — radio B: udp-left is the default
+
+- Tested on S55OO's SO2V: **udp-left** (N1MM's UDP QSY for radio 2 with
+  mouse button Left, nothing typed) moves VFO B and the call lands
+  reliably - it is now the default for `[n1mm] radio_b_qsy`. `type` and
+  `udp` stay as fallbacks on the Settings page.
+
 ## v0.7.36 — 2026-10-14 — radio B QSY option "udp-left" (to test)
 
 - New choice for **How radio B is QSYed** (Settings page, or `[n1mm]

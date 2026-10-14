@@ -1125,7 +1125,7 @@ class PouncerApp:
     def _types_qsy(self, nr: int) -> bool:
         """SO2R radio B: QSY by typing the frequency into Entry Window B
         (N1MM's UDP QSY command moved radio A there)."""
-        return nr == 2 and self._so2r() and getattr(self.cfg, "radio_b_qsy", "type") == "type"
+        return nr == 2 and self._so2r() and getattr(self.cfg, "radio_b_qsy", "udp-left") == "type"
 
     def _freq_text(self, khz: float) -> str:
         """kHz as N1MM reads it when typed: 14000.1 -> "14000,1" with a
@@ -1156,7 +1156,7 @@ class PouncerApp:
         # radio B by UDP: "udp-left" = radio 2 with mouse button Left (as
         # SP_Helper does; "Right" moved VFO A here), "udp" = Right (N1MM docs)
         button = ("Left" if nr == 2 and self._so2r()
-                  and getattr(self.cfg, "radio_b_qsy", "type") == "udp-left" else None)
+                  and getattr(self.cfg, "radio_b_qsy", "udp-left") == "udp-left" else None)
         try:
             self.controller.set_frequency(khz, mousebutton=button, radio_nr=nr)
         except OSError as exc:

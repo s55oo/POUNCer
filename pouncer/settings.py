@@ -36,11 +36,11 @@ SETTINGS: list[dict] = [
      "live": True, "group": "Tap -> N1MM",
      "label": "Bring N1MM to the front", "help": "Needed to put the call in."},
     {"key": "n1mm.radio_b_qsy", "attr": "radio_b_qsy", "kind": "choice",
-     "choices": ["type", "udp-left", "udp"], "live": True, "group": "SO2R / SO2V",
+     "choices": ["udp-left", "type", "udp"], "live": True, "group": "SO2R / SO2V",
      "label": "How radio B is QSYed",
-     "help": "type = frequency + Enter typed into Entry Window B; udp-left = N1MM's UDP "
-             "command for radio 2 with mouse button Left (nothing typed); udp = the same with "
-             "Right (moved radio A here). The call goes in the same way for all three."},
+     "help": "udp-left (default) = N1MM's UDP command for radio 2 with mouse button Left, "
+             "nothing typed; type = frequency + Enter typed into Entry Window B; udp = the UDP "
+             "command with Right (moved radio A here). The call goes in the same way for all three."},
     {"key": "n1mm.freq_decimal", "attr": "freq_decimal", "kind": "choice",
      "choices": ["auto", ".", ","], "live": True, "group": "SO2R / SO2V",
      "label": "Decimal sign of the typed frequency",
