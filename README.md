@@ -1,11 +1,17 @@
 # POUNCer
 
-A small Windows tool that watches your **N1MM Logger+** radio frequency over the
-network and shows you live **Reverse Beacon Network** spots spotted only by a
-chosen skimmer (default **S53WW**), for the band you are currently on.
+**Search & pounce helper for N1MM Logger+ contesting.** POUNCer follows the
+band your radio is on and shows who is calling CQ there right now - live
+**Reverse Beacon Network** spots from a chosen skimmer (default **S53WW**) on
+CW, and **DX-cluster** spots on SSB. Each station is marked with what helps you
+decide: new multiplier, already worked, and whether it usually runs for hours
+or only briefly (from 5 years of contest logs). **One tap** tunes the radio -
+radio A or B in SO2R / SO2V - and puts the call into N1MM's Entry Window.
+Use it on the PC, or on a phone or tablet next to the radio; several
+operators' POUNCers share one feed as a team.
 
-Clicking a spot re-tunes the radio (QSY) in N1MM and, optionally, types the
-spotted callsign into the N1MM Entry Window.
+Windows (POUNCer.exe) and macOS; nothing to install - put the exe and
+`config.ini` in a folder next to N1MM and start it.
 
 <p align="center"><img src="docs/phone-view.jpg" width="320"
   alt="POUNCer phone page in SO2R on 20 m: radio A and B frequencies, the A / B key, sort and filter buttons, spot tiles and the F-key column"></p>
