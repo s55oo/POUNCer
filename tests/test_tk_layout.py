@@ -387,11 +387,12 @@ class TkWpmPopupTests(unittest.TestCase):
         f._show_wpm_popup("CW 30 WPM \u25b2")
         self.root.update()
         self.assertEqual(f._wpm_pop_label.cget("text"), "CW 30 WPM \u25b2")
-        self.assertGreater(f._wpm_pop.winfo_x(), 0)
+        self.assertGreater(float(f._wpm_pop.attributes("-alpha")), 0.5)
         self.assertIsNotNone(f._wpm_pop_after)
         f._hide_wpm_popup()
         self.root.update()
-        self.assertLess(f._wpm_pop.winfo_x(), 0)  # parked off-screen
+        self.assertEqual(float(f._wpm_pop.attributes("-alpha")), 0.0)   # faded out
+        self.assertIsNone(f._wpm_pop_after)
         # off: no popup window at all
         f.cfg.cw_speed = False
         f._build_wpm_popup()
