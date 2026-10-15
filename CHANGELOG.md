@@ -1,5 +1,10 @@
 # POUNCer — Changelog
 
+## v0.7.44 — 2026-10-15 — same as v0.7.43, complete release
+
+- v0.7.43's release got only the Windows exe (a macOS-only test fix
+  followed); this one has the exe and both macOS builds. No other change.
+
 ## v0.7.43 — 2026-10-15 — N1MM's CW speed shown (to test)
 
 - **CW speed (WPM) from N1MM**: N1MM doesn't broadcast its keyer speed, so
