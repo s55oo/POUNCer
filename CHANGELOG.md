@@ -1,5 +1,22 @@
 # POUNCer — Changelog
 
+## v0.7.45 — 2026-10-15 — CW keyboard on the phone (to test)
+
+- **Hold ENTER on the phone for 1.3 s** (the key fills up yellow): a **CW
+  keyboard** opens at the top of the page. POUNCer presses **Ctrl+K** in
+  the radio's Entry Window (A / B) and types what you type, letter by
+  letter, into N1MM's CW window, so N1MM sends it as CW (**transmits**).
+  Backspace removes letters N1MM hasn't sent yet.
+- **DONE** (or Enter on the phone keyboard) = Enter in N1MM: the rest is
+  sent and its CW window closes. **STOP (Esc)** = Esc: stops sending at once.
+- Safe: POUNCer types only when N1MM's CW window has the keyboard - if
+  Ctrl+K didn't open it, nothing is typed (no letters in the callsign box)
+  and the phone says so. If you click elsewhere meanwhile, the CW window
+  is brought back before the next letters.
+- Typed letters go out every 80 ms while the keyboard is open.
+- Off with `[web] cw_keyboard = false` (Settings: *Phone CW keyboard*);
+  then ENTER is only ENTER.
+
 ## v0.7.44 — 2026-10-15 — same as v0.7.43, complete release
 
 - v0.7.43's release got only the Windows exe (a macOS-only test fix

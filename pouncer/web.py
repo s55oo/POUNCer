@@ -43,6 +43,16 @@ def is_send_key(key: str) -> bool:
     return normalize_key(key) is not None
 
 
+CW_OPS = ("open", "text", "back", "done", "stop")
+_CW_CHARS = re.compile(r"[^A-Z0-9 /?.,=+\-@!():;'\"<>&]")
+
+
+def clean_cw_text(text: str) -> str:
+    """What may go into N1MM's CW window: upper case letters, digits, space
+    and CW punctuation (no control keys); at most 200 characters."""
+    return _CW_CHARS.sub("", (text or "").upper())[:200]
+
+
 def normalize_key(key: str) -> str | None:
     """Canonical key name (F4 / Enter / PgUp / PgDn) or None if not allowed."""
     key = (key or "").strip()
@@ -309,6 +319,27 @@ INDEX_HTML = """<!doctype html>
     cursor: pointer; transition: background .12s ease; }
   /* red while pressed, and for a moment after the tap (.sel) */
   .fkeys button:active, .fkeys button.sel { background: #c62828; }
+  /* ENTER held: fills up in 1.3 s, then the CW keyboard opens */
+  @keyframes holdfill { from { box-shadow: inset 0 0 0 0 #f9a825; }
+                        to { box-shadow: inset 0 -120px 0 0 #f9a825; } }
+  .fkeys button.holding { animation: holdfill 1.3s linear forwards; }
+  /* CW keyboard (hold ENTER): at the top, so the phone keyboard can't hide it */
+  #cwkb { position: fixed; left: 0; right: 0; top: 0; z-index: 60; padding: 10px;
+    background: #263238; box-shadow: 0 4px 16px rgba(0,0,0,.5); }
+  #cwkb[hidden] { display: none; }
+  #cwkb .cwhead { color: #fff; font-weight: 800; margin-bottom: 6px; display: flex;
+    align-items: center; gap: 8px; }
+  #cwkb .cwtx { background: #c62828; color: #fff; border-radius: 6px; padding: 1px 8px;
+    font-size: 13px; }
+  #cwkb .cwhint { color: #b0bec5; font-weight: 400; font-size: 13px; margin-left: auto; }
+  #cwin { width: 100%; box-sizing: border-box; font: 700 22px/1.2 ui-monospace, Consolas, monospace;
+    padding: 10px; border-radius: 8px; border: 2px solid #f9a825; background: #fff; color: #111;
+    text-transform: uppercase; }
+  #cwkb .cwbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  #cwkb .cwbtns button { border: 0; border-radius: 10px; color: #fff; font: inherit;
+    font-size: 17px; font-weight: 800; padding: 12px 0; cursor: pointer; }
+  #cwstop { background: #c62828; }
+  #cwdone { background: #2e7d32; }
   .fkeys button { display: flex; flex-direction: column; align-items: center;
     justify-content: center; gap: 2px; line-height: 1.1; }
   .fkeys .fk { font-size: var(--kfont); font-weight: 800; }
@@ -367,6 +398,16 @@ INDEX_HTML = """<!doctype html>
   </div>
 </footer>
 <div id="toast" hidden></div>
+<div id="cwkb" hidden>
+  <div class="cwhead">CW keyboard <span id="cwradio"></span><span class="cwtx">TX</span>
+    <span class="cwhint">sent as you type</span></div>
+  <input id="cwin" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters"
+    spellcheck="false" enterkeyhint="done" placeholder="type here - N1MM sends it as CW">
+  <div class="cwbtns">
+    <button id="cwstop" title="Esc in N1MM: stop sending at once">STOP (Esc)</button>
+    <button id="cwdone" title="Enter in N1MM: send the rest, close the CW window">DONE &#9166;</button>
+  </div>
+</div>
 <div id="rmsheet" class="sheetwrap"><div class="sheet">
   <div class="sheet-title" id="rmtitle">Remove from the list?</div>
   <div class="bandgrid" style="grid-template-columns: 1fr">
@@ -665,10 +706,83 @@ INDEX_HTML = """<!doctype html>
         (small ? '<span class="fl">' + esc(small) + '</span>' : '');
       const isEnter = /^enter$/i.test(f.key);
       b.title = isEnter ? 'Enter - log the QSO' : f.key + ' (transmits)';
-      if (isEnter) b.classList.add('log');
-      b.onclick = () => sendKey(f.key, b);
+      if (isEnter) {
+        b.classList.add('log');
+        armHold(b);
+        b.title += ' (hold 1.3 s: CW keyboard)';
+      }
+      b.onclick = () => {
+        if (b.dataset.held === '1') { b.dataset.held = ''; return; }  // was a hold
+        sendKey(f.key, b);
+      };
       fkeysEl.appendChild(b);
     });
+  }
+  // ---- CW keyboard: hold ENTER 1.3 s; typing goes to N1MM's Ctrl+K window
+  const cwEl = document.getElementById('cwkb');
+  const cwIn = document.getElementById('cwin');
+  let cwPrev = '', cwChain = Promise.resolve(), cwErrN = 0;
+  function armHold(b) {
+    let timer = null;
+    const end = () => { clearTimeout(timer); b.classList.remove('holding'); };
+    b.addEventListener('pointerdown', () => {
+      b.dataset.held = '';
+      if (!lastData.cw_keyboard) return;
+      b.classList.add('holding');
+      clearTimeout(timer);
+      timer = setTimeout(() => { b.dataset.held = '1'; end(); openCw(); }, 1300);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(t => b.addEventListener(t, end));
+    // phones open their keyboard only from a touch: focus the box when the
+    // finger comes up after the hold
+    b.addEventListener('pointerup', () => { if (b.dataset.held === '1') cwIn.focus(); });
+    b.addEventListener('pointerleave', () => { if (b.dataset.held === '1') b.dataset.held = ''; });
+    b.addEventListener('contextmenu', e => e.preventDefault());
+  }
+  function cwSend(params) {        // in order, one after the other
+    const q = rp(params);
+    cwChain = cwChain.then(() => fetch('/api/cw?' + q).then(r => r.json()).then(j => {
+      if (!j.ok) toast('CW keyboard: ' + (j.error || 'error'));
+    })).catch(e => toast('CW keyboard: ' + e));
+  }
+  function openCw() {
+    cwPrev = '';
+    cwIn.value = '';
+    cwErrN = lastData.cw_error_n || 0;
+    const so2r = (lastData.radios || []).length > 1;
+    document.getElementById('cwradio').textContent = so2r ? (lastData.radio === 2 ? 'B' : 'A') : '';
+    cwEl.hidden = false;
+    cwIn.focus();
+    cwSend({op: 'open'});
+  }
+  function closeCw(stop) {
+    if (cwEl.hidden) return;
+    cwSend({op: stop ? 'stop' : 'done'});
+    cwEl.hidden = true;
+    cwIn.blur();
+    toast(stop ? 'CW stopped' : 'CW keyboard closed', null, 1500);
+  }
+  cwIn.addEventListener('input', () => {
+    const v = cwIn.value.toUpperCase();
+    let i = 0;                       // what changed since the last time
+    while (i < v.length && i < cwPrev.length && v[i] === cwPrev[i]) i++;
+    const back = cwPrev.length - i, add = v.slice(i);
+    if (back > 0) cwSend({op: 'back', n: back});
+    if (add) cwSend({op: 'text', text: add});
+    cwPrev = v;
+  });
+  cwIn.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); closeCw(false); }
+    else if (e.key === 'Escape') { e.preventDefault(); closeCw(true); }
+  });
+  document.getElementById('cwdone').onclick = () => closeCw(false);
+  document.getElementById('cwstop').onclick = () => closeCw(true);
+  function cwCheck(data) {          // N1MM's CW window didn't open etc.
+    const n = data.cw_error_n || 0;
+    if (!cwEl.hidden && n !== cwErrN && data.cw_error) {
+      toast('CW keyboard: ' + data.cw_error);
+    }
+    cwErrN = n;
   }
   async function sendKey(key, btn) {
     if (btn) {
@@ -686,6 +800,7 @@ INDEX_HTML = """<!doctype html>
   }
   function render(data) {
     renderFkeys(data.fkeys);
+    cwCheck(data);
     if (data.tune_step && data.tune_step !== tuneStep) { tuneStep = data.tune_step; labelTune(); }
     syncHeaderHeight();
     lastData = data;
@@ -1217,7 +1332,12 @@ page.</p>
   <dd>Press that function key in N1MM - it <b>transmits</b> N1MM's message (F2 report,
     F3 TU, F4 your call, F5 his call, F7 ?). The label under the key says which.</dd>
   <dt><span class="k green">ENTER</span></dt>
-  <dd>Enter in N1MM: logs the QSO (no transmit).</dd>
+  <dd>Enter in N1MM: logs the QSO (no transmit).<br>
+  <b>Hold it 1.3 s</b> (it fills up yellow): the <b>CW keyboard</b> opens at the top. What you
+  type goes on the fly into N1MM's CW window (Ctrl+K) and is <b>sent as CW</b> (transmits);
+  Backspace removes letters not sent yet. <b>DONE</b> (or Enter on the phone keyboard) =
+  N1MM sends the rest and closes its CW window; <b>STOP (Esc)</b> = stops sending at once.
+  If the phone keyboard doesn't appear, tap the text box. Off: <code>[web] cw_keyboard = false</code>.</dd>
 </dl>
 <p>Keys turn red for a moment when pressed. Which keys appear is set in
 <code>config.ini</code> (<code>[ui] fkeys</code>).</p>
@@ -1684,6 +1804,7 @@ class _Server(ThreadingHTTPServer):
         self.get_spots = get_spots
         self.on_qsy = on_qsy
         self.on_key = on_key
+        self.on_cw = None  # phone CW keyboard (set_cw_handler)
         self.on_reconnect = on_reconnect
 
 
@@ -1799,6 +1920,28 @@ class _Handler(BaseHTTPRequestHandler):
                 self._send_json({"ok": False, "error": str(exc)}, 500)
                 return
             self._send_json({"ok": True, "call": call})
+            return
+        if parsed.path == "/api/cw":
+            fn = getattr(self.server, "on_cw", None)
+            q = parse_qs(parsed.query)
+            op = (q.get("op") or [""])[0].strip().lower()
+            if fn is None:
+                self._send_json({"ok": False, "error": "CW keyboard is off ([web] cw_keyboard)"}, 404)
+                return
+            if op not in CW_OPS:
+                self._send_json({"ok": False, "error": "bad op"}, 400)
+                return
+            text = clean_cw_text((q.get("text") or [""])[0]) if op == "text" else ""
+            try:
+                n = max(0, min(50, int((q.get("n") or ["0"])[0])))
+            except ValueError:
+                n = 0
+            try:
+                self._call(fn, parsed, op, text, n)
+            except Exception as exc:
+                self._send_json({"ok": False, "error": str(exc)}, 500)
+                return
+            self._send_json({"ok": True, "op": op, "text": text})
             return
         if parsed.path == "/api/key":
             key = (parse_qs(parsed.query).get("key") or [""])[0].strip()
@@ -1965,6 +2108,10 @@ class WebServer:
         self._httpd.save_setting = save
         self._httpd.restart_app = restart
         self._httpd.remote_settings = bool(remote)
+
+    def set_cw_handler(self, fn) -> None:
+        """Phone CW keyboard: fn(op, text, n, radio=...)."""
+        self._httpd.on_cw = fn
 
     def set_summary_provider(self, getter) -> None:
         """Contest summary for /api/summary (a dict)."""
