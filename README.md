@@ -169,6 +169,12 @@ F-keys stay as buttons - they're used all contest long):
 * **Help** - what every button does, check for a new version, POUNCer on
   GitHub, About.
 
+The spot list: **new multiplier** rows in bold red, **worked** ones in grey
+(when *Hide worked* is off), **⚡** before the call = rare CQ, **?** after it
+= not in Super Check Partial; tuned to it = blue, DX = orange background.
+**Arrow keys** move through the list, **Space** taps the selected spot (QSY
+and call, like a click); the selection stays put while the list updates.
+
 The window remembers its size and position (maximised too), the column
 widths and the sort for the next start (`cache\window.json`; delete it to
 start with the defaults). A position on a monitor that is no longer there
@@ -255,6 +261,25 @@ If RBN's telnet fails twice in a row or sends nothing for 2 minutes,
 POUNCer switches to the backup telnet server **azure.s53m.com:8000** (light:
 "RBN via backup") and tries RBN again every 10 minutes. `[rbn] backup_host`
 / `backup_port` / `backup_commands`; empty `backup_host` = off.
+
+## RBN over HTTP (second backup)
+
+If RBN's telnet (and its telnet backup) has been down or silent for a
+minute, POUNCer also reads RBN over **HTTP** from S53ZO's Azure server
+(`[rbn] http_backup`): no login, works where telnet is blocked, and after a
+dropout it catches up on the spots it missed. It stops again a minute after
+telnet works. The light then says **RBN via HTTP**.
+
+## Busted calls (Super Check Partial)
+
+A spotted call that is not in the **Super Check Partial** list
+(`MASTER.SCP`, calls active in contests) gets a **?** - in the main window's
+list and on the phone tiles. It is often a skimmer error, one letter wrong
+(PHB9CBR for HB9CBR). The list is downloaded from supercheckpartial.com at
+start when the copy in `cache` is missing or a week old; until then N1MM's
+own copy is used. `[scp] update_n1mm = true` also copies the new file into
+N1MM's `SupportFiles` (N1MM reads it at its next start). `[scp] enabled =
+false` = no marks.
 
 ## Spots at start
 

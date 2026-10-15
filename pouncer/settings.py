@@ -70,6 +70,17 @@ SETTINGS: list[dict] = [
     {"key": "rbn.backup_commands", "attr": "rbn_backup_commands", "kind": "text",
      "live": False, "group": "RBN", "label": "Backup commands after login",
      "help": "Comma separated, e.g. set/skimmer."},
+    {"key": "rbn.http_backup", "attr": "rbn_http_backup", "kind": "text", "live": True,
+     "group": "RBN", "label": "HTTP backup (URL)",
+     "help": "RBN over HTTP (S53ZO's Azure feed, no login) while the telnet feed is down or "
+             "silent for a minute. Empty = off."},
+    {"key": "scp.enabled", "attr": "scp_enabled", "kind": "bool", "live": False,
+     "group": "RBN", "label": "Mark calls not in Super Check Partial (?)",
+     "help": "A '?' after a spotted call that is not in MASTER.SCP - maybe a skimmer error."},
+    {"key": "scp.update_n1mm", "attr": "scp_update_n1mm", "kind": "bool", "live": False,
+     "group": "RBN", "label": "Also update N1MM's MASTER.SCP",
+     "help": "The weekly download is also copied into N1MM's SupportFiles (N1MM reads it at "
+             "its next start)."},
     {"key": "ssb.follow_radio_mode", "attr": "follow_radio_mode", "kind": "bool",
      "live": True, "group": "SSB",
      "label": "List follows the radio mode",
@@ -135,6 +146,8 @@ def parse(item: dict, text: str):
     if item["attr"] == "rbn_backup_commands":
         parts = tuple(p.strip() for p in text.split(",") if p.strip())
         return parts, ", ".join(parts)
+    if item["attr"] == "rbn_http_backup" and text and not text.lower().startswith(("http://", "https://")):
+        raise ValueError(f"{item['label']}: an http(s):// address, or empty")
     if any(ch in text for ch in "\r\n[]"):
         raise ValueError(f"{item['label']}: no line breaks or brackets")
     if item["attr"] in ("rbn_spotter", "ssb_spotters", "ssb_login"):

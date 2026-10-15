@@ -219,3 +219,55 @@ class TkWindowMemoryTests(unittest.TestCase):
             f._save_window()                   # window gone: no crash, file kept
             from pouncer import winstate
             self.assertEqual(winstate.load(f._window_file())["sort"], "freq")
+
+
+@unittest.skipIf(tk is None, "tkinter not available")
+class TkSpotListTests(unittest.TestCase):
+    """Spot list colours, marks and keyboard (real Tk)."""
+
+    def setUp(self) -> None:
+        try:
+            self.root = tk.Tk()
+        except tk.TclError as exc:  # no display
+            self.skipTest(f"no Tk display: {exc}")
+
+    def tearDown(self) -> None:
+        self.root.destroy()
+
+    def test_rows_and_space_key(self) -> None:
+        import types
+        from pouncer.app import PouncerApp
+        from pouncer.rbn import Spot
+
+        def spot(call, khz, snr=10):
+            return Spot(dxcall=call, freq_khz=khz, mode="CW", snr=snr, wpm=28, spot_type="CQ",
+                        spotter="S53WW-#", time_utc="1200Z", received=0)
+        spots = [spot("S50A", 14025.0), spot("K1ABC", 14030.0), spot("PHB9CBR", 14040.0, 25),
+                 spot("DL1AA", 14050.0, 25)]
+        cols = ("time", "freq", "snr", "wpm", "call", "cont", "mult", "mode", "type", "spotter")
+        tree = ttk.Treeview(self.root, columns=cols, show="headings")
+        tree.pack()
+        tapped = []
+        f = types.SimpleNamespace(
+            tree=tree, displayed=[], _row_spots=[],
+            _sorted_visible=lambda: list(spots), _on_freq_spot=lambda items: None,
+            worked=types.SimpleNamespace(is_worked=lambda c, k, m: c == "K1ABC"),
+            _mults=lambda s: 1 if s.dxcall == "S50A" else 0,
+            _run_fields=lambda s: {"run": 10, "hours": 20} if s.dxcall == "DL1AA" else {},
+            scp=types.SimpleNamespace(busted=lambda c: c == "PHB9CBR"),
+            _is_dx=lambda c: False, _continent=lambda c: "EU",
+            _act_on_spot=lambda s: tapped.append(s.dxcall))
+        for name in ("_rebuild", "_row_key", "_on_tree_key"):
+            setattr(f, name, getattr(PouncerApp, name).__get__(f))
+        f._rebuild()
+        rows = {tree.item(i, "values")[4]: tree.item(i, "tags") for i in tree.get_children()}
+        self.assertEqual(tuple(rows["S50A"]), ("mult",))          # new mult
+        self.assertEqual(tuple(rows["K1ABC"]), ("worked",))       # worked: grey
+        self.assertIn("PHB9CBR ?", rows)                          # not in SCP
+        self.assertIn("⚡ DL1AA", rows)                       # rare runner
+        # Space taps the selected spot; the selection survives a redraw
+        tree.selection_set("2")
+        f._rebuild()
+        self.assertEqual(tree.selection(), ("2",))
+        self.assertEqual(f._on_tree_key(None), "break")
+        self.assertEqual(tapped, ["PHB9CBR"])

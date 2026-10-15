@@ -1,5 +1,24 @@
 # POUNCer — Changelog
 
+## v0.7.41 — 2026-10-15 — HTTP RBN backup, spot list colours and keys, busted calls, SCP updates
+
+- **RBN over HTTP** as a second backup (`[rbn] http_backup`, S53ZO's Azure
+  feed `/cors/rbn/live`): starts after a minute without a working telnet
+  feed (not logged in, or no lines for 2 minutes), stops a minute after
+  telnet works again. No login, so no clash with the SSB cluster; first
+  asks for the last 10 minutes, then only what is new (cursor), so a
+  dropout is caught up. Same skimmer filter; light "RBN via HTTP".
+- **Spot list in the exe**: new mult = bold red, worked = grey, **⚡** = rare
+  CQ, **?** = not in SCP. **Arrow keys** move, **Space** taps the selected
+  spot (QSY + call); the selection stays while the list updates.
+- **Busted-call marks**: a call not in Super Check Partial gets a **?**
+  (main window and phone tile, explained in the tooltip and help page).
+- **SCP updates from the web**: MASTER.SCP is downloaded from
+  supercheckpartial.com when the copy in `cache` is missing or older than a
+  week (`[scp] refresh_days`); a broken download never replaces a good list;
+  until then N1MM's own MASTER.SCP is used. `[scp] update_n1mm = true` also
+  refreshes N1MM's copy. On the Settings page / window.
+
 ## v0.7.40 — 2026-10-15 — run % per band, hours from logs without CAT, window memory
 
 - **Run % per band.** A station that runs on 20 m but only S&Ps on 80 m now

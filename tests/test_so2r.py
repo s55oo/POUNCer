@@ -545,3 +545,62 @@ class FocusBackToATests(unittest.TestCase):
         f = AppRadioTests._fake(AppRadioTests(), app, radio=1)
         f.cfg.focus_back_to_a = True
         self.assertEqual(app.PouncerApp._after_radio(f, 1, None, 1111), "")
+
+
+class HttpBackupSwitchTests(unittest.TestCase):
+    """The HTTP backup starts after a minute of no telnet RBN, stops after a
+    minute of telnet working again."""
+
+    def test_start_and_stop(self) -> None:
+        app = _import_app()
+        client = types.SimpleNamespace(_last_dx=0.0)
+        started, stopped = [], []
+
+        class FakeFeed:
+            def __init__(self, url, *a, **k):
+                started.append(url)
+                self.spots_in = 0
+
+            def start(self):
+                pass
+
+            def stop(self):
+                stopped.append(1)
+        f = types.SimpleNamespace(
+            cfg=types.SimpleNamespace(rbn_http_backup="https://x/live", rbn_port=7000,
+                                      follow_modes=("CW",)),
+            _rbn_clients={7000: client}, rbn_status="disconnected, reconnecting",
+            _http_feed=None, _rbn_bad_since=None, _rbn_good_since=None,
+            spotter_filter=None, spot_queue=None)
+        for name in ("_rbn_healthy", "_ensure_http_feed", "_stop_http_feed"):
+            setattr(f, name, getattr(app.PouncerApp, name).__get__(f))
+        now = [1000.0]
+        with mock.patch.object(app, "RBNHttpFeed", FakeFeed), \
+                mock.patch.object(app.time, "time", side_effect=lambda: now[0]), \
+                mock.patch.object(app.time, "monotonic", side_effect=lambda: now[0]):
+            f._ensure_http_feed()
+            self.assertEqual(started, [])               # not at once
+            now[0] += 61
+            f._ensure_http_feed()
+            self.assertEqual(started, ["https://x/live"])
+            f._ensure_http_feed()
+            self.assertEqual(len(started), 1)           # only one
+            # telnet back and lines coming
+            f.rbn_status, client._last_dx = "logged in as S55OO", now[0]
+            f._ensure_http_feed()
+            self.assertEqual(stopped, [])               # not at once
+            now[0] += 61
+            client._last_dx = now[0]
+            f._ensure_http_feed()
+            self.assertEqual(stopped, [1])
+            self.assertIsNone(f._http_feed)
+            # logged in but silent for 2 minutes = down again
+            now[0] += 130
+            f._ensure_http_feed()
+            now[0] += 61
+            f._ensure_http_feed()
+            self.assertEqual(len(started), 2)
+            # off
+            f.cfg.rbn_http_backup = ""
+            f._ensure_http_feed()
+            self.assertIsNone(f._http_feed)
