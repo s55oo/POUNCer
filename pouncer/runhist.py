@@ -40,6 +40,7 @@ MAX_LOGS = 6          # at most this many logs per call (downloaded in parallel)
 FETCH_PARALLEL = 12   # downloads at once over all lookups
 WORKERS = 8           # lookups in parallel (a new band = many new calls)
 MIN_QSOS = 30         # fewer QSOs than this = not enough to tell
+MIN_BAND_QSOS = 20    # per band: fewer measurable QSOs than this = use the overall run %
 RUN_KHZ = 0.3         # same frequency (kHz) as one of the last 2 QSOs = running
 RARE_RUN_PCT = 30     # runs less than this % of QSOs = "rarely runs" (marked)
 RARE_HOURS = 6        # on the air less than this many hours = rare (marked)
@@ -118,6 +119,80 @@ def on_air_hours(cabrillo: str) -> float:
     return round(minutes / 60, 1)
 
 
+def qso_count(cabrillo: str) -> int:
+    """All QSO lines (with or without a usable frequency) - for hours."""
+    return sum(1 for line in cabrillo.splitlines() if line.startswith("QSO:"))
+
+
+def run_share_by_band(cabrillo: str) -> dict[str, tuple[int, int]]:
+    """{band: (QSOs running, QSOs with a real frequency)} - e.g. a station
+    that runs on 20 m but only S&Ps on 80 m. Band-only frequencies (no CAT)
+    are left out, as in ``run_share``."""
+    from .bands import band_from_khz
+
+    out: dict[str, list[int]] = {}
+    last: dict[int, list[float]] = {}
+    for line in cabrillo.splitlines():
+        if not line.startswith("QSO:"):
+            continue
+        parts = line.split()
+        try:
+            freq = float(parts[1])
+        except (IndexError, ValueError):
+            continue
+        if freq < 1800 or freq in BAND_ONLY_KHZ:
+            continue
+        label = band_from_khz(freq)
+        if not label:
+            continue
+        key = int(freq // 1000)
+        prev = last.setdefault(key, [])
+        tally = out.setdefault(label, [0, 0])
+        tally[1] += 1
+        if any(abs(freq - p) <= RUN_KHZ for p in prev):
+            tally[0] += 1
+        prev.append(freq)
+        del prev[:-2]
+    return {b: (r, t) for b, (r, t) in out.items()}
+
+
+def summarize(stats: list[tuple]) -> dict | None:
+    """Run %, run % per band and hours from per-log stats
+    ``(run, measurable_qsos, hours, all_qsos, {band: (run, total)})``.
+    A log without usable frequencies still gives its hours (run % unknown);
+    None = too few QSOs to tell anything."""
+    stats = [st for st in stats if st[3] > 0]
+    if sum(st[3] for st in stats) < MIN_QSOS:
+        return None
+    run = sum(st[0] for st in stats)
+    total = sum(st[1] for st in stats)
+    bands: dict[str, list[int]] = {}
+    for st in stats:
+        for b, (r, t) in st[4].items():
+            acc = bands.setdefault(b, [0, 0])
+            acc[0] += r
+            acc[1] += t
+    return {
+        "run": round(100 * run / total) if total >= MIN_QSOS else None,
+        "hours": round(sum(st[2] for st in stats) / len(stats), 1),
+        "bands": {b: round(100 * r / t) for b, (r, t) in sorted(bands.items())
+                  if t >= MIN_BAND_QSOS},
+        "logs": len(stats),
+    }
+
+
+def _has_bands(path: str) -> bool:
+    """Warm-up list with the per-band run % (built from v0.7.40 on)?"""
+    try:
+        con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        try:
+            return "bands" in {r[1] for r in con.execute("PRAGMA table_info(warm)")}
+        finally:
+            con.close()
+    except sqlite3.Error:
+        return False
+
+
 def run_share(cabrillo: str) -> tuple[int, int]:
     """(QSOs made on the same frequency as one of the last two on that
     band, all QSOs). Two back, so a multi-op's second station interleaving
@@ -154,8 +229,8 @@ class RunHistory:
         self.cache_dir = cache_dir
         self.base_url = base_url
         self._fetch = fetch or self._http_get
-        # v4: band-only frequencies (no CAT) no longer count as running
-        self._file = os.path.join(cache_dir, "runhist4.json")
+        # v5: run % per band, hours also from logs without frequencies
+        self._file = os.path.join(cache_dir, "runhist5.json")
         self._lock = threading.Lock()
         # "CALL|CONTEST|MODE" -> {"run": %, "hours": h, "rec": bool} or None
         self._results: dict[str, dict | None] = {}
@@ -202,8 +277,8 @@ class RunHistory:
             self._load_warm(path, downloaded=False, kind=kind, txt=txt)
         fresh = os.path.exists(path) and (
             time.time() - os.path.getmtime(path) < max_age_days * 86400)
-        if fresh:
-            return
+        if fresh and _has_bands(path):
+            return              # (a list from before per-band run % is replaced at once)
         try:
             data = self._fetch(url)
             if not data.startswith(b"SQLite format 3"):
@@ -291,9 +366,20 @@ class RunHistory:
                 tables = {r[0] for r in con.execute(
                     "SELECT name FROM sqlite_master WHERE type='table'")}
                 if "warm" in tables:  # warm-up list: aggregated, with hours
-                    rows = [(c, ct, m, {"run": r, "hours": h, "rec": bool(rec)})
-                            for c, ct, m, r, h, rec in con.execute(
-                                "SELECT call, contest, mode, run, hours, rec FROM warm")]
+                    cols = {r[1] for r in con.execute("PRAGMA table_info(warm)")}
+                    sel = "SELECT call, contest, mode, run, hours, rec"
+                    sel += ", bands FROM warm" if "bands" in cols else ", NULL FROM warm"
+                    rows = []
+                    for c, ct, m, r, h, rec, bands in con.execute(sel):
+                        value = {"run": r, "hours": h, "rec": bool(rec)}
+                        if bands:
+                            try:
+                                per_band = json.loads(bands)
+                            except ValueError:
+                                per_band = None
+                            if per_band:
+                                value["bands"] = per_band
+                        rows.append((c, ct, m, value))
                 else:                 # runlist.sqlite (server/runlist.py)
                     rows = [(c, ct, m, {"run": r}) for c, ct, m, r in con.execute(
                         "SELECT call, contest, mode, run FROM runs r WHERE year ="
@@ -330,14 +416,21 @@ class RunHistory:
         with self._lock:
             return dict(self._results)
 
-    def get(self, call: str, n1mm_contest: str, mode: str) -> dict | None:
-        """{"run": %, "hours": h or None, "rec": bool} (None = unknown / not
-        looked up yet)."""
+    def get(self, call: str, n1mm_contest: str, mode: str,
+            band: str | None = None) -> dict | None:
+        """{"run": %, "hours": h or None, "rec": bool, "band": band or None}
+        (None = unknown / not looked up yet). With ``band``: the run % on
+        that band when its logs have enough QSOs there ("band" set), else
+        the overall run %. "run" can be None (logs without frequencies:
+        hours only)."""
         contest, amode = archive_target(n1mm_contest, mode)
         key = f"{call.upper()}|{contest or '*'}|{amode}"
         with self._lock:
             if key in self._results:
-                return self._results[key]
+                info = self._results[key]
+                if info and band and band in (info.get("bands") or {}):
+                    return {**info, "run": info["bands"][band], "band": band}
+                return info
             if self.server and contest and (contest, amode) not in self._lists:
                 self._lists[(contest, amode)] = threading.Event()
                 threading.Thread(target=self._load_list, args=(contest, amode),
@@ -423,22 +516,21 @@ class RunHistory:
         if not paths:
             return None
 
-        def measure(path: str) -> tuple[int, int, float]:
+        def measure(path: str) -> tuple:
             with self._fetch_slots:
                 text = self._fetch(self.base_url + quote(path)).decode("latin-1", "replace")
             r, t = run_share(text)
-            return r, t, on_air_hours(text)
+            return r, t, on_air_hours(text), qso_count(text), run_share_by_band(text)
 
         with ThreadPoolExecutor(max_workers=len(paths)) as pool:
-            stats = [st for st in pool.map(measure, paths) if st[1] > 0]
-        run = sum(st[0] for st in stats)
-        total = sum(st[1] for st in stats)
-        if total < MIN_QSOS:
+            stats = list(pool.map(measure, paths))
+        # run %: over all QSOs of those logs (overall and per band);
+        # hours: average per contest
+        out = summarize(stats)
+        if out is None:
             return None
-        # run %: over all QSOs of those logs; hours: average per contest
-        return {"run": round(100 * run / total),
-                "hours": round(sum(st[2] for st in stats) / len(stats), 1),
-                "rec": rec, "logs": len(stats)}
+        out["rec"] = rec
+        return out
 
     @staticmethod
     def _http_get(url: str) -> bytes:

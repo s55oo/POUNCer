@@ -165,3 +165,57 @@ class TkSettingsWindowTests(unittest.TestCase):
                    if view.type(i) != "separator"]
         self.assertIn("Hide worked (same band + mode)", vlabels)
         self.assertIn("Contest summary", vlabels)
+
+
+@unittest.skipIf(tk is None, "tkinter not available")
+class TkWindowMemoryTests(unittest.TestCase):
+    """Main window size, columns and sort survive a restart (real Tk)."""
+
+    def setUp(self) -> None:
+        try:
+            self.root = tk.Tk()
+        except tk.TclError as exc:  # no display
+            self.skipTest(f"no Tk display: {exc}")
+
+    def tearDown(self) -> None:
+        try:
+            self.root.destroy()
+        except tk.TclError:
+            pass
+
+    def _fake(self, d):
+        import types
+        from pouncer.app import PouncerApp
+        cols = ("time", "freq", "call")
+        tree = ttk.Treeview(self.root, columns=cols, show="headings")
+        tree.pack()
+        f = types.SimpleNamespace(root=self.root, tree=tree, columns=cols, sort_col="time",
+                                  sort_reverse=True, cfg=types.SimpleNamespace(run_history_dir=d))
+        f._update_headings = f._update_sort_buttons = lambda: None
+        for name in ("_window_file", "_restore_window", "_save_window", "_on_close"):
+            setattr(f, name, getattr(PouncerApp, name).__get__(f))
+        return f
+
+    def test_save_then_restore(self) -> None:
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            f = self._fake(d)
+            self.root.geometry("640x400+50+60")
+            f.tree.column("call", width=222)
+            f.sort_col, f.sort_reverse = "freq", False
+            self.root.update()
+            f._save_window()
+            # next start: defaults, then restored
+            f.sort_col, f.sort_reverse = "time", True
+            f.tree.column("call", width=100)
+            self.root.geometry("900x500+0+0")
+            self.root.update()
+            f._restore_window()
+            self.root.update()
+            self.assertEqual((f.sort_col, f.sort_reverse), ("freq", False))
+            self.assertEqual(int(f.tree.column("call", "width")), 222)
+            self.assertTrue(self.root.geometry().startswith("640x400"))
+            f._on_close()                      # saves, closes the window
+            f._save_window()                   # window gone: no crash, file kept
+            from pouncer import winstate
+            self.assertEqual(winstate.load(f._window_file())["sort"], "freq")

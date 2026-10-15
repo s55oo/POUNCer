@@ -28,13 +28,16 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import json
 import os
 import sqlite3
 import subprocess
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-from pouncer.runhist import MAX_LOGS, MIN_QSOS, on_air_hours, run_share  # noqa: E402
+from pouncer.runhist import (  # noqa: E402
+    MAX_LOGS, on_air_hours, qso_count, run_share, run_share_by_band, summarize,
+)
 
 ARCHIVE = "https://github.com/s53zo/Hamradio-Contest-logs-Archives.git"
 # (key contest, mode, archive folder) - key contest as pouncer.runhist.CONTESTS
@@ -96,30 +99,31 @@ def measure(repo: str, years: list[int], contests=CONTESTS):
                         continue
                     with open(os.path.join(ydir, name), encoding="latin-1") as fh:
                         text = fh.read()
-                    run, total = run_share(text)
-                    if total == 0:
+                    qsos = qso_count(text)
+                    if qsos == 0:
                         continue
+                    run, total = run_share(text)
                     call = log_call(text) or name[:-4].upper().replace("-", "/")
                     found.setdefault((call, contest, mode), {"real": [], "rec": []})[kind].append(
-                        (y, run, total, on_air_hours(text)))
+                        (y, run, total, on_air_hours(text), qsos, run_share_by_band(text)))
                     n += 1
                 print(f"{contest} {mode} {y} {kind}: {n} logs", flush=True)
     return found
 
 
 def aggregate(found) -> list[tuple]:
-    """Like RunHistory._lookup: newest MAX_LOGS submitted logs, else rebuilt."""
+    """Like RunHistory._lookup: newest MAX_LOGS submitted logs, else rebuilt.
+    run % overall (None if the logs have no usable frequencies - hours
+    only), per band (JSON), hours on the air."""
     rows = []
     for (call, contest, mode), logs in found.items():
         rec = not logs["real"]
-        pick = sorted(logs["real"] or logs["rec"], reverse=True)[:MAX_LOGS]
-        run = sum(p[1] for p in pick)
-        total = sum(p[2] for p in pick)
-        if total < MIN_QSOS:
+        pick = sorted(logs["real"] or logs["rec"], key=lambda p: p[0], reverse=True)[:MAX_LOGS]
+        out = summarize([p[1:] for p in pick])
+        if out is None:
             continue
-        rows.append((call, contest, mode, round(100 * run / total),
-                     round(sum(p[3] for p in pick) / len(pick), 1), int(rec),
-                     len(pick), pick[0][0]))
+        rows.append((call, contest, mode, out["run"], out["hours"], int(rec),
+                     out["logs"], pick[0][0], json.dumps(out["bands"], separators=(",", ":"))))
     return rows
 
 
@@ -143,9 +147,9 @@ def main() -> None:
         os.remove(tmp)
     con = sqlite3.connect(tmp)
     con.execute("CREATE TABLE warm (call TEXT, contest TEXT, mode TEXT, run INTEGER,"
-                " hours REAL, rec INTEGER, logs INTEGER, newest INTEGER,"
+                " hours REAL, rec INTEGER, logs INTEGER, newest INTEGER, bands TEXT,"
                 " PRIMARY KEY (call, contest, mode))")
-    con.executemany("INSERT OR REPLACE INTO warm VALUES (?,?,?,?,?,?,?,?)", rows)
+    con.executemany("INSERT OR REPLACE INTO warm VALUES (?,?,?,?,?,?,?,?,?)", rows)
     con.execute("CREATE TABLE info (key TEXT PRIMARY KEY, value TEXT)")
     con.executemany("INSERT INTO info VALUES (?,?)", [
         ("built", datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")),

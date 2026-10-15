@@ -208,14 +208,16 @@ class RunHistoryTests(unittest.TestCase):
             self.assertEqual(learned, [])  # merged results aren't re-broadcast
 
 
-    def _warm_db(self, path):
+    def _warm_db(self, path, bands=True):
         con = sqlite3.connect(path)
         con.execute("CREATE TABLE warm (call TEXT, contest TEXT, mode TEXT, run INTEGER,"
-                    " hours REAL, rec INTEGER, logs INTEGER, newest INTEGER)")
-        con.executemany("INSERT INTO warm VALUES (?,?,?,?,?,?,?,?)", [
-            ("M0KTZ", "CQWW", "CW", 6, 3.5, 1, 2, 2025),
-            ("S50R", "ARRL", "CW", 80, 20.0, 0, 5, 2026),
-        ])
+                    " hours REAL, rec INTEGER, logs INTEGER, newest INTEGER"
+                    + (", bands TEXT)" if bands else ")"))
+        rows = [("M0KTZ", "CQWW", "CW", 6, 3.5, 1, 2, 2025),
+                ("S50R", "ARRL", "CW", 80, 20.0, 0, 5, 2026)]
+        if bands:
+            rows = [r + ("{}",) for r in rows]
+        con.executemany(f"INSERT INTO warm VALUES ({','.join('?' * len(rows[0]))})", rows)
         con.commit()
         con.close()
 
@@ -318,6 +320,70 @@ class RunHistoryTests(unittest.TestCase):
                 time.sleep(0.05)
             self.assertIn("CW 1 stations known in advance", rh.warm_status)
             self.assertIn("SSB list: warm-up download failed", rh.warm_status)
+
+    def test_run_per_band_from_warm_list(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "warm.sqlite")
+            con = sqlite3.connect(path)
+            con.execute("CREATE TABLE warm (call TEXT, contest TEXT, mode TEXT, run INTEGER,"
+                        " hours REAL, rec INTEGER, logs INTEGER, newest INTEGER, bands TEXT)")
+            con.executemany("INSERT INTO warm VALUES (?,?,?,?,?,?,?,?,?)", [
+                ("S50A", "CQWW", "CW", 60, 30.0, 0, 4, 2025, '{"20m":95,"80m":5}'),
+                ("JA7OWD", "CQWW", "PH", None, 20.1, 0, 1, 2024, "{}"),
+            ])
+            con.commit()
+            con.close()
+            rh = RunHistory(os.path.join(d, "cache"), fetch=lambda u: b"")
+            self.assertEqual(rh.load_run_list(path), 2)
+            # a CQ on 80 m from a 20 m runner: its 80 m habit counts
+            self.assertEqual(rh.get("S50A", "CQWWCW", "CW", band="80m")["run"], 5)
+            self.assertEqual(rh.get("S50A", "CQWWCW", "CW", band="80m")["band"], "80m")
+            self.assertEqual(rh.get("S50A", "CQWWCW", "CW", band="20m")["run"], 95)
+            # band without enough QSOs: the overall run %
+            self.assertEqual(rh.get("S50A", "CQWWCW", "CW", band="40m")["run"], 60)
+            self.assertNotIn("band", rh.get("S50A", "CQWWCW", "CW", band="40m"))
+            # logs without frequencies: hours only
+            info = rh.get("JA7OWD", "CQWWSSB", "SSB", band="10m")
+            self.assertIsNone(info["run"])
+            self.assertEqual(info["hours"], 20.1)
+
+    def test_old_warm_list_without_bands_is_replaced(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            cache = os.path.join(d, "cache")
+            os.makedirs(cache)
+            self._warm_db(os.path.join(cache, "warm.sqlite"), bands=False)   # fresh, no bands column
+            new = os.path.join(d, "new.sqlite")
+            con = sqlite3.connect(new)
+            con.execute("CREATE TABLE warm (call TEXT, contest TEXT, mode TEXT, run INTEGER,"
+                        " hours REAL, rec INTEGER, logs INTEGER, newest INTEGER, bands TEXT)")
+            con.execute("INSERT INTO warm VALUES ('S50A','CQWW','CW',60,30.0,0,4,2025,'{\"80m\":5}')")
+            con.commit()
+            con.close()
+            with open(new, "rb") as fh:
+                blob = fh.read()
+            urls = []
+            rh = RunHistory(cache, fetch=lambda u: urls.append(u) or blob)
+            rh.warm_up("http://x/warm.sqlite", ssb_url=None)
+            for _ in range(100):
+                if rh.get("S50A", "CQWWCW", "CW", band="80m"):
+                    break
+                time.sleep(0.05)
+            self.assertEqual([u for u in urls if "warm" in u], ["http://x/warm.sqlite"])
+            self.assertEqual(rh.get("S50A", "CQWWCW", "CW", band="80m")["run"], 5)
+
+    def test_summarize(self) -> None:
+        from pouncer.runhist import run_share_by_band, summarize
+        self.assertEqual(run_share_by_band(cabrillo([14025.0] * 5 + [3505.0 + i for i in range(3)])),
+                         {"20m": (4, 5), "80m": (0, 3)})
+        # (run, measurable, hours, all qsos, bands)
+        self.assertIsNone(summarize([(0, 0, 2.0, 10, {})]))           # too few QSOs
+        out = summarize([(0, 0, 20.0, 400, {})])                      # no CAT: hours only
+        self.assertEqual((out["run"], out["hours"], out["bands"]), (None, 20.0, {}))
+        out = summarize([(90, 100, 30.0, 100, {"20m": (90, 100)}),
+                         (10, 50, 10.0, 50, {"80m": (10, 50)})])
+        self.assertEqual(out["run"], 67)
+        self.assertEqual(out["bands"], {"20m": 90, "80m": 20})
+        self.assertEqual(out["hours"], 20.0)
 
     def test_warm_up_offline_is_harmless(self) -> None:
         with tempfile.TemporaryDirectory() as d:

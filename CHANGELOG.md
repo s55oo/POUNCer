@@ -1,5 +1,23 @@
 # POUNCer — Changelog
 
+## v0.7.40 — 2026-10-15 — run % per band, hours from logs without CAT, window memory
+
+- **Run % per band.** A station that runs on 20 m but only S&Ps on 80 m now
+  shows its **80 m** run % on an 80 m spot (and so gets the ⚡). Used when
+  its logs have at least 20 measurable QSOs on that band, else the overall
+  run % as before. Warm-up lists (CW and SSB) rebuilt with a per-band
+  column; live lookups do the same. Tooltip: "runs 12% of QSOs on 80m".
+  A warm-up list in the cache from before (no per-band data) is downloaded
+  again at once - no need to delete `warm.sqlite` by hand.
+- **Hours from logs without CAT.** Logs that give only the band edge as
+  frequency (many SSB logs) used to be dropped completely; now they still
+  give the **hours on the air** (~h), only the R% stays empty. The ⚡ sort
+  puts such stations after the ones with a known run %.
+- **The main window remembers** its size and position (maximised too),
+  column widths and sort between starts (`cache\window.json`), moved back
+  onto the screen if that monitor is gone. Saved when you close POUNCer or
+  it restarts (menu, settings, update).
+
 ## v0.7.39 — 2026-10-14 — menu bar and settings window in the exe
 
 - **Menu bar** in the main window instead of the long row of buttons:
