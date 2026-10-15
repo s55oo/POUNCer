@@ -1,5 +1,16 @@
 # POUNCer — Changelog
 
+## Docs — 2026-10-15
+
+- **docs/NETWORK.md**: every connection POUNCer opens or listens on - N1MM
+  (UDP 12060 / 13064, files, Windows messages), RBN telnet, the telnet
+  backup, RBN over HTTP, the SSB DX cluster, team (UDP 12079), the phone
+  page API (HTTP 8080) and the downloads - with ports, message formats and
+  examples; firewall summary. **Network diagram** (SVG + PNG) there and in
+  the README.
+- README: the configuration table now lists **every** config.ini option,
+  by section, with its default.
+
 ## v0.7.41 — 2026-10-15 — HTTP RBN backup, spot list colours and keys, busted calls, SCP updates
 
 - **RBN over HTTP** as a second backup (`[rbn] http_backup`, S53ZO's Azure

@@ -418,31 +418,66 @@ desired, a different `spotter`.
 
 ## Configuration
 
-All options live in `config.ini` and are documented inline. Key ones:
+All options live in `config.ini` and are documented there, line by line:
 
-| Option | Meaning |
-| --- | --- |
-| `[rbn] callsign` | Your call, used to log in to RBN. |
-| `[rbn] spotter` | Only spots from a node starting with this string are shown. |
-| `[rbn] hide_beacons` | Hide beacon spots (RBN type BEACON / NCDXF, or calls ending in `/B`). Default `true`. |
-| `[rbn] follow_modes` | Modes to show, comma separated (`CW`, `RTTY`, `FT8`, `FT4`). Default `CW`. |
-| `[n1mm] listen_port` | UDP port N1MM broadcasts RadioInfo on (default 12060). |
-| `[n1mm] control_port` | UDP port N1MM listens for control on (default 13064). |
-| `[n1mm] radionr` | Radio to QSY (1 or 2). |
-| `[n1mm] set_callsign` | Also type the callsign into the Entry Window on click. The call is entered with simulated keystrokes only - no transmit command and no Enter/F-key is sent by this action. |
-| `[n1mm] focus_n1mm` | Bring the N1MM Entry Window to the foreground on click so the callsign lands in the callsign box. |
-| `[n1mm] ini` | Path to `N1MM Logger.ini`. Blank = auto-detect in `Documents\N1MM Logger+`. |
-| `[worked] db` | Path to the `.s3db` log used for the worked check. Blank = the log N1MM has open. |
-| `[worked] hide` | Hide spots already worked on the same band + mode. |
-| `[worked] refresh_seconds` | How often to re-check which log/contest N1MM has open. Newly logged QSOs are picked up almost immediately regardless (the log's WAL file is checked every ~0.5 s tick). |
-| `[ui] sort` | Initial sort column (`time`, `freq`, `snr`, `wpm`, `call`, `mode`, `type`, `spotter`). Click any column heading to sort by it; click again to reverse. The up/down arrow in the heading shows the current sort. SNR sorts strongest first. |
-| `[ui] trigger` | `single` or `double` click to QSY. |
-| `[ui] touch_view` | Open the phone page in the default browser at startup (`true`/`false`). |
-| `[ui] fkeys` | TX/log buttons in the main window and phone page: `KEY[:label]` list (default `F2:RPRT F3:TU F4:CALL F5:HisCALL F7:? Enter`). Each F-key **transmits** its N1MM message; `Enter` logs the QSO. Empty = no buttons. |
-| `[web] enabled` | Serve the phone/browser view (`true`/`false`, default `true`). |
-| `[n1mm] default_radio` | SO2R: radio at start, `A` (radio 1) or `B` (radio 2); empty = `radionr`. Switch on the phone (per phone) or with the main window's A/B button. |
-| `[web] host` | Interface to bind (`0.0.0.0` = all, including ZeroTier). |
-| `[web] port` | Port for the phone view (default 8080). |
+| Option | Default | Meaning |
+| --- | --- | --- |
+| **[rbn]** | | |
+| `callsign` | N1MM's station call | Your call, the RBN / cluster login (nothing else is sent). |
+| `host`, `port`, `ft8_port` | telnet.reversebeacon.net, 7000, 7001 | RBN telnet (CW/RTTY; FT8/FT4 on `ft8_port`). |
+| `spotter` | S53WW | Only spots of this skimmer (prefix match); empty = all. |
+| `backup_spotters`, `backup_after_minutes` | (our continent), 5 | Skimmers used while `spotter` is quiet this long. |
+| `history` | 30 | Last spots asked at login (SH/DX); 0 = off. |
+| `backup_host`, `backup_port`, `backup_commands` | azure.s53m.com, 8000, – | Telnet backup when RBN's telnet is down; commands sent after login. |
+| `http_backup` | https://azure.s53m.com/cors/rbn/live | RBN over HTTP while telnet is down / silent a minute; empty = off. |
+| `follow_modes` | CW | Modes to show (`CW`, `RTTY`, `FT8`, `FT4`). |
+| `hide_beacons` | true | Hide beacons (type BEACON / NCDXF, calls ending in `/B`). |
+| `cty` | N1MM's wl_cty.dat | Country file for continent / DX / mults. |
+| **[n1mm]** | | |
+| `listen_ip`, `listen_port` | 0.0.0.0, 12060 | Where POUNCer listens for N1MM's RadioInfo. |
+| `control_ip`, `control_port` | 127.0.0.1, 13064 | N1MM's UDP control port (QSY, wipe, CAT). |
+| `radionr`, `default_radio` | 1, A | Radio to QSY; SO2R/SO2V radio the main window works at start. |
+| `radio_b_qsy` | udp-left | Radio B QSY: `udp-left` (UDP radio 2 + Left), `type` (frequency typed into Entry Window B), `udp` (Right). |
+| `freq_decimal` | auto | Decimal sign of a typed frequency (`auto` = Windows setting, `.` or `,`). |
+| `set_callsign`, `wipe_before_call`, `focus_n1mm` | true | Put the call in, wipe first, bring N1MM to the front. |
+| `type_mode` | settext | `settext` = call in one go (checked), `keys` = typed key by key. |
+| `qsy_wait_ms`, `qsy_settle_ms` | 1500, 250 | Wait for N1MM's new frequency, then this long before the call. |
+| `return_focus` | true | After a tap for the other radio: cursor back where it was. |
+| `focus_back_to_a` | false | After every radio B tap: cursor to Entry Window A. |
+| `ini` | auto | Path to `N1MM Logger.ini` (blank = Documents\N1MM Logger+). |
+| **[worked]** | | |
+| `db` | the open log | `.s3db` used for worked / mults. |
+| `hide` | true | Hide spots worked on the same band + mode. |
+| `refresh_seconds` | 10 | How often to re-check which log / contest is open (QSOs: ~0.5 s). |
+| **[ui]** | | |
+| `sort`, `trigger` | snr, single | Start sort; `single` or `double` click to QSY. |
+| `max_age_minutes`, `fade_minutes` | 10, 5 | Drop spots older than this; phone tiles fade when not re-spotted. |
+| `fkeys` | F2 F3 F4 F5 F7 Enter | TX/log buttons in the main window and phone page: `KEY[:label]` list (default `F2:RPRT F3:TU F4:CALL F5:HisCALL F7:? Enter`). Each F-key **transmits** its N1MM message; `Enter` logs the QSO. Empty = no buttons. |
+| `forward_fkeys` | true | F1-F12 pressed in POUNCer go to N1MM. |
+| `tune_step_hz` | 25 | Step of the −/+ Hz buttons. |
+| `filter_narrow_cat`, `filter_wide_cat` | – | CAT strings for the RX filter buttons (else N1MM's Alt+'). |
+| `run_history`, `warmup` | true | Run history from past logs; download the CW + SSB warm-up lists. |
+| `run_server`, `run_list` | –, runlist.sqlite | Optional run list server / ready-made file. |
+| `auto_update` | true | Exe: check GitHub, download a new version (SHA-256 checked). |
+| `touch_view` | false | Open the phone page in the browser at start. |
+| **[web]** | | |
+| `enabled`, `host`, `port` | true, 0.0.0.0, 8080 | The phone / browser page. |
+| `remote_settings` | false | Allow settings changes from other devices too. |
+| **[ssb]** | | |
+| `mode` | auto | DX cluster for SSB: `auto` (while a radio is on SSB), `always`, `off`. |
+| `host`, `port` | azure.s53m.com, 8000 | The DX cluster. |
+| `spotters` | EU | Spotters' continent (EU, NA, ... or ALL). |
+| `history`, `login`, `commands` | 30, (your call), – | Last spots at login; login call (e.g. S55OO-2); commands after login. |
+| `follow_radio_mode` | true | Radio on USB/LSB = SSB spots, CW = RBN CW spots. |
+| **[team]** | | |
+| `enabled`, `port`, `peers` | true, 12079, – | Several POUNCers on a network; extra IPs where broadcasts are dropped. |
+| **[scp]** | | |
+| `enabled` | true | "?" on calls not in Super Check Partial. |
+| `url`, `refresh_days` | supercheckpartial.com/MASTER.SCP, 7 | Where and how often MASTER.SCP is downloaded. |
+| `update_n1mm` | false | Also copy it into N1MM's SupportFiles. |
+
+Most of these can also be changed in **Settings...** (main window) or on the
+**Settings** page; all connections and ports: [docs/NETWORK.md](docs/NETWORK.md).
 
 ## Tests
 
