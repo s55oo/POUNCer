@@ -192,12 +192,9 @@ class TkWindowMemoryTests(unittest.TestCase):
     def tearDown(self) -> None:
         try:
             self.root.destroy()
-        # free the Tk objects now, in the main thread: collected later in
-        # another test's thread (web server) they raise "main thread is not
-        # in main loop" there and that request never gets an answer
-        gc.collect()
         except tk.TclError:
             pass
+        gc.collect()   # Tk objects freed here, in the main thread (see above)
 
     def _fake(self, d):
         import types
