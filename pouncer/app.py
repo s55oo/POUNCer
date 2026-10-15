@@ -25,6 +25,7 @@ from .rbn import (
 from .runhist import RARE_HOURS, RARE_RUN_PCT, RunHistory
 from . import summary as summarymod
 from . import settings as settingsmod
+from . import winstate
 from .settings_window import SettingsWindow
 from .team import Team
 from .update import Updater
@@ -195,6 +196,7 @@ class PouncerApp:
         self._web_views: dict[tuple[int, str], float] = {}
         self._web_view_cache: dict[tuple[int, str], dict] = {}
         self._build_ui()
+        self._restore_window()
 
     def _build_ui(self) -> None:
         self.root = tk.Tk()
@@ -357,18 +359,70 @@ class PouncerApp:
         except Exception as exc:
             self.status_label.configure(text=f"Could not open {folder}: {exc}")
 
+    def _window_file(self) -> str:
+        import os
+        return os.path.join(self.cfg.run_history_dir or "cache", "window.json")
+
+    def _restore_window(self) -> None:
+        """Size / position (if it still fits this screen), maximised, column
+        widths and sort from the last time (cache/window.json)."""
+        data = winstate.load(self._window_file())
+        if not data:
+            return
+        try:
+            geom = winstate.fit_geometry(data.get("geometry", ""),
+                                         self.root.winfo_screenwidth(),
+                                         self.root.winfo_screenheight())
+            if geom:
+                self.root.geometry(geom)
+            for col, width in winstate.column_widths(data.get("columns"), self.columns).items():
+                self.tree.column(col, width=width)
+            col, rev = winstate.sort_choice(data, self.columns, (self.sort_col, self.sort_reverse))
+            if (col, rev) != (self.sort_col, self.sort_reverse):
+                self.sort_col, self.sort_reverse = col, rev
+                self._update_headings()
+                self._update_sort_buttons()
+            if data.get("zoomed"):
+                self.root.state("zoomed")
+        except tk.TclError as exc:
+            log.info("window state not restored: %s", exc)
+
+    def _save_window(self) -> None:
+        """Remember the window for the next start (only while it exists)."""
+        try:
+            zoomed = self.root.state() == "zoomed"
+            data = {
+                "geometry": self.root.geometry(),
+                "zoomed": zoomed,
+                "columns": {c: int(self.tree.column(c, "width")) for c in self.columns},
+                "sort": self.sort_col, "reverse": bool(self.sort_reverse),
+            }
+        except (tk.TclError, AttributeError):
+            return                  # window already gone: keep the last save
+        if zoomed:                  # keep the normal size from before
+            old = winstate.load(self._window_file()).get("geometry")
+            if old:
+                data["geometry"] = old
+        winstate.save(self._window_file(), data)
+
+    def _on_close(self) -> None:
+        """Window closed (X / File > Exit): remember it, then quit."""
+        self._save_window()
+        try:
+            self.root.destroy()
+        except tk.TclError:
+            pass
+
     def _restart_now(self) -> None:
         """Menu File > Restart / Settings window: start POUNCer again."""
+        self._save_window()
         self.status_label.configure(text="Restarting...")
         self.root.update_idletasks()
         self.updater.restart(before_exit=self._shutdown)
 
     def _shutdown_and_quit(self) -> None:
         """File > Exit: close the window; run() then shuts everything down."""
-        try:
-            self.root.destroy()
-        except tk.TclError:
-            pass
+        self._on_close()
 
     def _about(self) -> None:
         from tkinter import messagebox
@@ -1180,14 +1234,16 @@ class PouncerApp:
         )
 
     def _run_fields(self, s: Spot) -> dict:
-        """From the call's past log (same contest + mode): % of QSOs made
-        running, hours on the air, and whether the log was reconstructed."""
+        """From the call's past logs (same contest + mode): % of QSOs made
+        running - on this spot's band when known ("run_band") - hours on the
+        air, and whether the log was reconstructed."""
         info = None
         if self.runhist is not None:
-            info = self.runhist.get(s.dxcall, self.worked.contest_name, s.mode)
+            info = self.runhist.get(s.dxcall, self.worked.contest_name, s.mode,
+                                    band=band_from_khz(s.freq_khz))
         info = info or {}
         return {"run": info.get("run"), "hours": info.get("hours"),
-                "rec": bool(info.get("rec"))}
+                "rec": bool(info.get("rec")), "run_band": info.get("band")}
 
     def own_call(self) -> str:
         """Our call: the open log's station call (N1MM Config > Change Your
@@ -1483,6 +1539,7 @@ class PouncerApp:
 
     def _restart_for_update(self) -> None:
         """Restart button: quit and start the new version right away."""
+        self._save_window()
         self.status_label.configure(text=f"Restarting with {self.updater.new_version}...")
         self.root.update_idletasks()
         self.updater.restart(before_exit=self._shutdown)
@@ -1626,6 +1683,7 @@ class PouncerApp:
             self._start_team()
         self._ensure_rbn_clients()
         self.root.after(REFRESH_MS, self._tick)
+        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
         try:
             self.root.mainloop()
         finally:

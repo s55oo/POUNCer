@@ -492,10 +492,13 @@ INDEX_HTML = """<!doctype html>
     return (s.run != null && s.run < (d.rare_run || 30)) ||
            (s.hours != null && s.hours < (d.rare_hours || 6));
   }
-  // \u26a1 sort: rare first, then lowest run %, then fewest hours; unknown last.
+  // \u26a1 sort: rare first, then lowest run %, then fewest hours; hours
+  // only (logs without frequencies) after those; unknown last.
   function rareKey(s) {
-    if (s.run == null) return 1e6;
-    return (isRare(s) ? 0 : 1e4) + s.run * 10 + Math.min(s.hours == null ? 99 : s.hours, 99) / 10;
+    if (s.run == null && s.hours == null) return 1e6;
+    const h = Math.min(s.hours == null ? 99 : s.hours, 99) / 10;
+    if (s.run == null) return (isRare(s) ? 0 : 1e4) + 1000 + h;
+    return (isRare(s) ? 0 : 1e4) + s.run * 10 + h;
   }
   // Alert: a rare CQ (\u26a1) that is also a new multiplier appears on the
   // band -> beep (+ vibrate where the phone can) and a pop-up. Once per
@@ -779,9 +782,10 @@ INDEX_HTML = """<!doctype html>
       const rare = isRare(s);
       if (s.cq_min != null) b.title = (b.title ? b.title + ' - ' : '') +
         'calling on this frequency for ' + cqText(s.cq_min) + (s.first ? ' (since ' + s.first + ')' : '') + (s.time ? ', last spot ' + s.time : '');
-      if (s.run != null) b.title = (b.title ? b.title + ' - ' : '') +
-        'runs ' + s.run + '% of QSOs' + (s.hours != null ? ', on air ~' + s.hours + ' h' : '') +
-        ' in its last log' + (s.rec ? ' (reconstructed from other logs: a minimum)' : '') +
+      if (s.run != null || s.hours != null) b.title = (b.title ? b.title + ' - ' : '') +
+        (s.run != null ? 'runs ' + s.run + '% of QSOs' + (s.run_band ? ' on ' + s.run_band : '') : 'run % unknown (logs without frequencies)') +
+        (s.hours != null ? ', on air ~' + s.hours + ' h' : '') +
+        ' in its past logs' + (s.rec ? ' (reconstructed from other logs: a minimum)' : '') +
         (rare ? ' - rare CQ: work it now' : '');
       const len = (s.call || '').length;
       const size = len > 10 ? ' xlong' : (len > 8 ? ' long' : '');
@@ -1157,7 +1161,9 @@ open one and tap <b>Reconnect</b>.</p>
     isn't CW (e.g. RTTY).</dd>
   <dt>R81%</dt>
   <dd><b>Run history</b>: in its logs of the last 6 years of this contest (from S53ZO's
-    public log archive), 81% of its QSOs were made calling CQ - on SSB from its SSB logs,
+    public log archive), 81% of its QSOs were made calling CQ - on this band when its logs
+    have enough QSOs here, else over all bands (tap and hold the tile: the tooltip says
+    which). Logs without real frequencies give only the hours - on SSB from its SSB logs,
     on CW from its CW logs. For CQWW, ARRL DX and CQ WPX (CW and, as a separate list,
     SSB) the stations are known in advance (warm-up lists loaded at start); others
     appear about a second after they are spotted.</dd>

@@ -96,7 +96,10 @@ bottom.*
   **Run history:** each tile shows `R81% ~23h` = how often that station ran
   (called CQ) and how many hours it was on the air in its logs of the last 6 years of
   the same contest (else its other contests in that mode), from S53ZO's public contest-log archive (`*` = reconstructed log,
-  for stations that never sent one); **⚡** = rare CQ (runs under 30% or on
+  for stations that never sent one). The **R%** is for the **spot's band**
+  when its logs have enough QSOs there (a 20 m runner that only S&Ps on 80 m
+  shows its 80 m habit on an 80 m spot), else over all bands. Logs written
+  without CAT (no real frequencies) still give the **hours**, just no R%; **⚡** = rare CQ (runs under 30% or on
   under 6 h) - it won't last, work it now
   (`[ui] run_history`, cached in a `cache` folder). The **⚡** header button
   sorts the rarely-running stations to the top. A new call is known in about
@@ -165,6 +168,11 @@ F-keys stay as buttons - they're used all contest long):
 * **Settings...** - the settings window (below).
 * **Help** - what every button does, check for a new version, POUNCer on
   GitHub, About.
+
+The window remembers its size and position (maximised too), the column
+widths and the sort for the next start (`cache\window.json`; delete it to
+start with the defaults). A position on a monitor that is no longer there
+is moved back onto the screen.
 
 ## Connection lights (Windows window)
 
@@ -315,7 +323,7 @@ Give them all the same `[rbn] spotter` and modes.
 | **Blue** outline | your radio is on that frequency (within 0.5 kHz) |
 | **Yellow** ring | the tile you tapped last |
 | **7003.1** (bold) | spot frequency, kHz; the mode is shown only when it isn't CW |
-| R6% / ~4h / `*` | run history: % of QSOs made running and hours on the air in its logs of the last 6 years of this contest; `*` = reconstructed log |
+| R6% / ~4h / `*` | run history: % of QSOs made running (on this band when known) and hours on the air in its logs of the last 6 years of this contest; `*` = reconstructed log |
 | ⚡ | rare CQ: runs under 30 % or on under 6 h - work it now |
 | 1132Z | first spotted on this frequency (UTC) |
 | 22dB | skimmer SNR |

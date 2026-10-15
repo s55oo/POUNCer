@@ -1,5 +1,6 @@
 """server/warmlist.py: CW and SSB contest sets, measured from log folders."""
 
+import json
 import os
 import sys
 import tempfile
@@ -35,7 +36,23 @@ class WarmListTests(unittest.TestCase):
             found = warmlist.measure(repo, [2025], warmlist.SETS["ssb"])
             rows = {r[0]: r for r in warmlist.aggregate(found)}
             self.assertEqual(rows["S51A"][1:4], ("CQWW", "PH", 98))
-            self.assertNotIn("JA7OWD", rows)       # band-only log: no run % at all
+            self.assertEqual(json.loads(rows["S51A"][8]), {"20m": 98})
+            # band-only log (no CAT): no run %, but its hours on the air stay
+            self.assertIsNone(rows["JA7OWD"][3])
+            self.assertIsNotNone(rows["JA7OWD"][4])
+            self.assertEqual(json.loads(rows["JA7OWD"][8]), {})
+
+    def test_run_per_band(self) -> None:
+        with tempfile.TemporaryDirectory() as repo:
+            y = os.path.join(repo, "CQWW", "ph", "2025")
+            os.makedirs(y)
+            # runs on 20 m, S&P on 80 m
+            freqs = [14250.0] * 40 + [3700.0 + i for i in range(30)]
+            with open(os.path.join(y, "s50a.log"), "w") as fh:
+                fh.write(log("S50A", freqs))
+            rows = {r[0]: r for r in warmlist.aggregate(
+                warmlist.measure(repo, [2025], warmlist.SETS["ssb"]))}
+            self.assertEqual(json.loads(rows["S50A"][8]), {"20m": 98, "80m": 0})
 
 
 if __name__ == "__main__":
