@@ -147,6 +147,7 @@ INDEX_HTML = """<!doctype html>
     box-shadow: 0 6px 24px rgba(0, 0, 0, .7);
     transition: transform .15s ease, opacity .15s ease, visibility 0s linear .15s; }
   .call .rare { font-size: .8em; margin-left: 4px; }
+  .call .busted { color: #ffb74d; margin-left: 3px; font-weight: 700; }
   .detail .fq { font-weight: 800; color: #fff; }  /* spot frequency stands out */
   button.tile.stale { opacity: .42; }  /* not re-spotted lately: probably gone */
   .meta .warn { color: #ffb74d; font-weight: 700; }
@@ -787,10 +788,13 @@ INDEX_HTML = """<!doctype html>
         (s.hours != null ? ', on air ~' + s.hours + ' h' : '') +
         ' in its past logs' + (s.rec ? ' (reconstructed from other logs: a minimum)' : '') +
         (rare ? ' - rare CQ: work it now' : '');
+      if (s.busted) b.title = (b.title ? b.title + ' - ' : '') +
+        '? = not in the Super Check Partial list: maybe a skimmer error (busted call)';
       const len = (s.call || '').length;
       const size = len > 10 ? ' xlong' : (len > 8 ? ' long' : '');
       b.innerHTML = '<span class="call' + size + (s.dx ? ' dx' : '') + '">' +
-        esc(s.call) + (rare ? '<span class="rare">\u26a1</span>' : '') + '</span>' +
+        esc(s.call) + (s.busted ? '<span class="busted">?</span>' : '') +
+        (rare ? '<span class="rare">\u26a1</span>' : '') + '</span>' +
         '<span class="detail"><span><b class="fq">' + s.freq.toFixed(1) + '</b>' +
         // mode only when it isn't CW (in a CW contest it always is)
         (s.mode && s.mode.toUpperCase() !== 'CW' && !ssbOnly ? ' ' + esc(s.mode) : '') +
@@ -1163,8 +1167,8 @@ open one and tap <b>Reconnect</b>.</p>
   <dd><b>Run history</b>: in its logs of the last 6 years of this contest (from S53ZO's
     public log archive), 81% of its QSOs were made calling CQ - on this band when its logs
     have enough QSOs here, else over all bands (tap and hold the tile: the tooltip says
-    which). Logs without real frequencies give only the hours - on SSB from its SSB logs,
-    on CW from its CW logs. For CQWW, ARRL DX and CQ WPX (CW and, as a separate list,
+    which); on SSB from its SSB logs, on CW from its CW logs. Logs written without real
+    frequencies give only the hours (no R%). For CQWW, ARRL DX and CQ WPX (CW and, as a separate list,
     SSB) the stations are known in advance (warm-up lists loaded at start); others
     appear about a second after they are spotted.</dd>
   <dt>~23h</dt><dd>About how many hours it is usually on the air in this contest
@@ -1172,6 +1176,9 @@ open one and tap <b>Reconnect</b>.</p>
   <dt>*</dt>
   <dd>From a reconstructed log (the station never sent one; built from other stations'
     logs - a minimum).</dd>
+  <dt><span style="color:#ffb74d;font-weight:700">?</span></dt>
+  <dd>The call is not in the <b>Super Check Partial</b> list (calls active in contests) -
+    maybe a skimmer error, one letter wrong. The list is downloaded fresh every week.</dd>
   <dt>&#9889;</dt>
   <dd><b>Rare CQ</b>: runs under 30% or is on under 6 h. A CQ from it won't last -
     work it now.</dd>

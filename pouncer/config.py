@@ -57,6 +57,13 @@ class Config:
     rbn_backup_host: str = "azure.s53m.com"
     rbn_backup_port: int = 8000
     rbn_backup_commands: tuple = ()     # at start ask RBN for the last spots (SH/DX); 0 = off
+    # RBN over HTTP (S53ZO's Azure feed) while the telnet feed is down / silent
+    rbn_http_backup: str = "https://azure.s53m.com/cors/rbn/live"
+    # Super Check Partial: "?" on spotted calls not in MASTER.SCP; kept fresh
+    scp_enabled: bool = True
+    scp_url: str = "https://www.supercheckpartial.com/MASTER.SCP"
+    scp_refresh_days: int = 7
+    scp_update_n1mm: bool = False       # also copy the new file into N1MM's SupportFiles
     # Backup when the chosen skimmer is quiet: listed prefixes, or (empty)
     # all skimmers on our continent; after this many minutes of silence
     backup_spotters: tuple[str, ...] = ()
@@ -176,6 +183,11 @@ def load_config(path: str) -> Config:
     cfg.rbn_backup_port = i("rbn", "backup_port", cfg.rbn_backup_port)
     cfg.rbn_backup_commands = tuple(
         c.strip() for c in s("rbn", "backup_commands", "").split(",") if c.strip())
+    cfg.rbn_http_backup = s("rbn", "http_backup", cfg.rbn_http_backup).strip()
+    cfg.scp_enabled = b("scp", "enabled", cfg.scp_enabled)
+    cfg.scp_url = s("scp", "url", cfg.scp_url).strip()
+    cfg.scp_refresh_days = max(1, i("scp", "refresh_days", cfg.scp_refresh_days))
+    cfg.scp_update_n1mm = b("scp", "update_n1mm", cfg.scp_update_n1mm)
     cfg.backup_spotters = tuple(
         b for b in s("rbn", "backup_spotters", "").replace(";", ",").replace(" ", ",").split(",") if b
     )

@@ -16,9 +16,12 @@ N1MM_QUIET_S = 120   # no radio info this long = N1MM probably closed
 RBN_SPOT_S = 120     # a spot this recently = RBN works whatever the status says
 
 
-def rbn_light(status: str, last_spot_age: float | None, role: str) -> tuple[str, str]:
+def rbn_light(status: str, last_spot_age: float | None, role: str,
+              http: bool = False) -> tuple[str, str]:
     if role == "slave":
         return OK, "RBN via master"
+    if http and last_spot_age is not None and last_spot_age < RBN_SPOT_S:
+        return OK, "RBN via HTTP"       # telnet down, the HTTP backup delivers
     s = (status or "").lower()
     name = "RBN via backup" if "backup" in s and "trying rbn" not in s else "RBN"
     if last_spot_age is not None and last_spot_age < RBN_SPOT_S:

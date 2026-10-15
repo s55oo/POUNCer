@@ -23,6 +23,8 @@ from .rbn import (
     ContinentFilter, OnFreqTracker, RBNClient, Spot, SpotterFilter, is_beacon, ports_for_modes,
 )
 from .runhist import RARE_HOURS, RARE_RUN_PCT, RunHistory
+from .rbnhttp import RBNHttpFeed
+from .scp import ScpList
 from . import summary as summarymod
 from . import settings as settingsmod
 from . import winstate
@@ -39,7 +41,7 @@ from .win32 import (
     clear_focused_edit,
     wipe_callsign,
 )
-from .worked import WorkedLog, n1mm_station_call, same_station
+from .worked import WorkedLog, default_n1mm_dirs, n1mm_station_call, same_station
 
 log = logging.getLogger(__name__)
 
@@ -128,6 +130,16 @@ class PouncerApp:
             if config.run_history else None
         )
         self.updater = Updater(__version__, enabled=config.auto_update)
+        # Super Check Partial: "?" on calls not in MASTER.SCP (kept fresh from the web)
+        self.scp = (ScpList(config.run_history_dir or "cache", config.n1mm_ini,
+                            url=config.scp_url, refresh_days=config.scp_refresh_days,
+                            update_n1mm=config.scp_update_n1mm,
+                            n1mm_dirs=default_n1mm_dirs())
+                    if config.scp_enabled else None)
+        # RBN over HTTP while the telnet feed is down / silent
+        self._http_feed: RBNHttpFeed | None = None
+        self._rbn_bad_since: float | None = None
+        self._rbn_good_since: float | None = None
         # Every tapped station (for the contest summary): cache\taps.jsonl
         self.taps = summarymod.TapLog(config.run_history_dir or "cache")
         if self.runhist is not None and config.warmup:
@@ -286,6 +298,11 @@ class PouncerApp:
         self.tree.tag_configure("strong", foreground="#005f00")
         self.tree.tag_configure("dx", background="#fff3e0")
         self.tree.tag_configure("onfreq", background="#b3e5fc")  # tuned to it
+        self.tree.tag_configure("mult", foreground="#b71c1c", font=("Segoe UI", 9, "bold"))
+        self.tree.tag_configure("worked", foreground="#9e9e9e")
+        self._row_spots: list = []
+        # keyboard: arrows move (Treeview), Space taps the selected spot
+        self.tree.bind("<space>", self._on_tree_key)
         if self.cfg.trigger == "double":
             self.tree.bind("<Double-1>", self._on_qsy)
         else:
@@ -594,6 +611,47 @@ class PouncerApp:
     def _ssb_status_put(self, text: str) -> None:
         self._ssb_status_q.put(text)
 
+    def _rbn_healthy(self) -> bool:
+        """The telnet RBN feed (or its telnet backup) is logged in and lines
+        are coming (any skimmer, so even a quiet band counts)."""
+        client = self._rbn_clients.get(self.cfg.rbn_port)
+        if client is None:
+            return False
+        if not self.rbn_status.lower().startswith("logged in"):
+            return False
+        return time.monotonic() - getattr(client, "_last_dx", 0) < 120
+
+    def _ensure_http_feed(self) -> None:
+        """Start the HTTP backup after a minute without a working telnet
+        feed; stop it after a minute of telnet working again."""
+        url = getattr(self.cfg, "rbn_http_backup", "")
+        if not url or not self._rbn_clients:    # off, or a team slave
+            self._stop_http_feed()
+            return
+        now = time.time()
+        if self._rbn_healthy():
+            self._rbn_bad_since = None
+            self._rbn_good_since = self._rbn_good_since or now
+            if self._http_feed is not None and now - self._rbn_good_since > 60:
+                self._stop_http_feed()
+                log.info("RBN telnet works again: HTTP backup stopped")
+            return
+        self._rbn_good_since = None
+        self._rbn_bad_since = self._rbn_bad_since or now
+        if self._http_feed is None and now - self._rbn_bad_since > 60:
+            self._http_feed = RBNHttpFeed(
+                url, self.spotter_filter, self.spot_queue,
+                on_status=lambda t: log.info("RBN HTTP: %s", t),
+                modes=tuple(m for m in self.cfg.follow_modes if m.upper() in ("CW", "RTTY"))
+                or ("CW",))
+            self._http_feed.start()
+            log.info("RBN telnet down / silent: HTTP backup %s started", url)
+
+    def _stop_http_feed(self) -> None:
+        if self._http_feed is not None:
+            self._http_feed.stop()
+            self._http_feed = None
+
     def _ensure_rbn_clients(self) -> None:
         self._ensure_ssb_client()
         desired = self._desired_rbn_ports()
@@ -604,6 +662,7 @@ class PouncerApp:
                 desired = set()
         for port in [p for p in self._rbn_clients if p not in desired]:
             self._rbn_clients.pop(port).stop()
+        self._ensure_http_feed()
         for port in sorted(desired):
             if port in self._rbn_clients:
                 continue
@@ -897,6 +956,7 @@ class PouncerApp:
                     "country": self._country(s.dxcall),
                     "dx": self._is_dx(s.dxcall),
                     "mult": self._mults(s),
+                    "busted": bool(self.scp is not None and self.scp.busted(s.dxcall)),
                     **self._run_fields(s),
                     "cq_min": self._cq_minutes(s),
                     "first": self._first_heard_utc(s),
@@ -1454,7 +1514,9 @@ class PouncerApp:
                 f"   mode={','.join(self.cfg.follow_modes)}"
                 f"   band={band or 'ALL'}   spots={len(self.displayed)}/{len(self.spots)}"
                 f"   hidden={self._worked_hidden}"
+                f"{'   HTTP backup: ' + str(self._http_feed.spots_in) + ' spots' if self._http_feed else ''}"
                 f"{'   warm-up: ' + self.runhist.warm_status if self.runhist and self.runhist.warm_status else ''}"
+                f"{'   ' + self.scp.status if self.scp is not None else ''}"
             )
         )
         self.log_label.configure(text=worked)
@@ -1466,7 +1528,8 @@ class PouncerApp:
         n = len(self.team.alive_peers()) + 1 if self.team is not None else 1
         spot_age = time.time() - self._last_own_spot if self._last_own_spot else None
         return [
-            lights.rbn_light(self.rbn_status, spot_age, role),
+            lights.rbn_light(self.rbn_status, spot_age, role,
+                             http=self._http_feed is not None and bool(self._http_feed.spots_in)),
             lights.n1mm_light(snap["age"] if snap and snap.get("freq_khz") else None),
             lights.log_light(self.worked.log_open, self.worked.log_state),
             lights.team_light(role, n, self.team.version_mismatch() if self.team else None),
@@ -1606,14 +1669,42 @@ class PouncerApp:
         items = self._sorted_visible()
         tuned = self._on_freq_spot(items)
 
+        # keep the selected spot selected (arrow keys + Space) across redraws
+        sel = self.tree.selection()
+        keep = None
+        if sel:
+            try:
+                keep = self._row_key(self._row_spots[int(sel[0])])
+            except (ValueError, IndexError, AttributeError):
+                keep = None
         self.tree.delete(*self.tree.get_children())
         self.displayed = items
+        self._row_spots = items
+        reselect = None
         for idx, s in enumerate(items):
-            tags = ("strong",) if s.snr is not None and s.snr >= 20 else ()
-            if self._is_dx(s.dxcall):
-                tags += ("dx",)
+            mults = self._mults(s)
+            worked = self.worked.is_worked(s.dxcall, s.freq_khz, s.mode)
+            run = self._run_fields(s)
+            rare = (run.get("run") is not None and run["run"] < RARE_RUN_PCT) or (
+                run.get("hours") is not None and run["hours"] < RARE_HOURS)
+            busted = self.scp is not None and self.scp.busted(s.dxcall)
+            # one text colour: worked (grey) > new mult (red, bold) > strong
+            if worked:
+                tags: tuple = ("worked",)
+            elif mults:
+                tags = ("mult",)
+            elif s.snr is not None and s.snr >= 20:
+                tags = ("strong",)
+            else:
+                tags = ()
+            # one background: tuned to it > DX
             if s is tuned:
                 tags += ("onfreq",)
+            elif self._is_dx(s.dxcall):
+                tags += ("dx",)
+            if keep is not None and self._row_key(s) == keep:
+                reselect = str(idx)
+            call_text = ("\u26a1 " if rare else "") + s.dxcall + (" ?" if busted else "")
             self.tree.insert(
                 "", "end", iid=str(idx), tags=tags,
                 values=(
@@ -1621,7 +1712,7 @@ class PouncerApp:
                     f"{s.freq_khz:.1f}",
                     "" if s.snr is None else s.snr,
                     "" if s.wpm is None else s.wpm,
-                    s.dxcall,
+                    call_text,
                     self._continent(s.dxcall) or "",
                     {0: "", 1: "M", 2: "MM"}.get(self._mults(s), ""),
                     s.mode,
@@ -1629,6 +1720,30 @@ class PouncerApp:
                     s.spotter,
                 ),
             )
+        if reselect is not None:
+            self.tree.selection_set(reselect)
+            self.tree.focus(reselect)
+
+    @staticmethod
+    def _row_key(s: Spot) -> tuple:
+        return (s.dxcall.upper(), band_from_khz(s.freq_khz))
+
+    def _on_tree_key(self, event) -> str:
+        """Spot list keys: Space = tap the selected spot (QSY + call), like
+        a click. Arrow keys move the selection (Treeview's own)."""
+        sel = self.tree.selection()
+        if not sel:
+            first = self.tree.get_children()
+            if first:
+                self.tree.selection_set(first[0])
+                self.tree.focus(first[0])
+            return "break"
+        try:
+            spot = self.displayed[int(sel[0])]
+        except (ValueError, IndexError):
+            return "break"
+        self._act_on_spot(spot)
+        return "break"
 
     def _local_web_url(self) -> str:
         """The phone page as seen from this PC."""
@@ -1682,6 +1797,8 @@ class PouncerApp:
         if self.cfg.team:
             self._start_team()
         self._ensure_rbn_clients()
+        if self.scp is not None:
+            self.scp.start()            # load MASTER.SCP, download a fresh one if old
         self.root.after(REFRESH_MS, self._tick)
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
         try:
@@ -1744,6 +1861,7 @@ class PouncerApp:
         for client in self._rbn_clients.values():
             client.stop()
         self._rbn_clients.clear()
+        self._stop_http_feed()
         if getattr(self, "_ssb_client", None) is not None:
             self._ssb_client.stop()
             self._ssb_client = None
