@@ -26,6 +26,9 @@ bottom.*
 
 ## How it works
 
+<p align="center"><a href="docs/NETWORK.md"><img src="docs/network-diagram.svg" width="760"
+  alt="POUNCer network connections: N1MM UDP 12060 / 13064, RBN telnet, Azure backup and DX cluster, HTTP RBN feed, GitHub, Super Check Partial, phone page on HTTP 8080, team on UDP 12079"></a></p>
+
 *All network connections (N1MM UDP, RBN / cluster telnet, HTTP backup, team,
 phone page, downloads) with their ports and message formats:
 [docs/NETWORK.md](docs/NETWORK.md).*
