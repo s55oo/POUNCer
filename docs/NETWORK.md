@@ -1,0 +1,300 @@
+# POUNCer – network connections and protocols
+
+Every connection POUNCer opens or listens on, what goes over it and in which
+format: N1MM Logger+, the Reverse Beacon Network, the DX cluster, the phone
+page, the team, and the downloads from the internet. Valid for **v0.7.41**.
+Ports and addresses are the defaults; each can be changed in `config.ini`
+(the section and key are given).
+
+No connection uses a password. POUNCer logs in to RBN and the DX cluster
+with **your callsign only**, and sends no personal data anywhere. Addresses
+in the examples are private example addresses.
+
+## Overview
+
+| # | Direction | Transport | Port | Other end | What for | config.ini |
+|---|---|---|---|---|---|---|
+| 1 | **in** | UDP | 12060 | N1MM Logger+ (same PC) | radio frequency, mode, Entry Window (RadioInfo XML) | `[n1mm] listen_ip`, `listen_port` |
+| 2 | **out** | UDP | 13064 | N1MM Logger+ (127.0.0.1) | QSY, wipe, CAT strings (XML commands) | `[n1mm] control_ip`, `control_port` |
+| 3 | local | files | – | N1MM's log `.s3db` + `-wal`, `N1MM Logger.ini`, `wl_cty.dat`, `MASTER.SCP` | worked stations, mults, contest, callsign, countries | `[n1mm] ini`, `[worked] db` |
+| 4 | local | Windows messages | – | N1MM Entry Windows | bring to front, put the call in, read it back, keys | `[n1mm] type_mode` |
+| 5 | **out** | TCP (telnet) | 7000 / 7001 | telnet.reversebeacon.net | RBN skimmer spots (CW/RTTY 7000, FT8/FT4 7001) | `[rbn] host`, `port`, `ft8_port` |
+| 6 | **out** | TCP (telnet) | 8000 | azure.s53m.com | RBN backup when RBN's telnet is down | `[rbn] backup_host`, `backup_port` |
+| 7 | **out** | HTTPS | 443 | azure.s53m.com `/cors/rbn/live` | RBN over HTTP, second backup | `[rbn] http_backup` |
+| 8 | **out** | TCP (telnet) | 8000 | azure.s53m.com | DX cluster: SSB spots | `[ssb] host`, `port` |
+| 9 | **in** + out | UDP broadcast | 12079 | other POUNCers on the network | team: who is master, spots, run history | `[team] port`, `peers` |
+| 10 | **in** | HTTP (TCP) | 8080 | phones, tablets, browsers on the LAN; other POUNCers | phone page, its API, settings, team sync | `[web] host`, `port` |
+| 11 | **out** | HTTPS | 443 | api.github.com, github.com | update check and download (SHA-256 checked) | `[ui] auto_update` |
+| 12 | **out** | HTTPS | 443 | github.com (release `warmup`) | warm-up lists (CW, SSB) | `[ui] warmup` |
+| 13 | **out** | HTTPS | 443 | raw.githubusercontent.com (S53ZO's log archive) | run history of calls not in the lists | `[ui] run_history` |
+| 14 | **out** | HTTPS | 443 | www.supercheckpartial.com | MASTER.SCP (busted-call marks) | `[scp] url` |
+| 15 | – | UDP connect | – | 8.8.8.8 | finding the PC's LAN address – **nothing is sent** | – |
+
+Firewall: inbound **UDP 12060** (only from N1MM on the same PC), **TCP 8080**
+(phones on the LAN) and **UDP 12079** (team) must be allowed; everything
+else is outgoing.
+
+---
+
+## 1. N1MM → POUNCer: RadioInfo (UDP 12060, in)
+
+N1MM broadcasts one XML datagram per radio whenever something changes (and
+regularly). Set it up in N1MM: *Config → Config Ports, Mode Control,
+Winkey, etc. → Broadcast Data*: tick **Radio**, address `127.0.0.1:12060`.
+POUNCer listens on `0.0.0.0:12060` (UTF-8 XML, one packet = one radio).
+
+```xml
+<RadioInfo>
+  <StationName>SHACK-PC</StationName>
+  <RadioNr>2</RadioNr>
+  <Freq>701250</Freq>          <!-- tens of Hz: 701250 = 7012.50 kHz -->
+  <TXFreq>701250</TXFreq>
+  <Mode>CW</Mode>
+  <ActiveRadioNr>1</ActiveRadioNr>
+  <EntryWindowHwnd>2222</EntryWindowHwnd>
+  ...
+</RadioInfo>
+```
+
+Used fields: `RadioNr` (1 = A, 2 = B; in SO2V 2 = VFO B), `Freq` / `TXFreq`
+(→ kHz → band to follow), `Mode` (USB/LSB = the list shows SSB spots),
+`ActiveRadioNr`, `StationName`, `EntryWindowHwnd` (the window handle of that
+radio's Entry Window – POUNCer brings exactly that window to the front).
+After a QSY POUNCer waits until RadioInfo reports the new frequency
+(±0.15 kHz, at most `qsy_wait_ms`) before it puts the call in. Other XML
+packets on the port are ignored.
+
+## 2. POUNCer → N1MM: commands (UDP 13064, out)
+
+UTF-8 XML datagrams to `127.0.0.1:13064` (N1MM's control port). None of
+them transmits.
+
+**QSY** – documented by N1MM (`radio_setfrequency`):
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<radio_setfrequency>
+  <app>POUNCer</app>
+  <radionr>2</radionr>
+  <frequency>7012.500</frequency>      <!-- kHz -->
+  <mousebutton>Left</mousebutton>
+</radio_setfrequency>
+```
+
+- Radio A: `radionr` 1, `mousebutton` Left.
+- Radio B (`[n1mm] radio_b_qsy`): **udp-left** (default) = `radionr` 2 with
+  **Left** – works on SO2V; **udp** = `radionr` 2 with Right (as N1MM's
+  documentation says; on an SO2V it moved VFO A); **type** = no packet:
+  the frequency is typed into Entry Window B + Enter (section 4).
+- Also used by the band menu and the −/+ Hz buttons.
+
+**Radio command** – `RadioCmd`, not in N1MM's documentation but accepted on
+the same port (also used by other N1MM control programs). Runs an N1MM
+macro as if typed in that radio's Entry Window:
+
+```xml
+<RadioCmd><RadioNr>2</RadioNr><FocusEntry>2222</FocusEntry>
+<RadioCommand>{WIPE}</RadioCommand></RadioCmd>
+```
+
+- `{WIPE}` – clear the Entry Window before a new call.
+- `{CAT1ASC …}` / `{CAT2ASC …}` – a raw CAT string to the radio, e.g. the
+  RX filter width (`[ui] filter_narrow_cat`, `filter_wide_cat`).
+
+## 3. N1MM's files (local, read only)
+
+Not network, but part of working with N1MM – read, never written (except
+`MASTER.SCP` if `[scp] update_n1mm = true`):
+
+- **`N1MM Logger.ini`** (Documents\N1MM Logger+) – which log (`.s3db`) and
+  contest are open, the station call. Re-read every `[worked] refresh_seconds`.
+- **The log `*.s3db`** (SQLite, read-only) – table `DXLOG`: `Call`, `Band`,
+  `Mode` and the contest's mult fields, only for the open contest
+  (`ContestNR`); table `Station`: our call. N1MM writes new QSOs into the
+  `-wal` side file; POUNCer watches both every 0.5 s, so a logged station
+  disappears from the list within about half a second. Worked = same call
+  **and** same band **and** same mode (SSB/USB/LSB count as one).
+- **`SupportFiles\wl_cty.dat`** – country / continent / zones of a call.
+- **`SupportFiles\MASTER.SCP`** – Super Check Partial, until POUNCer's own
+  download (section 14) is there.
+
+## 4. POUNCer → N1MM's windows (local Windows messages)
+
+To put a call into N1MM, POUNCer works with N1MM's Entry Window like a
+person, using Windows API calls (no network):
+
+1. **Front:** `SetForegroundWindow` on the radio's Entry Window
+   (`EntryWindowHwnd` from RadioInfo; `AttachThreadInput` so Windows allows
+   it).
+2. **Find the box:** `GetGUIThreadInfo` → the text box with the cursor (the
+   callsign box).
+3. **Put the call in:** `WM_SETTEXT` with the whole call in one go
+   (`[n1mm] type_mode = settext`, default), or typed key by key with
+   `SendInput` (`keys`).
+4. **Check:** `WM_GETTEXT` reads the box back; if N1MM wiped it (its QSY
+   wipe), the call is put in again (up to 3 times, plus up to 1 s more on
+   radio B).
+5. **Cursor back:** `EM_GETSEL` / `EM_SETSEL` + `SetFocus` restore the box
+   and cursor position you were in (`return_focus`), or Entry Window A is
+   brought back (`focus_back_to_a`).
+
+Keys sent with `SendInput` (only when you press the matching button): F1–F12
+(N1MM's messages – these **transmit**), Enter (log), Page Up / Down (CW
+speed), Alt+W (wipe, keys mode only), Alt+' (filter wide / narrow), and for
+radio B with `radio_b_qsy = type`: the frequency (Windows decimal sign,
+e.g. `14025,3`) + Enter.
+
+## 5. RBN telnet (TCP 7000 / 7001, out)
+
+`telnet.reversebeacon.net:7000` (CW / RTTY; `:7001` FT8 / FT4 when those
+modes are followed). Plain text lines, Telnet option negotiation answered
+"no".
+
+- **Login:** when the server asks for the call (or after 3 s): the callsign
+  + CRLF. Nothing else, no password.
+- **Last spots at start:** 2 s after login `sh/dx/100 spotter=S53WW-#`; if
+  that gives nothing, `sh/dx/30` (`[rbn] history`).
+- **Spots** (filtered by skimmer in POUNCer, default S53WW):
+
+```
+DX de S53WW-#:     14014.0  K1ABC          CW    13 dB  25 WPM  CQ      1135Z
+```
+
+- **History lines** (answer to `sh/dx`):
+
+```
+  14025.0  K1ABC        13-Oct-2026 1159Z  CW 23 dB 28 WPM CQ          <S53WW-#>
+```
+
+- Reconnects with growing pauses (2 → 60 s). If no line arrives for 120 s,
+  or it fails twice in a row, it switches to the backup (section 6) and
+  tries RBN again every 10 minutes.
+
+## 6. Telnet backup (TCP 8000, out)
+
+`azure.s53m.com:8000` – a DX cluster that passes on the RBN skimmer spots in
+the same `DX de …` format. Same login (callsign), `[rbn] backup_commands`
+sent 1 s after login, then the same `sh/dx` request and line parsing.
+
+## 7. RBN over HTTP (HTTPS, out)
+
+`GET https://azure.s53m.com/cors/rbn/live` – S53ZO's server keeps one RBN
+connection and serves its reports in pages. Used only while the telnet feed
+(sections 5 and 6) has been down or silent for a minute; stopped a minute
+after telnet works again. No login.
+
+- First request: `?lookbackSeconds=600&limit=2000` (the last 10 minutes).
+- Then: `?cursor=<cursor from the last answer>&limit=2000` – only what is
+  new; `hasMore: true` = ask again at once, else every 5 s. Errors: retry
+  after 10 → 120 s.
+
+```json
+{"cursor": "20261015:7214711", "reset": false, "hasMore": false,
+ "spots": [{"spotter": "S53WW", "spotterRaw": "S53WW-#", "dxCall": "K1VR",
+            "freqKHz": 14027.4, "band": "20M", "mode": "CW", "snr": 18,
+            "speed": 28, "ts": 1786112300123}]}
+```
+
+`ts` = UTC milliseconds. There is no CQ / beacon field: `…/B` calls are
+dropped as beacons. Same skimmer filter as the telnet spots.
+
+## 8. DX cluster for SSB (TCP 8000, out)
+
+`azure.s53m.com:8000` (`[ssb] host`, `port`), only while a radio is on
+USB / LSB (or on a team master; `[ssb] mode`). Login with `[ssb] login`
+(empty = your call; use e.g. `S55OO-2` if the RBN backup is on the same
+server). `[ssb] commands` 1 s after login, `sh/dx/<history>` 2 s after.
+Human spots:
+
+```
+DX de S50A:      14250.0  K1ABC        59 SSB                    1200Z
+```
+
+POUNCer keeps spotters from your continent (`[ssb] spotters`), guesses the
+mode from the comment (SSB / USB / LSB / CW / FT8…) or else the band plan,
+and shows them as SSB spots.
+
+## 9. Team (UDP 12079, in and out)
+
+Several POUNCers on one network. Compact JSON datagrams, each with `id` (a
+random id of that POUNCer) and `t` (type):
+
+| `t` | When | Content | Sent to |
+|---|---|---|---|
+| `hi` | every 2 s | `started` (time), `web` (its web port), `healthy` (RBN works), `ver` (version) | broadcast `255.255.255.255:12079` out of **every** network adapter (LAN, ZeroTier…) + directly to each known POUNCer and each `[team] peers` IP |
+| `spot` | master, per spot | `s`: `{dxcall, freq_khz, mode, snr, wpm, spot_type, spotter, time_utc}` | directly to each POUNCer |
+| `rh` | when a call's run history is learned | `d`: `{"CALL\|CONTEST\|MODE": {run, hours, rec, bands…}}` | directly to each POUNCer |
+
+```json
+{"t":"hi","started":1786112000.5,"web":8080,"healthy":true,"ver":"0.7.41","id":"3f2a…"}
+```
+
+- **Master** = the one running longest whose RBN works; it alone talks to
+  RBN / the cluster and passes spots on. Not heard for 6 s, or its RBN down
+  for over a minute → the next one takes over.
+- A POUNCer that joins fetches what is already known with
+  `GET http://<master>:8080/api/runhist` (section 10).
+- Different versions in one team are shown on the Team light.
+
+## 10. Phone page and API (HTTP, TCP 8080, in)
+
+A small web server on `0.0.0.0:8080` (`[web] host`, `port`): the phone page
+for any browser on the LAN (or ZeroTier). Plain HTTP, no login – keep it on
+your own network. All answers are HTML or JSON; requests are `GET` with
+query parameters (`radio=A|B` = which radio the phone works).
+
+| Path | What |
+|---|---|
+| `/`, `/help`, `/summary`, `/settings` | pages: spot tiles, help, contest summary, settings |
+| `/api/spots?band=&radio=` | the list for a radio / band (JSON: radios, log, mults, spots with run %, hours, `busted`…) |
+| `/api/qsy?call=&freq=&mode=&radio=` | tap: QSY + call into N1MM |
+| `/api/key?key=F2&radio=` | F-key / Enter / PgUp / PgDn to N1MM (F-keys **transmit**) |
+| `/api/tune?hz=-25&radio=` | move the VFO |
+| `/api/band?band=20m&radio=` | look at another band |
+| `/api/filter?w=narrow\|wide&fix=` | RX filter |
+| `/api/hide`, `/api/unhide?call=&freq=` | hide a station |
+| `/api/clear?undo=`, `/api/reconnect` | clear spots, re-read the log |
+| `/api/summary` | contest summary (JSON) |
+| `/api/settings`, `/api/settings/set?key=&value=`, `/api/restart` | settings – **changes only from the PC itself** (127.0.0.1) unless `[web] remote_settings = true` |
+| `/api/runhist` | everything known about run history (team sync) |
+
+## 11. Updates (HTTPS, out)
+
+- `GET https://api.github.com/repos/s55oo/POUNCer/releases/latest` – at
+  start, every 6 h and when the Update light is clicked.
+- If newer: the asset `POUNCer.exe` is downloaded and its **SHA-256** is
+  compared with the one GitHub gives for the asset before it replaces the
+  exe (restart with the Restart button). macOS: only a notice.
+
+## 12. Warm-up lists (HTTPS, out)
+
+`https://github.com/s55oo/POUNCer/releases/download/warmup/warm.sqlite`
+(CW) and `…/warm-ssb.sqlite` (SSB): run % (overall and per band) and hours
+for ~46 000 / ~61 000 stations. Downloaded at start when missing, older
+than 30 days or without per-band data; SQLite header checked. Built by the
+repository's GitHub Action from S53ZO's public log archive.
+
+## 13. Run history of other calls (HTTPS, out)
+
+For a spotted call not in the lists: from
+`https://raw.githubusercontent.com/s53zo/Hamradio-Contest-logs-Archives/main/`
+– the index shard `SH6/logs_XX.sqlite` (XX = crc32 of the call), then up to
+6 of that call's Cabrillo logs. Up to 12 downloads at a time; cached in
+`cache\` so each is fetched once. Only public contest logs; the spotted
+callsign is visible in the URL to GitHub. Optional own run list server:
+`[ui] run_server` (`GET <server>/runs?contest=&mode=`).
+
+## 14. Super Check Partial (HTTPS, out)
+
+`GET https://www.supercheckpartial.com/MASTER.SCP` at start when
+`cache\MASTER.SCP` is missing or older than `[scp] refresh_days` (7). Kept
+only if it holds at least 10 000 calls (an error page never replaces a good
+list). Optionally also copied into N1MM's `SupportFiles` (`[scp]
+update_n1mm`).
+
+## 15. Finding the LAN address (no traffic)
+
+To show the phone address, POUNCer opens a UDP socket and *connects* it to
+`8.8.8.8:80` – this only asks Windows which network card would be used;
+**no packet is sent**. ZeroTier addresses are shown first when ZeroTier
+runs.
