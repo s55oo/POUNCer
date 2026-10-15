@@ -9,6 +9,9 @@ N1MM and types the callsign into the Entry Window **without transmitting**.
 - Runtime: Python 3.10+ (developed on 3.14), `tkinter` GUI, no third-party deps.
 - Target: Windows (uses `ctypes` for window focus + `SendInput` keystrokes).
 - Distributed as a single `dist\POUNCer.exe` (PyInstaller, `--onefile --noconsole`).
+- Every network connection, port and message format (N1MM UDP, RBN / cluster
+  telnet, HTTP backup, team, phone API, downloads): **[docs/NETWORK.md](docs/NETWORK.md)**
+  with the diagram `docs/network-diagram.svg`.
 
 ---
 
@@ -16,7 +19,7 @@ N1MM and types the callsign into the Entry Window **without transmitting**.
 
 | Area | Behaviour |
 | --- | --- |
-| Spot source | Telnet to `telnet.reversebeacon.net:7000` (CW/RTTY) and/or `:7001` (FT8/FT4), logging in with your callsign. |
+| Spot source | Telnet to `telnet.reversebeacon.net:7000` (CW/RTTY) and/or `:7001` (FT8/FT4), logging in with your callsign; backups: telnet `azure.s53m.com:8000`, then RBN over HTTP; SSB spots from the DX cluster. |
 | Spot filter | Keep only spots whose spotting node name starts with `[rbn] spotter` (e.g. `S53WW`), and only modes in `follow_modes`. |
 | Band following | Reads N1MM `<RadioInfo>` UDP broadcasts (port 12060); shows only spots on the band N1MM is currently on. |
 | Action on click/tap | `radio_setfrequency` to N1MM (UDP 13064) + simulated keystrokes to enter the call. Never sends a TX command. |
