@@ -419,3 +419,134 @@ def send_enter() -> bool:
         return False
     _send([_key(vk=_VK_RETURN), _key(vk=_VK_RETURN, flags=_KEYEVENTF_KEYUP)])
     return True
+
+
+# ---- reading N1MM's CW speed box ------------------------------------------
+
+_SMTO_BLOCK = 0x0001
+_SMTO_ABORTIFHUNG = 0x0002
+_GW_HWNDNEXT = 2
+_GW_CHILD = 5
+_GWL_EXSTYLE = -20
+_WS_EX_TOPMOST = 0x00000008
+_WS_EX_TRANSPARENT = 0x00000020
+_WS_EX_TOOLWINDOW = 0x00000080
+_WS_EX_NOACTIVATE = 0x08000000
+
+if _WIN:
+    _WNDENUMPROC = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    _user32.EnumChildWindows.argtypes = (wintypes.HWND, _WNDENUMPROC, wintypes.LPARAM)
+    _user32.SendMessageTimeoutW.argtypes = (
+        wintypes.HWND, wintypes.UINT, wintypes.WPARAM, ctypes.c_void_p,
+        wintypes.UINT, wintypes.UINT, ctypes.POINTER(ctypes.c_size_t))
+    _user32.SendMessageTimeoutW.restype = ctypes.c_ssize_t
+    _user32.GetParent.argtypes = (wintypes.HWND,)
+    _user32.GetParent.restype = wintypes.HWND
+    _user32.GetWindow.argtypes = (wintypes.HWND, wintypes.UINT)
+    _user32.GetWindow.restype = wintypes.HWND
+    _user32.IsWindow.argtypes = (wintypes.HWND,)
+    _user32.IsWindowVisible.argtypes = (wintypes.HWND,)
+    _GetLong = getattr(_user32, "GetWindowLongPtrW", None) or _user32.GetWindowLongW
+    _SetLong = getattr(_user32, "SetWindowLongPtrW", None) or _user32.SetWindowLongW
+    _GetLong.argtypes = (wintypes.HWND, ctypes.c_int)
+    _GetLong.restype = ctypes.c_ssize_t
+    _SetLong.argtypes = (wintypes.HWND, ctypes.c_int, ctypes.c_ssize_t)
+    _SetLong.restype = ctypes.c_ssize_t
+
+
+def is_window(hwnd: int) -> bool:
+    return bool(_WIN and hwnd and _user32.IsWindow(hwnd))
+
+
+def class_name(hwnd: int) -> str:
+    if not _WIN or not hwnd:
+        return ""
+    buf = ctypes.create_unicode_buffer(256)
+    _user32.GetClassNameW(hwnd, buf, 256)
+    return buf.value
+
+
+def window_text(hwnd: int, timeout_ms: int = 200) -> str | None:
+    """Text of any window / box, also in another program (WM_GETTEXT with a
+    time-out, so a busy N1MM can never make POUNCer hang). None = no answer."""
+    if not _WIN or not hwnd:
+        return None
+    buf = ctypes.create_unicode_buffer(64)
+    res = ctypes.c_size_t(0)
+    ok = _user32.SendMessageTimeoutW(hwnd, _WM_GETTEXT, 64, ctypes.addressof(buf),
+                                     _SMTO_BLOCK | _SMTO_ABORTIFHUNG, timeout_ms,
+                                     ctypes.byref(res))
+    return buf.value if ok else None
+
+
+def _direct_children(parent: int) -> list[int]:
+    out = []
+    child = _user32.GetWindow(parent, _GW_CHILD)
+    while child and len(out) < 50:
+        out.append(int(child))
+        child = _user32.GetWindow(child, _GW_HWNDNEXT)
+    return out
+
+
+def number_boxes(window_hwnd: int) -> list[dict]:
+    """Visible text boxes in a window (N1MM's Entry Window) that hold just a
+    whole number: candidates for the CW speed box. ``updown`` = the box is
+    the text part of a spin box (a box + arrow buttons, like N1MM's speed
+    box) - a typed zone in the exchange box is a plain box."""
+    if not _WIN or not window_hwnd or not _user32.IsWindow(window_hwnd):
+        return []
+    found: list[int] = []
+
+    def cb(hwnd, _lp):
+        if "EDIT" in class_name(hwnd).upper() and _user32.IsWindowVisible(hwnd):
+            found.append(int(hwnd))
+        return len(found) < 200
+
+    _user32.EnumChildWindows(window_hwnd, _WNDENUMPROC(cb), 0)
+    out = []
+    for hwnd in found:
+        text = window_text(hwnd)
+        if text is None or not text.strip().isdigit():
+            continue
+        parent = int(_user32.GetParent(hwnd) or 0)
+        sibs = [h for h in _direct_children(parent) if h != hwnd] if parent else []
+        updown = (parent != window_hwnd and len(sibs) == 1
+                  and "EDIT" not in class_name(sibs[0]).upper())
+        rect = wintypes.RECT()
+        _user32.GetWindowRect(hwnd, ctypes.byref(rect))
+        out.append({"hwnd": hwnd, "value": int(text.strip()), "updown": updown,
+                    "cls": class_name(hwnd), "parent_cls": class_name(parent),
+                    "rect": (rect.left, rect.top, rect.right, rect.bottom)})
+    return out
+
+
+def child_summary(window_hwnd: int, limit: int = 150) -> list[str]:
+    """Every visible control in a window: class and short text - written to
+    cache/cwspeed.txt when the speed box isn't found, to see what N1MM uses."""
+    if not _WIN or not window_hwnd or not _user32.IsWindow(window_hwnd):
+        return []
+    found: list[int] = []
+
+    def cb(hwnd, _lp):
+        if _user32.IsWindowVisible(hwnd):
+            found.append(int(hwnd))
+        return len(found) < limit
+
+    _user32.EnumChildWindows(window_hwnd, _WNDENUMPROC(cb), 0)
+    out = []
+    for hwnd in found:
+        text = (window_text(hwnd) or "").replace("\r", " ").replace("\n", " ")[:20]
+        parent = int(_user32.GetParent(hwnd) or 0)
+        out.append(f"{hwnd}  {class_name(hwnd)}  in {parent} {class_name(parent)}  '{text}'")
+    return out
+
+
+def make_no_activate(hwnd: int) -> bool:
+    """A popup that never takes the keyboard from N1MM: no activation, not in
+    the task bar, clicks go through it, always on top."""
+    if not _WIN or not hwnd:
+        return False
+    style = _GetLong(hwnd, _GWL_EXSTYLE)
+    _SetLong(hwnd, _GWL_EXSTYLE, style | _WS_EX_NOACTIVATE | _WS_EX_TOOLWINDOW
+             | _WS_EX_TRANSPARENT | _WS_EX_TOPMOST)
+    return True

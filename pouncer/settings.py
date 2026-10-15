@@ -54,6 +54,16 @@ SETTINGS: list[dict] = [
      "label": "After radio B: focus back to A",
      "help": "Every tap (or -/+) for radio B ends with the cursor in Entry Window A, "
              "wherever it was before. Off = 'Cursor back where it was' decides."},
+    {"key": "n1mm.cw_speed", "attr": "cw_speed", "kind": "bool",
+     "live": False, "group": "Tap -> N1MM",
+     "label": "Show N1MM's CW speed",
+     "help": "Reads the WPM from the speed box of N1MM's Entry Window (A and B) and shows "
+             "it in the window, the compact bar and on the phone."},
+    {"key": "n1mm.cw_speed_popup", "attr": "cw_speed_popup", "kind": "bool",
+     "live": True, "group": "Tap -> N1MM",
+     "label": "Popup when the CW speed changes",
+     "help": "A short 'CW 30 WPM' popup (window and phone) after WPM + / -, PgUp / PgDn "
+             "or any other change in N1MM. It never takes the keyboard from N1MM."},
     {"key": "n1mm.default_radio", "attr": "default_radio", "kind": "choice",
      "choices": ["A", "B"], "live": False, "group": "SO2R / SO2V",
      "label": "Radio at start", "help": "Which radio the main window works at start."},

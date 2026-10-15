@@ -190,6 +190,14 @@ and both radios' frequencies, then the spot list with just frequency, call
 and the full window comes back at its old size. The compact size and
 position are remembered separately; *Always on top* also works on its own.
 
+**CW speed**: POUNCer reads N1MM's keyer speed from the speed box of each
+Entry Window (A and B) once a second and shows it in the N1MM line
+(`CW 28 WPM`), the compact bar and on the phone between WPM − and WPM +.
+When the speed changes - from the WPM buttons, PgUp / PgDn in N1MM or
+anything else - a short **CW 30 WPM ▲** popup shows the new speed (it
+never takes the keyboard from N1MM). If the speed doesn't show, send
+`cache\cwspeed.txt` - it lists what POUNCer found in the Entry Window.
+
 The window remembers its size and position (maximised too), the column
 widths and the sort for the next start (`cache\window.json`; delete it to
 start with the defaults). A position on a monitor that is no longer there
@@ -452,6 +460,8 @@ All options live in `config.ini` and are documented there, line by line:
 | `qsy_wait_ms`, `qsy_settle_ms` | 1500, 250 | Wait for N1MM's new frequency, then this long before the call. |
 | `return_focus` | true | After a tap for the other radio: cursor back where it was. |
 | `focus_back_to_a` | false | After every radio B tap: cursor to Entry Window A. |
+| `cw_speed` | true | Read N1MM's CW speed (WPM) from the Entry Windows' speed box and show it. |
+| `cw_speed_popup` | true | Short "CW 30 WPM" popup (window and phone) when the speed changes. |
 | `ini` | auto | Path to `N1MM Logger.ini` (blank = Documents\N1MM Logger+). |
 | **[worked]** | | |
 | `db` | the open log | `.s3db` used for worked / mults. |

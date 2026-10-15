@@ -131,6 +131,11 @@ INDEX_HTML = """<!doctype html>
     transition: background .12s ease; }
   .footbar .tune { background: #1565c0; }
   .footbar .wpm { background: #6a1b9a; }
+  /* N1MM's CW speed between WPM - and + (read from its Entry Window) */
+  .footbar .fgroup.wpmg { grid-template-columns: 1fr auto 1fr; }
+  .footbar .wpmval { align-self: center; min-width: 2.4em; text-align: center;
+    font-size: 18px; font-weight: 800; color: #ce93d8; }
+  .footbar .wpmval[hidden] { display: none; }
   /* NEXT: the next station of the list (QSY + call), one wide button */
   .footbar .next { grid-column: 1 / -1; background: #00897b; letter-spacing: .5px; }
   .footbar button:active, .footbar button.sel { background: #c62828; color: #fff; }
@@ -348,8 +353,9 @@ INDEX_HTML = """<!doctype html>
   <aside class="fkeys" id="fkeys"></aside>
 </main>
 <footer class="footbar" id="footbar">
-  <div class="fgroup">
+  <div class="fgroup wpmg">
     <button class="wpm" data-key="PgDn" title="CW speed down (N1MM PgDn)">WPM &minus;</button>
+    <span class="wpmval" id="wpmval" hidden title="N1MM's CW speed (WPM)"></span>
     <button class="wpm" data-key="PgUp" title="CW speed up (N1MM PgUp)">WPM +</button>
   </div>
   <div class="fgroup">
@@ -387,6 +393,7 @@ INDEX_HTML = """<!doctype html>
   const logMsgEl = document.getElementById('logmsg');
   let toastTimer = null;
   let lastData = {band: '', modes: [], spots: []};
+  let lastWpm = {r: 0, v: 0};
   let sortKey = localStorage.getItem('pouncer.sort') || 'snr';
   let dxFirst = false;
   let multFirst = false;
@@ -447,7 +454,7 @@ INDEX_HTML = """<!doctype html>
     toastEl.style.left = ((grid.left + grid.right) / 2) + 'px';
     toastEl.style.maxWidth = Math.max(160, grid.width - 16) + 'px';
   }
-  function toast(msg, undo) {
+  function toast(msg, undo, ms) {
     toastEl.textContent = msg;
     if (undo) {
       const u = document.createElement('button');
@@ -462,7 +469,7 @@ INDEX_HTML = """<!doctype html>
     placeToast();
     void toastEl.offsetWidth;
     toastEl.classList.add('show');
-    toastTimer = setTimeout(hideToast, 5000);
+    toastTimer = setTimeout(hideToast, ms || 5000);
   }
   // Hidden: fade out, then take it out of the page completely (display:none),
   // so no box or ghost can stay on screen (iOS kept one before).
@@ -752,6 +759,15 @@ INDEX_HTML = """<!doctype html>
     // SSB (radio on USB / LSB): no CW speed keys, no "SSB" on every tile
     const ssbOnly = (data.modes || []).length === 1 && data.modes[0] === 'SSB';
     document.querySelectorAll('.footbar .wpm').forEach(b => { b.hidden = ssbOnly; });
+    // N1MM's CW speed of this radio; a short popup when it changes
+    const wpm = (data.wpm || {})[String(cur)];
+    const wv = document.getElementById('wpmval');
+    wv.textContent = wpm ? String(wpm) : '';
+    wv.hidden = ssbOnly || !wpm;
+    if (wpm && lastWpm.r === cur && lastWpm.v && wpm !== lastWpm.v && !ssbOnly && data.wpm_popup !== false) {
+      toast('CW ' + wpm + ' WPM ' + (wpm > lastWpm.v ? '\u25b2' : '\u25bc'), null, 1500);
+    }
+    lastWpm = {r: cur, v: wpm || 0};
     const spots = arrange(data);
     shown = spots;
     const rows = Math.max(1, Math.ceil(spots.length / cols));
@@ -1248,7 +1264,9 @@ By default only from the browser on the PC itself (<code>[web] remote_settings</
 <h2>Bottom row</h2>
 <dl>
   <dt><span class="k purple">WPM &minus;</span> <span class="k purple">WPM +</span></dt>
-  <dd>CW speed down / up (N1MM's PgDn / PgUp).</dd>
+  <dd>CW speed down / up (N1MM's PgDn / PgUp). The number between them is the speed
+  N1MM really has (read from its Entry Window); when it changes - from here, the
+  keyboard or N1MM itself - a short <b>CW 30 WPM</b> popup shows the new speed.</dd>
   <dt><span class="k blue">&minus;25 Hz</span> <span class="k blue">+25 Hz</span></dt>
   <dd>Move the VFO down / up by 25 Hz. No transmit.</dd>
   <dt><span class="k teal">NEXT &#9654;</span></dt>
