@@ -1,5 +1,10 @@
 # POUNCer — Changelog
 
+## v0.7.46 — 2026-10-15 — same as v0.7.45, complete release
+
+- v0.7.45 with the macOS builds too (the macOS tests hung on Tk objects
+  freed in the web server's thread - fixed in the tests). No app change.
+
 ## v0.7.45 — 2026-10-15 — CW keyboard on the phone (to test)
 
 - **Hold ENTER on the phone for 1.3 s** (the key fills up yellow): a **CW
