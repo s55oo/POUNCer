@@ -1,5 +1,23 @@
 # POUNCer — Changelog
 
+## v0.7.43 — 2026-10-15 — N1MM's CW speed shown (to test)
+
+- **CW speed (WPM) from N1MM**: N1MM doesn't broadcast its keyer speed, so
+  POUNCer reads it from the speed box of each Entry Window (A and B) once
+  a second (Windows `WM_GETTEXT`, nothing sent to N1MM). Shown in the main
+  window's N1MM line (`CW 28 WPM`, SO2R / SO2V: `CW A 28 / B 30 WPM`), in
+  the compact bar, and on the phone between **WPM −** and **WPM +**.
+- **Popup when the speed changes** - from POUNCer's or the phone's WPM − / +,
+  PgUp / PgDn in N1MM or anything else: a short **CW 30 WPM ▲** over the
+  POUNCer window (1.5 s) and on the phone. The window popup can never take
+  the keyboard from N1MM (not activated, clicks go through it).
+- Finding the box: the only spin box with a number (5 - 99) in the Entry
+  Window; if that isn't clear POUNCer learns it at the first WPM + / −.
+  What it found goes to `cache\cwspeed.txt` (with all of the Entry
+  Window's controls if nothing was found) - please send it if the speed
+  doesn't show.
+- New options `[n1mm] cw_speed` and `cw_speed_popup` (both on; Settings).
+
 ## v0.7.42 — 2026-10-15 — compact window (to test)
 
 - **View > Compact window (beside N1MM)**: the main window becomes narrow

@@ -142,6 +142,12 @@ person, using Windows API calls (no network):
    and cursor position you were in (`return_focus`), or Entry Window A is
    brought back (`focus_back_to_a`).
 
+**CW speed (read only):** once a second POUNCer reads the speed box of each
+Entry Window with `WM_GETTEXT` (`SendMessageTimeout`, 200 ms, so a busy N1MM
+can't stall it). The box is found with `EnumChildWindows`: the spin box
+(text box + arrows) holding only a number 5 – 99, or the box that moved at
+POUNCer's first PgUp / PgDn. Found boxes are listed in `cache\cwspeed.txt`.
+
 Keys sent with `SendInput` (only when you press the matching button): F1–F12
 (N1MM's messages – these **transmit**), Enter (log), Page Up / Down (CW
 speed), Alt+W (wipe, keys mode only), Alt+' (filter wide / narrow), and for

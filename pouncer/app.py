@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import dataclasses
 import queue
 import sys
@@ -25,6 +26,8 @@ from .rbn import (
 from .runhist import RARE_HOURS, RARE_RUN_PCT, RunHistory
 from .rbnhttp import RBNHttpFeed
 from .scp import ScpList
+from .cwspeed import SpeedReader
+from . import win32 as win32mod
 from . import summary as summarymod
 from . import settings as settingsmod
 from . import winstate
@@ -136,6 +139,13 @@ class PouncerApp:
                             update_n1mm=config.scp_update_n1mm,
                             n1mm_dirs=default_n1mm_dirs())
                     if config.scp_enabled else None)
+        # N1MM's CW speed, read from the Entry Windows' speed box (Windows only)
+        self.cwspeed = (SpeedReader(
+            self._entry_windows, win32mod.number_boxes, win32mod.window_text,
+            win32mod.is_window,
+            report_path=os.path.join(config.run_history_dir or "cache", "cwspeed.txt"),
+            describe=win32mod.child_summary)
+            if config.cw_speed and win32mod._WIN else None)
         # RBN over HTTP while the telnet feed is down / silent
         self._http_feed: RBNHttpFeed | None = None
         self._rbn_bad_since: float | None = None
@@ -228,6 +238,7 @@ class PouncerApp:
             restart=(self._restart_now if self.updater.exe else None),
             config_path=self.cfg.config_path)
         self._build_menu()
+        self._build_wpm_popup()
 
         header = ttk.Frame(self.root, padding=(8, 6, 8, 2))
         header.pack(fill="x")
@@ -418,6 +429,105 @@ class PouncerApp:
             self.topmost_var.set(False)
         self._apply_topmost()
 
+    # ---- CW speed popup ---------------------------------------------------
+
+    def _build_wpm_popup(self) -> None:
+        """A small 'CW 30 WPM' popup, shown for a moment when N1MM's speed
+        changes. Made once and only moved / faded in and out, never shown
+        anew - so it can't take the keyboard from N1MM (no activation,
+        clicks go through it)."""
+        self._wpm_pop = None
+        self._wpm_pop_after = None
+        if not self.cfg.cw_speed or not win32mod._WIN:
+            return
+        try:
+            pop = tk.Toplevel(self.root)
+            pop.overrideredirect(True)
+            pop.attributes("-topmost", True)
+            pop.attributes("-alpha", 0.0)
+            pop.geometry("+-3000+-3000")
+            self._wpm_pop_label = tk.Label(pop, text="", font=("Segoe UI", 22, "bold"),
+                                           bg="#6a1b9a", fg="white", padx=22, pady=10)
+            self._wpm_pop_label.pack()
+            pop.update_idletasks()
+            try:
+                win32mod.make_no_activate(int(pop.wm_frame(), 16))
+            except (ValueError, tk.TclError):
+                pass
+            self._wpm_pop = pop
+        except tk.TclError:
+            self._wpm_pop = None
+
+    def _show_wpm_popup(self, text: str) -> None:
+        pop = self._wpm_pop
+        if pop is None:
+            return
+        try:
+            self._wpm_pop_label.configure(text=text)
+            pop.update_idletasks()
+            w, h = pop.winfo_reqwidth(), pop.winfo_reqheight()
+            if self.root.state() in ("iconic", "withdrawn"):
+                x = (self.root.winfo_screenwidth() - w) // 2
+                y = self.root.winfo_screenheight() // 3
+            else:
+                x = self.root.winfo_rootx() + (self.root.winfo_width() - w) // 2
+                y = self.root.winfo_rooty() + max(10, self.root.winfo_height() // 3 - h // 2)
+            pop.geometry(f"+{x}+{y}")
+            pop.attributes("-alpha", 0.94)
+            if self._wpm_pop_after is not None:
+                self.root.after_cancel(self._wpm_pop_after)
+            self._wpm_pop_after = self.root.after(1500, self._hide_wpm_popup)
+        except tk.TclError:
+            pass
+
+    def _hide_wpm_popup(self) -> None:
+        self._wpm_pop_after = None
+        if self._wpm_pop is None:
+            return
+        try:
+            self._wpm_pop.attributes("-alpha", 0.0)
+            self._wpm_pop.geometry("+-3000+-3000")
+        except tk.TclError:
+            pass
+
+    def _entry_windows(self) -> dict[int, int]:
+        """Radio -> its Entry Window (for the CW speed reader)."""
+        out = {}
+        for nr in self.state.radio_numbers():
+            hwnd = self.state.entry_window_hwnd(nr)
+            if hwnd:
+                out[nr] = hwnd
+        return out
+
+    def _wpm(self, nr: int) -> int | None:
+        return self.cwspeed.wpm.get(nr) if self.cwspeed is not None else None
+
+    def _wpm_text(self) -> str:
+        """'CW 28 WPM' (SO2R: 'CW A 28 / B 30 WPM'); '' if unknown."""
+        if self.cwspeed is None:
+            return ""
+        nrs = self.state.radio_numbers() or [1]
+        known = [(nr, self._wpm(nr)) for nr in nrs if self._wpm(nr) is not None]
+        if not known:
+            note = self.cwspeed.status(self._radio_nr())
+            return f"CW speed: {note}" if note else ""
+        if len(nrs) > 1:
+            return "CW " + " / ".join(f"{'AB'[n - 1] if n in (1, 2) else n} {w}" for n, w in known) + " WPM"
+        return f"CW {known[0][1]} WPM"
+
+    def _drain_wpm(self) -> None:
+        if self.cwspeed is None:
+            return
+        while True:
+            try:
+                nr, old, new = self.cwspeed.changes.get_nowait()
+            except queue.Empty:
+                break
+            if old is None or not self.cfg.cw_speed_popup:
+                continue          # first reading: no popup
+            arrow = "\u25b2" if new > old else "\u25bc"
+            self._show_wpm_popup(f"{self._radio_tag(nr)}CW {new} WPM {arrow}")
+
     def _apply_topmost(self) -> None:
         try:
             self.root.attributes("-topmost", bool(self.topmost_var.get()))
@@ -434,7 +544,9 @@ class PouncerApp:
             khz = self._radio_khz(nr)
             parts.append(f"{'AB'[nr - 1] if nr in (1, 2) else nr} "
                          + (f"{khz:.1f}" if khz else "-"))
-        self._compact_info.configure(text="   ".join(parts) + f"   ({len(self.displayed)} spots)")
+        wpm = self._wpm(self._radio_nr())
+        self._compact_info.configure(text="   ".join(parts) + (f"   {wpm} WPM" if wpm else "")
+                                     + f"   ({len(self.displayed)} spots)")
 
     def _open_url(self, url: str) -> None:
         import webbrowser
@@ -963,6 +1075,7 @@ class PouncerApp:
         self.updater.maybe_check()
         self._drain_status()
         self._drain_spots()
+        self._drain_wpm()
         self._ensure_rbn_clients()
         if self.worked.maybe_reload():
             self._dirty = True
@@ -1012,6 +1125,9 @@ class PouncerApp:
             "radios": self.state.radio_numbers(),
             # SO2R: every radio's frequency, so the page shows A and B
             "freqs": {str(nr): self._radio_khz(nr) for nr in self.state.radio_numbers()},
+            # N1MM's CW speed per radio (read from its Entry Window), if known
+            "wpm": {str(nr): w for nr, w in (self.cwspeed.wpm.items() if self.cwspeed else ())},
+            "wpm_popup": bool(self.cfg.cw_speed_popup),
             "rbands": {str(nr): self._current_band(nr) for nr in self.state.radio_numbers()},
             "home_cont": self.home_cont,
             "station": self.own_call(),
@@ -1181,6 +1297,8 @@ class PouncerApp:
             focused = force_foreground(hwnd)
             if focused:
                 time.sleep(0.15)
+        if key in ("PgUp", "PgDn") and self.cwspeed is not None:
+            self.cwspeed.expect(self._radio_nr(radio), 1 if key == "PgUp" else -1)
         ok_key = self._send_key(key)
         if not ok_key:
             self.status_label.configure(text=f"Unknown key: {key}")
@@ -1588,6 +1706,7 @@ class PouncerApp:
                     f" {snap['freq_khz']:.2f} kHz  "
                     f"{snap.get('band') or '?'}  {snap.get('mode') or ''}"
                     f"   (updated {snap['age']:.0f}s ago)"
+                    f"{'   ' + self._wpm_text() if self._wpm_text() else ''}"
                 )
             )
         else:
@@ -1894,6 +2013,8 @@ class PouncerApp:
         if self.cfg.team:
             self._start_team()
         self._ensure_rbn_clients()
+        if self.cwspeed is not None:
+            self.cwspeed.start()        # N1MM's CW speed box, read once a second
         if self.scp is not None:
             self.scp.start()            # load MASTER.SCP, download a fresh one if old
         self.root.after(REFRESH_MS, self._tick)
@@ -1959,6 +2080,8 @@ class PouncerApp:
             client.stop()
         self._rbn_clients.clear()
         self._stop_http_feed()
+        if getattr(self, "cwspeed", None) is not None:
+            self.cwspeed.stop()
         if getattr(self, "_ssb_client", None) is not None:
             self._ssb_client.stop()
             self._ssb_client = None

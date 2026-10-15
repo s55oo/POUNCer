@@ -326,7 +326,9 @@ class TkCompactTests(unittest.TestCase):
             COMPACT_COLUMNS=PouncerApp.COMPACT_COLUMNS,
             COMPACT_GEOMETRY=PouncerApp.COMPACT_GEOMETRY)
         f._radio_khz = lambda nr: st.snapshot(nr)["freq_khz"]
-        for name in ("_apply_compact", "_apply_topmost", "_update_compact_bar"):
+        f.cwspeed = types.SimpleNamespace(wpm={1: 28})
+        f._radio_nr = lambda radio=None: radio or f.radio
+        for name in ("_apply_compact", "_apply_topmost", "_update_compact_bar", "_wpm"):
             setattr(f, name, getattr(PouncerApp, name).__get__(f))
         self.root.geometry("900x500+20+20")
         self.root.update()
@@ -341,6 +343,7 @@ class TkCompactTests(unittest.TestCase):
         self.assertEqual(btn.cget("text"), "Radio A")
         self.assertIn("A 14025.0", info.cget("text"))
         self.assertIn("B 7012.0", info.cget("text"))
+        self.assertIn("28 WPM", info.cget("text"))
         f.compact_var.set(False)
         f._apply_compact()
         self.root.update()
@@ -349,3 +352,47 @@ class TkCompactTests(unittest.TestCase):
         self.assertFalse(bar.winfo_ismapped())
         self.assertFalse(f.topmost_var.get())
         self.assertEqual(tuple(tree["displaycolumns"]), ("#all",))
+
+
+@unittest.skipIf(tk is None, "tkinter not available")
+class TkWpmPopupTests(unittest.TestCase):
+    """The CW speed popup: made once, shown over the window, then hidden."""
+
+    def setUp(self) -> None:
+        try:
+            self.root = tk.Tk()
+        except tk.TclError as exc:
+            self.skipTest(f"no display: {exc}")
+
+    def tearDown(self) -> None:
+        self.root.destroy()
+
+    def test_show_and_hide(self) -> None:
+        import types
+        from unittest import mock
+        from pouncer import app as appmod
+        from pouncer.app import PouncerApp
+
+        f = types.SimpleNamespace(root=self.root, cfg=types.SimpleNamespace(cw_speed=True))
+        for name in ("_build_wpm_popup", "_show_wpm_popup", "_hide_wpm_popup"):
+            setattr(f, name, getattr(PouncerApp, name).__get__(f))
+        self.root.geometry("600x400+50+50")
+        self.root.update()
+        made = []
+        with mock.patch.object(appmod.win32mod, "_WIN", True), \
+                mock.patch.object(appmod.win32mod, "make_no_activate", side_effect=made.append):
+            f._build_wpm_popup()
+        self.assertIsNotNone(f._wpm_pop)
+        self.assertEqual(len(made), 1)            # no-activate style set once
+        f._show_wpm_popup("CW 30 WPM \u25b2")
+        self.root.update()
+        self.assertEqual(f._wpm_pop_label.cget("text"), "CW 30 WPM \u25b2")
+        self.assertGreater(f._wpm_pop.winfo_x(), 0)
+        self.assertIsNotNone(f._wpm_pop_after)
+        f._hide_wpm_popup()
+        self.root.update()
+        self.assertLess(f._wpm_pop.winfo_x(), 0)  # parked off-screen
+        # off: no popup window at all
+        f.cfg.cw_speed = False
+        f._build_wpm_popup()
+        self.assertIsNone(f._wpm_pop)
