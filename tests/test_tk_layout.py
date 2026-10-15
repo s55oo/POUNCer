@@ -1,6 +1,7 @@
 """Real-Tk check of the Windows window layout (runs where tkinter works,
 e.g. the Windows build; skipped elsewhere)."""
 
+import gc
 import unittest
 
 try:
@@ -20,6 +21,10 @@ class TkLayoutTests(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.root.destroy()
+        # free the Tk objects now, in the main thread: collected later in
+        # another test's thread (web server) they raise "main thread is not
+        # in main loop" there and that request never gets an answer
+        gc.collect()
 
     def _settle(self, geometry: str) -> None:
         self.root.geometry(geometry)
@@ -90,6 +95,10 @@ class TkSettingsWindowTests(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.root.destroy()
+        # free the Tk objects now, in the main thread: collected later in
+        # another test's thread (web server) they raise "main thread is not
+        # in main loop" there and that request never gets an answer
+        gc.collect()
 
     def test_tabs_save_and_restart_button(self) -> None:
         import types
@@ -183,6 +192,10 @@ class TkWindowMemoryTests(unittest.TestCase):
     def tearDown(self) -> None:
         try:
             self.root.destroy()
+        # free the Tk objects now, in the main thread: collected later in
+        # another test's thread (web server) they raise "main thread is not
+        # in main loop" there and that request never gets an answer
+        gc.collect()
         except tk.TclError:
             pass
 
@@ -241,6 +254,10 @@ class TkSpotListTests(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.root.destroy()
+        # free the Tk objects now, in the main thread: collected later in
+        # another test's thread (web server) they raise "main thread is not
+        # in main loop" there and that request never gets an answer
+        gc.collect()
 
     def test_rows_and_space_key(self) -> None:
         import types
@@ -294,6 +311,10 @@ class TkCompactTests(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.root.destroy()
+        # free the Tk objects now, in the main thread: collected later in
+        # another test's thread (web server) they raise "main thread is not
+        # in main loop" there and that request never gets an answer
+        gc.collect()
 
     def test_compact_and_back(self) -> None:
         import types
@@ -366,6 +387,10 @@ class TkWpmPopupTests(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.root.destroy()
+        # free the Tk objects now, in the main thread: collected later in
+        # another test's thread (web server) they raise "main thread is not
+        # in main loop" there and that request never gets an answer
+        gc.collect()
 
     def test_show_and_hide(self) -> None:
         import types
