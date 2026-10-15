@@ -48,7 +48,8 @@ class WebServerTests(unittest.TestCase):
         self.reconnects += 1
 
     def _get(self, path: str):
-        return urllib.request.urlopen(self.url + path, timeout=5)
+        # generous: the macOS CI runners are sometimes very slow (5 s timed out)
+        return urllib.request.urlopen(self.url + path, timeout=30)
 
     def test_index_serves_mobile_page(self) -> None:
         with self._get("/") as resp:
@@ -113,6 +114,7 @@ class WebServerTests(unittest.TestCase):
             with self.assertRaises(urllib.error.HTTPError) as ctx:
                 self._get("/api/tune?hz=" + q)
             self.assertEqual(ctx.exception.code, 400)
+            ctx.exception.close()
         self.assertEqual(self.tunes, [])
 
     def test_cw_speed_keys(self) -> None:
