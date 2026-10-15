@@ -257,8 +257,9 @@ class TkSpotListTests(unittest.TestCase):
             scp=types.SimpleNamespace(busted=lambda c: c == "PHB9CBR"),
             _is_dx=lambda c: False, _continent=lambda c: "EU",
             _act_on_spot=lambda s: tapped.append(s.dxcall))
-        for name in ("_rebuild", "_row_key", "_on_tree_key"):
+        for name in ("_rebuild", "_on_tree_key"):
             setattr(f, name, getattr(PouncerApp, name).__get__(f))
+        f._row_key = PouncerApp._row_key            # a staticmethod
         f._rebuild()
         rows = {tree.item(i, "values")[4]: tree.item(i, "tags") for i in tree.get_children()}
         self.assertEqual(tuple(rows["S50A"]), ("mult",))          # new mult
