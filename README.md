@@ -105,9 +105,9 @@ bottom.*
   sorts the rarely-running stations to the top. A new call is known in about
   a second (8 looked up at a time; instant once cached).
   **Warm-up:** at start POUNCer downloads (once, refreshed after 30 days)
-  ready lists: **CW** - about 39 000 stations from CQWW CW, ARRL DX CW and
+  ready lists: **CW** - about 46 000 stations from CQWW CW, ARRL DX CW and
   CQ WPX CW - and, **separately, SSB** - the same contests' phone versions
-  (CQWW SSB, ARRL DX SSB, CQ WPX SSB, about 48 000 stations), since who runs and for how long is
+  (CQWW SSB, ARRL DX SSB, CQ WPX SSB, about 61 000 stations), since who runs and for how long is
   different on SSB. Last 5 years, submitted + reconstructed logs, so the
   marks are there the moment a call is spotted; an SSB spot gets the SSB
   numbers (`[ui] warmup`; built by `server/warmlist.py`, release `warmup`).
