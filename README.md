@@ -26,6 +26,10 @@ bottom.*
 
 ## How it works
 
+*All network connections (N1MM UDP, RBN / cluster telnet, HTTP backup, team,
+phone page, downloads) with their ports and message formats:
+[docs/NETWORK.md](docs/NETWORK.md).*
+
 * **Own call** - taken from the open N1MM log's *Change Your Station Data*
   (follows the log you open); your own spots are never listed, and EU/DX
   colouring is from that call's continent.
