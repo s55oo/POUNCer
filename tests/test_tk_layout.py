@@ -148,13 +148,14 @@ class TkSettingsWindowTests(unittest.TestCase):
         f = types.SimpleNamespace(
             root=self.root, set_call_var=tk.BooleanVar(value=True),
             hide_worked_var=tk.BooleanVar(value=False),
+            compact_var=tk.BooleanVar(value=False), topmost_var=tk.BooleanVar(value=False),
             updater=types.SimpleNamespace(exe="C:/x/POUNCer.exe"),
             _settings_win=types.SimpleNamespace(open=lambda: None),
             cfg=types.SimpleNamespace(config_path="C:/x/config.ini"),
         )
         for name in ("_open_config_folder", "_reconnect_log", "_restart_now", "_shutdown_and_quit",
                      "_on_toggle_worked", "_clear_spots", "_open_browser", "_on_update_click",
-                     "_open_url", "_about"):
+                     "_open_url", "_about", "_apply_compact", "_apply_topmost"):
             setattr(f, name, lambda *a, **k: None)
         PouncerApp._build_menu(f)
         bar = f.menubar
@@ -165,6 +166,8 @@ class TkSettingsWindowTests(unittest.TestCase):
                    if view.type(i) != "separator"]
         self.assertIn("Hide worked (same band + mode)", vlabels)
         self.assertIn("Contest summary", vlabels)
+        self.assertIn("Compact window (beside N1MM)", vlabels)
+        self.assertIn("Always on top", vlabels)
 
 
 @unittest.skipIf(tk is None, "tkinter not available")
@@ -190,9 +193,14 @@ class TkWindowMemoryTests(unittest.TestCase):
         tree = ttk.Treeview(self.root, columns=cols, show="headings")
         tree.pack()
         f = types.SimpleNamespace(root=self.root, tree=tree, columns=cols, sort_col="time",
-                                  sort_reverse=True, cfg=types.SimpleNamespace(run_history_dir=d))
+                                  sort_reverse=True, cfg=types.SimpleNamespace(run_history_dir=d),
+                                  compact_var=tk.BooleanVar(value=False),
+                                  topmost_var=tk.BooleanVar(value=False),
+                                  _normal_geom="", _compact_geom="")
         f._update_headings = f._update_sort_buttons = lambda: None
-        for name in ("_window_file", "_restore_window", "_save_window", "_on_close"):
+        f._apply_compact = lambda: None
+        for name in ("_window_file", "_restore_window", "_save_window", "_on_close",
+                     "_apply_topmost"):
             setattr(f, name, getattr(PouncerApp, name).__get__(f))
         return f
 
@@ -272,3 +280,72 @@ class TkSpotListTests(unittest.TestCase):
         self.assertEqual(tree.selection(), ("2",))
         self.assertEqual(f._on_tree_key(None), "break")
         self.assertEqual(tapped, ["PHB9CBR"])
+
+
+@unittest.skipIf(tk is None, "tkinter not available")
+class TkCompactTests(unittest.TestCase):
+    """View > Compact window: narrow, on top, A / B line, 3 columns; and back."""
+
+    def setUp(self) -> None:
+        try:
+            self.root = tk.Tk()
+        except tk.TclError as exc:  # no display
+            self.skipTest(f"no Tk display: {exc}")
+
+    def tearDown(self) -> None:
+        self.root.destroy()
+
+    def test_compact_and_back(self) -> None:
+        import types
+        from pouncer.app import PouncerApp
+        from pouncer.n1mm import RadioState
+
+        cols = ("time", "freq", "snr", "wpm", "call", "cont", "mult", "mode", "type", "spotter")
+        frames = {n: ttk.Frame(self.root, height=20) for n in ("header", "outer", "fkeys", "bottom")}
+        tree_frame = ttk.Frame(self.root)
+        frames["header"].pack(fill="x")
+        frames["outer"].pack(fill="x")
+        frames["fkeys"].pack(fill="x")
+        tree_frame.pack(fill="both", expand=True)
+        frames["bottom"].pack(fill="x")
+        tree = ttk.Treeview(tree_frame, columns=cols, show="headings")
+        tree.pack(fill="both", expand=True)
+        bar = ttk.Frame(self.root)
+        btn, info = ttk.Button(bar), ttk.Label(bar)
+        st = RadioState()
+        st.update({"radio_nr": 1, "freq_khz": 14025.0, "mode": "CW", "active_radio": 1,
+                   "entry_window_hwnd": 1, "station": "", "tx_freq_khz": None})
+        st.update({"radio_nr": 2, "freq_khz": 7012.0, "mode": "CW", "active_radio": 1,
+                   "entry_window_hwnd": 2, "station": "", "tx_freq_khz": None})
+        f = types.SimpleNamespace(
+            root=self.root, tree=tree, _header=frames["header"], _outer=frames["outer"],
+            fkey_row=frames["fkeys"], _bottom=frames["bottom"], _tree_frame=tree_frame,
+            _compact_bar=bar, _compact_btn=btn, _compact_info=info,
+            compact_var=tk.BooleanVar(value=False), topmost_var=tk.BooleanVar(value=False),
+            _normal_geom="", _compact_geom="", radio=1, state=st, displayed=[1, 2, 3],
+            COMPACT_COLUMNS=PouncerApp.COMPACT_COLUMNS,
+            COMPACT_GEOMETRY=PouncerApp.COMPACT_GEOMETRY)
+        f._radio_khz = lambda nr: st.snapshot(nr)["freq_khz"]
+        for name in ("_apply_compact", "_apply_topmost", "_update_compact_bar"):
+            setattr(f, name, getattr(PouncerApp, name).__get__(f))
+        self.root.geometry("900x500+20+20")
+        self.root.update()
+        f.compact_var.set(True)
+        f._apply_compact()
+        self.root.update()
+        self.assertTrue(self.root.geometry().startswith("330x430"))
+        self.assertEqual(tuple(tree["displaycolumns"]), ("freq", "call", "mult"))
+        self.assertFalse(frames["header"].winfo_ismapped())
+        self.assertTrue(bar.winfo_ismapped())
+        self.assertTrue(f.topmost_var.get())
+        self.assertEqual(btn.cget("text"), "Radio A")
+        self.assertIn("A 14025.0", info.cget("text"))
+        self.assertIn("B 7012.0", info.cget("text"))
+        f.compact_var.set(False)
+        f._apply_compact()
+        self.root.update()
+        self.assertTrue(self.root.geometry().startswith("900x500"))
+        self.assertTrue(frames["header"].winfo_ismapped())
+        self.assertFalse(bar.winfo_ismapped())
+        self.assertFalse(f.topmost_var.get())
+        self.assertEqual(tuple(tree["displaycolumns"]), ("#all",))
