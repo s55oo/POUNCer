@@ -1,5 +1,16 @@
 # POUNCer — Changelog
 
+## v0.7.42 — 2026-10-15 — compact window (to test)
+
+- **View > Compact window (beside N1MM)**: the main window becomes narrow
+  (330 × 430) and stays on top next to N1MM: one line with the **Radio A /
+  B** button and both frequencies, then the spot list with only frequency,
+  call (⚡ / ?) and mult; header, lights, sort row, F-keys and status lines
+  hidden. Clicks, arrow keys and Space as always. Untick = the full window
+  back at its old size. **View > Always on top** on its own too.
+- Compact on / off, its own size and position, and on-top are remembered
+  between starts (`cache\window.json`).
+
 ## Docs — 2026-10-15
 
 - **docs/NETWORK.md**: every connection POUNCer opens or listens on - N1MM

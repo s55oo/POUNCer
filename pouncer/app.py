@@ -217,6 +217,10 @@ class PouncerApp:
         # Narrow windows are fine: text lines wrap and the buttons flow onto
         # more rows instead of being cut off at the right edge.
         self.root.minsize(420, 300)
+        self.compact_var = tk.BooleanVar(value=False)
+        self.topmost_var = tk.BooleanVar(value=False)
+        self._normal_geom = ""
+        self._compact_geom = ""
         self.set_call_var = tk.BooleanVar(value=self.cfg.set_callsign)
         self.hide_worked_var = tk.BooleanVar(value=self.cfg.worked_hide)
         self._settings_win = SettingsWindow(
@@ -227,6 +231,14 @@ class PouncerApp:
 
         header = ttk.Frame(self.root, padding=(8, 6, 8, 2))
         header.pack(fill="x")
+        self._header = header
+        # compact mode (View > Compact window): one line with A / B instead
+        # of the header, sort row, F-keys and status lines
+        self._compact_bar = ttk.Frame(self.root, padding=(6, 4, 6, 2))
+        self._compact_btn = ttk.Button(self._compact_bar, text="", command=self._toggle_radio)
+        self._compact_btn.pack(side="left")
+        self._compact_info = ttk.Label(self._compact_bar, text="", anchor="w")
+        self._compact_info.pack(side="left", padx=(8, 0), fill="x", expand=True)
         # Team role, big and coloured: MASTER (talks to RBN) / SLAVE / alone
         self.team_label = tk.Label(header, text="", anchor="w", font=("Segoe UI", 12, "bold"),
                                    padx=6, pady=2)
@@ -244,6 +256,7 @@ class PouncerApp:
         # Sort, options, keys and actions: one flowing block of controls.
         outer = ttk.Frame(self.root, padding=(8, 4))
         outer.pack(fill="x")
+        self._outer = outer
         flow = FlowFrame(outer)
         flow.pack(fill="x")
         flow.add(ttk.Label(flow, text="Sort:"))
@@ -283,6 +296,7 @@ class PouncerApp:
         }
         tree_frame = ttk.Frame(self.root, padding=(8, 0, 8, 4))
         tree_frame.pack(fill="both", expand=True)
+        self._tree_frame = tree_frame
         self.tree = ttk.Treeview(
             tree_frame, columns=self.columns, show="headings", selectmode="browse"
         )
@@ -320,6 +334,7 @@ class PouncerApp:
 
         bottom = ttk.Frame(self.root, padding=(8, 2))
         bottom.pack(fill="x")
+        self._bottom = bottom
         self.web_label = self._wrap_label(bottom, "Phone view: starting...")
         self.status_label = self._wrap_label(bottom, "")
 
@@ -341,6 +356,11 @@ class PouncerApp:
         view.add_checkbutton(label="Hide worked (same band + mode)",
                              variable=self.hide_worked_var, command=self._on_toggle_worked)
         view.add_separator()
+        view.add_checkbutton(label="Compact window (beside N1MM)", variable=self.compact_var,
+                             command=self._apply_compact)
+        view.add_checkbutton(label="Always on top", variable=self.topmost_var,
+                             command=self._apply_topmost)
+        view.add_separator()
         view.add_command(label="Clear spots", command=self._clear_spots)
         view.add_command(label="Contest summary", command=lambda: self._open_browser("summary"))
         view.add_command(label="Phone page in the browser", command=self._open_browser)
@@ -355,6 +375,66 @@ class PouncerApp:
         bar.add_cascade(label="Help", menu=helpm)
         self.root.configure(menu=bar)
         self.menubar = bar
+
+    COMPACT_COLUMNS = ("freq", "call", "mult")
+    COMPACT_GEOMETRY = "330x430"
+
+    def _apply_compact(self) -> None:
+        """View > Compact window: a narrow window beside N1MM - one line with
+        the A / B button and both frequencies, then the spot list with just
+        frequency, call (⚡ / ?) and mult. Same clicks and keys as always.
+        Turned off: everything back, at the size it had before."""
+        compact = bool(self.compact_var.get())
+        frames = [self._header, self._outer, self.fkey_row, self._bottom]
+        if compact:
+            if not self._normal_geom:
+                self._normal_geom = self.root.geometry()
+            for f in frames:
+                if f is not None:
+                    f.pack_forget()
+            self._compact_bar.pack(fill="x", before=self._tree_frame)
+            self.tree.configure(displaycolumns=self.COMPACT_COLUMNS)
+            self.root.minsize(240, 200)
+            geom = self._compact_geom or self.COMPACT_GEOMETRY
+            x, y = self.root.winfo_x(), self.root.winfo_y()
+            self.root.geometry(geom if "+" in geom else f"{geom}+{x}+{y}")
+            if not self.topmost_var.get():          # beside N1MM: stay visible
+                self.topmost_var.set(True)
+            self._update_compact_bar()
+        else:
+            self._compact_geom = self.root.geometry()
+            self._compact_bar.pack_forget()
+            self._tree_frame.pack_forget()
+            for f in frames[:3]:
+                if f is not None:
+                    f.pack(fill="x")
+            self._tree_frame.pack(fill="both", expand=True)
+            self._bottom.pack(fill="x")
+            self.tree.configure(displaycolumns="#all")
+            self.root.minsize(420, 300)
+            if self._normal_geom:
+                self.root.geometry(self._normal_geom)
+                self._normal_geom = ""
+            self.topmost_var.set(False)
+        self._apply_topmost()
+
+    def _apply_topmost(self) -> None:
+        try:
+            self.root.attributes("-topmost", bool(self.topmost_var.get()))
+        except tk.TclError:
+            pass
+
+    def _update_compact_bar(self) -> None:
+        """A / B button and both radios' frequencies (compact mode)."""
+        if not self.compact_var.get():
+            return
+        self._compact_btn.configure(text=f"Radio {'AB'[self.radio - 1]}")
+        parts = []
+        for nr in self.state.radio_numbers() or [1]:
+            khz = self._radio_khz(nr)
+            parts.append(f"{'AB'[nr - 1] if nr in (1, 2) else nr} "
+                         + (f"{khz:.1f}" if khz else "-"))
+        self._compact_info.configure(text="   ".join(parts) + f"   ({len(self.displayed)} spots)")
 
     def _open_url(self, url: str) -> None:
         import webbrowser
@@ -399,7 +479,17 @@ class PouncerApp:
                 self.sort_col, self.sort_reverse = col, rev
                 self._update_headings()
                 self._update_sort_buttons()
-            if data.get("zoomed"):
+            cg = winstate.fit_geometry(data.get("compact_geometry", ""),
+                                       self.root.winfo_screenwidth(),
+                                       self.root.winfo_screenheight())
+            self._compact_geom = cg or ""
+            if data.get("compact"):
+                self.compact_var.set(True)
+                self._apply_compact()
+            elif data.get("topmost"):
+                self.topmost_var.set(True)
+                self._apply_topmost()
+            if data.get("zoomed") and not data.get("compact"):
                 self.root.state("zoomed")
         except tk.TclError as exc:
             log.info("window state not restored: %s", exc)
@@ -408,8 +498,13 @@ class PouncerApp:
         """Remember the window for the next start (only while it exists)."""
         try:
             zoomed = self.root.state() == "zoomed"
+            compact = bool(self.compact_var.get())
             data = {
-                "geometry": self.root.geometry(),
+                "geometry": self._normal_geom if compact and self._normal_geom
+                else self.root.geometry(),
+                "compact": compact,
+                "compact_geometry": self.root.geometry() if compact else self._compact_geom,
+                "topmost": bool(self.topmost_var.get()),
                 "zoomed": zoomed,
                 "columns": {c: int(self.tree.column(c, "width")) for c in self.columns},
                 "sort": self.sort_col, "reverse": bool(self.sort_reverse),
@@ -1054,6 +1149,7 @@ class PouncerApp:
         self.radio = 2 if self.radio == 1 else 1
         self.radio_btn.configure(text=self._radio_btn_text())
         self._dirty = True
+        self._update_compact_bar()
         note = "" if self.radio in self.state.radio_numbers() or not self.state.radio_numbers() \
             else " - N1MM reports no radio B (SO1R): radio A is used"
         self.status_label.configure(
@@ -1483,6 +1579,7 @@ class PouncerApp:
         return (snap or {}).get("band")
 
     def _update_labels(self) -> None:
+        self._update_compact_bar()
         snap = self.state.snapshot(self.radio)
         if snap and snap.get("freq_khz"):
             self.n1mm_label.configure(

@@ -170,8 +170,9 @@ F-keys stay as buttons - they're used all contest long):
 
 * **File** - open the config folder (Explorer), Reconnect log, Restart
   POUNCer, Exit.
-* **View** - *Also enter callsign in N1MM* and *Hide worked* (tick), Clear
-  spots, Contest summary, Phone page in the browser.
+* **View** - *Also enter callsign in N1MM* and *Hide worked* (tick),
+  **Compact window (beside N1MM)** and **Always on top** (tick), Clear spots,
+  Contest summary, Phone page in the browser.
 * **Settings...** - the settings window (below).
 * **Help** - what every button does, check for a new version, POUNCer on
   GitHub, About.
@@ -181,6 +182,13 @@ The spot list: **new multiplier** rows in bold red, **worked** ones in grey
 = not in Super Check Partial; tuned to it = blue, DX = orange background.
 **Arrow keys** move through the list, **Space** taps the selected spot (QSY
 and call, like a click); the selection stays put while the list updates.
+
+**Compact window** (View menu): a narrow window (330 × 430) that stays on
+top beside N1MM's Entry Windows - one line with the **Radio A / B** button
+and both radios' frequencies, then the spot list with just frequency, call
+(⚡ / ?) and mult. Clicks, arrow keys and Space work as always. Untick it
+and the full window comes back at its old size. The compact size and
+position are remembered separately; *Always on top* also works on its own.
 
 The window remembers its size and position (maximised too), the column
 widths and the sort for the next start (`cache\window.json`; delete it to
