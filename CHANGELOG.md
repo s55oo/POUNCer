@@ -9,6 +9,9 @@
   column; live lookups do the same. Tooltip: "runs 12% of QSOs on 80m".
   A warm-up list in the cache from before (no per-band data) is downloaded
   again at once - no need to delete `warm.sqlite` by hand.
+  Lists built 2026-10-15: **CW 46 044** stations (7 713 of them hours
+  only), **SSB 60 917** (14 401 hours only); ~5 100 CW and ~5 500 SSB
+  stations run 40+ points more on one band than another.
 - **Hours from logs without CAT.** Logs that give only the band edge as
   frequency (many SSB logs) used to be dropped completely; now they still
   give the **hours on the air** (~h), only the R% stays empty. The ⚡ sort
