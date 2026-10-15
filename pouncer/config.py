@@ -136,6 +136,7 @@ class Config:
     follow_radio_mode: bool = True   # radio on USB/LSB -> SSB spots, CW -> CW
     web_enabled: bool = True
     web_remote_settings: bool = False  # settings page: change from other devices too
+    web_cw_keyboard: bool = True  # phone: hold ENTER 1.3 s = CW keyboard (N1MM Ctrl+K, transmits)
     config_path: str = ""              # the config.ini that was read (settings page writes it)
     web_host: str = "0.0.0.0"
     web_port: int = 8080
@@ -264,6 +265,7 @@ def load_config(path: str) -> Config:
     cfg.follow_radio_mode = b("ssb", "follow_radio_mode", cfg.follow_radio_mode)
     cfg.web_enabled = b("web", "enabled", cfg.web_enabled)
     cfg.web_remote_settings = b("web", "remote_settings", cfg.web_remote_settings)
+    cfg.web_cw_keyboard = b("web", "cw_keyboard", cfg.web_cw_keyboard)
     cfg.web_host = s("web", "host", cfg.web_host).strip()
     cfg.web_port = i("web", "port", cfg.web_port)
 

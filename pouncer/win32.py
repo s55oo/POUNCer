@@ -550,3 +550,44 @@ def make_no_activate(hwnd: int) -> bool:
     _SetLong(hwnd, _GWL_EXSTYLE, style | _WS_EX_NOACTIVATE | _WS_EX_TOOLWINDOW
              | _WS_EX_TRANSPARENT | _WS_EX_TOPMOST)
     return True
+
+
+# ---- N1MM's CW keyboard window (Ctrl+K) ------------------------------------
+
+_VK_BACK = 0x08
+_VK_CONTROL = 0x11
+_VK_ESCAPE = 0x1B
+_VK_K = 0x4B
+
+
+def foreground_window() -> int:
+    return int(_user32.GetForegroundWindow() or 0) if _WIN else 0
+
+
+def send_ctrl_k() -> bool:
+    """Ctrl+K in N1MM's Entry Window: opens (or closes) N1MM's CW keyboard
+    window - what is typed there is sent as CW (TRANSMITS)."""
+    if not _WIN:
+        return False
+    _send([_key(vk=_VK_CONTROL), _key(vk=_VK_K),
+           _key(vk=_VK_K, flags=_KEYEVENTF_KEYUP), _key(vk=_VK_CONTROL, flags=_KEYEVENTF_KEYUP)])
+    return True
+
+
+def send_escape() -> bool:
+    """Esc: N1MM stops sending at once (and closes its CW window)."""
+    if not _WIN:
+        return False
+    _send([_key(vk=_VK_ESCAPE), _key(vk=_VK_ESCAPE, flags=_KEYEVENTF_KEYUP)])
+    return True
+
+
+def send_backspace(n: int = 1) -> bool:
+    """Backspace n times (removes characters not sent yet)."""
+    if not _WIN or n <= 0:
+        return False
+    keys = []
+    for _ in range(min(n, 50)):
+        keys += [_key(vk=_VK_BACK), _key(vk=_VK_BACK, flags=_KEYEVENTF_KEYUP)]
+    _send(keys)
+    return True

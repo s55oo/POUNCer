@@ -50,6 +50,7 @@ log = logging.getLogger(__name__)
 
 GITHUB_URL = "https://github.com/s55oo/POUNCer"
 REFRESH_MS = 500
+CW_PUMP_MS = 80   # phone CW keyboard: typed text handled this often
 WEB_MAX_SPOTS = 60
 WEB_VIEW_S = 10  # keep building a band a phone looks at this long after its last ask
 RADIO_ALIVE_SECONDS = 30
@@ -214,6 +215,12 @@ class PouncerApp:
         self._filter_width: str | None = config.filter_start or None
         self._web_queue: "queue.Queue[tuple]" = queue.Queue()
         self._web_cache: dict[int, dict] = {}  # radio -> phone payload
+        # phone CW keyboard: N1MM's Ctrl+K window while open, its radio, last error
+        self._cw_win: int | None = None
+        self._cw_radio: int | None = None
+        self._cw_error = ""
+        self._cw_error_n = 0
+        self._cw_pumping = False
         # phone band menu: (radio, band) a phone looks at -> last asked / payload
         self._web_views: dict[tuple[int, str], float] = {}
         self._web_view_cache: dict[tuple[int, str], dict] = {}
@@ -1128,6 +1135,11 @@ class PouncerApp:
             # N1MM's CW speed per radio (read from its Entry Window), if known
             "wpm": {str(nr): w for nr, w in (self.cwspeed.wpm.items() if self.cwspeed else ())},
             "wpm_popup": bool(self.cfg.cw_speed_popup),
+            # phone CW keyboard (hold ENTER): allowed, open now, last problem
+            "cw_keyboard": bool(self.cfg.web_cw_keyboard),
+            "cw_open": self._cw_win is not None,
+            "cw_error": self._cw_error,
+            "cw_error_n": self._cw_error_n,
             "rbands": {str(nr): self._current_band(nr) for nr in self.state.radio_numbers()},
             "home_cont": self.home_cont,
             "station": self.own_call(),
@@ -1195,6 +1207,104 @@ class PouncerApp:
     def _web_key(self, key: str, radio: int | None = None) -> None:
         self._web_queue.put(("key", key, radio))
 
+    def _web_cw(self, op: str, text: str = "", n: int = 0, radio: int | None = None) -> None:
+        """Phone CW keyboard: open / text / back / done / stop (in order)."""
+        self._web_queue.put(("cw", op, text, n, radio))
+
+    # ---- CW keyboard (phone: hold ENTER) -> N1MM's Ctrl+K window ------------
+
+    def _cw(self, op: str, text: str = "", n: int = 0, radio: int | None = None) -> None:
+        nr = self._radio_nr(radio)
+        if op == "open":
+            self._cw_open(nr)
+        elif op == "text":
+            if text and self._cw_ready(nr):
+                type_text(text.upper())
+        elif op == "back":
+            if n > 0 and self._cw_ready(nr):
+                win32mod.send_backspace(n)
+        elif op in ("done", "stop"):
+            self._cw_close(stop=(op == "stop"))
+
+    def _cw_open(self, nr: int) -> bool:
+        """Ctrl+K in the radio's Entry Window: N1MM opens its CW window and
+        sends what is typed there. Only types once that window has the
+        keyboard - never into the callsign box."""
+        win = self._cw_win
+        if win and win32mod.is_window(win) and self._cw_radio == nr:
+            force_foreground(win)
+            return True
+        if win:
+            self._cw_close(stop=False)
+        hwnd = self.state.entry_window_hwnd(nr)
+        if not hwnd or not force_foreground(hwnd):
+            return self._cw_fail("N1MM's Entry Window could not be brought to the front")
+        time.sleep(0.15)
+        win32mod.send_ctrl_k()
+        fg = 0
+        for _ in range(10):              # wait for N1MM's CW window (max 0.5 s)
+            time.sleep(0.05)
+            fg = win32mod.foreground_window()
+            if fg and fg != hwnd:
+                break
+        if not fg or fg == hwnd or window_pid(fg) != window_pid(hwnd):
+            return self._cw_fail("N1MM's CW window (Ctrl+K) did not open")
+        self._cw_win, self._cw_radio, self._cw_error = fg, nr, ""
+        self.status_label.configure(
+            text=f"CW keyboard open{' (radio ' + 'AB'[nr - 1] + ')' if self._so2r() else ''}"
+                 " - typing from the phone is sent as CW")
+        if not self._cw_pumping:
+            self._cw_pumping = True
+            self.root.after(CW_PUMP_MS, self._cw_pump)
+        return True
+
+    def _cw_ready(self, nr: int) -> bool:
+        win = self._cw_win
+        if not win or self._cw_radio != nr or not win32mod.is_window(win):
+            self._cw_win = None
+            return self._cw_open(nr)
+        if win32mod.foreground_window() != win:
+            if not force_foreground(win):
+                return self._cw_fail("N1MM's CW window could not be brought to the front")
+            time.sleep(0.05)
+        return True
+
+    def _cw_close(self, stop: bool) -> None:
+        """Done: Enter (N1MM sends what's left, closes its CW window).
+        Stop: Esc (stops at once)."""
+        win, self._cw_win = self._cw_win, None
+        if not win or not win32mod.is_window(win):
+            if stop:                     # stop anyway: Esc in N1MM stops sending
+                hwnd = self.state.entry_window_hwnd(self._cw_radio or self._radio_nr())
+                if hwnd and force_foreground(hwnd):
+                    win32mod.send_escape()
+            return
+        if win32mod.foreground_window() != win:
+            force_foreground(win)
+            time.sleep(0.05)
+        if stop:
+            win32mod.send_escape()
+        else:
+            send_enter()
+        self.status_label.configure(
+            text="CW keyboard: stopped (Esc)" if stop else "CW keyboard closed (rest is sent)")
+
+    def _cw_fail(self, why: str) -> bool:
+        self._cw_win = None
+        self._cw_error = why
+        self._cw_error_n += 1
+        self.status_label.configure(text=f"CW keyboard: {why}")
+        return False
+
+    def _cw_pump(self) -> None:
+        """While the CW keyboard is open: handle the phone's typing every
+        80 ms, not only every half second."""
+        if self._cw_win is None:
+            self._cw_pumping = False
+            return
+        self._drain_web()
+        self.root.after(CW_PUMP_MS, self._cw_pump)
+
     def _web_reconnect(self) -> None:
         self._web_queue.put(("reconnect",))
 
@@ -1218,6 +1328,9 @@ class PouncerApp:
                 return
             if item[0] == "key":
                 self._press_key(item[1], item[2])
+                continue
+            if item[0] == "cw":
+                self._cw(*item[1:])
                 continue
             if item[0] == "clear":
                 if item[1]:
@@ -2033,6 +2146,8 @@ class PouncerApp:
                 self._web_tune, self._web_filter, self._web_clear,
             )
             self.web.set_summary_provider(self._summary)
+            if self.cfg.web_cw_keyboard:
+                self.web.set_cw_handler(self._web_cw)
             self.web.set_settings_provider(
                 lambda: {"items": settingsmod.current(self.cfg), "path": self.cfg.config_path},
                 self._save_setting,

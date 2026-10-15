@@ -269,6 +269,14 @@ The same settings are on the **Settings** page in the browser (the phone's
 band menu, `/settings`) - only from the browser on the PC itself unless
 `[web] remote_settings = true`.
 
+**CW keyboard on the phone**: hold **ENTER** for 1.3 s (it fills up
+yellow) and a text box opens at the top. POUNCer opens N1MM's CW window
+(Ctrl+K in that radio's Entry Window) and types what you type there on
+the fly - N1MM **sends it as CW**. **DONE** (or Enter on the phone
+keyboard) lets N1MM send the rest and close its window; **STOP (Esc)**
+stops at once. Nothing is typed unless N1MM's CW window really has the
+keyboard. `[web] cw_keyboard = false` turns it off.
+
 ## SSB
 
 RBN has no SSB, so for SSB POUNCer uses a **DX cluster** (human spots,
@@ -481,6 +489,7 @@ All options live in `config.ini` and are documented there, line by line:
 | **[web]** | | |
 | `enabled`, `host`, `port` | true, 0.0.0.0, 8080 | The phone / browser page. |
 | `remote_settings` | false | Allow settings changes from other devices too. |
+| `cw_keyboard` | true | Hold ENTER 1.3 s on the phone = CW keyboard (N1MM Ctrl+K window, transmits). |
 | **[ssb]** | | |
 | `mode` | auto | DX cluster for SSB: `auto` (while a radio is on SSB), `always`, `off`. |
 | `host`, `port` | azure.s53m.com, 8000 | The DX cluster. |

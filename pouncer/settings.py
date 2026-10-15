@@ -64,6 +64,11 @@ SETTINGS: list[dict] = [
      "label": "Popup when the CW speed changes",
      "help": "A short 'CW 30 WPM' popup (window and phone) after WPM + / -, PgUp / PgDn "
              "or any other change in N1MM. It never takes the keyboard from N1MM."},
+    {"key": "web.cw_keyboard", "attr": "web_cw_keyboard", "kind": "bool",
+     "live": False, "group": "Tap -> N1MM",
+     "label": "Phone CW keyboard (hold ENTER)",
+     "help": "Hold ENTER on the phone 1.3 s: type text that N1MM sends as CW "
+             "(its Ctrl+K window). Done = Enter, Stop = Esc. Transmits."},
     {"key": "n1mm.default_radio", "attr": "default_radio", "kind": "choice",
      "choices": ["A", "B"], "live": False, "group": "SO2R / SO2V",
      "label": "Radio at start", "help": "Which radio the main window works at start."},

@@ -150,7 +150,8 @@ POUNCer's first PgUp / PgDn. Found boxes are listed in `cache\cwspeed.txt`.
 
 Keys sent with `SendInput` (only when you press the matching button): F1–F12
 (N1MM's messages – these **transmit**), Enter (log), Page Up / Down (CW
-speed), Alt+W (wipe, keys mode only), Alt+' (filter wide / narrow), and for
+speed), Ctrl+K + the typed text + Enter / Esc / Backspace (phone CW
+keyboard - **transmits**), Alt+W (wipe, keys mode only), Alt+' (filter wide / narrow), and for
 radio B with `radio_b_qsy = type`: the frequency (Windows decimal sign,
 e.g. `14025,3`) + Enter.
 
@@ -259,6 +260,7 @@ query parameters (`radio=A|B` = which radio the phone works).
 | `/api/spots?band=&radio=` | the list for a radio / band (JSON: radios, log, mults, spots with run %, hours, `busted`…) |
 | `/api/qsy?call=&freq=&mode=&radio=` | tap: QSY + call into N1MM |
 | `/api/key?key=F2&radio=` | F-key / Enter / PgUp / PgDn to N1MM (F-keys **transmit**) |
+| `/api/cw?op=open\|text\|back\|done\|stop&text=&n=&radio=` | Phone CW keyboard: open = Ctrl+K in the Entry Window, text = typed into N1MM's CW window (**transmits**; A–Z, 0–9, space, CW punctuation, max 200), back = n × Backspace, done = Enter, stop = Esc. 404 when `[web] cw_keyboard = false` |
 | `/api/tune?hz=-25&radio=` | move the VFO |
 | `/api/band?band=20m&radio=` | look at another band |
 | `/api/filter?w=narrow\|wide&fix=` | RX filter |
