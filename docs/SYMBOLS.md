@@ -64,6 +64,7 @@ heard in the last 10 minutes.
 | What you see | Meaning |
 | --- | --- |
 | **20m: 34 DX 85%** | 34 different stations from other continents heard; 85 % of everything heard on the band is DX. 5 or more DX stations = the band is **open** |
+| **· 6 mults** on a chip | 6 stations spotted on that band right now would be a new multiplier there |
 | **80m: EU only** | spots, but (almost) only from your own continent: the band is open locally only |
 | **160m: –** | nothing heard: the band is closed (or quiet) |
 | chip colour | goes from **orange** (all from your continent) through yellow to **green** (all DX), in proportion to the DX share. **Grey** = nothing heard |
@@ -175,6 +176,7 @@ Marks in the call and Mult columns:
 | **⚠ backup skimmers** | the main skimmer went quiet; other skimmers on your continent are used |
 | **?** | opens the help on the phone |
 | dot in the band menu | band open light, coloured orange (only your continent) to green (DX), with the DX count when open; grey = nothing heard |
+| pink **6M** in the band menu | 6 stations spotted on that band would be a new multiplier |
 
 ### Messages after a tap
 

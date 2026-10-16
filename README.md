@@ -221,7 +221,10 @@ continent** heard in the last 10 minutes (the whole RBN feed) -
 **20m: 34 DX 85%** = 34 different DX stations, 85 % of all heard. The colour
 goes with that share: orange = (almost) only your own continent, through
 yellow, to green = (almost) all DX; **80m: EU only** = no DX to speak of;
-grey **160m: –** = nothing. **Click a chip** to see that band's spots in the
+grey **160m: –** = nothing. **· 6 mults** = 6 stations spotted on that band
+right now would be a new multiplier there (the spots in the list, same
+modes; phone: a pink **6M** on the band) - which band next, at a glance.
+**Click a chip** to see that band's spots in the
 list (the radio stays; ▶ marks it) - click a spot to QSY there, or the chip
 again to go back to the radio's band. A team slave shows the master's
 counts. `[ui] band_lights = false` hides them.
