@@ -1,5 +1,19 @@
 # POUNCer — Changelog
 
+## v0.7.65 — 2026-10-16 — Autostart: N1MM first, the rest when it is up
+
+- **N1MM as Program 1**: when the first autostart program is N1MM Logger+
+  (`N1MMLogger.net.exe`, any install folder) and N1MM isn't running yet,
+  POUNCer starts it and **waits until N1MM is up** - its first RadioInfo /
+  AppInfo broadcast (Entry Window and log open) plus 3 s - before it starts
+  the rest of itself (RBN, log reading, team, phone page, CW speed, SCP,
+  clock check) and programs 2-4 and the autostart folder (Program 2's
+  delay counts from then). Status bar: "waiting for N1MM to start (n s)".
+- Goes on anyway after `[autostart] n1mm_timeout` (180 s; N1MM's
+  broadcasts not switched on?) or when N1MM still isn't running after 45 s;
+  **File > Don't wait for N1MM** goes on at once. N1MM already running =
+  no waiting. Off: `wait_n1mm = false` (Settings > Autostart).
+
 ## Docs — 2026-10-16 (3)
 
 - **docs/SYMBOLS.md**: every symbol, colour and badge explained, for the

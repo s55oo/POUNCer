@@ -183,7 +183,7 @@ class TkSettingsWindowTests(unittest.TestCase):
             updater=types.SimpleNamespace(exe="C:/x/POUNCer.exe"),
             _settings_win=types.SimpleNamespace(open=lambda: None),
             cfg=types.SimpleNamespace(config_path="C:/x/config.ini"),
-            _start_autostart=lambda: None, _open_path=lambda p: None,
+            _start_autostart=lambda: None, _stop_waiting_n1mm=lambda: None, _open_path=lambda p: None,
             _autostart_folder=lambda: "",
         )
         for name in ("_open_config_folder", "_reconnect_log", "_restart_now", "_shutdown_and_quit",

@@ -136,6 +136,11 @@ class RadioState:
             app["t"] = time.time()
             self._app = app
 
+    def last_update(self) -> float:
+        """time.time() of the last RadioInfo (0 = none yet)."""
+        with self._lock:
+            return self._last
+
     def app(self) -> dict | None:
         """What N1MM said is open, or None (no AppInfo / contact packet yet)."""
         with self._lock:

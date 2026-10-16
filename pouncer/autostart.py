@@ -15,6 +15,13 @@ An .exe that was already running before POUNCer started its list is not
 started again (listing the same program 4 times starts 4 copies), and when POUNCer
 restarts itself (update, File > Restart) nothing is started - it all runs
 already. Every program starts in its own folder, like a double-click.
+
+N1MM first: when the first program is N1MM Logger+ (``N1MMLogger.net.exe``,
+wherever it is installed) and it isn't running yet, POUNCer starts it and
+WAITS until N1MM is up - its first RadioInfo or AppInfo broadcast - and
+only then starts the rest of itself (RBN, log, team, phone page, ...) and
+the other programs (``[autostart] wait_n1mm``; ``n1mm_timeout`` seconds at
+most). ``N1mmWait`` is that decision, without tkinter.
 """
 
 from __future__ import annotations
@@ -31,6 +38,9 @@ log = logging.getLogger(__name__)
 APPS = 4
 FOLDER_TYPES = (".exe", ".bat", ".cmd", ".lnk", ".vbs", ".ps1", ".url")
 RESTART_ENV = "POUNCER_RESTARTED"     # set by POUNCer when it restarts itself
+N1MM_EXE_PREFIX = "n1mmlogger"        # N1MMLogger.net.exe (any install folder)
+N1MM_SETTLE_S = 3        # after N1MM's first broadcast: let it finish opening
+N1MM_NO_PROCESS_S = 45   # N1MM still not running after this long: it didn't start
 
 
 def split_command(text: str) -> tuple[str, str]:
@@ -67,6 +77,56 @@ def plan(apps: list[tuple[str, int]], folder: str = "", folder_delay: int = 3) -
         out.append({"path": path, "args": "", "delay": max(0, int(folder_delay)),
                     "from": "folder"})
     return out
+
+
+def is_n1mm(path: str) -> bool:
+    """'C:\\HAM\\N1MM Logger+\\N1MMLogger.net.exe' (any folder) -> True."""
+    name = os.path.basename(str(path or "").replace("\\", "/")).lower().replace(" ", "")
+    return name.startswith(N1MM_EXE_PREFIX) and name.endswith(".exe")
+
+
+def n1mm_first(items: list[dict]) -> bool:
+    """Is the first program of the plan N1MM Logger+?"""
+    return bool(items) and is_n1mm(items[0]["path"])
+
+
+class N1mmWait:
+    """Has N1MM started properly? ``check`` -> (done, text).
+
+    Ready = a RadioInfo or AppInfo broadcast from N1MM after we started it
+    (its Entry Window / log is open), then ``settle_s`` more. Gives up -
+    and POUNCer goes on anyway - after ``timeout_s`` (N1MM's broadcasts not
+    switched on?), or when N1MM still isn't running after ``no_process_s``
+    (it didn't start), or when you click "don't wait"."""
+
+    def __init__(self, started: float, timeout_s: float = 180, settle_s: float = N1MM_SETTLE_S,
+                 no_process_s: float = N1MM_NO_PROCESS_S) -> None:
+        self.started = started
+        self.timeout_s = timeout_s
+        self.settle_s = settle_s
+        self.no_process_s = no_process_s
+        self.heard: float | None = None
+        self.result = ""
+
+    def check(self, now: float, radio_t: float = 0.0, app_t: float = 0.0,
+              running: bool | None = None) -> tuple[bool, str]:
+        waited = now - self.started
+        last = max(radio_t or 0, app_t or 0)
+        if self.heard is None and last > 0 and last >= self.started:
+            self.heard = now
+        if self.heard is not None:
+            if now - self.heard >= self.settle_s:
+                self.result = f"N1MM is up after {waited:.0f} s"
+                return True, self.result
+            return False, "N1MM is up - starting the rest ..."
+        if running is False and waited >= self.no_process_s:
+            self.result = f"N1MM didn't start in {waited:.0f} s - going on without it"
+            return True, self.result
+        if waited >= self.timeout_s:
+            self.result = (f"no word from N1MM in {waited:.0f} s (Config > Broadcast Data: "
+                           "Radio / App Info?) - going on")
+            return True, self.result
+        return False, f"waiting for N1MM to start ({waited:.0f} s)"
 
 
 def _launch(path: str, args: str) -> None:

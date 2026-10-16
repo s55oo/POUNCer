@@ -441,6 +441,8 @@ class PouncerApp:
         file.add_command(label="Open the config folder", command=self._open_config_folder)
         file.add_command(label="Reconnect log", command=self._reconnect_log)
         file.add_command(label="Start autostart programs now", command=self._start_autostart)
+        file.add_command(label="Don't wait for N1MM (start the rest now)",
+                         command=self._stop_waiting_n1mm)
         file.add_command(label="Open the autostart folder",
                          command=lambda: self._open_path(self._autostart_folder()))
         file.add_separator()
@@ -685,11 +687,31 @@ class PouncerApp:
                 return ""
         return f
 
-    def _start_autostart(self) -> None:
-        """Start programs 1-4 and the autostart folder, each after its delay."""
+    def _start_autostart(self, defer_pouncer: bool = False) -> bool:
+        """Start programs 1-4 and the autostart folder, each after its delay.
+
+        Program 1 = N1MM Logger+ that isn't running yet (and [autostart]
+        wait_n1mm): start it, wait until it is up, then the other programs -
+        and with ``defer_pouncer`` the rest of POUNCer too. True = waiting."""
         apps = [(getattr(self.cfg, f"autostart_app{n}", ""), getattr(self.cfg, f"autostart_delay{n}", 5))
                 for n in range(1, autostartmod.APPS + 1)]
         items = autostartmod.plan(apps, self._autostart_folder(), self.cfg.autostart_folder_delay)
+        if not items:
+            return False
+        if (getattr(self.cfg, "autostart_wait_n1mm", True) and autostartmod.n1mm_first(items)
+                and self._n1mm_running() is not True and os.path.exists(items[0]["path"])):
+            first, rest = items[0], items[1:]
+            self._n1mm_wait = None
+            self._n1mm_wait_defer = defer_pouncer
+            self._n1mm_wait_rest = rest
+            self.status_label.configure(
+                text=f"Autostart: N1MM first, in {first['delay']} s - the rest when N1MM is up")
+            self.root.after(first["delay"] * 1000, lambda: self._launch_n1mm(first))
+            return True
+        self._run_autostart(items)
+        return False
+
+    def _run_autostart(self, items: list[dict]) -> None:
         if not items:
             return
         self._autostart = autostartmod.Autostart(
@@ -698,6 +720,48 @@ class PouncerApp:
         self._autostart.start()
         self.status_label.configure(text=f"Autostart: {len(items)} program(s) - "
                                          f"first in {items[0]['delay']} s")
+
+    def _launch_n1mm(self, item: dict) -> None:
+        try:
+            autostartmod._launch(item["path"], item["args"])
+        except Exception as exc:  # noqa: BLE001 - go on without it
+            log.warning("autostart: N1MM failed to start: %s", exc)
+            self.status_label.configure(text=f"Autostart: N1MM failed to start: {exc}")
+            self._n1mm_wait_done()
+            return
+        self._n1mm_wait = autostartmod.N1mmWait(
+            time.time(), timeout_s=getattr(self.cfg, "autostart_n1mm_timeout", 180))
+        self._n1mm_wait_tick()
+
+    def _n1mm_wait_tick(self) -> None:
+        w = getattr(self, "_n1mm_wait", None)
+        if w is None:
+            return
+        app = self.state.app() or {}
+        done, text = w.check(time.time(), self.state.last_update(), app.get("t", 0.0),
+                             self._n1mm_running())
+        self.status_label.configure(text="Autostart: " + text + (
+            "" if done else "   (File > Don't wait for N1MM)"))
+        if done:
+            self._n1mm_wait_done()
+        else:
+            self.root.after(1000, self._n1mm_wait_tick)
+
+    def _n1mm_wait_done(self) -> None:
+        """N1MM is up (or we stop waiting): the rest of POUNCer, then the
+        other programs (program 2's delay counts from now)."""
+        if getattr(self, "_n1mm_wait_rest", None) is None:
+            return
+        self._n1mm_wait = None
+        rest, self._n1mm_wait_rest = self._n1mm_wait_rest, None
+        if self._n1mm_wait_defer:
+            self._start_services()
+        self._run_autostart(rest)
+
+    def _stop_waiting_n1mm(self) -> None:
+        """File > Don't wait for N1MM: go on now."""
+        if getattr(self, "_n1mm_wait_rest", None) is not None:
+            self._n1mm_wait_done()
 
     def _apply_topmost(self) -> None:
         try:
@@ -2588,6 +2652,27 @@ class PouncerApp:
             self.cfg.n1mm_listen_ip, self.cfg.n1mm_listen_port, self.state
         )
         self._listener.start()
+        # your other programs (Settings > Autostart) - not again after a restart.
+        # N1MM listed first and not running yet: start it and wait for it
+        # before the rest of POUNCer (and the other programs) starts.
+        restarted = os.environ.pop(autostartmod.RESTART_ENV, "") == "1"
+        waiting = False
+        if self.cfg.autostart and not restarted:
+            waiting = self._start_autostart(defer_pouncer=True)
+        if not waiting:
+            self._start_services()
+        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
+        try:
+            self.root.mainloop()
+        finally:
+            self._shutdown()
+
+    def _start_services(self) -> None:
+        """Everything that needs N1MM or the network: phone page, team, RBN,
+        clock check, CW speed, SCP, and the refresh tick (reads the log)."""
+        if getattr(self, "_services_started", False):
+            return
+        self._services_started = True
         if self.cfg.web_enabled:
             self._start_web()
             if self.cfg.touch_view:
@@ -2598,20 +2683,11 @@ class PouncerApp:
             self._start_team()
         self._ensure_rbn_clients()
         self.clock.start()              # PC clock check (check line), every 30 min
-        # your other programs (Settings > Autostart) - not again after a restart
-        restarted = os.environ.pop(autostartmod.RESTART_ENV, "") == "1"
-        if self.cfg.autostart and not restarted:
-            self._start_autostart()
         if self.cwspeed is not None:
             self.cwspeed.start()        # N1MM's CW speed box, read once a second
         if self.scp is not None:
             self.scp.start()            # load MASTER.SCP, ask the server for a newer one (304 = current)
         self.root.after(REFRESH_MS, self._tick)
-        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
-        try:
-            self.root.mainloop()
-        finally:
-            self._shutdown()
 
     def _start_web(self) -> None:
         try:
