@@ -2,7 +2,7 @@
 
 Every connection POUNCer opens or listens on, what goes over it and in which
 format: N1MM Logger+, the Reverse Beacon Network, the DX cluster, the phone
-page, the team, and the downloads from the internet. Valid for **v0.7.58**.
+page, the team, and the downloads from the internet. Valid for **v0.7.70**.
 Ports and addresses are the defaults; each can be changed in `config.ini`
 (the section and key are given).
 
@@ -270,9 +270,10 @@ query parameters (`radio=A|B` = which radio the phone works).
 
 | Path | What |
 |---|---|
-| `/`, `/help`, `/summary`, `/settings` | pages: spot tiles, help, contest summary, settings |
+| `/`, `/help`, `/summary`, `/zones`, `/settings` | pages: spot tiles, help, contest summary, CQ zones (who hears me / what I hear), settings |
 | `/api/spots?band=&radio=` | the list for a radio / band (JSON: radios, log, mults, spots with run %, hours, `busted`…) |
-| `/api/qsy?call=&freq=&mode=&radio=` | tap: QSY + call into N1MM |
+| `/api/zones?min=15` | per band and CQ zone 1-40: `hears_me` (skimmers that spotted your call) and `i_hear` (stations heard by skimmers on your continent), best SNR, count, calls, minutes ago - from the RBN / cluster feed POUNCer already has, nothing new on the network |
+| `/api/qsy?call=&freq=&mode=&radio=` | tap: QSY + call into N1MM (the next `/api/spots` carries `tap`: what really happened) |
 | `/api/key?key=F2&radio=` | F-key / Enter / PgUp / PgDn to N1MM (F-keys **transmit**) |
 | `/api/minsnr?db=10` | Minimum SNR of the list (0–60; 0 = off, the default) - window and phone, saved to config.ini |
 | `/api/cw?op=open\|text\|back\|done\|stop&text=&n=&radio=` | Phone CW keyboard: open = Ctrl+K in the Entry Window, text = typed into N1MM's CW window (**transmits**; A–Z, 0–9, space, CW punctuation, max 200), back = n × Backspace, done = Enter, stop = Esc. 404 when `[web] cw_keyboard = false` |

@@ -1,5 +1,17 @@
 # POUNCer — Changelog
 
+## v0.7.70 — 2026-10-16 — CQ zones page: who hears me, what I hear
+
+- **New page `/zones`** (*View > CQ zones: who hears me*, phone band menu >
+  **CQ zones**): per band **two rows of CQ zones 1-40** - **hears me** =
+  skimmers in that zone spotted your call (calling CQ), **I hear** =
+  skimmers on your continent heard stations from that zone. Best SNR in each
+  box (brighter = stronger), tap for who / how many / how long ago, your own
+  zone in yellow. **Last 15 minutes** (30 / 60 min buttons). From the RBN /
+  cluster feed POUNCer already has - no new connection.
+- docs/NETWORK.md: `/zones`, `/api/zones`, the tap result in `/api/spots`;
+  now valid for v0.7.70.
+
 ## v0.7.69 — 2026-10-16 — new multipliers waiting, per band
 
 - **Band chips show the new multipliers spotted per band**: "20m: 34 DX 85%

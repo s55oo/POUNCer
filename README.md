@@ -385,6 +385,24 @@ multipliers and how many came from spots, QSOs per hour on the air, best
 60 minutes, a per-band table, rate per hour (bars) and every multiplier
 worked from a spot. Taps are kept in `cache\taps.jsonl` for 14 days.
 
+## CQ zones: who hears me, what I hear
+
+*View > CQ zones: who hears me* in the window, or **CQ zones** in the phone
+band menu, opens `/zones`: for every band **two rows of CQ zones 1-40**:
+
+- **hears me** (blue) = skimmers in that zone spotted **your call** - you need
+  to be calling CQ (skimmers only spot CQ / TEST calls);
+- **I hear** (green) = skimmers on **your continent** heard stations from that
+  zone - the band is open from here to there.
+
+The number is the best SNR (dB), brighter = stronger; tap a box for how many
+skimmers / stations, which ones and how long ago. Your own zone is marked
+yellow. The **last 15 minutes** by default (30 / 60 min buttons). It uses the
+RBN / cluster feed POUNCer already receives - nothing new on the network.
+Zones come from the country file: a big country (W, VE, UA, VK ...) gets
+the zone cty.dat gives the call (its main zone unless cty lists that call).
+A team slave has no RBN feed of its own: open the page on the master.
+
 ## Busy contests: test options (phone page)
 
 Two options to try, on / off under **Test options** on the help page (**?**),
