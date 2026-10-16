@@ -28,16 +28,21 @@ def plain(text: str) -> str:
 
 
 class RichLabel(tk.Text):
-    def __init__(self, parent, text: str = "") -> None:
-        base = tkfont.nametofont("TkDefaultFont")
+    def __init__(self, parent, text: str = "", bg: str | None = None, fg: str | None = None,
+                 bold_fg: str | None = None, size: int | None = None) -> None:
+        base = tkfont.nametofont("TkDefaultFont").copy()
+        if size:
+            base.configure(size=size)
         bold = base.copy()
         bold.configure(weight="bold")
-        self._bold_font = bold        # keep a reference (else Tk drops the font)
-        bg = ttk.Style().lookup("TFrame", "background") or parent.winfo_toplevel().cget("bg")
+        self._fonts = (base, bold)    # keep references (else Tk drops the fonts)
+        bg = bg or ttk.Style().lookup("TFrame", "background") or parent.winfo_toplevel().cget("bg")
         super().__init__(parent, height=1, width=1, wrap="word", font=base, bg=bg,
                          borderwidth=0, highlightthickness=0, relief="flat", padx=0, pady=1,
                          cursor="arrow", takefocus=0, exportselection=True)
-        self.tag_configure("b", font=bold)
+        if fg:
+            super().configure(fg=fg)
+        self.tag_configure("b", font=bold, foreground=bold_fg or fg or "")
         self._raw = None
         self._lines = 1
         self.set(text)
