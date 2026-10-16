@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## Docs — 2026-10-16
+
+- **docs/NETWORK.md** brought up to v0.7.58: N1MM App Info (open log and
+  contest) on UDP 12060, the CW speed read and the Ctrl+K CW keyboard
+  (Windows messages), the master's band-open counts in the team message,
+  the PC clock check against GitHub, and autostart (local programs, no
+  network). The **network diagram** (SVG + PNG) shows them too.
+
 ## v0.7.58 — 2026-10-16 — band open chips say what they mean
 
 - The window's band-open chips now read **20m: 34 DX** (open: 34 different
