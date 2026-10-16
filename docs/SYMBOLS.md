@@ -197,6 +197,10 @@ Marks in the call and Mult columns:
 
 ## CQ zones page
 
+![CQ zones page](zones-page.png)
+
+*(example data)*
+
 | What you see | Meaning |
 | --- | --- |
 | **blue** box, row *hears me* | skimmers in that CQ zone spotted your call on that band; the number = best SNR (dB) |
