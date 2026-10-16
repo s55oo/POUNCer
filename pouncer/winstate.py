@@ -37,6 +37,14 @@ def save(path: str, data: dict) -> bool:
         return False
 
 
+def _offset(text: str) -> int:
+    """Tk position "+40", or "+-4" = 4 px left of / above the screen (how
+    Tk reports a window pushed a bit off the edge). A plain "-40" (older
+    window.json files) is read as -40 too."""
+    sign = -1 if text.startswith("-") else 1
+    return sign * int(text[1:])
+
+
 def fit_geometry(geom: str, screen_w: int, screen_h: int) -> str | None:
     """A saved "WxH+X+Y" that still fits this screen (a second monitor may
     be gone): size limited to the screen, window moved back onto it so at
@@ -45,14 +53,16 @@ def fit_geometry(geom: str, screen_w: int, screen_h: int) -> str | None:
     if not m or screen_w <= 0 or screen_h <= 0:
         return None
     w, h = int(m.group(1)), int(m.group(2))
-    x, y = int(m.group(3)), int(m.group(4))
+    x, y = _offset(m.group(3)), _offset(m.group(4))
     w = max(MIN_W, min(w, screen_w))
     h = max(MIN_H, min(h, screen_h))
     # keep the title bar on screen (multi-monitor negative x is fine if
     # part of the window stays visible on the main screen)
     x = max(-(w - 100), min(x, screen_w - 100))
     y = max(0, min(y, screen_h - 60))
-    return f"{w}x{h}{x:+d}{y:+d}"
+    # always "+x+y": in Tk "-4" would mean 4 px from the RIGHT edge, "+-4"
+    # is 4 px left of the screen
+    return f"{w}x{h}+{x}+{y}"
 
 
 def column_widths(saved, columns) -> dict[str, int]:

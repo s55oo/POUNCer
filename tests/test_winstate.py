@@ -29,6 +29,15 @@ class WinStateTests(unittest.TestCase):
         self.assertIsNone(ws.fit_geometry("rubbish", 1920, 1080))
         self.assertIsNone(ws.fit_geometry("", 1920, 1080))
 
+    def test_window_a_bit_off_the_left_edge(self) -> None:
+        """Windows reports "+-4" for a window 4 px off the left edge - it
+        crashed the start in v0.7.67 ("invalid literal for int(): '+-4'")."""
+        self.assertEqual(ws.fit_geometry("940x627+-4+350", 1920, 1080), "940x627+-4+350")
+        self.assertEqual(ws.fit_geometry("940x627+-8+-8", 1920, 1080), "940x627+-8+0")
+        self.assertEqual(ws.fit_geometry("940x627-20+10", 1920, 1080), "940x627+-20+10")
+        # what it gives Tk reads again the same
+        self.assertEqual(ws.fit_geometry("940x627+-4+350", 1920, 1080), "940x627+-4+350")
+
     def test_columns_and_sort(self) -> None:
         cols = ("time", "freq", "call")
         self.assertEqual(ws.column_widths({"time": 80, "call": 5000, "x": 9, "freq": "?"}, cols),

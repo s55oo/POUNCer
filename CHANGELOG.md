@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.68 — 2026-10-16 — start crash with the window a bit off the screen edge
+
+- **Fix:** POUNCer didn't start ("invalid literal for int() with base 10:
+  '+-4'") when it was last closed with its window a few pixels off the left
+  (or top) screen edge - Tk saves that as `+-4`. The position is now read
+  right, written back the way Tk reads it, and a bad saved window can never
+  stop the start again (it is just not restored).
+
 ## v0.7.67 — 2026-10-16 — log file, diagnostics, tap results on the phone, 8 autostart programs
 
 - **Log file** `cache\pouncer.log` (1 MB, 3 old ones kept): taps and QSYs
