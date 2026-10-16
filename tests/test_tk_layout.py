@@ -291,7 +291,8 @@ class TkSpotListTests(unittest.TestCase):
             setattr(f, name, getattr(PouncerApp, name).__get__(f))
         f._row_key = PouncerApp._row_key            # a staticmethod
         f._rebuild()
-        rows = {tree.item(i, "values")[4]: tree.item(i, "tags") for i in tree.get_children()}
+        rows = {tree.item(i, "values")[4]: tuple(t for t in tree.item(i, "tags") if t != "stripe")
+                for i in tree.get_children()}             # (zebra rows aside)
         self.assertEqual(tuple(rows["S50A"]), ("mult",))          # new mult
         self.assertEqual(tuple(rows["K1ABC"]), ("worked",))       # worked: grey
         self.assertIn("PHB9CBR ?", rows)                          # not in SCP

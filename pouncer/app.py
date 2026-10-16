@@ -29,6 +29,7 @@ from .scp import ScpList
 from .cwspeed import SpeedReader
 from . import checks as checksmod
 from .bandopen import BandActivity, state_of
+from . import theme
 from . import win32 as win32mod
 from . import summary as summarymod
 from . import settings as settingsmod
@@ -243,6 +244,7 @@ class PouncerApp:
         # Narrow windows are fine: text lines wrap and the buttons flow onto
         # more rows instead of being cut off at the right edge.
         self.root.minsize(420, 300)
+        theme.apply(self.root)
         self.compact_var = tk.BooleanVar(value=False)
         self.topmost_var = tk.BooleanVar(value=False)
         self._normal_geom = ""
@@ -256,7 +258,7 @@ class PouncerApp:
         self._build_menu()
         self._build_wpm_popup()
 
-        header = ttk.Frame(self.root, padding=(8, 6, 8, 2))
+        header = ttk.Frame(self.root, padding=0)
         header.pack(fill="x")
         self._header = header
         # compact mode (View > Compact window): one line with A / B instead
@@ -266,43 +268,56 @@ class PouncerApp:
         self._compact_btn.pack(side="left")
         self._compact_info = ttk.Label(self._compact_bar, text="", anchor="w")
         self._compact_info.pack(side="left", padx=(8, 0), fill="x", expand=True)
-        # Team role, big and coloured: MASTER (talks to RBN) / SLAVE / alone
-        self.team_label = tk.Label(header, text="", anchor="w", font=("Segoe UI", 12, "bold"),
-                                   padx=6, pady=2)
-        self.team_label.pack(fill="x", pady=(0, 4))
-        # Pre-contest check: READY / CHECK / NOT READY + every item
+        # Top bar (dark): the radio frequency big, band / mode / WPM next to
+        # it; on the right the pre-contest READY badge and the team role.
+        top = tk.Frame(header, bg=theme.TOP_BG, padx=12, pady=6)
+        top.pack(fill="x")
+        self._top = top
+        self.freq_big = tk.Label(top, text="----.-", bg=theme.TOP_BG, fg=theme.TOP_FG,
+                                 font=(theme.FONT, 20, "bold"))
+        self.freq_big.pack(side="left")
+        self.freq_sub = tk.Label(top, text="waiting for N1MM", bg=theme.TOP_BG,
+                                 fg=theme.TOP_MUTED, font=(theme.FONT, 11), padx=10)
+        self.freq_sub.pack(side="left", pady=(6, 0))
+        # Team role: MASTER (talks to RBN) / SLAVE / alone - a coloured badge
+        self.team_label = tk.Label(top, text="", font=(theme.FONT, 9, "bold"), padx=8, pady=2)
+        self.team_label.pack(side="right", padx=(8, 0))
+        # Pre-contest check: READY / CHECK / NOT READY (click: details on / off)
+        self.ready_badge = tk.Label(top, text="", font=(theme.FONT, 10, "bold"), padx=10,
+                                    pady=3, cursor="hand2")
+        self.ready_badge.pack(side="right")
+        self.ready_badge.bind("<Button-1>", lambda e: self._toggle_check_details())
+        self._check_details = False
+        # ... and its items, shown when something is wrong (or clicked)
         self.check_label = tk.Label(header, text="", anchor="w", justify="left",
-                                    font=("Segoe UI", 10, "bold"), padx=6, pady=2)
+                                    font=(theme.FONT, 9, "bold"), padx=12, pady=3)
         self.check_label.bind("<Configure>", lambda e: self.check_label.configure(
-            wraplength=max(200, e.width - 12)))
-        if self.cfg.check_line:
-            self.check_label.pack(fill="x", pady=(0, 4), after=self.team_label)
-        # Connection lights: green = working, amber = waiting, red = down, grey = off
-        self.lights_frame = FlowFrame(header, padx=14, pady=2)
-        self.lights_frame.pack(fill="x", pady=(0, 4))
-        # Band open? one small light per contest band (skimmers on our continent)
-        self.bands_frame = FlowFrame(header, padx=6, pady=2)
-        if self.cfg.band_lights:
-            self.bands_frame.pack(fill="x", pady=(0, 4))
+            wraplength=max(200, e.width - 24)))
+        # Status chips: connection lights, then band open (one flowing row)
+        self.lights_frame = FlowFrame(header, padx=12, pady=2)
+        self.lights_frame.pack(fill="x", padx=12, pady=(6, 2))
+        self.bands_frame = None          # made after the lights (same row)
         self._band_lights: dict[str, tk.Label] = {}
         self._bands_last = None
         self._lights: list[tuple[tk.Label, tk.Label]] = []
         self._lights_last: list | None = None
         self._restart_btn: tk.Button | None = None
-        self.n1mm_label = self._wrap_label(header, "N1MM: waiting for radio info...")
-        self.rbn_label = self._wrap_label(header, "RBN: starting...")
-        self.log_label = self._wrap_label(header, "Log: -")
+        info = ttk.Frame(header, padding=(12, 2, 12, 2))
+        info.pack(fill="x")
+        self.n1mm_label = self._wrap_label(info, "N1MM: waiting for radio info...", muted=True)
+        self.rbn_label = self._wrap_label(info, "RBN: starting...", muted=True)
+        self.log_label = self._wrap_label(info, "Log: -", muted=True)
 
         # Sort, options, keys and actions: one flowing block of controls.
-        outer = ttk.Frame(self.root, padding=(8, 4))
+        outer = ttk.Frame(self.root, padding=(12, 6, 12, 4))
         outer.pack(fill="x")
         self._outer = outer
         flow = FlowFrame(outer)
         flow.pack(fill="x")
-        flow.add(ttk.Label(flow, text="Sort:"))
+        flow.add(ttk.Label(flow, text="Sort", style="Muted.TLabel"))
         for col in ("time", "freq", "snr"):
             btn = flow.add(ttk.Button(
-                flow, text=self._sort_labels[col],
+                flow, text=self._sort_labels[col], style="Sort.TButton",
                 command=lambda c=col: self._set_sort(c),
             ))
             self._sort_buttons[col] = btn
@@ -310,7 +325,7 @@ class PouncerApp:
         # Min SNR next to the sort buttons: weaker spots are not listed
         # (window and phone); 0 = all. Arrows / wheel / typed + Enter.
         box = ttk.Frame(flow)
-        ttk.Label(box, text="Min SNR").pack(side="left")
+        ttk.Label(box, text="Min SNR", style="Muted.TLabel").pack(side="left")
         self.min_snr_var = tk.StringVar(value=str(self.cfg.min_snr))
         self._min_snr_box = ttk.Spinbox(
             box, from_=0, to=60, increment=1, width=3, justify="center",
@@ -327,19 +342,21 @@ class PouncerApp:
         # SO2R: which radio (N1MM Entry Window A / B) clicks, F-keys and the
         # band follow go to; with one radio only A is used.
         self.radio_btn = flow.add(ttk.Button(flow, text=self._radio_btn_text(),
-                                             command=self._toggle_radio), gap=12)
+                                             style="Accent.TButton",
+                                             command=self._toggle_radio), gap=16)
 
         # Function keys: always ONE row of equal buttons that share the width
         # (they get narrower with the window instead of wrapping).
         self.fkey_row = None
         if self.cfg.fkeys:
-            row = ttk.Frame(self.root, padding=(8, 0, 8, 4))
+            row = ttk.Frame(self.root, padding=(10, 0, 10, 6))
             row.pack(fill="x")
             self.fkey_row = row
             for i, (key, label) in enumerate(self.cfg.fkeys):
                 row.columnconfigure(i, weight=1, uniform="fkey")
                 ttk.Button(
                     row, text=self._key_text(key, label, " "), width=1,
+                    style="Log.TButton" if key.lower() == "enter" else "FKey.TButton",
                     command=lambda k=key: self._press_key(k),
                 ).grid(row=0, column=i, sticky="ew", padx=2)
 
@@ -348,14 +365,15 @@ class PouncerApp:
             "call": 130, "cont": 50, "mult": 45, "mode": 70, "type": 80,
             "spotter": 100,
         }
-        tree_frame = ttk.Frame(self.root, padding=(8, 0, 8, 4))
+        tree_frame = ttk.Frame(self.root, padding=(12, 0, 12, 6))
         tree_frame.pack(fill="both", expand=True)
         self._tree_frame = tree_frame
         self.tree = ttk.Treeview(
             tree_frame, columns=self.columns, show="headings", selectmode="browse"
         )
         for col in self.columns:
-            anchor = "e" if col in ("freq", "snr", "wpm") else "w"
+            anchor = ("e" if col in ("freq", "snr", "wpm")
+                      else "center" if col in ("cont", "mult", "mode", "type") else "w")
             self.tree.heading(col, text=self.headings[col], command=lambda c=col: self._on_sort(c))
             self.tree.column(col, width=widths[col], anchor=anchor, stretch=(col == "call"))
         self._update_headings()
@@ -363,11 +381,12 @@ class PouncerApp:
         self.tree.configure(yscrollcommand=scroll.set)
         self.tree.pack(side="left", fill="both", expand=True)
         scroll.pack(side="right", fill="y")
-        self.tree.tag_configure("strong", foreground="#005f00")
-        self.tree.tag_configure("dx", background="#fff3e0")
-        self.tree.tag_configure("onfreq", background="#b3e5fc")  # tuned to it
-        self.tree.tag_configure("mult", foreground="#b71c1c", font=("Segoe UI", 9, "bold"))
-        self.tree.tag_configure("worked", foreground="#9e9e9e")
+        self.tree.tag_configure("stripe", background=theme.STRIPE)   # every other row
+        self.tree.tag_configure("strong", foreground="#1b5e20")
+        self.tree.tag_configure("dx", background="#fff4e5")
+        self.tree.tag_configure("onfreq", background="#d4ebff")  # tuned to it
+        self.tree.tag_configure("mult", foreground="#b71c1c", font=(theme.FONT, 10, "bold"))
+        self.tree.tag_configure("worked", foreground="#9aa5b1")
         self._row_spots: list = []
         # keyboard: arrows move (Treeview), Space taps the selected spot
         self.tree.bind("<space>", self._on_tree_key)
@@ -386,11 +405,13 @@ class PouncerApp:
                 for seq in ("<Return>", "<KP_Enter>"):
                     self.root.bind_all(seq, lambda _e: self._forward_key("Enter"))
 
-        bottom = ttk.Frame(self.root, padding=(8, 2))
+        # status bar: what the last action did, and the phone page address
+        bottom = tk.Frame(self.root, bg=theme.BAR_BG, padx=12, pady=4)
         bottom.pack(fill="x")
         self._bottom = bottom
-        self.web_label = self._wrap_label(bottom, "Phone view: starting...")
-        self.status_label = self._wrap_label(bottom, "")
+        self.status_label = self._wrap_label(bottom, "", bg=theme.BAR_BG)
+        self.web_label = self._wrap_label(bottom, "Phone view: starting...", bg=theme.BAR_BG,
+                                          muted=True)
 
     def _build_menu(self) -> None:
         """Menu bar: File / View / Settings... / Help - the actions and
@@ -752,11 +773,15 @@ class PouncerApp:
             f"Settings: {self.cfg.config_path or 'config.ini'}\n{GITHUB_URL}"), parent=self.root)
 
     @staticmethod
-    def _wrap_label(parent, text: str):
+    def _wrap_label(parent, text: str, muted: bool = False, bg: str | None = None):
         """A full-width info line that wraps onto more lines when the window
-        is narrow; **...** in its text is shown bold (the values)."""
+        is narrow; **...** in its text is shown bold (the values). ``muted``:
+        small grey text with the values in dark bold."""
         from .richlabel import RichLabel   # needs the real Tk (tests stub it)
-        label = RichLabel(parent, text)
+        if muted:
+            label = RichLabel(parent, text, bg=bg, fg=theme.MUTED, bold_fg=theme.TEXT, size=9)
+        else:
+            label = RichLabel(parent, text, bg=bg)
         label.pack(fill="x")
         return label
 
@@ -785,7 +810,8 @@ class PouncerApp:
             arrow = ""
             if col == self.sort_col:
                 arrow = " \u25bc" if self.sort_reverse else " \u25b2"
-            btn.configure(text=self._sort_labels[col] + arrow)
+            btn.configure(text=self._sort_labels[col] + arrow,
+                          style="SortOn.TButton" if col == self.sort_col else "Sort.TButton")
 
     def _sort_key(self, col: str):
         if col == "freq":
@@ -1636,19 +1662,44 @@ class PouncerApp:
             if self.web is not None:
                 self.web.set_runhist_provider(self.runhist.snapshot)
 
+    def _update_top_bar(self, snap) -> None:
+        """Big frequency + band / mode / CW speed (the chosen radio)."""
+        if snap and snap.get("freq_khz"):
+            big = f"{snap['freq_khz']:.1f}"
+            parts = ["kHz", snap.get("band") or "?", snap.get("mode") or ""]
+            wpm = self._wpm(self._radio_nr()) if getattr(self, "cwspeed", None) else None
+            if wpm:
+                parts.append(f"{wpm} WPM")
+            if self._so2r():
+                parts.append(f"radio {'AB'[self._radio_nr() - 1]}")
+                other = 2 if self._radio_nr() == 1 else 1
+                okhz = self._radio_khz(other)
+                if okhz:
+                    parts.append(f"{'AB'[other - 1]} {okhz:.1f}")
+            sub = "   ".join(p for p in parts if p)
+        else:
+            big, sub = "----.-", "no radio info from N1MM"
+        if self.freq_big.cget("text") != big:
+            self.freq_big.configure(text=big)
+        if self.freq_sub.cget("text") != sub:
+            self.freq_sub.configure(text=sub)
+
+    def _toggle_check_details(self) -> None:
+        self._check_details = not self._check_details
+        self._update_check_line()
+
     def _update_team_label(self) -> None:
-        """Top line + window title: MASTER / SLAVE / stand-alone."""
+        """Team badge in the top bar + window title: MASTER / SLAVE / alone."""
         role = self.team.role() if self.team is not None else "off"
         n = len(self.team.alive_peers()) + 1 if self.team is not None else 1
         text, bg = {
-            "master": (f"MASTER - this POUNCer talks to RBN for the team ({n} POUNCers)", "#2e7d32"),
-            "slave": (f"SLAVE - spots come from the master at {self.team.master_ip() if self.team else ''}"
-                      f" ({n} POUNCers)", "#1565c0"),
-            "solo": ("ALONE - no other POUNCer on the network (team on)", "#546e7a"),
-        }.get(role, ("Team off - stand-alone", "#546e7a"))
+            "master": (f"MASTER \u00b7 {n} POUNCers", "#2e7d32"),
+            "slave": (f"SLAVE of {self.team.master_ip() if self.team else ''} \u00b7 {n}", "#1565c0"),
+            "solo": ("TEAM: ALONE", "#546e7a"),
+        }.get(role, ("TEAM OFF", "#455a64"))
         note = self._version_note()
         if note and role in ("master", "slave"):
-            text, bg = f"{text}   |   {note}", "#ef6c00"
+            text, bg = f"{text} \u00b7 VERSIONS DIFFER", "#ef6c00"
         if self.team_label.cget("text") != text:
             self.team_label.configure(text=text, bg=bg, fg="#ffffff")
             tag = {"master": " - MASTER", "slave": " - SLAVE"}.get(role, "")
@@ -1933,13 +1984,13 @@ class PouncerApp:
                 and self.min_snr_var.get() != str(self.cfg.min_snr):
             self.min_snr_var.set(str(self.cfg.min_snr))
         snap = self.state.snapshot(self.radio)
+        self._update_top_bar(snap)
         if snap and snap.get("freq_khz"):
             self.n1mm_label.configure(
                 text=(
                     f"N1MM{' radio **' + 'AB'[self._radio_nr() - 1] + '**' if self._so2r() else ''}:"
-                    f" **{snap['freq_khz']:.2f}** kHz  "
-                    f"**{snap.get('band') or '?'}**  **{snap.get('mode') or ''}**"
-                    f"   (updated {snap['age']:.0f}s ago)"
+                    f" **{snap['freq_khz']:.2f}** kHz"
+                    f"   radio info **{snap['age']:.0f} s** ago"
                     f"{'   **' + self._wpm_text() + '**' if self._wpm_text() else ''}"
                 )
             )
@@ -2026,15 +2077,30 @@ class PouncerApp:
         lbl = getattr(self, "check_label", None)
         if lbl is None:
             return
-        shown = bool(lbl.winfo_manager())
-        if self.cfg.check_line != shown:      # switched in Settings
-            if self.cfg.check_line:
-                lbl.pack(fill="x", pady=(0, 4), after=self.team_label)
+        if not self.cfg.check_line and lbl.winfo_manager():   # switched off in Settings
+            lbl.pack_forget()
+        state = checksmod.worst(self._checks)
+        badge = getattr(self, "ready_badge", None)
+        if badge is not None:
+            if not self.cfg.check_line:
+                if badge.winfo_manager():
+                    badge.pack_forget()
             else:
-                lbl.pack_forget()
+                if not badge.winfo_manager():
+                    badge.pack(side="right", before=self.team_label)
+                word = {"ok": "\u2713 READY", "warn": "\u26a0 CHECK", "bad": "\u2717 NOT READY"}[state]
+                b_bg, b_fg = theme.READY_COLORS[state]
+                if badge.cget("text") != word:
+                    badge.configure(text=word, bg=b_bg, fg=b_fg)
         if not self.cfg.check_line:
             return
-        state = checksmod.worst(self._checks)
+        # the items: shown when something is wrong, or when the badge was clicked
+        want = state != "ok" or self._check_details
+        if want != bool(lbl.winfo_manager()):
+            if want:
+                lbl.pack(fill="x", after=self._top)
+            else:
+                lbl.pack_forget()
         bg, fg = {"ok": ("#e8f5e9", "#1b5e20"), "warn": ("#fff8e1", "#8d6e00"),
                   "bad": ("#ffebee", "#b71c1c")}[state]
         text = checksmod.line(self._checks)
@@ -2056,13 +2122,14 @@ class PouncerApp:
         return self.bandact.summary()
 
     def _update_band_lights(self) -> None:
-        shown = bool(self.bands_frame.winfo_manager())
-        if self.cfg.band_lights != shown:          # switched in Settings
-            if self.cfg.band_lights:
-                self.bands_frame.pack(fill="x", pady=(0, 4), after=self.lights_frame)
-            else:
-                self.bands_frame.pack_forget()
+        if self.bands_frame is None:         # made with the lights (same row)
+            return
         if not self.cfg.band_lights:
+            if self._band_lights:
+                for w in self.bands_frame.winfo_children():
+                    w.destroy()
+                self._band_lights = {}
+                self._bands_last = None
             return
         data = self._band_open()
         here = self._current_band()
@@ -2071,11 +2138,13 @@ class PouncerApp:
             return
         self._bands_last = key
         if not self._band_lights:
-            self.bands_frame.add(tk.Label(self.bands_frame, text="Band open:", anchor="w"))
+            tk.Label(self.bands_frame, text="Band open", bg=theme.BG, fg=theme.MUTED,
+                     font=(theme.FONT, 9)).pack(side="left", padx=(0, 4))
             for band in CONTEST_BANDS:
-                self._band_lights[band] = self.bands_frame.add(
-                    tk.Label(self.bands_frame, text=band, padx=6, pady=1,
-                             font=("Segoe UI", 9, "bold"), relief="flat"))
+                lbl = tk.Label(self.bands_frame, text=band, padx=6, pady=1,
+                               font=(theme.FONT, 9, "bold"), relief="flat")
+                lbl.pack(side="left", padx=1)
+                self._band_lights[band] = lbl
         for band, lbl in self._band_lights.items():
             c = data.get(band) or {"state": "closed", "dx": 0, "spots": 0}
             bg, fg = self.BAND_COLORS[c["state"]]
@@ -2106,15 +2175,19 @@ class PouncerApp:
         if states == self._lights_last:
             return
         self._lights_last = states
-        bg = self.lights_frame.winfo_toplevel().cget("bg")
+        bg = theme.BG
         while len(self._lights) < len(states):
             box = tk.Frame(self.lights_frame, bg=bg)
-            dot = tk.Label(box, text="\u25cf", font=("Segoe UI", 14), bg=bg)
+            dot = tk.Label(box, text="\u25cf", font=(theme.FONT, 12), bg=bg)
             dot.pack(side="left")
-            name = tk.Label(box, text="", font=("Segoe UI", 10, "bold"), bg=bg)
+            name = tk.Label(box, text="", font=(theme.FONT, 9, "bold"), bg=bg, fg=theme.TEXT)
             name.pack(side="left")
             self.lights_frame.add(box)
             self._lights.append((dot, name))
+        if self.bands_frame is None:         # band open chips: same row, after the lights
+            self.bands_frame = tk.Frame(self.lights_frame, bg=bg)
+            self.lights_frame.add(self.bands_frame, gap=10)
+            self._bands_last = None
         for (dot, name), (state, text) in zip(self._lights, states):
             dot.configure(fg=lights.COLORS[state])
             name.configure(text=text)
@@ -2277,6 +2350,8 @@ class PouncerApp:
                 tags += ("onfreq",)
             elif self._is_dx(s.dxcall):
                 tags += ("dx",)
+            elif idx % 2:
+                tags += ("stripe",)               # calm zebra rows
             if keep is not None and self._row_key(s) == keep:
                 reselect = str(idx)
             call_text = ("\u26a1 " if rare else "") + s.dxcall + (" ?" if busted else "")
