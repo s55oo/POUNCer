@@ -192,7 +192,8 @@ position are remembered separately; *Always on top* also works on its own.
 
 **Min SNR** (next to the sort buttons; on the phone the **≥dB** button):
 spots weaker than that are not listed, in the window and on the phone -
-one setting (`[ui] min_snr`, 0 = all). New multipliers and SSB cluster
+one setting (`[ui] min_snr`; **default 0 = off, all spots listed** - raise it
+only when a busy band needs it). New multipliers and SSB cluster
 spots (no SNR) are always listed; the window's RBN line and the phone's
 top line ("+5 weak") say how many are hidden.
 
@@ -483,7 +484,7 @@ All options live in `config.ini` and are documented there, line by line:
 | `refresh_seconds` | 10 | How often to re-check which log / contest is open (QSOs: ~0.5 s). |
 | **[ui]** | | |
 | `sort`, `trigger` | snr, single | Start sort; `single` or `double` click to QSY. |
-| `min_snr` | 0 | Hide spots weaker than this (dB) in the window and on the phone; 0 = all. |
+| `min_snr` | 0 (off) | Hide spots weaker than this (dB) in the window and on the phone; 0 = all spots. |
 | `min_snr_keep_mults` | true | New multipliers are listed even when weaker than `min_snr`. |
 | `max_age_minutes`, `fade_minutes` | 10, 5 | Drop spots older than this; phone tiles fade when not re-spotted. |
 | `fkeys` | F2 F3 F4 F5 F7 Enter | TX/log buttons in the main window and phone page: `KEY[:label]` list (default `F2:RPRT F3:TU F4:CALL F5:HisCALL F7:? Enter`). Each F-key **transmits** its N1MM message; `Enter` logs the QSO. Empty = no buttons. |
