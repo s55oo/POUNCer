@@ -174,6 +174,14 @@ SETTINGS: list[dict] = [
     {"key": "autostart.folder_delay", "attr": "autostart_folder_delay", "kind": "int", "min": 0,
      "max": 600, "live": True, "group": "Autostart", "label": "  ... seconds between them",
      "help": ""},
+    {"key": "autostart.wait_n1mm", "attr": "autostart_wait_n1mm", "kind": "bool", "live": True,
+     "group": "Autostart", "label": "N1MM as program 1: wait until it is up",
+     "help": "When program 1 is N1MMLogger.net.exe and N1MM isn't running: start it, wait for "
+             "its first broadcast (Entry Window / log open), then start the rest of POUNCer "
+             "and programs 2-4. N1MM: Config > Broadcast Data > Radio / App Info."},
+    {"key": "autostart.n1mm_timeout", "attr": "autostart_n1mm_timeout", "kind": "int",
+     "min": 10, "max": 900, "live": True, "group": "Autostart",
+     "label": "  ... wait at most (seconds)", "help": "then POUNCer goes on anyway"},
     {"key": "ui.auto_update", "attr": "auto_update", "kind": "bool", "live": False,
      "group": "Program", "label": "Auto-update from GitHub", "help": ""},
 ]

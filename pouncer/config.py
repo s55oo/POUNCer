@@ -138,6 +138,8 @@ class Config:
     autostart_delay4: int = 5
     autostart_folder: str = "autostart"             # next to config.ini
     autostart_folder_delay: int = 3
+    autostart_wait_n1mm: bool = True    # N1MM listed first: wait for it before the rest
+    autostart_n1mm_timeout: int = 180   # ... at most this many seconds
     max_age_minutes: int = 10
     fade_minutes: int = 5  # phone: tile fades when not re-spotted this long
     trigger: str = "single"
@@ -263,6 +265,9 @@ def load_config(path: str) -> Config:
     cfg.autostart_folder = s("autostart", "folder", cfg.autostart_folder).strip()
     cfg.autostart_folder_delay = max(0, min(600, i("autostart", "folder_delay",
                                                    cfg.autostart_folder_delay)))
+    cfg.autostart_wait_n1mm = b("autostart", "wait_n1mm", cfg.autostart_wait_n1mm)
+    cfg.autostart_n1mm_timeout = max(10, min(900, i("autostart", "n1mm_timeout",
+                                                    cfg.autostart_n1mm_timeout)))
     cfg.max_age_minutes = i("ui", "max_age_minutes", cfg.max_age_minutes)
     cfg.fade_minutes = max(1, i("ui", "fade_minutes", cfg.fade_minutes))
     cfg.tune_step_hz = max(1, i("ui", "tune_step_hz", cfg.tune_step_hz))

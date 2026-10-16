@@ -496,6 +496,29 @@ list is not started again, and when POUNCer restarts itself
 auto-update use *File > Start autostart programs now* if they aren't
 running yet (it runs the list by hand); the status bar shows what started.
 
+**N1MM first.** Put N1MM Logger+ (`N1MMLogger.net.exe`, wherever it is
+installed) as **Program 1** and POUNCer starts N1MM first and **waits until
+N1MM is up** - its first RadioInfo / AppInfo broadcast, i.e. the Entry
+Window and the log are open - before it starts the rest of itself (RBN,
+reading the log, team, phone page, CW speed, SCP) and programs 2-4 and the
+folder (Program 2's delay counts from then). The status bar shows
+"waiting for N1MM to start (23 s)". It needs N1MM's *Config > Broadcast
+Data > Radio* (or *App Info*) ticked - POUNCer needs that anyway. At most
+`n1mm_timeout` seconds (180), then it goes on anyway; *File > Don't wait
+for N1MM* goes on at once. If N1MM is already running, nothing waits.
+Switch off: *Settings > Autostart > N1MM as program 1: wait until it is up*
+(`wait_n1mm = false`).
+
+```ini
+[autostart]
+app1 = C:\Program Files (x86)\N1MM Logger+\N1MMLogger.net.exe
+app1_delay = 0
+app2 = C:\HAM\LogRouter\router.exe
+app2_delay = 5
+wait_n1mm = true
+n1mm_timeout = 180
+```
+
 Example - four copies of a log router, 5 s apart:
 
 ```ini
