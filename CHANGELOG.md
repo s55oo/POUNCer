@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## v0.7.66 — 2026-10-16 — phone band menu fixed after an SO2V session
+
+- **Bug:** a browser / phone that had **radio B** chosen once (SO2R / SO2V)
+  kept "B" after N1MM went back to one radio. The A/B key is then hidden, so
+  B could not be switched off, and the band menu saved the chosen band for
+  radio A but looked it up for radio B: picking 40m did nothing, and taps
+  went out as radio B. The page now forgets B (and moves a band view over to
+  A) as soon as N1MM reports only one radio. Radio B with two radios works
+  as before.
+
 ## Docs — 2026-10-16 (4)
 
 - README / config.ini: **which config.ini** POUNCer reads (the one next to

@@ -848,6 +848,18 @@ INDEX_HTML = """<!doctype html>
     // SO2R switch: shown when N1MM reports two radios (or B was chosen)
     const radioSw = document.getElementById('radiosw');
     const cur = data.radio === 2 ? 2 : 1;
+    // Radio B remembered from an SO2R / SO2V session, but N1MM reports one
+    // radio now: the A / B key is hidden, so forget B (else the band menu
+    // saved the band for A and looked it up for B - "band doesn't change")
+    if (myRadio && data.radio && myRadio !== data.radio && (data.radios || []).length <= 1) {
+      if (views[String(myRadio)] && !views[String(data.radio)]) {
+        views[String(data.radio)] = views[String(myRadio)];
+      }
+      delete views[String(myRadio)];
+      saveViews();
+      myRadio = null;
+      try { localStorage.removeItem('pouncer.radio'); } catch (e) {}
+    }
     radioSw.hidden = !((data.radios || []).length > 1 || cur === 2);
     document.querySelector('header').classList.toggle('so2r', !radioSw.hidden);
     radioSw.textContent = cur === 2 ? 'B' : 'A';

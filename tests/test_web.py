@@ -260,6 +260,16 @@ Ethernet adapter ZeroTier One [8056c2e21c000001]:
 """
 
 
+class PageTests(unittest.TestCase):
+    def test_forgets_radio_b_when_n1mm_has_one_radio(self) -> None:
+        """Radio B remembered from an SO2V session + one radio now: the A/B
+        key is hidden, so the page must drop B (else the band menu saved the
+        view for A and looked it up for B: the band never changed)."""
+        from pouncer.web import INDEX_HTML
+        self.assertIn("myRadio !== data.radio && (data.radios || []).length <= 1", INDEX_HTML)
+        self.assertIn("localStorage.removeItem('pouncer.radio')", INDEX_HTML)
+
+
 class AddressTests(unittest.TestCase):
     def test_parse_ipconfig_localised(self) -> None:
         self.assertEqual(parse_ipconfig(IPCONFIG_SL), [
