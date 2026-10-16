@@ -2,7 +2,9 @@
 
 import csv
 import os
+import sys
 import tempfile
+import time
 import unittest
 
 from pouncer import perf
@@ -20,15 +22,15 @@ class PerfTests(unittest.TestCase):
                 self.assertIn(k, row)
             self.assertGreaterEqual(row["cpu_proc_core_pct"], 0)
             self.assertEqual(row["spots"], 42)
-            import sys
             if sys.platform == "win32":                  # the Windows API numbers are there
                 for k in ("mem_ws_mb", "mem_private_mb", "pc_mem_pct", "handles", "disk_write_kb"):
                     self.assertNotEqual(row[k], "", k)
                 self.assertGreater(row["mem_ws_mb"], 1)
             m.write(row)
+            time.sleep(0.3)                               # Windows counts CPU time in ~16 ms steps
             row2 = m.sample()
             if sys.platform == "win32":
-                self.assertNotEqual(row2["cpu_pc_pct"], "")    # needs two samples
+                self.assertNotEqual(row2["cpu_pc_pct"], "", "cpu_pc_pct")    # needs two samples
             m.write(row2)
             with open(m.path, newline="") as fh:
                 rows = list(csv.DictReader(fh))

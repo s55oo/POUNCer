@@ -392,12 +392,13 @@ class PerfMonitor:
         new = not os.path.exists(self.path)
         if not new:                                     # header of an older version?
             with open(self.path, encoding="utf-8") as fh:
-                if fh.readline().strip() != ",".join(self.columns):
-                    new = True
-                    try:
-                        os.replace(self.path, self.path + ".1")
-                    except OSError:
-                        pass
+                old_header = fh.readline().strip()
+            if old_header != ",".join(self.columns):  # (closed first: Windows can't rename an open file)
+                new = True
+                try:
+                    os.replace(self.path, self.path + ".1")
+                except OSError:
+                    pass
         with open(self.path, "a", newline="", encoding="utf-8") as fh:
             w = csv.DictWriter(fh, fieldnames=self.columns, extrasaction="ignore")
             if new:
