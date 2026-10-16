@@ -46,7 +46,14 @@ def build(f: dict) -> list[dict]:
         add("N1MM", "bad", "no radio info (N1MM: Config > Broadcast Data > Radio)")
 
     if f.get("log_open"):
-        add("Log", "ok", f.get("log_name") or "")
+        src = f.get("log_source")
+        if src in ("ini", "latest QSO"):
+            # N1MM writes its ini only now and then: after opening another
+            # contest it can still name the old one - AppInfo says it at once
+            add("Log", "warn", (f.get("log_name") or "") +
+                " - enable N1MM Config > Broadcast Data > App Info (127.0.0.1:12060)")
+        else:
+            add("Log", "ok", f.get("log_name") or "")
     else:
         add("Log", "bad", f.get("log_msg") or "not open")
 

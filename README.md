@@ -450,7 +450,14 @@ keyboard and window controls are unavailable on macOS.
 2. `Config` -> `Config Ports...` -> **Broadcast Data** tab.
 3. Tick **Radio**.
 4. In the destination/IP box next to it enter `127.0.0.1:12060`.
-5. Click OK. N1MM now broadcasts radio info every ~10 s and on every change.
+5. Tick **App Info** too, same address `127.0.0.1:12060`. N1MM then says
+   which log and contest are open - at start and whenever you open or switch
+   a contest - so POUNCer counts **only the open contest** at once (QSOs per
+   band, worked, mults). Without it POUNCer reads `N1MM Logger.ini`, which
+   N1MM saves only now and then, so after switching contests it can still
+   name the old one; the check line then says CHECK. (Ticking **Contacts**
+   helps too: every logged QSO carries the contest number.)
+6. Click OK. N1MM now broadcasts radio info every ~10 s and on every change.
 
 No setting is needed for the control direction (port 13064 is always listened
 to by N1MM).

@@ -1,5 +1,22 @@
 # POUNCer — Changelog
 
+## v0.7.52 — 2026-10-16 — counts only the contest open in N1MM
+
+- QSOs per band, worked and mults now always come from the **contest open
+  in N1MM**, never from the whole database (which holds many logs).
+  POUNCer follows N1MM's **AppInfo** broadcast (database + contest, sent
+  at start and on every contest open / switch) and the contest number in
+  logged-QSO packets - at once, no waiting. Tick **App Info** in N1MM's
+  *Config > Config Ports > Broadcast Data* (127.0.0.1:12060, like Radio).
+- Without it the ini is used as before - but N1MM saves its ini only now
+  and then, so after opening another contest it could still name the old
+  one (that's where e.g. "40m 1000" from last year's contest came from);
+  the check line then says *CHECK: Log ... enable App Info*. And if the ini
+  names no contest, the contest of the newest QSO is taken - no longer
+  every contest in the file.
+- The Log line says where the contest came from: *(from N1MM)*, *(from N1MM
+  Logger.ini)* or *(newest QSO's contest)*.
+
 ## v0.7.51 — 2026-10-16 — band open lights
 
 - **Band open?** A row of band lights in the window (*Band open: 160 80
