@@ -1437,7 +1437,8 @@ page.</p>
   <dd>Minimum SNR (next to the sort keys): spots weaker than this are not listed - here
   and in the POUNCer window (same setting, saved). Tap it: <b>all</b> / 3 / 6 / 10 / 13 /
   15 / 20 / 25 dB, or &minus;1 / +1. Teal = on; the top line then says how many weak spots
-  are hidden. New multipliers and spots without an SNR (SSB) are always listed.</dd>
+  are hidden. Default <b>all</b> (0 = off). New multipliers and spots without an SNR (SSB)
+  are always listed.</dd>
   <dt><span class="k green">ENTER</span></dt>
   <dd>Enter in N1MM: logs the QSO (no transmit).<br>
   <b>Hold it 1.3 s</b> (it fills up yellow): the <b>CW keyboard</b> opens at the top. What you

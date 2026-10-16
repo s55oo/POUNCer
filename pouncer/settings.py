@@ -114,7 +114,7 @@ SETTINGS: list[dict] = [
      "help": "Empty = your call. E.g. S55OO-2 if the cluster already has you as the RBN backup."},
     {"key": "ui.min_snr", "attr": "min_snr", "kind": "int", "min": 0, "max": 60,
      "live": True, "group": "Program", "label": "Minimum SNR (dB)",
-     "help": "Window and phone list: hide spots weaker than this; 0 = all. Also next to "
+     "help": "Window and phone list: hide spots weaker than this; 0 = off, all spots (default). Also next to "
              "the sort buttons (window) and the SNR button on the phone."},
     {"key": "ui.min_snr_keep_mults", "attr": "min_snr_keep_mults", "kind": "bool",
      "live": True, "group": "Program", "label": "Min SNR: keep new mults",

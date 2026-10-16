@@ -260,7 +260,7 @@ query parameters (`radio=A|B` = which radio the phone works).
 | `/api/spots?band=&radio=` | the list for a radio / band (JSON: radios, log, mults, spots with run %, hours, `busted`…) |
 | `/api/qsy?call=&freq=&mode=&radio=` | tap: QSY + call into N1MM |
 | `/api/key?key=F2&radio=` | F-key / Enter / PgUp / PgDn to N1MM (F-keys **transmit**) |
-| `/api/minsnr?db=10` | Minimum SNR of the list (0–60, 0 = all) - window and phone, saved to config.ini |
+| `/api/minsnr?db=10` | Minimum SNR of the list (0–60; 0 = off, the default) - window and phone, saved to config.ini |
 | `/api/cw?op=open\|text\|back\|done\|stop&text=&n=&radio=` | Phone CW keyboard: open = Ctrl+K in the Entry Window, text = typed into N1MM's CW window (**transmits**; A–Z, 0–9, space, CW punctuation, max 200), back = n × Backspace, done = Enter, stop = Esc. 404 when `[web] cw_keyboard = false` |
 | `/api/tune?hz=-25&radio=` | move the VFO |
 | `/api/band?band=20m&radio=` | look at another band |

@@ -3,7 +3,7 @@
 ## v0.7.48 — 2026-10-16 — minimum SNR (window and phone)
 
 - **Min SNR** box next to the sort buttons in the window (arrows, mouse
-  wheel or type + Enter; 0 = all): spots weaker than that are not listed -
+  wheel or type + Enter; **default 0 = off, all spots**): spots weaker than that are not listed -
   in the window **and** on the phone (one setting, saved in config.ini as
   `[ui] min_snr`). The RBN line shows how many weak spots are hidden.
 - On the phone a **≥dB** button next to SNR (teal **≥10** when on): tap it
