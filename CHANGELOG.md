@@ -1,5 +1,11 @@
 # POUNCer — Changelog
 
+## Docs — 2026-10-16 (5)
+
+- **docs/zones-page.png**: a picture of the CQ zones page (example data) in
+  the README and docs/SYMBOLS.md; the README, help page, SYMBOLS,
+  ARCHITECTURE and NETWORK already describe the page and the mults per band.
+
 ## v0.7.70 — 2026-10-16 — CQ zones page: who hears me, what I hear
 
 - **New page `/zones`** (*View > CQ zones: who hears me*, phone band menu >

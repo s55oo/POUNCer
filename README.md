@@ -387,6 +387,10 @@ worked from a spot. Taps are kept in `cache\taps.jsonl` for 14 days.
 
 ## CQ zones: who hears me, what I hear
 
+<p align="center"><img src="docs/zones-page.png" width="820"
+  alt="POUNCer CQ zones page: for each band a blue 'hears me' row and a green 'I hear' row across CQ zones 1 to 40, boxes showing the best SNR, own zone 15 framed in yellow (example data)"></p>
+<p align="center"><i>The CQ zones page (example data)</i></p>
+
 *View > CQ zones: who hears me* in the window, or **CQ zones** in the phone
 band menu, opens `/zones`: for every band **two rows of CQ zones 1-40**:
 
