@@ -1252,13 +1252,6 @@ class PouncerApp:
                     landed = self._guard_call(hwnd, spot.dxcall, nr, spot.freq_khz)
                 if not landed:
                     msg += " [N1MM didn't report the new frequency]"
-                # TEST: Alt+W at the end ([n1mm] alt_w_after_call) - the call
-                # was shown twice (Entry Window + above it); like a bandmap
-                # click in N1MM it should then stay only in the Entry Window
-                if getattr(self.cfg, "alt_w_after_call", False) and focused:
-                    time.sleep(0.1)
-                    wipe_callsign()
-                    msg += " + Alt+W"
             else:
                 msg += " (call skipped: N1MM not focused)"
         if self.cfg.focus_n1mm:
