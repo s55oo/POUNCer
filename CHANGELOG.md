@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.61 — 2026-10-16 — SSB warm-up count in bold too
+
+- The warm-up part of the RBN line shows **both** counts bold:
+  *CW **46044** + SSB **60917** stations known in advance* (only the CW
+  number was bold).
+- Tests: a run-history test no longer fails when its background downloads
+  still write while the temporary folder is removed (macOS build).
+
 ## v0.7.60 — 2026-10-16 — click a band chip; A/B switch only with two radios
 
 - The window's **Radio A / B** switch (and the one in the compact window)

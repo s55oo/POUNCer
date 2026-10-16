@@ -66,6 +66,15 @@ class ChipTextTests(unittest.TestCase):
         self.assertEqual(t("160m", {"state": "closed"}), "160m: \u2013")
 
 
+class WarmBoldTests(unittest.TestCase):
+    def test_cw_and_ssb_counts_bold(self) -> None:
+        from tests.test_so2r import _import_app
+        P = _import_app().PouncerApp
+        self.assertEqual(P._bold_warm("CW 46044 + SSB 60917 stations known in advance"),
+                         "CW **46044** + SSB **60917** stations known in advance")
+        self.assertEqual(P._bold_warm("38120 stations known"), "**38120** stations known")
+
+
 class ShareColorTests(unittest.TestCase):
     def test_orange_to_green_by_dx_share(self) -> None:
         from pouncer.bandopen import dx_pct, share_color
