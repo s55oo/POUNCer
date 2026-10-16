@@ -47,6 +47,17 @@ regularly). Set it up in N1MM: *Config → Config Ports, Mode Control,
 Winkey, etc. → Broadcast Data*: tick **Radio**, address `127.0.0.1:12060`.
 POUNCer listens on `0.0.0.0:12060` (UTF-8 XML, one packet = one radio).
 
+On the same port POUNCer also reads **AppInfo** (tick *App Info* in the same
+dialog, `127.0.0.1:12060`) - sent at start and when a contest is opened or
+switched - and the contest number in **contactinfo / contactreplace /
+lookupinfo** packets (*Contacts*, *Lookup*). They name the open log and
+contest, so only that contest is counted (the ini can be out of date):
+
+```xml
+<AppInfo><app>N1MM</app><dbname>S55OO.s3db</dbname><contestnr>8</contestnr>
+  <contestname>CQWWCW</contestname><StationName>PC</StationName><mycall>S55OO</mycall></AppInfo>
+```
+
 ```xml
 <RadioInfo>
   <StationName>SHACK-PC</StationName>

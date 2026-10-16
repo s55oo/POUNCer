@@ -58,6 +58,35 @@ def parse_radio_info(data: bytes) -> dict | None:
     }
 
 
+# packets that name the contest open in N1MM (contestnr = the contest in
+# the open database; only AppInfo also names the database file)
+_CONTEST_PACKETS = ("AppInfo", "contactinfo", "contactreplace", "lookupinfo")
+
+
+def parse_app_info(data: bytes) -> dict | None:
+    """N1MM's <AppInfo> (sent at start and when a contest is opened /
+    switched) or a contact / lookup packet: which log and contest are open.
+    {"dbname" (AppInfo only), "contest_nr", "contest_name", "kind"}."""
+    try:
+        root = ET.fromstring(data)
+    except ET.ParseError:
+        return None
+    if root.tag not in _CONTEST_PACKETS:
+        return None
+
+    def text(tag: str) -> str:
+        el = root.find(tag)
+        return (el.text or "").strip() if el is not None else ""
+
+    nr = _to_int(text("contestnr"))
+    if nr is None:
+        return None
+    out = {"kind": root.tag, "contest_nr": nr, "contest_name": text("contestname")}
+    if root.tag == "AppInfo":
+        out["dbname"] = text("dbname")
+    return out
+
+
 def next_tune_khz(
     reported_khz: float | None,
     last_target_khz: float | None,
@@ -92,6 +121,25 @@ class RadioState:
         self._radios: dict[int, dict] = {}
         self._active: int | None = None
         self._last = 0.0
+        self._app: dict = {}            # open log / contest from AppInfo, contact packets
+
+    def set_app(self, info: dict) -> None:
+        """AppInfo: database + contest; a contact packet: the contest only
+        (keeps the database AppInfo named)."""
+        with self._lock:
+            app = dict(self._app)
+            if info.get("kind") == "AppInfo":
+                app = {"dbname": info.get("dbname") or ""}
+            app["contest_nr"] = info.get("contest_nr")
+            app["contest_name"] = info.get("contest_name") or app.get("contest_name", "")
+            app["kind"] = info.get("kind")
+            app["t"] = time.time()
+            self._app = app
+
+    def app(self) -> dict | None:
+        """What N1MM said is open, or None (no AppInfo / contact packet yet)."""
+        with self._lock:
+            return dict(self._app) if self._app else None
 
     def update(self, info: dict) -> None:
         with self._lock:
@@ -183,6 +231,11 @@ class RadioListener(threading.Thread):
                 break
             info = parse_radio_info(data)
             if info is None:
+                app = parse_app_info(data)
+                if app is not None:
+                    self.state.set_app(app)
+                    log.info("N1MM: open contest #%s %s %s", app.get("contest_nr"),
+                             app.get("contest_name", ""), app.get("dbname", ""))
                 continue
             self.state.update(info)
             if self.on_update is not None:

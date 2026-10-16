@@ -123,6 +123,8 @@ class PouncerApp:
         )
         self._worked_hidden = 0
         self._snr_hidden = 0
+        # the open log / contest as N1MM broadcasts it (AppInfo) wins over the ini
+        self.worked.app_info = self.state.app
         # No [rbn] callsign in config.ini: use the one N1MM has.
         if not config.rbn_callsign:
             config.rbn_callsign = n1mm_station_call(config.n1mm_ini or None)
@@ -1947,7 +1949,10 @@ class PouncerApp:
             )
         band = self._current_band()
         if self.worked.log_open or self.worked.log_state == "unknown":
-            worked = f"Log: **{self.worked.db_name or '-'}**   station: **{self.own_call() or '?'}**" \
+            src = {"N1MM": "from N1MM", "ini": "from N1MM Logger.ini",
+                   "latest QSO": "newest QSO's contest"}.get(self.worked.contest_source, "")
+            worked = f"Log: **{self.worked.db_name or '-'}**" + (f" ({src})" if src else "") + \
+                f"   station: **{self.own_call() or '?'}**" \
                 f" (**{self.home_cont}**)   worked: **{self.worked.status}**"
             if self.worked.log_open:
                 per_band = " ".join(f"{b} **{n}**" for b, n in self.worked.band_qsos())
@@ -2004,6 +2009,7 @@ class PouncerApp:
             "n1mm_age": snap["age"] if snap and snap.get("freq_khz") else None,
             "n1mm_freq": (snap or {}).get("freq_khz"),
             "log_open": self.worked.log_open, "log_name": self.worked.db_name,
+            "log_source": self.worked.contest_source,
             "log_msg": self.worked.log_message,
             "call": self.own_call(),
             "rbn": rbn,

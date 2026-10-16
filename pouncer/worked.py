@@ -242,8 +242,13 @@ class WorkedLog:
         self.ini_path = ini_path.strip()
         self.refresh_seconds = max(1, refresh_seconds)
         self._n1mm_running = n1mm_running
-        self.contest_nr: int | None = None
+        self.contest_nr: int | None = None      # the contest counted (after fallbacks)
         self.contest_name = ""
+        self._wanted_nr: int | None = None      # what N1MM / the ini named
+        # -> what N1MM broadcast as open (AppInfo / contact packets), or None
+        self.app_info: Callable[[], dict | None] | None = None
+        self._app_seen = None
+        self.contest_source = ""                # "N1MM", "ini" or "latest QSO"
         self._path: str | None = None
         self._keys: set[tuple[str, str, str]] = set()
         self._signature: tuple | None = None
@@ -271,11 +276,11 @@ class WorkedLog:
                     LOG_MISSING,
                     f"Log file {self.db_path} not found - check [worked] db in config.ini",
                 )
-            return {
+            return self._apply_app({
                 "path": self.db_path,
-                "contest_nr": self.contest_nr,
+                "contest_nr": self._wanted_nr,
                 "contest_name": self.contest_name,
-            }, None
+            }, fixed=True), None
         if self._n1mm_running is not None:
             try:
                 running = self._n1mm_running()
@@ -292,6 +297,7 @@ class WorkedLog:
                 LOG_NO_INI,
                 "N1MM Logger.ini not found - set [n1mm] ini in config.ini",
             )
+        info = self._apply_app(info)
         if not info["path"]:
             return None, (
                 LOG_NONE_OPEN,
@@ -335,6 +341,32 @@ class WorkedLog:
         self._last_check = 0.0
         self._signature = None
 
+    def _apply_app(self, info: dict, fixed: bool = False) -> dict:
+        """What N1MM broadcast (AppInfo: database + contest; QSO packets: the
+        contest) wins over the ini - N1MM writes the ini only now and then,
+        so after opening another contest the ini can still name the old one."""
+        app = self.app_info() if self.app_info is not None else None
+        if not app or app.get("contest_nr") is None:
+            return dict(info, source="ini")
+        info = dict(info)
+        db = (app.get("dbname") or "").strip()
+        if db and not fixed:
+            if os.path.isabs(db):
+                cand = db
+            else:
+                folder = (os.path.dirname(info["path"]) if info.get("path")
+                          else os.path.join(os.path.dirname(info.get("ini") or ""), "Databases"))
+                cand = os.path.join(folder, os.path.basename(db))
+            if os.path.exists(cand):
+                info["path"] = cand
+        if fixed and db and info.get("path") and \
+                os.path.basename(db).lower() != os.path.basename(info["path"]).lower():
+            return dict(info, source="ini")     # [worked] db is another file
+        info["contest_nr"] = app.get("contest_nr")
+        info["contest_name"] = app.get("contest_name") or info.get("contest_name", "")
+        info["source"] = "N1MM"
+        return info
+
     def maybe_reload(self) -> bool:
         """Reload if the database or the open contest changed.
 
@@ -352,6 +384,11 @@ class WorkedLog:
             self.refresh_seconds if self._path
             else min(self.refresh_seconds, RETRY_SECONDS)
         )
+        app = self.app_info() if self.app_info is not None else None
+        stamp = (app.get("dbname"), app.get("contest_nr")) if app else None
+        if stamp != self._app_seen:              # N1MM opened another contest: now
+            self._app_seen = stamp
+            self._last_check = 0.0
         if now - self._last_check >= interval:
             self._last_check = now
             info, problem = self._resolve()
@@ -360,8 +397,9 @@ class WorkedLog:
             if info["path"] != self._path:
                 self._signature = None
             self._path = info["path"]
-            self.contest_nr = info.get("contest_nr")
+            self._wanted_nr = info.get("contest_nr")
             self.contest_name = info.get("contest_name", "")
+            self._source = info.get("source", "ini")
         path = self._path
         if path is None:
             return False
@@ -371,10 +409,10 @@ class WorkedLog:
                 f"Log {os.path.basename(path)} not found - "
                 "open a log in N1MM (File > Open Log)",
             )
-        signature = self._db_signature(path, self.contest_nr)
+        signature = self._db_signature(path, self._wanted_nr)
         if signature == self._signature:
             return False
-        self._load(path, signature, self.contest_nr, self.contest_name)
+        self._load(path, signature, self._wanted_nr, self.contest_name)
         return True
 
     @staticmethod
@@ -425,6 +463,16 @@ class WorkedLog:
                 except sqlite3.Error:
                     station = ""
                 cols = {r[1] for r in con.execute("PRAGMA table_info(DXLOG)")}
+                source = getattr(self, "_source", "ini")
+                if contest_nr is None and "ContestNR" in cols:
+                    # nobody named the contest: never count every contest of
+                    # the database - take the one with the newest QSO
+                    row = con.execute(
+                        "SELECT ContestNR FROM DXLOG WHERE ContestNR IS NOT NULL "
+                        "ORDER BY TS DESC LIMIT 1").fetchone()
+                    if row and row[0] is not None:
+                        contest_nr = int(row[0])
+                        source = "latest QSO"
                 mult_types = tuple(
                     f for f in self._read_mult_types(con, contest_name) if f in cols
                 )
@@ -469,6 +517,7 @@ class WorkedLog:
         self._signature = signature
         self.contest_nr = contest_nr
         self.contest_name = contest_name
+        self.contest_source = source
         base = os.path.basename(path)
         if contest_nr is not None:
             self.db_name = f"{base} #{contest_nr} {contest_name}".strip()
