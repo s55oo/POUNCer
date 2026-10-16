@@ -11,7 +11,8 @@ before; the first after POUNCer's start):
    .lnk / .vbs / .ps1 in it, in name order (``1 rotor.lnk``, ``2 cw.bat``),
    ``folder_delay`` seconds apart.
 
-An .exe that is already running is not started again, and when POUNCer
+An .exe that was already running before POUNCer started its list is not
+started again (listing the same program 4 times starts 4 copies), and when POUNCer
 restarts itself (update, File > Restart) nothing is started - it all runs
 already. Every program starts in its own folder, like a double-click.
 """
@@ -104,6 +105,15 @@ class Autostart:
 
     def run(self) -> None:
         total = len(self.items)
+        # what ran BEFORE this list started: the same program listed twice
+        # (e.g. 4 x QSOrouter.exe) starts 4 times, but a second POUNCer start
+        # doesn't add 4 more
+        before: set[str] = set()
+        if self._running is not None:
+            try:
+                before = set(self._running() or ())
+            except Exception:  # noqa: BLE001
+                before = set()
         for n, it in enumerate(self.items, 1):
             if it["delay"]:
                 self._sleep(it["delay"])
@@ -112,15 +122,10 @@ class Autostart:
                 self.results.append((path, "not found"))
                 self._say(f"{name} not found ({n}/{total})")
                 continue
-            if name.lower().endswith(".exe") and self._running is not None:
-                try:
-                    names = self._running() or set()
-                except Exception:  # noqa: BLE001
-                    names = set()
-                if name.lower() in names:
-                    self.results.append((path, "running"))
-                    self._say(f"{name} already running ({n}/{total})")
-                    continue
+            if name.lower().endswith(".exe") and name.lower() in before:
+                self.results.append((path, "running"))
+                self._say(f"{name} already running ({n}/{total})")
+                continue
             try:
                 self._launch(path, it["args"])
             except Exception as exc:  # noqa: BLE001 - one bad entry must not stop the rest
