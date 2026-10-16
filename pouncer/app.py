@@ -31,6 +31,7 @@ from . import checks as checksmod
 from .bandopen import BandActivity, dx_pct, share_color, state_of
 from .zones import ZoneMap
 from .timeline import Timeline
+from .perf import PerfMonitor
 from . import theme
 from . import autostart as autostartmod
 from . import diag as diagmod
@@ -190,6 +191,10 @@ class PouncerApp:
         # band opening timeline: spots per band in 10-minute boxes (the /timeline page)
         self.timeline = Timeline(os.path.join(config.run_history_dir or "cache", "timeline.json"))
         self.bandact.on_count = self.timeline.add
+        # load counters for cache/perf.csv (one row a minute, see perf.py)
+        self._perf = {"spots_in": 0, "raw": 0, "ticks": 0, "tick_ms": 0.0, "tick_max": 0.0,
+                      "rebuilds": 0, "t": time.monotonic()}
+        self.perf = PerfMonitor(config.run_history_dir or "cache", stats=self._perf_stats)
         # who hears me / what I hear, per band and CQ zone (the /zones page)
         self.zonemap = ZoneMap(self._entity, lambda: self.home_cont, self.own_call)
         self._checks: list[dict] = []
@@ -489,6 +494,8 @@ class PouncerApp:
         helpm.add_command(label="Save diagnostics (zip)", command=self._save_diagnostics)
         helpm.add_command(label="Open the log file", command=lambda: self._open_path(
             diagmod.log_path(self.cfg.run_history_dir or "cache")))
+        helpm.add_command(label="Open the performance log (CPU / memory / disk)",
+                          command=lambda: self._open_path(self.perf.path))
         helpm.add_separator()
         helpm.add_command(label=f"About POUNCer {__version__}", command=self._about)
         bar.add_cascade(label="Help", menu=helpm)
@@ -1416,6 +1423,35 @@ class PouncerApp:
         _note_tap(self, spot, nr, bool(landed), short, msg)
 
     def _tick(self) -> None:
+        """The refresh tick, timed for the perf log (a slow tick = a slow window)."""
+        t0 = time.perf_counter()
+        try:
+            self._tick_body()
+        finally:
+            ms = (time.perf_counter() - t0) * 1000
+            p = getattr(self, "_perf", None)
+            if p is not None:
+                p["ticks"] += 1
+                p["tick_ms"] += ms
+                p["tick_max"] = max(p["tick_max"], ms)
+
+    def _perf_stats(self) -> dict:
+        """POUNCer's own numbers for perf.csv - rates since the last row."""
+        p = self._perf
+        now = time.monotonic()
+        mins = max(1e-6, (now - p["t"]) / 60)
+        req, phones = self.web.load() if self.web is not None else (0, 0)
+        out = {"spots": len(self.spots), "spots_in_per_min": round(p["spots_in"] / mins),
+               "rbn_per_min": round(p["raw"] / mins), "queue": self.spot_queue.qsize(),
+               "ticks_per_min": round(p["ticks"] / mins),
+               "tick_avg_ms": round(p["tick_ms"] / p["ticks"], 1) if p["ticks"] else "",
+               "tick_max_ms": round(p["tick_max"], 1), "rebuilds_per_min": round(p["rebuilds"] / mins),
+               "web_req_per_min": round(req / mins), "phones": phones,
+               "cty_cache": len(self._cty_cache), "taps": len(getattr(self.taps, "_taps", []))}
+        p.update(spots_in=0, raw=0, ticks=0, tick_ms=0.0, tick_max=0.0, rebuilds=0, t=now)
+        return out
+
+    def _tick_body(self) -> None:
         self.updater.maybe_check()
         self._drain_status()
         self._drain_spots()
@@ -1434,6 +1470,7 @@ class PouncerApp:
         if self._dirty:
             self._rebuild()
             self._dirty = False
+            self._perf["rebuilds"] += 1
         self._drain_web()
         if self.web is not None:
             # one payload per radio: each phone shows its own radio's band
@@ -1820,6 +1857,7 @@ class PouncerApp:
             self.spots[spot.key] = spot
             self._track_on_freq(spot)
             got += 1
+            self._perf["spots_in"] += 1
             self._last_own_spot = time.time()
             if self.team is not None and self.team.is_master():
                 self.team.send_spot(self._spot_dict(spot))
@@ -2382,6 +2420,9 @@ class PouncerApp:
 
     def _on_raw_spot(self, spot) -> None:
         """Every live spot of the whole feed (before the list filters)."""
+        p = getattr(self, "_perf", None)
+        if p is not None:
+            p["raw"] += 1
         self.bandact.add(spot)
         zm = getattr(self, "zonemap", None)
         if zm is not None:
@@ -2857,6 +2898,7 @@ class PouncerApp:
             self.cwspeed.start()        # N1MM's CW speed box, read once a second
         if self.scp is not None:
             self.scp.start()            # load MASTER.SCP, ask the server for a newer one (304 = current)
+        self.perf.start()             # cache/perf.csv: CPU / memory / disk, a row a minute
         self.root.after(REFRESH_MS, self._tick)
 
     def _start_web(self) -> None:
@@ -2911,6 +2953,8 @@ class PouncerApp:
         self._web_addr_checked = time.time()
 
     def _shutdown(self) -> None:
+        if getattr(self, "perf", None) is not None:
+            self.perf.stop()
         if getattr(self, "timeline", None) is not None:
             self.timeline.save()
         if self.team is not None:

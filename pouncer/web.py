@@ -17,6 +17,7 @@ import socket
 import subprocess
 import sys
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Callable
 from urllib.parse import parse_qs, urlparse
@@ -2487,6 +2488,15 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
+        try:   # load counters for the perf log (requests / min, phones open)
+            srv = self.server
+            srv.req_count = getattr(srv, "req_count", 0) + 1
+            seen = getattr(srv, "clients", None)
+            if seen is None:
+                seen = srv.clients = {}
+            seen[self.client_address[0]] = time.time()
+        except Exception:  # noqa: BLE001
+            pass
         if parsed.path in ("/help", "/help.html"):
             body = HELP_HTML.replace("__VERSION__", __version__).encode("utf-8")
             self.send_response(200)
@@ -2774,6 +2784,17 @@ class WebServer:
     def set_cw_handler(self, fn) -> None:
         """Phone CW keyboard: fn(op, text, n, radio=...)."""
         self._httpd.on_cw = fn
+
+    def load(self) -> tuple[int, int]:
+        """(requests since the last call, phones / browsers seen in 2 min)."""
+        srv = self._httpd
+        n = getattr(srv, "req_count", 0)
+        srv.req_count = 0
+        now = time.time()
+        clients = getattr(srv, "clients", {}) or {}
+        for ip in [ip for ip, t in list(clients.items()) if now - t > 120]:
+            clients.pop(ip, None)
+        return n, len(clients)
 
     def set_timeline_provider(self, getter) -> None:
         """Spots per band and 10 minutes, for /api/timeline."""

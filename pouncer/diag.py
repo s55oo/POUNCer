@@ -25,7 +25,8 @@ FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
 # config keys whose values never leave the PC (fkeys / hotkeys are not secrets)
 SECRET_RE = re.compile(r"^(\s*[;#]?\s*)([\w.]*(?:pass|password|passwd|token|secret|api_?key)[\w.]*)(\s*[=:]\s*)(.*)$",
                        re.IGNORECASE)
-EXTRA_FILES = ("cwspeed.txt", "warm-up.txt", "warm-up-ssb.txt", "window.json")
+EXTRA_FILES = ("cwspeed.txt", "warm-up.txt", "warm-up-ssb.txt", "window.json",
+               "perf.csv", "perf.csv.1")
 
 _handler: logging.Handler | None = None
 

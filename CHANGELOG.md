@@ -1,5 +1,19 @@
 # POUNCer — Changelog
 
+## v0.7.72 — 2026-10-16 — performance log (CPU, memory, disk)
+
+- **`cache\perf.csv`**, one row a minute (opens in Excel; *Help > Open the
+  performance log*): POUNCer's CPU (% of a core and of the PC) and the PC's
+  CPU, POUNCer's memory (working set / private / peak) and the PC's, free
+  disk, cache folder size, POUNCer's disk reads / writes, threads, handles,
+  plus POUNCer's own load - spots in the list, spots in and RBN spots per
+  minute, queue, refresh tick average / max ms, list redraws, phone requests
+  per minute and phones open. **N1MM Logger+** too (CPU, memory, disk
+  reads / writes, handles) and **Windows** as a whole (processes, the three
+  busiest programs of the minute). A summary every 15 min in pouncer.log;
+  in the diagnostics zip. For checking a contest weekend: what to offload, if
+  anything.
+
 ## v0.7.71 — 2026-10-16 — band opening timeline
 
 - **New page `/timeline`** (*View > Band opening timeline*, phone band menu):
