@@ -353,9 +353,10 @@ telnet works. The light then says **RBN via HTTP**.
 A spotted call that is not in the **Super Check Partial** list
 (`MASTER.SCP`, calls active in contests) gets a **?** - in the main window's
 list and on the phone tiles. It is often a skimmer error, one letter wrong
-(PHB9CBR for HB9CBR). The list is downloaded from supercheckpartial.com at
-start when the copy in `cache` is missing or a week old; until then N1MM's
-own copy is used. `[scp] update_n1mm = true` also copies the new file into
+(PHB9CBR for HB9CBR). At every start POUNCer asks supercheckpartial.com
+whether the list changed and downloads it only when it did (a "not
+modified" answer costs a few bytes); until the first download N1MM's own
+copy is used. `[scp] update_n1mm = true` also copies the new file into
 N1MM's `SupportFiles` (N1MM reads it at its next start). `[scp] enabled =
 false` = no marks.
 
@@ -600,7 +601,7 @@ All options live in `config.ini` and are documented there, line by line:
 | `enabled`, `port`, `peers` | true, 12079, – | Several POUNCers on a network; extra IPs where broadcasts are dropped. |
 | **[scp]** | | |
 | `enabled` | true | "?" on calls not in Super Check Partial. |
-| `url`, `refresh_days` | supercheckpartial.com/MASTER.SCP, 7 | Where and how often MASTER.SCP is downloaded. |
+| `url`, `refresh_days` | supercheckpartial.com/MASTER.SCP, 7 | Where MASTER.SCP comes from; checked at every start (only a newer file is downloaded) and every `refresh_days` while running. |
 | `update_n1mm` | false | Also copy it into N1MM's SupportFiles. |
 | **[autostart]** | | |
 | `enabled` | true | Start your other programs with POUNCer. |

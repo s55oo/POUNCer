@@ -1,5 +1,17 @@
 # POUNCer — Changelog
 
+## v0.7.62 — 2026-10-16 — Super Check Partial checked at every start
+
+- MASTER.SCP is now checked **at every start** (was: only when our copy was
+  over 7 days old): POUNCer asks supercheckpartial.com "changed since our
+  copy?" and gets **304 Not Modified** - a few bytes - when it hasn't, so
+  only a newer list is downloaded. A fresh list published just before a
+  contest arrives at the next start. While POUNCer runs, it asks again
+  every `refresh_days`.
+- The copy keeps the server's date (Last-Modified) and ETag, so the
+  comparison is exact; the RBN line says *SCP: … - up to date (checked
+  13:52)*.
+
 ## v0.7.61 — 2026-10-16 — SSB warm-up count in bold too
 
 - The warm-up part of the RBN line shows **both** counts bold:

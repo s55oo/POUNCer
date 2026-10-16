@@ -318,8 +318,11 @@ callsign is visible in the URL to GitHub. Optional own run list server:
 
 ## 14. Super Check Partial (HTTPS, out)
 
-`GET https://www.supercheckpartial.com/MASTER.SCP` at start when
-`cache\MASTER.SCP` is missing or older than `[scp] refresh_days` (7). Kept
+`GET https://www.supercheckpartial.com/MASTER.SCP` at every start (and every
+`[scp] refresh_days` while running), as a **conditional** request:
+`If-Modified-Since` (the copy's date = the server's `Last-Modified`) and
+`If-None-Match` (its `ETag`). The server answers **304 Not Modified** -
+no body - when the copy is current, so only a newer list is downloaded. Kept
 only if it holds at least 10 000 calls (an error page never replaces a good
 list). Optionally also copied into N1MM's `SupportFiles` (`[scp]
 update_n1mm`).
