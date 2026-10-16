@@ -286,7 +286,8 @@ spot list follows that radio's band. Every phone keeps its own choice -
 e.g. one phone for radio A, a second one for radio B. In the main window
 the **Radio A (A/B)** button does the same for clicks and keyboard F-keys;
 it only shows while N1MM reports two radios (with one there is nothing to
-switch).
+switch). A phone / browser that had radio B chosen goes back to A by
+itself when N1MM reports only one radio again (since v0.7.66).
 `[n1mm] default_radio = A` / `B` sets the start radio. Radio B is
 QSYed with N1MM's UDP command for radio 2 with mouse button **Left**,
 nothing typed (`[n1mm] radio_b_qsy = udp-left`, as SP_Helper does; with
