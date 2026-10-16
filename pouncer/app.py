@@ -2010,6 +2010,7 @@ class PouncerApp:
             "n1mm_freq": (snap or {}).get("freq_khz"),
             "log_open": self.worked.log_open, "log_name": self.worked.db_name,
             "log_source": self.worked.contest_source,
+            "log_stale_nr": self.worked.ini_stale_nr,
             "log_msg": self.worked.log_message,
             "call": self.own_call(),
             "rbn": rbn,

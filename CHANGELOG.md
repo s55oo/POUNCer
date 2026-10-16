@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## v0.7.53 — 2026-10-16 — no false "Log" warning in the check line
+
+- The check line warned *CHECK: Log ... enable App Info* whenever the open
+  contest came from N1MM's ini - also with App Info ticked, when POUNCer
+  was started after N1MM had opened the contest (N1MM sends App Info only
+  at its start and when a contest is opened or switched). Now it warns
+  only when the ini really looks out of date: the QSOs of the last 24
+  hours are in **another** contest than the ini names. A freshly opened,
+  still empty contest is fine.
+
 ## v0.7.52 — 2026-10-16 — counts only the contest open in N1MM
 
 - QSOs per band, worked and mults now always come from the **contest open

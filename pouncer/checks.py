@@ -46,12 +46,15 @@ def build(f: dict) -> list[dict]:
         add("N1MM", "bad", "no radio info (N1MM: Config > Broadcast Data > Radio)")
 
     if f.get("log_open"):
-        src = f.get("log_source")
-        if src in ("ini", "latest QSO"):
-            # N1MM writes its ini only now and then: after opening another
-            # contest it can still name the old one - AppInfo says it at once
+        # N1MM writes its ini only now and then: after opening another contest
+        # it can still name the old one. Warn only when that shows (today's
+        # QSOs are in another contest); AppInfo itself comes only at N1MM's
+        # start or a contest open, so POUNCer started later reads the ini.
+        stale = f.get("log_stale_nr")
+        if f.get("log_source") == "ini" and stale is not None:
             add("Log", "warn", (f.get("log_name") or "") +
-                " - enable N1MM Config > Broadcast Data > App Info (127.0.0.1:12060)")
+                f" - but today's QSOs are in contest #{stale}: N1MM's ini is out of date."
+                " Re-open the contest in N1MM, or tick Config > Broadcast Data > App Info")
         else:
             add("Log", "ok", f.get("log_name") or "")
     else:

@@ -13,6 +13,7 @@ when its callsign appears in the open log on the same band AND mode.
 from __future__ import annotations
 
 import logging
+import calendar
 import os
 import pathlib
 import re
@@ -249,6 +250,7 @@ class WorkedLog:
         self.app_info: Callable[[], dict | None] | None = None
         self._app_seen = None
         self.contest_source = ""                # "N1MM", "ini" or "latest QSO"
+        self.ini_stale_nr: int | None = None    # newest QSOs are in this other contest
         self._path: str | None = None
         self._keys: set[tuple[str, str, str]] = set()
         self._signature: tuple | None = None
@@ -464,15 +466,18 @@ class WorkedLog:
                     station = ""
                 cols = {r[1] for r in con.execute("PRAGMA table_info(DXLOG)")}
                 source = getattr(self, "_source", "ini")
-                if contest_nr is None and "ContestNR" in cols:
-                    # nobody named the contest: never count every contest of
-                    # the database - take the one with the newest QSO
+                newest_nr, newest_ts = None, ""
+                if "ContestNR" in cols and "TS" in cols:
                     row = con.execute(
-                        "SELECT ContestNR FROM DXLOG WHERE ContestNR IS NOT NULL "
+                        "SELECT ContestNR, TS FROM DXLOG WHERE ContestNR IS NOT NULL "
                         "ORDER BY TS DESC LIMIT 1").fetchone()
                     if row and row[0] is not None:
-                        contest_nr = int(row[0])
-                        source = "latest QSO"
+                        newest_nr, newest_ts = int(row[0]), str(row[1] or "")
+                if contest_nr is None and newest_nr is not None:
+                    # nobody named the contest: never count every contest of
+                    # the database - take the one with the newest QSO
+                    contest_nr = newest_nr
+                    source = "latest QSO"
                 mult_types = tuple(
                     f for f in self._read_mult_types(con, contest_name) if f in cols
                 )
@@ -518,6 +523,16 @@ class WorkedLog:
         self.contest_nr = contest_nr
         self.contest_name = contest_name
         self.contest_source = source
+        # ini out of date? QSOs of the last 24 h are in ANOTHER contest than
+        # the ini names (a freshly opened, still empty contest is fine)
+        self.ini_stale_nr = None
+        if source == "ini" and newest_nr is not None and newest_nr != contest_nr:
+            try:
+                t = calendar.timegm(time.strptime(newest_ts[:19], "%Y-%m-%d %H:%M:%S"))
+            except ValueError:
+                t = 0
+            if time.time() - t < 86400:
+                self.ini_stale_nr = newest_nr
         base = os.path.basename(path)
         if contest_nr is not None:
             self.db_name = f"{base} #{contest_nr} {contest_name}".strip()
