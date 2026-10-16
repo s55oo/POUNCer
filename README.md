@@ -158,24 +158,26 @@ is required.
 
 ## Main window menu
 
-<p align="center"><img src="docs/main-window.png" width="720"
-  alt="POUNCer 0.7.39 main window: menu bar File / View / Settings / Help, team bar, connection lights, N1MM / RBN / Log lines, sort and A/B buttons, F-key row and the spot list"></p>
+<p align="center"><img src="docs/main-window.png" width="760"
+  alt="POUNCer 0.7.62 main window: dark top bar with 3559.0 kHz 80m CW 30 WPM, READY badge and team badge SLAVE; connection lights; band open chips coloured by DX share with 20m selected; N1MM / RBN / Log info lines with bold values; Sort, Min SNR, F-keys with a green ENTER; spot list with new multipliers in red"></p>
 
-*The Windows main window (0.7.39; the look changed in 0.7.55, see below):
-menu bar, team bar, connection lights (RBN, N1MM, Log, Team, Phone, SSB,
-Warm-up, Update), the N1MM / RBN / Log lines, Sort and A/B buttons, the
-F-key row and the spot list.*
+*The Windows main window (0.7.62, a team slave on 80m): the 20m band chip is
+clicked, so the list shows the 20m spots while the radio stays on 80m;
+new multipliers in red, ⚡ = rare CQ, ? = not in Super Check Partial.*
 
-Since 0.7.55 the window is laid out like this, from the top:
+The window is laid out like this, from the top:
 
 - a **dark top bar**: the radio frequency **large**, with band, mode, CW
   speed (and the other radio's frequency in SO2R / SO2V) next to it; on the
   right the **READY / CHECK / NOT READY** badge (click it to show the check
   items) and the team badge (MASTER / SLAVE / ALONE / TEAM OFF);
 - the check items - only while something is wrong (or after a click);
-- **one row of status chips**: the connection lights, then *Band open*;
+- **one row of status chips**: the connection lights, then *Band open* -
+  coloured from orange (only your continent heard) to green (all DX);
+  **click a band** to list its spots while the radio stays;
 - small grey info lines (N1MM, RBN, Log) with the values in bold;
-- Sort (the active sort key filled blue), Min SNR, Radio A/B;
+- Sort (the active sort key filled blue), Min SNR, and Radio A/B (only while
+  N1MM reports two radios);
 - the F-keys (ENTER green);
 - the spot list: taller rows, light zebra stripes, bold column headings;
 - a status bar: what the last tap did, and the phone page address.
@@ -183,8 +185,8 @@ Since 0.7.55 the window is laid out like this, from the top:
 The options and actions are in the menu bar (sort, the A / B key and the
 F-keys stay as buttons - they're used all contest long):
 
-* **File** - open the config folder (Explorer), Reconnect log, Restart
-  POUNCer, Exit.
+* **File** - open the config folder (Explorer), Reconnect log, Start
+  autostart programs now, Open the autostart folder, Restart POUNCer, Exit.
 * **View** - *Also enter callsign in N1MM* and *Hide worked* (tick),
   **Compact window (beside N1MM)** and **Always on top** (tick), Clear spots,
   Contest summary, Phone page in the browser.

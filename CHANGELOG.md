@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## Docs — 2026-10-16 (2)
+
+- **docs/main-window.png**: a new screenshot of the 0.7.62 window (top bar,
+  READY / team badges, band chips coloured by DX share with a band clicked,
+  bold info lines, green ENTER, spot list); README caption and layout list
+  updated (clickable band chips, A/B only with two radios, autostart menu).
+
 ## v0.7.62 — 2026-10-16 — Super Check Partial checked at every start
 
 - MASTER.SCP is now checked **at every start** (was: only when our copy was
