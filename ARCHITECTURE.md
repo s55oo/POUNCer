@@ -554,3 +554,7 @@ unit-tested (verified manually / by smoke runs).
 ## Mults waiting per band
 
 `PouncerApp._mults_waiting()` (cached 3 s): every (call, band) in `self.spots` in the shown modes, not removed / own call / beacon, `_mults(s)` > 0 → {band: {mults, mm}}. `_band_info()` = `_band_open()` + that; used by `_update_band_lights` (chip text `· n mults`) and the phone payload `bandopen` (band menu `.bmult` badge).
+
+## CQ zones page
+
+`pouncer/zones.py` `ZoneMap(entity, home, own)`: fed by `PouncerApp._on_raw_spot` (the `on_raw` hook of RBN telnet / HTTP / SSB cluster, also feeding `bandact`). A spot of our call (base call, `/P` ignored) → `hears_me` (band, skimmer's CQ zone); a spot by a skimmer on our continent → `i_hear` (band, spotted station's CQ zone). Events kept 1 h (max 50 000); `table(window_s)` → {band: {zone: {snr (best), n, calls, who[:8], age (min)}}}. `PouncerApp._zones(minutes=15)` adds own / my_zone / home / team; `/api/zones?min=` and the `/zones` page (`ZONES_HTML`, refresh 15 s, 15 / 30 / 60 min, `pouncer.zonemin`).

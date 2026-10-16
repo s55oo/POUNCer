@@ -29,6 +29,7 @@ from .scp import ScpList
 from .cwspeed import SpeedReader
 from . import checks as checksmod
 from .bandopen import BandActivity, dx_pct, share_color, state_of
+from .zones import ZoneMap
 from . import theme
 from . import autostart as autostartmod
 from . import diag as diagmod
@@ -185,6 +186,8 @@ class PouncerApp:
         self.clock = checksmod.ClockCheck()   # PC clock vs NTP (check line)
         # band open? spots of every skimmer on our continent, per band, 10 min
         self.bandact = BandActivity(lambda c: self._continent(c), lambda: self.home_cont)
+        # who hears me / what I hear, per band and CQ zone (the /zones page)
+        self.zonemap = ZoneMap(self._entity, lambda: self.home_cont, self.own_call)
         self._checks: list[dict] = []
         if self.runhist is not None and config.warmup:
             self.runhist.warm_up()  # CQWW / ARRL DX / WPX: CW list + separate SSB list
@@ -470,6 +473,7 @@ class PouncerApp:
         view.add_separator()
         view.add_command(label="Clear spots", command=self._clear_spots)
         view.add_command(label="Contest summary", command=lambda: self._open_browser("summary"))
+        view.add_command(label="CQ zones: who hears me", command=lambda: self._open_browser("zones"))
         view.add_command(label="Phone page in the browser", command=self._open_browser)
         bar.add_cascade(label="View", menu=view)
         bar.add_command(label="Settings...", command=self._settings_win.open)
@@ -1120,7 +1124,7 @@ class PouncerApp:
                 history=self.cfg.ssb_history,
                 backup_commands=self.cfg.ssb_commands,
                 kind="cluster", modes=("SSB",), name="ssb",
-                on_raw=self.bandact.add,
+                on_raw=self._on_raw_spot,
             )
             # cluster commands are sent like the backup's (after login)
             self._ssb_client.backup_commands = tuple(self.cfg.ssb_commands)
@@ -1162,7 +1166,7 @@ class PouncerApp:
                 url, self.spotter_filter, self.spot_queue,
                 on_status=lambda t: log.info("RBN HTTP: %s", t),
                 modes=tuple(m for m in self.cfg.follow_modes if m.upper() in ("CW", "RTTY"))
-                or ("CW",), on_raw=self.bandact.add)
+                or ("CW",), on_raw=self._on_raw_spot)
             self._http_feed.start()
             log.info("RBN telnet down / silent: HTTP backup %s started", url)
 
@@ -1197,7 +1201,7 @@ class PouncerApp:
                 backup=((self.cfg.rbn_backup_host, self.cfg.rbn_backup_port)
                         if port == self.cfg.rbn_port and self.cfg.rbn_backup_host else None),
                 backup_commands=self.cfg.rbn_backup_commands,
-                on_raw=self.bandact.add,
+                on_raw=self._on_raw_spot,
             )
             client.start()
             self._rbn_clients[port] = client
@@ -2368,6 +2372,28 @@ class PouncerApp:
             return {}
         return self.bandact.summary()
 
+    def _on_raw_spot(self, spot) -> None:
+        """Every live spot of the whole feed (before the list filters)."""
+        self.bandact.add(spot)
+        zm = getattr(self, "zonemap", None)
+        if zm is not None:
+            try:
+                zm.add(spot)
+            except Exception as exc:  # noqa: BLE001 - never stop the feed
+                log.debug("zones: %s", exc)
+
+    def _zones(self, minutes: int = 15) -> dict:
+        """/api/zones: who hears me / what I hear per band and CQ zone, over
+        the last ``minutes`` (15 by default; the page offers 30 / 60)."""
+        minutes = max(5, min(60, int(minutes or 15)))
+        own = self.own_call()
+        ent = self._entity(own) if own else None
+        out = self.zonemap.table(minutes * 60)
+        out.update(own=own, my_zone=getattr(ent, "cq", None), home=self.home_cont,
+                   minutes=minutes, bands=list(CONTEST_BANDS),
+                   team=self.team.role() if self.team is not None else "off")
+        return out
+
     def _mults_waiting(self) -> dict[str, dict]:
         """{band: {"mults": stations that are a new multiplier there, "mm":
         of them double}} - from the spots in the list (all bands, the shown
@@ -2828,6 +2854,7 @@ class PouncerApp:
                 self._web_tune, self._web_filter, self._web_clear,
             )
             self.web.set_summary_provider(self._summary)
+            self.web.set_zones_provider(self._zones)
             if self.cfg.web_cw_keyboard:
                 self.web.set_cw_handler(self._web_cw)
             self.web.set_min_snr_handler(self._web_min_snr)

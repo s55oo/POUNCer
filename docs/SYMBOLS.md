@@ -194,3 +194,14 @@ Marks in the call and Mult columns:
 | **TX** | what you type goes to N1MM's CW window (Ctrl+K) as you type; Backspace removes letters not sent yet |
 | **DONE ⏎** | N1MM sends the rest and closes its CW window |
 | **STOP (Esc)** | stop sending at once |
+
+## CQ zones page
+
+| What you see | Meaning |
+| --- | --- |
+| **blue** box, row *hears me* | skimmers in that CQ zone spotted your call on that band; the number = best SNR (dB) |
+| **green** box, row *I hear* | skimmers on your continent heard stations from that zone |
+| brighter box | stronger (about 3 dB = darkest, 30 dB or more = brightest) |
+| dark box | nothing in the chosen time (15 min by default) |
+| **yellow** column / frame | your own CQ zone |
+| small number after *hears me* / *I hear*, and the *zones* column | how many zones that row has |

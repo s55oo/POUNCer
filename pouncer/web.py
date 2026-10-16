@@ -464,6 +464,7 @@ INDEX_HTML = """<!doctype html>
   <div class="bandgrid" id="bandgrid"></div>
   <button class="sheet-close" id="alertbtn">Alerts: on</button>
   <a class="sheet-close helplink" href="/summary">Contest summary</a>
+  <a class="sheet-close helplink" href="/zones">CQ zones: who hears me</a>
   <a class="sheet-close helplink" href="/settings">Settings</a>
   <a class="sheet-close helplink" href="/help">Help: what every button does</a>
   <button class="sheet-close" id="bandclose">Cancel</button>
@@ -1598,6 +1599,12 @@ open: QSOs and how many came <b>from POUNCer</b> (you tapped that call on that b
 15 minutes before logging it), multipliers and how many came from spots, rate on the
 air, best 60 minutes, a per-band table, rate per hour and the list of multipliers you
 worked from spots. POUNCer keeps the taps in <code>cache\\taps.jsonl</code> (14 days).</p>
+<h2>CQ zones: who hears me</h2>
+<p><b>CQ zones</b> in the band menu (or <b>View &gt; CQ zones</b> in the window): per band two
+rows of CQ zones 1-40 - <b style="color:#64b5f6">hears me</b> = skimmers in that zone spotted your
+call (you need to call CQ), <b style="color:#81c784">I hear</b> = skimmers on your continent heard
+stations from that zone. Number = best SNR, brighter = stronger; tap a box for who and when.
+Your zone is yellow. The last 15 minutes (or 30 / 60).</p>
 
 <h2>SSB</h2>
 <p>RBN has no SSB, so on SSB the spots come from a <b>DX cluster</b> (human spots, only from
@@ -1795,6 +1802,152 @@ def pick_web_address(
     if ips:
         return ips[0], "LAN"
     return "localhost", "local only"
+
+
+ZONES_HTML = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>POUNCer __VERSION__ CQ zones</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #101418; color: #e6e6e6;
+    font: 15px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { padding: 12px 16px 40px; max-width: 1200px; margin: 0 auto; }
+  .bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  a.back, .bar button { display: inline-block; margin: 4px 0 8px; padding: 9px 13px; border: 0;
+    background: #263238; color: #fff; border-radius: 10px; text-decoration: none;
+    font: inherit; font-weight: 700; cursor: pointer; }
+  a.back { background: #2e7d32; }
+  .bar button.on { background: #1565c0; }
+  h1 { font-size: 20px; margin: 6px 0 2px; }
+  p.lead { opacity: .75; margin: 0 0 8px; font-size: 13px; }
+  .wrap { overflow-x: auto; border-radius: 10px; background: #161c21; }
+  table { border-collapse: separate; border-spacing: 2px; font-variant-numeric: tabular-nums; }
+  th, td { width: 24px; min-width: 24px; height: 24px; text-align: center; font-size: 11px;
+    padding: 0; border-radius: 4px; }
+  th { font-weight: 600; opacity: .75; }
+  th.mine { color: #ffeb3b; opacity: 1; }
+  td.c { cursor: pointer; color: #fff; font-weight: 700; }
+  td.e { background: #1f272d; }
+  td.mine { box-shadow: inset 0 0 0 1px #ffeb3b; }
+  .lab { position: sticky; left: 0; background: #161c21; text-align: left; white-space: nowrap;
+    padding: 0 8px 0 4px; width: auto; min-width: 92px; font-size: 12px; z-index: 1; }
+  .lab b { font-size: 13px; }
+  .lab .me { color: #64b5f6; } .lab .hr { color: #81c784; }
+  tr.first td, tr.first th { border-top: 6px solid transparent; }
+  .n { opacity: .7; font-size: 11px; padding: 0 6px; width: auto; min-width: 44px; text-align: left; }
+  .cnt { opacity: .6; font-size: 11px; }
+  #info { margin-top: 10px; min-height: 44px; background: #1c2329; border-radius: 10px;
+    padding: 10px 12px; font-size: 13px; }
+  .legend { font-size: 12px; opacity: .85; margin: 8px 0; display: flex; gap: 14px; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 4px;
+    vertical-align: -2px; }
+  .msg { background: #3e2723; border-radius: 10px; padding: 10px 12px; margin: 8px 0; font-size: 13px; }
+</style>
+</head>
+<body><main>
+<div class="bar">
+  <a class="back" href="/">&larr; Spots</a>
+  <span style="opacity:.7;font-size:13px">last</span>
+  <button data-min="15">15 min</button><button data-min="30">30 min</button><button data-min="60">60 min</button>
+</div>
+<h1>CQ zones: who hears me, what I hear</h1>
+<p class="lead" id="lead">Per band two rows: <b style="color:#64b5f6">hears me</b> = skimmers in that
+CQ zone spotted <b>your call</b> (you need to call CQ); <b style="color:#81c784">I hear</b> =
+skimmers on <b>your continent</b> heard stations from that zone. The number = best SNR (dB);
+brighter = stronger; the small number after the label = how many zones. Tap a box for who and
+when. Your zone is marked yellow.</p>
+<div id="msg"></div>
+<div class="wrap"><table id="t"></table></div>
+<div class="legend">
+  <span><i style="background:hsl(210,70%,22%)"></i>hears me, weak</span>
+  <span><i style="background:hsl(210,80%,48%)"></i>hears me, strong</span>
+  <span><i style="background:hsl(125,55%,20%)"></i>I hear, weak</span>
+  <span><i style="background:hsl(125,65%,42%)"></i>I hear, strong</span>
+  <span><i style="background:#1f272d"></i>nothing</span>
+</div>
+<div id="info">Tap a box.</div>
+</main>
+<script>
+  let minutes = 15;     // the last 15 minutes unless you pick 30 / 60
+  try { minutes = Number(localStorage.getItem('pouncer.zonemin')) || 15; } catch (e) {}
+  let last = null;
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  function color(kind, snr) {
+    const v = Math.max(0, Math.min(1, ((snr == null ? 8 : snr) - 3) / 27));   // 3 dB .. 30 dB
+    return kind === 'me' ? 'hsl(210,' + (70 + 10 * v) + '%,' + (22 + 26 * v) + '%)'
+                         : 'hsl(125,' + (55 + 10 * v) + '%,' + (20 + 22 * v) + '%)';
+  }
+  function markButtons() {
+    document.querySelectorAll('.bar button').forEach(b => b.classList.toggle('on', Number(b.dataset.min) === minutes));
+  }
+  function render(d) {
+    last = d;
+    const t = document.getElementById('t');
+    const mz = d.my_zone;
+    let h = '<tr><th class="lab"></th>';
+    for (let z = 1; z <= 40; z++) h += '<th' + (z === mz ? ' class="mine"' : '') + '>' + z + '</th>';
+    h += '<th class="n">zones</th></tr>';
+    (d.bands || []).forEach(band => {
+      [['me', 'hears_me', 'hears me'], ['hr', 'i_hear', 'I hear']].forEach(([cls, key, label], i) => {
+        const row = (d[key] || {})[band] || {};
+        let n = 0, cells = '';
+        for (let z = 1; z <= 40; z++) {
+          const c = row[z] || row[String(z)];
+          const mine = z === mz ? ' mine' : '';
+          if (!c) { cells += '<td class="e' + mine + '"></td>'; continue; }
+          n++;
+          cells += '<td class="c' + mine + '" style="background:' + color(cls, c.snr) + '" data-b="' + esc(band) +
+            '" data-k="' + key + '" data-z="' + z + '">' + (c.snr == null ? '&bull;' : esc(c.snr)) + '</td>';
+        }
+        // the zone count also next to the label: on a phone the end of the row is off screen
+        h += '<tr' + (i === 0 ? ' class="first"' : '') + '><td class="lab">' +
+          (i === 0 ? '<b>' + esc(band) + '</b> ' : '<span style="visibility:hidden"><b>' + esc(band) + '</b> </span>') +
+          '<span class="' + cls + '">' + label + '</span> <span class="cnt">' + n + '</span></td>' +
+          cells + '<td class="n">' + n + '</td></tr>';
+      });
+    });
+    t.innerHTML = h;
+    const msgs = [];
+    if (!d.own) msgs.push('Your call isn\\'t known yet (N1MM station call or [rbn] callsign) - "hears me" stays empty.');
+    if (d.team === 'slave') msgs.push('This POUNCer is a team <b>slave</b>: it has no RBN feed of its own. Open this page on the master POUNCer.');
+    document.getElementById('msg').innerHTML = msgs.map(m => '<div class="msg">' + m + '</div>').join('');
+  }
+  document.getElementById('t').addEventListener('click', e => {
+    const td = e.target.closest('td.c');
+    if (!td || !last) return;
+    const c = ((last[td.dataset.k] || {})[td.dataset.b] || {})[td.dataset.z];
+    if (!c) return;
+    const me = td.dataset.k === 'hears_me';
+    document.getElementById('info').innerHTML = '<b>' + esc(td.dataset.b) + ', CQ zone ' + esc(td.dataset.z) + '</b>: ' +
+      (me ? c.calls + ' skimmer' + (c.calls > 1 ? 's' : '') + ' heard you'
+          : c.calls + ' station' + (c.calls > 1 ? 's' : '') + ' heard here') +
+      (c.snr != null ? ', best ' + c.snr + ' dB' : '') + ', ' + c.n + ' spot' + (c.n > 1 ? 's' : '') +
+      ', last ' + (c.age ? c.age + ' min ago' : 'just now') + '<br><span style="opacity:.8">' +
+      esc((c.who || []).join(', ')) + (c.calls > (c.who || []).length ? ' ...' : '') + '</span>';
+  });
+  document.querySelectorAll('.bar button').forEach(b => b.onclick = () => {
+    minutes = Number(b.dataset.min);
+    try { localStorage.setItem('pouncer.zonemin', String(minutes)); } catch (e) {}
+    markButtons(); load();
+  });
+  async function load() {
+    try {
+      const r = await fetch('/api/zones?min=' + minutes, {cache: 'no-store'});
+      const d = await r.json();
+      if (d.ok === false) { document.getElementById('msg').innerHTML = '<div class="msg">' + esc(d.error) + '</div>'; return; }
+      render(d);
+    } catch (e) {
+      document.getElementById('msg').innerHTML = '<div class="msg">POUNCer not reachable: ' + esc(e) + '</div>';
+    }
+  }
+  markButtons(); load(); setInterval(load, 15000);
+</script>
+</body>
+</html>
+"""
 
 
 SUMMARY_HTML = """<!doctype html>
@@ -2320,6 +2473,24 @@ class _Handler(BaseHTTPRequestHandler):
         if parsed.path.startswith("/api/settings") or parsed.path == "/api/restart":
             self._settings_api(parsed)
             return
+        if parsed.path in ("/zones", "/zones.html"):
+            page = ZONES_HTML.replace("__VERSION__", __version__)
+            self._send(200, page.encode("utf-8"), "text/html; charset=utf-8")
+            return
+        if parsed.path == "/api/zones":
+            getter = getattr(self.server, "get_zones", None)
+            if getter is None:
+                self._send_json({"ok": False, "error": "not available"})
+                return
+            try:
+                minutes = int((parse_qs(parsed.query).get("min") or ["15"])[0])
+            except ValueError:
+                minutes = 15
+            try:
+                self._send_json(getter(minutes))
+            except Exception as exc:
+                self._send_json({"ok": False, "error": str(exc)}, 500)
+            return
         if parsed.path in ("/summary", "/summary.html"):
             page = SUMMARY_HTML.replace("__VERSION__", __version__)
             self._send(200, page.encode("utf-8"), "text/html; charset=utf-8")
@@ -2402,6 +2573,10 @@ class WebServer:
     def set_cw_handler(self, fn) -> None:
         """Phone CW keyboard: fn(op, text, n, radio=...)."""
         self._httpd.on_cw = fn
+
+    def set_zones_provider(self, getter) -> None:
+        """Who hears me / what I hear per band and CQ zone, for /api/zones."""
+        self._httpd.get_zones = getter
 
     def set_summary_provider(self, getter) -> None:
         """Contest summary for /api/summary (a dict)."""
