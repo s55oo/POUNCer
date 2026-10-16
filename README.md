@@ -215,9 +215,11 @@ top line ("+5 weak") say how many are hidden.
 
 **Band open lights** (window: a row under the lights; phone: a dot on each
 band in the band menu): per contest band, what the skimmers on **your
-continent** heard in the last 10 minutes (the whole RBN feed) - green
-**20m: 34 DX** = open, 34 different DX stations; amber **80m: EU only** =
-only your own continent; grey **160m: –** = nothing. A team slave shows the master's
+continent** heard in the last 10 minutes (the whole RBN feed) -
+**20m: 34 DX 85%** = 34 different DX stations, 85 % of all heard. The colour
+goes with that share: orange = (almost) only your own continent, through
+yellow, to green = (almost) all DX; **80m: EU only** = no DX to speak of;
+grey **160m: –** = nothing. A team slave shows the master's
 counts. `[ui] band_lights = false` hides them.
 
 **Already tried**: stations you tapped (called) get **↻3m** after the call

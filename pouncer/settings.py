@@ -132,8 +132,9 @@ SETTINGS: list[dict] = [
              "RBN, cty, SCP, phone, PC clock. The phone warns only when something is wrong."},
     {"key": "ui.band_lights", "attr": "band_lights", "kind": "bool",
      "live": True, "group": "Program", "label": "Band open lights",
-     "help": "Per band: green '20m: 34 DX' = open (5+ DX stations heard by skimmers on your "
-             "continent in 10 min), amber '80m: EU only' = only your continent, grey = nothing."},
+     "help": "Per band, what skimmers on your continent hear (10 min): '20m: 34 DX 85%'; "
+             "the colour goes from orange (only your continent) to green (all DX) "
+             "with the DX share; grey = nothing."},
     {"key": "autostart.enabled", "attr": "autostart", "kind": "bool", "live": True,
      "group": "Autostart", "label": "Start my programs with POUNCer",
      "help": "Programs 1-4 below, then everything in the autostart folder - each after its "

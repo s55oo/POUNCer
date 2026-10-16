@@ -28,7 +28,7 @@ from .rbnhttp import RBNHttpFeed
 from .scp import ScpList
 from .cwspeed import SpeedReader
 from . import checks as checksmod
-from .bandopen import BandActivity, state_of
+from .bandopen import BandActivity, dx_pct, share_color, state_of
 from . import theme
 from . import autostart as autostartmod
 from . import win32 as win32mod
@@ -1303,7 +1303,8 @@ class PouncerApp:
             # minimum SNR of the list and how many weaker spots it hides
             "min_snr": self.cfg.min_snr,
             # band open? {band: {state open/local/closed, dx, calls, spots}}
-            "bandopen": self._band_open() if self.cfg.band_lights else {},
+            "bandopen": ({b: dict(v, bg=self._band_chip_color(v)[0], fg=self._band_chip_color(v)[1])
+                          for b, v in self._band_open().items()} if self.cfg.band_lights else {}),
             # pre-contest check (the phone warns when it isn't all fine)
             "checks": {"state": checksmod.worst(self._checks) if self._checks else "ok",
                        "items": [c for c in self._checks if c["state"] in ("warn", "bad")]},
@@ -2171,17 +2172,27 @@ class PouncerApp:
         if self.team is not None and self.team.role() == "slave":
             got = self.team.master_bands()
             if isinstance(got, dict):
-                return {b: dict(v, state=state_of(v)) for b, v in got.items() if isinstance(v, dict)}
+                return {b: dict(v, state=state_of(v), pct=dx_pct(v))
+                        for b, v in got.items() if isinstance(v, dict)}
             return {}
         return self.bandact.summary()
 
     def _band_chip_text(self, band: str, c: dict) -> str:
-        """'40m: 34 DX' (open) / '80m: EU only' (only our continent) / '160m: -'."""
+        """'40m: 34 DX 70%' (open) / '80m: EU only' (only our continent) /
+        '160m: -' (nothing). The % = DX stations of all heard (the colour)."""
         if c.get("state") == "open":
-            return f"{band}: {c.get('dx', 0)} DX"
+            return f"{band}: {c.get('dx', 0)} DX {dx_pct(c)}%"
         if c.get("state") == "local":
             return f"{band}: {self.home_cont} only"
         return f"{band}: \u2013"
+
+    @staticmethod
+    def _band_chip_color(c: dict) -> tuple[str, str]:
+        """Grey when nothing is heard, else orange (our continent) -> green
+        (DX) in proportion to the DX share."""
+        if c.get("state") == "closed" or not c.get("calls"):
+            return "#bdbdbd", "#424242"
+        return share_color(dx_pct(c))
 
     def _update_band_lights(self) -> None:
         if self.bands_frame is None:         # made with the lights (same row)
@@ -2195,7 +2206,8 @@ class PouncerApp:
             return
         data = self._band_open()
         here = self._current_band()
-        key = (tuple(sorted((b, v.get("dx"), v.get("state")) for b, v in data.items())), here)
+        key = (tuple(sorted((b, v.get("dx"), v.get("calls"), v.get("state")) for b, v in data.items())),
+               here)
         if key == self._bands_last:
             return
         self._bands_last = key
@@ -2210,7 +2222,7 @@ class PouncerApp:
                 self._band_lights[band] = lbl
         for band, lbl in self._band_lights.items():
             c = data.get(band) or {"state": "closed", "dx": 0, "spots": 0}
-            bg, fg = self.BAND_COLORS[c["state"]]
+            bg, fg = self._band_chip_color(c)
             lbl.configure(text=self._band_chip_text(band, c), bg=bg, fg=fg,
                           relief="solid" if band == here else "flat", bd=1 if band == here else 0)
 

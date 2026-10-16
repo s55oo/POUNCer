@@ -1207,7 +1207,12 @@ INDEX_HTML = """<!doctype html>
         const o = document.createElement('span');
         o.className = 'bopen ' + bo.state;
         o.textContent = bo.state === 'open' ? String(bo.dx) : '';
-        o.title = bo.state === 'open' ? bo.dx + ' DX stations heard by skimmers on your continent (10 min)'
+        // orange (only our continent) -> green (all DX), by the DX share
+        if (bo.state !== 'closed' && bo.bg) {   // same colour as the window's chip
+          o.style.background = bo.bg;
+          o.style.color = bo.fg || '#fff';
+        }
+        o.title = bo.state === 'open' ? bo.dx + ' DX stations (' + (bo.pct || 0) + '% of all heard) by skimmers on your continent (10 min)'
           : (bo.state === 'local' ? 'only your continent heard (' + bo.calls + ' stations)' : 'nothing heard');
         btn.appendChild(o);
       }
