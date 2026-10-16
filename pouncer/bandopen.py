@@ -71,6 +71,7 @@ class BandActivity:
         self._lock = threading.Lock()
         self._spots: dict[str, deque] = {}     # band -> (t, dx call, from another continent)
         self._skimmer_cont: dict[str, str | None] = {}
+        self.on_count = None      # (band, t, call, dx) for every spot counted (timeline)
 
     def add(self, spot) -> None:
         """One live spot (any skimmer) - counted when its spotter is near."""
@@ -91,11 +92,17 @@ class BandActivity:
             return
         dx_cont = self._continent(spot.dxcall)
         t = getattr(spot, "received", None) or self._clock()
+        far = bool(dx_cont and dx_cont != home)
         with self._lock:
             q = self._spots.setdefault(band, deque())
-            q.append((t, spot.dxcall.upper(), bool(dx_cont and dx_cont != home)))
+            q.append((t, spot.dxcall.upper(), far))
             if len(q) > 20000:
                 q.popleft()
+        if self.on_count is not None:
+            try:
+                self.on_count(band, t, spot.dxcall.upper(), far)
+            except Exception:  # noqa: BLE001 - the lights must keep counting
+                pass
 
     def summary(self) -> dict[str, dict]:
         """{band: {spots, calls, dx, state}} for every contest band."""

@@ -209,3 +209,20 @@ Marks in the call and Mult columns:
 | dark box | nothing in the chosen time (15 min by default) |
 | **yellow** column / frame | your own CQ zone |
 | small number after *hears me* / *I hear*, and the *zones* column | how many zones that row has |
+
+## Band opening timeline
+
+![Band opening timeline](timeline-page.png)
+
+*(example data)*
+
+| What you see | Meaning |
+| --- | --- |
+| a row | one band, 160 m at the top |
+| a box | 10 minutes (or 1 hour with **1 hour**), time in UTC from left to right |
+| **orange** box | heard by skimmers on your continent: (almost) only your own continent |
+| **green** box | mostly DX (other continents); in between = mixed |
+| brighter box | more spots in those 10 minutes |
+| dark box | nothing heard |
+| **yellow** frame | now (the 10 minutes running) |
+| number after a row | spots on that band in the time shown |

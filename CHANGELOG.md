@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## v0.7.71 — 2026-10-16 — band opening timeline
+
+- **New page `/timeline`** (*View > Band opening timeline*, phone band menu):
+  one row per band 160-10 m, **10-minute boxes** from left to right (UTC,
+  every hour marked, now at the right), from what the skimmers on your
+  continent heard. Colour = DX share (orange = only your continent, green =
+  DX) like the band chips, brighter = more spots; tap a box for spots,
+  stations and DX stations. 6 / 12 / 24 / 48 h, boxes of 10 min or 1 hour.
+  Kept 48 h in `cache/timeline.json` (counts only), also over a restart.
+
 ## Docs — 2026-10-16 (5)
 
 - **docs/zones-page.png**: a picture of the CQ zones page (example data) in

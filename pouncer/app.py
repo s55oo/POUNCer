@@ -30,6 +30,7 @@ from .cwspeed import SpeedReader
 from . import checks as checksmod
 from .bandopen import BandActivity, dx_pct, share_color, state_of
 from .zones import ZoneMap
+from .timeline import Timeline
 from . import theme
 from . import autostart as autostartmod
 from . import diag as diagmod
@@ -186,6 +187,9 @@ class PouncerApp:
         self.clock = checksmod.ClockCheck()   # PC clock vs NTP (check line)
         # band open? spots of every skimmer on our continent, per band, 10 min
         self.bandact = BandActivity(lambda c: self._continent(c), lambda: self.home_cont)
+        # band opening timeline: spots per band in 10-minute boxes (the /timeline page)
+        self.timeline = Timeline(os.path.join(config.run_history_dir or "cache", "timeline.json"))
+        self.bandact.on_count = self.timeline.add
         # who hears me / what I hear, per band and CQ zone (the /zones page)
         self.zonemap = ZoneMap(self._entity, lambda: self.home_cont, self.own_call)
         self._checks: list[dict] = []
@@ -474,6 +478,7 @@ class PouncerApp:
         view.add_command(label="Clear spots", command=self._clear_spots)
         view.add_command(label="Contest summary", command=lambda: self._open_browser("summary"))
         view.add_command(label="CQ zones: who hears me", command=lambda: self._open_browser("zones"))
+        view.add_command(label="Band opening timeline", command=lambda: self._open_browser("timeline"))
         view.add_command(label="Phone page in the browser", command=self._open_browser)
         bar.add_cascade(label="View", menu=view)
         bar.add_command(label="Settings...", command=self._settings_win.open)
@@ -869,6 +874,9 @@ class PouncerApp:
 
     def _save_window(self) -> None:
         """Remember the window for the next start (only while it exists)."""
+        tl = getattr(self, "timeline", None)
+        if tl is not None:           # the band timeline too (close / restart / update)
+            tl.save()
         try:
             zoomed = self.root.state() == "zoomed"
             compact = bool(self.compact_var.get())
@@ -2382,6 +2390,12 @@ class PouncerApp:
             except Exception as exc:  # noqa: BLE001 - never stop the feed
                 log.debug("zones: %s", exc)
 
+    def _timeline(self, hours: int = 12) -> dict:
+        """/api/timeline: spots per band and 10 minutes (skimmers on our continent)."""
+        out = self.timeline.grid(hours)
+        out.update(home=self.home_cont, team=self.team.role() if self.team is not None else "off")
+        return out
+
     def _zones(self, minutes: int = 15) -> dict:
         """/api/zones: who hears me / what I hear per band and CQ zone, over
         the last ``minutes`` (15 by default; the page offers 30 / 60)."""
@@ -2855,6 +2869,7 @@ class PouncerApp:
             )
             self.web.set_summary_provider(self._summary)
             self.web.set_zones_provider(self._zones)
+            self.web.set_timeline_provider(self._timeline)
             if self.cfg.web_cw_keyboard:
                 self.web.set_cw_handler(self._web_cw)
             self.web.set_min_snr_handler(self._web_min_snr)
@@ -2896,6 +2911,8 @@ class PouncerApp:
         self._web_addr_checked = time.time()
 
     def _shutdown(self) -> None:
+        if getattr(self, "timeline", None) is not None:
+            self.timeline.save()
         if self.team is not None:
             self.team.stop()
         if self.web is not None:

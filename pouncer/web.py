@@ -465,6 +465,7 @@ INDEX_HTML = """<!doctype html>
   <button class="sheet-close" id="alertbtn">Alerts: on</button>
   <a class="sheet-close helplink" href="/summary">Contest summary</a>
   <a class="sheet-close helplink" href="/zones">CQ zones: who hears me</a>
+  <a class="sheet-close helplink" href="/timeline">Band opening timeline</a>
   <a class="sheet-close helplink" href="/settings">Settings</a>
   <a class="sheet-close helplink" href="/help">Help: what every button does</a>
   <button class="sheet-close" id="bandclose">Cancel</button>
@@ -1605,6 +1606,12 @@ rows of CQ zones 1-40 - <b style="color:#64b5f6">hears me</b> = skimmers in that
 call (you need to call CQ), <b style="color:#81c784">I hear</b> = skimmers on your continent heard
 stations from that zone. Number = best SNR, brighter = stronger; tap a box for who and when.
 Your zone is yellow. The last 15 minutes (or 30 / 60).</p>
+<h2>Band opening timeline</h2>
+<p><b>Band opening timeline</b> in the band menu (or <b>View &gt; Band opening timeline</b>): one
+row per band, time left to right in 10-minute boxes (or 1 hour), now at the right. What the
+skimmers on your continent heard: <span style="color:#e08a3c">orange</span> = only your
+continent, <span style="color:#5bc35b">green</span> = DX, brighter = more spots. Tap a box for
+the numbers. 6 / 12 / 24 / 48 h; kept 48 hours, also over a restart.</p>
 
 <h2>SSB</h2>
 <p>RBN has no SSB, so on SSB the spots come from a <b>DX cluster</b> (human spots, only from
@@ -1944,6 +1951,182 @@ when. Your zone is marked yellow.</p>
     }
   }
   markButtons(); load(); setInterval(load, 15000);
+</script>
+</body>
+</html>
+"""
+
+
+TIMELINE_HTML = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>POUNCer __VERSION__ band timeline</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #101418; color: #e6e6e6;
+    font: 15px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { padding: 12px 16px 40px; max-width: 1400px; margin: 0 auto; }
+  .bar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  a.back, .bar button { display: inline-block; margin: 4px 0 8px; padding: 9px 12px; border: 0;
+    background: #263238; color: #fff; border-radius: 10px; text-decoration: none;
+    font: inherit; font-weight: 700; cursor: pointer; }
+  a.back { background: #2e7d32; }
+  .bar button.on { background: #1565c0; }
+  .sep { width: 10px; }
+  h1 { font-size: 20px; margin: 6px 0 2px; }
+  p.lead { opacity: .75; margin: 0 0 10px; font-size: 13px; }
+  .wrap { overflow-x: auto; background: #161c21; border-radius: 10px; padding: 8px 8px 6px; }
+  .grid { display: grid; gap: 2px 0; align-items: center; }
+  .lab { position: sticky; left: 0; background: #161c21; font-weight: 700; font-size: 13px;
+    padding-right: 8px; z-index: 1; }
+  .cell { height: 26px; border-radius: 2px; cursor: pointer; margin-right: 1px; }
+  .cell.h { margin-left: 3px; }                       /* first box of an hour */
+  .cell.now { outline: 1px solid #ffeb3b; outline-offset: -1px; }
+  .cell.e { background: #1f272d; }
+  .hours { font-size: 11px; opacity: .7; height: 16px; white-space: nowrap; overflow: visible; }
+  .tot { font-size: 11px; opacity: .6; padding-left: 8px; white-space: nowrap; }
+  #info { margin-top: 10px; min-height: 40px; background: #1c2329; border-radius: 10px;
+    padding: 10px 12px; font-size: 13px; }
+  .legend { font-size: 12px; opacity: .85; margin: 8px 0; display: flex; gap: 14px; flex-wrap: wrap;
+    align-items: center; }
+  .legend i { display: inline-block; width: 14px; height: 12px; border-radius: 2px; margin-right: 4px;
+    vertical-align: -2px; }
+  .msg { background: #3e2723; border-radius: 10px; padding: 10px 12px; margin: 8px 0; font-size: 13px; }
+</style>
+</head>
+<body><main>
+<div class="bar">
+  <a class="back" href="/">&larr; Spots</a>
+  <button data-h="6">6 h</button><button data-h="12">12 h</button><button data-h="24">24 h</button><button data-h="48">48 h</button>
+  <span class="sep"></span>
+  <button data-g="10">10 min</button><button data-g="60">1 hour</button>
+</div>
+<h1>Band opening timeline</h1>
+<p class="lead">What the skimmers on <b>your continent</b> heard, per band, in boxes of 10 minutes
+(or 1 hour), time in UTC from left to right, now at the right (yellow frame).
+<b>Colour</b> = the DX share like the band chips: <span style="color:#e08a3c">orange</span> = only
+your continent, <span style="color:#5bc35b">green</span> = DX; <b>brighter</b> = more spots.
+Tap a box for the numbers. Kept for 48 hours, also over a restart.</p>
+<div id="msg"></div>
+<div class="wrap"><div class="grid" id="g"></div></div>
+<div class="legend">
+  <span><i style="background:hsl(28,75%,22%)"></i>few, own continent</span>
+  <span><i style="background:hsl(28,75%,48%)"></i>many, own continent</span>
+  <span><i style="background:hsl(125,75%,22%)"></i>few, DX</span>
+  <span><i style="background:hsl(125,75%,45%)"></i>many, DX</span>
+  <span><i style="background:#1f272d"></i>nothing</span>
+</div>
+<div id="info">Tap a box.</div>
+</main>
+<script>
+  let hours = 12, group = 10, last = null;
+  try { hours = Number(localStorage.getItem('pouncer.tlhours')) || 12;
+        group = Number(localStorage.getItem('pouncer.tlgroup')) || 10; } catch (e) {}
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const hhmm = t => { const d = new Date(t * 1000); return String(d.getUTCHours()).padStart(2, '0') + ':' +
+    String(d.getUTCMinutes()).padStart(2, '0'); };
+  function color(spots, stations, dx, max) {
+    if (!spots) return '#1f272d';
+    const share = stations ? dx / stations : 0;
+    const hue = 28 + (125 - 28) * share;
+    const v = Math.log(1 + spots) / Math.log(1 + Math.max(max, 2));
+    return 'hsl(' + hue.toFixed(0) + ',75%,' + (16 + 34 * v).toFixed(0) + '%)';
+  }
+  function boxes(d) {           // [{t, len, cells: {band: [spots, stations, dx]}}]
+    const per = group === 60 ? 6 : 1, out = [];
+    for (let i = 0; i < d.slots.length; i++) {
+      const t = d.slots[i];
+      if (per > 1 && i > 0 && new Date(t * 1000).getUTCMinutes() !== 0 && out.length) {
+        const b = out[out.length - 1];
+        d.bands.forEach(band => { const c = d.cells[band][i], s = b.cells[band];
+          s[0] += c[0]; s[1] += c[1]; s[2] += c[2]; });
+        b.len += d.slot_s;
+        continue;
+      }
+      const cells = {};
+      d.bands.forEach(band => { cells[band] = d.cells[band][i].slice(); });
+      out.push({t: t, len: d.slot_s, cells: cells});
+    }
+    return out;
+  }
+  function render(d) {
+    last = d;
+    const bx = boxes(d);
+    last.boxes = bx;
+    let max = 0;
+    bx.forEach(b => d.bands.forEach(band => { max = Math.max(max, b.cells[band][0]); }));
+    const wrapW = document.querySelector('.wrap').clientWidth - 70 - 60;
+    const w = Math.max(group === 60 ? 14 : 6, Math.floor(wrapW / bx.length) - 1);
+    const g = document.getElementById('g');
+    g.style.gridTemplateColumns = 'max-content repeat(' + bx.length + ', ' + w + 'px) max-content';
+    let h = '<div class="lab"></div>';
+    // hour labels: every hour if there is room, else every 2 / 3 / 6 h
+    const pxPerHour = (w + 1) * (group === 60 ? 1 : 6);
+    const every = pxPerHour >= 34 ? 1 : (pxPerHour >= 17 ? 2 : (pxPerHour >= 11 ? 3 : 6));
+    bx.forEach(b => {
+      const d0 = new Date(b.t * 1000), top = d0.getUTCMinutes() === 0;
+      h += '<div class="hours">' + (top && d0.getUTCHours() % every === 0 ? String(d0.getUTCHours()).padStart(2, '0') : '') + '</div>';
+    });
+    h += '<div class="hours tot">spots</div>';
+    const nowIdx = bx.length - 1;
+    d.bands.forEach(band => {
+      h += '<div class="lab">' + esc(band) + '</div>';
+      let tot = 0;
+      bx.forEach((b, i) => {
+        const c = b.cells[band];
+        tot += c[0];
+        const top = new Date(b.t * 1000).getUTCMinutes() === 0 && i > 0;
+        h += '<div class="cell' + (c[0] ? '' : ' e') + (top ? ' h' : '') + (i === nowIdx ? ' now' : '') +
+          '" data-i="' + i + '" data-b="' + esc(band) + '" style="background:' + color(c[0], c[1], c[2], max) + '"></div>';
+      });
+      h += '<div class="tot">' + tot + '</div>';
+    });
+    const wrap = document.querySelector('.wrap');
+    const atEnd = !wrap.dataset.seen || wrap.scrollLeft + wrap.clientWidth >= wrap.scrollWidth - 20;
+    g.innerHTML = h;
+    // narrow screen: show "now" (the right end) unless you scrolled back
+    if (atEnd) wrap.scrollLeft = wrap.scrollWidth;
+    wrap.dataset.seen = '1';
+    const msgs = [];
+    if (d.team === 'slave') msgs.push('This POUNCer is a team <b>slave</b>: it has no RBN feed of its own - open this page on the master.');
+    document.getElementById('msg').innerHTML = msgs.map(m => '<div class="msg">' + m + '</div>').join('');
+  }
+  document.getElementById('g').addEventListener('click', e => {
+    const el = e.target.closest('.cell');
+    if (!el || !last) return;
+    const b = last.boxes[Number(el.dataset.i)], c = b.cells[el.dataset.b];
+    const pct = c[1] ? Math.round(100 * c[2] / c[1]) : 0;
+    document.getElementById('info').innerHTML = '<b>' + esc(el.dataset.b) + ' ' + hhmm(b.t) + '-' + hhmm(b.t + b.len) +
+      ' UTC</b>: ' + (c[0] ? c[0] + ' spots, ' + c[1] + ' stations, ' + c[2] + ' DX (' + pct + '%)' +
+      (group === 60 ? ' <span style="opacity:.7">(stations added up over the six 10-min boxes)</span>' : '')
+      : 'nothing heard');
+  });
+  function markButtons() {
+    document.querySelectorAll('[data-h]').forEach(b => b.classList.toggle('on', Number(b.dataset.h) === hours));
+    document.querySelectorAll('[data-g]').forEach(b => b.classList.toggle('on', Number(b.dataset.g) === group));
+  }
+  document.querySelectorAll('[data-h]').forEach(b => b.onclick = () => {
+    hours = Number(b.dataset.h); try { localStorage.setItem('pouncer.tlhours', String(hours)); } catch (e) {}
+    markButtons(); load();
+  });
+  document.querySelectorAll('[data-g]').forEach(b => b.onclick = () => {
+    group = Number(b.dataset.g); try { localStorage.setItem('pouncer.tlgroup', String(group)); } catch (e) {}
+    markButtons(); if (last) render(last);
+  });
+  window.addEventListener('resize', () => { if (last) render(last); });
+  async function load() {
+    try {
+      const r = await fetch('/api/timeline?hours=' + hours, {cache: 'no-store'});
+      const d = await r.json();
+      if (d.ok === false) { document.getElementById('msg').innerHTML = '<div class="msg">' + esc(d.error) + '</div>'; return; }
+      render(d);
+    } catch (e) {
+      document.getElementById('msg').innerHTML = '<div class="msg">POUNCer not reachable: ' + esc(e) + '</div>';
+    }
+  }
+  markButtons(); load(); setInterval(load, 60000);
 </script>
 </body>
 </html>
@@ -2473,6 +2656,24 @@ class _Handler(BaseHTTPRequestHandler):
         if parsed.path.startswith("/api/settings") or parsed.path == "/api/restart":
             self._settings_api(parsed)
             return
+        if parsed.path in ("/timeline", "/timeline.html"):
+            page = TIMELINE_HTML.replace("__VERSION__", __version__)
+            self._send(200, page.encode("utf-8"), "text/html; charset=utf-8")
+            return
+        if parsed.path == "/api/timeline":
+            getter = getattr(self.server, "get_timeline", None)
+            if getter is None:
+                self._send_json({"ok": False, "error": "not available"})
+                return
+            try:
+                hours = int((parse_qs(parsed.query).get("hours") or ["12"])[0])
+            except ValueError:
+                hours = 12
+            try:
+                self._send_json(getter(hours))
+            except Exception as exc:
+                self._send_json({"ok": False, "error": str(exc)}, 500)
+            return
         if parsed.path in ("/zones", "/zones.html"):
             page = ZONES_HTML.replace("__VERSION__", __version__)
             self._send(200, page.encode("utf-8"), "text/html; charset=utf-8")
@@ -2573,6 +2774,10 @@ class WebServer:
     def set_cw_handler(self, fn) -> None:
         """Phone CW keyboard: fn(op, text, n, radio=...)."""
         self._httpd.on_cw = fn
+
+    def set_timeline_provider(self, getter) -> None:
+        """Spots per band and 10 minutes, for /api/timeline."""
+        self._httpd.get_timeline = getter
 
     def set_zones_provider(self, getter) -> None:
         """Who hears me / what I hear per band and CQ zone, for /api/zones."""
