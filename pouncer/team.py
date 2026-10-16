@@ -73,6 +73,7 @@ class Team:
         send_to: list[tuple[str, int]] | None = None,
         version: str = "",
         peers: list[str] | None = None,
+        get_bands=None,       # -> band-open counts (master sends them to the slaves)
     ) -> None:
         self.id = uuid.uuid4().hex[:12]
         self.started = time.time()
@@ -83,6 +84,7 @@ class Team:
         self._on_runhist = on_runhist
         self._get_runhist = get_runhist
         self._rbn_ok = rbn_ok or (lambda: True)
+        self._get_bands = get_bands
         self._fixed_targets = send_to  # tests: only these
         self._manual_peers = [p.strip() for p in (peers or []) if p.strip()]
         self._if_socks: dict[str, socket.socket] = {}  # local IP -> socket bound to it
@@ -219,10 +221,23 @@ class Team:
         while not self._stop.is_set():
             now = time.time()
             self._last_healthy = self._healthy(now)
-            self._send({"t": "hi", "started": self.started, "web": self.web_port,
-                        "healthy": self._last_healthy, "ver": self.version})
+            hi = {"t": "hi", "started": self.started, "web": self.web_port,
+                  "healthy": self._last_healthy, "ver": self.version}
+            if self._get_bands is not None and self.is_master():
+                try:
+                    hi["bands"] = self._get_bands()
+                except Exception:  # noqa: BLE001
+                    pass
+            self._send(hi)
             self._maybe_sync()
             self._stop.wait(ANNOUNCE_S)
+
+    def master_bands(self) -> dict | None:
+        """Slave: the band-open counts the master sent last."""
+        mid = self.master_id()
+        with self._lock:
+            p = self.peers.get(mid or "")
+            return p.get("bands") if p else None
 
     def send_spot(self, spot: dict) -> None:
         """Master: pass one RBN spot on to the slaves."""
@@ -264,6 +279,7 @@ class Team:
                     "started": float(msg.get("started") or time.time()),
                     "healthy": bool(msg.get("healthy", True)),
                     "seen": time.time(), "ver": str(msg.get("ver") or ""),
+                    "bands": msg.get("bands") if isinstance(msg.get("bands"), dict) else None,
                 }
             if new:
                 log.info("team: POUNCer %s at %s joined", pid, ip)

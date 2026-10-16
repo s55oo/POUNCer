@@ -125,6 +125,7 @@ class Config:
     mark_tried: bool = True      # mark stations already tapped (called): "↻3m"
     tried_minutes: int = 30      # ... for this long after the last tap
     check_line: bool = True      # pre-contest check line in the window (+ phone warning)
+    band_lights: bool = True     # band open lights (skimmers on our continent, 10 min)
     max_age_minutes: int = 10
     fade_minutes: int = 5  # phone: tile fades when not re-spotted this long
     trigger: str = "single"
@@ -240,6 +241,7 @@ def load_config(path: str) -> Config:
     cfg.mark_tried = b("ui", "mark_tried", cfg.mark_tried)
     cfg.tried_minutes = max(1, min(720, i("ui", "tried_minutes", cfg.tried_minutes)))
     cfg.check_line = b("ui", "check_line", cfg.check_line)
+    cfg.band_lights = b("ui", "band_lights", cfg.band_lights)
     cfg.max_age_minutes = i("ui", "max_age_minutes", cfg.max_age_minutes)
     cfg.fade_minutes = max(1, i("ui", "fade_minutes", cfg.fade_minutes))
     cfg.tune_step_hz = max(1, i("ui", "tune_step_hz", cfg.tune_step_hz))

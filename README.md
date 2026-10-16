@@ -198,6 +198,13 @@ only when a busy band needs it). New multipliers and SSB cluster
 spots (no SNR) are always listed; the window's RBN line and the phone's
 top line ("+5 weak") say how many are hidden.
 
+**Band open lights** (window: a row under the lights; phone: a dot on each
+band in the band menu): per contest band, what the skimmers on **your
+continent** heard in the last 10 minutes (the whole RBN feed) - **green +
+number** = open, that many different DX stations; **amber** = only your
+own continent; **grey** = nothing. A team slave shows the master's
+counts. `[ui] band_lights = false` hides them.
+
 **Already tried**: stations you tapped (called) get **↻3m** after the call
 (window and phone) = last tapped 3 minutes ago on this band, **×2** = twice,
 for 30 minutes (`[ui] mark_tried`, `tried_minutes`; Settings).
@@ -500,6 +507,7 @@ All options live in `config.ini` and are documented there, line by line:
 | `min_snr_keep_mults` | true | New multipliers are listed even when weaker than `min_snr`. |
 | `mark_tried`, `tried_minutes` | true, 30 | Mark stations you tapped (↻3m, ×2) for this many minutes. |
 | `check_line` | true | Pre-contest check line in the window; phone warns when something is wrong. |
+| `band_lights` | true | Band open lights (window row, phone band menu dots) from skimmers on your continent. |
 | `max_age_minutes`, `fade_minutes` | 10, 5 | Drop spots older than this; phone tiles fade when not re-spotted. |
 | `fkeys` | F2 F3 F4 F5 F7 Enter | TX/log buttons in the main window and phone page: `KEY[:label]` list (default `F2:RPRT F3:TU F4:CALL F5:HisCALL F7:? Enter`). Each F-key **transmits** its N1MM message; `Enter` logs the QSO. Empty = no buttons. |
 | `forward_fkeys` | true | F1-F12 pressed in POUNCer go to N1MM. |

@@ -64,7 +64,7 @@ class RBNHttpFeed(threading.Thread):
 
     def __init__(self, url: str, spotter_filter, out_queue, on_status=None,
                  lookback_s: int = 600, poll_s: float = 5, limit: int = 2000,
-                 modes=("CW", "RTTY"), fetch=None, sleep=None) -> None:
+                 modes=("CW", "RTTY"), fetch=None, sleep=None, on_raw=None) -> None:
         super().__init__(daemon=True, name="rbn-http")
         self.url = url
         self.spotter_filter = spotter_filter
@@ -79,6 +79,7 @@ class RBNHttpFeed(threading.Thread):
         self._sleep = sleep or self._stop.wait
         self.cursor = ""
         self.spots_in = 0
+        self.on_raw = on_raw           # every spot, before the filter (band-open counter)
         self.last_ok = 0.0
 
     def stop(self) -> None:
@@ -106,6 +107,11 @@ class RBNHttpFeed(threading.Thread):
             self.cursor = str(doc["cursor"])
         for raw in doc.get("spots") or ():
             spot = to_spot(raw) if isinstance(raw, dict) else None
+            if spot is not None and self.on_raw is not None:
+                try:
+                    self.on_raw(spot)
+                except Exception:  # noqa: BLE001
+                    pass
             if spot is None or (self.modes and spot.mode not in self.modes):
                 continue
             acc = getattr(self.spotter_filter, "accept", None)

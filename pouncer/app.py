@@ -28,6 +28,7 @@ from .rbnhttp import RBNHttpFeed
 from .scp import ScpList
 from .cwspeed import SpeedReader
 from . import checks as checksmod
+from .bandopen import BandActivity, state_of
 from . import win32 as win32mod
 from . import summary as summarymod
 from . import settings as settingsmod
@@ -156,6 +157,8 @@ class PouncerApp:
         # Every tapped station (for the contest summary): cache\taps.jsonl
         self.taps = summarymod.TapLog(config.run_history_dir or "cache")
         self.clock = checksmod.ClockCheck()   # PC clock vs a web server's (check line)
+        # band open? spots of every skimmer on our continent, per band, 10 min
+        self.bandact = BandActivity(lambda c: self._continent(c), lambda: self.home_cont)
         self._checks: list[dict] = []
         if self.runhist is not None and config.warmup:
             self.runhist.warm_up()  # CQWW / ARRL DX / WPX: CW list + separate SSB list
@@ -275,6 +278,12 @@ class PouncerApp:
         # Connection lights: green = working, amber = waiting, red = down, grey = off
         self.lights_frame = FlowFrame(header, padx=14, pady=2)
         self.lights_frame.pack(fill="x", pady=(0, 4))
+        # Band open? one small light per contest band (skimmers on our continent)
+        self.bands_frame = FlowFrame(header, padx=6, pady=2)
+        if self.cfg.band_lights:
+            self.bands_frame.pack(fill="x", pady=(0, 4))
+        self._band_lights: dict[str, tk.Label] = {}
+        self._bands_last = None
         self._lights: list[tuple[tk.Label, tk.Label]] = []
         self._lights_last: list | None = None
         self._restart_btn: tk.Button | None = None
@@ -891,6 +900,7 @@ class PouncerApp:
                 history=self.cfg.ssb_history,
                 backup_commands=self.cfg.ssb_commands,
                 kind="cluster", modes=("SSB",), name="ssb",
+                on_raw=self.bandact.add,
             )
             # cluster commands are sent like the backup's (after login)
             self._ssb_client.backup_commands = tuple(self.cfg.ssb_commands)
@@ -932,7 +942,7 @@ class PouncerApp:
                 url, self.spotter_filter, self.spot_queue,
                 on_status=lambda t: log.info("RBN HTTP: %s", t),
                 modes=tuple(m for m in self.cfg.follow_modes if m.upper() in ("CW", "RTTY"))
-                or ("CW",))
+                or ("CW",), on_raw=self.bandact.add)
             self._http_feed.start()
             log.info("RBN telnet down / silent: HTTP backup %s started", url)
 
@@ -967,6 +977,7 @@ class PouncerApp:
                 backup=((self.cfg.rbn_backup_host, self.cfg.rbn_backup_port)
                         if port == self.cfg.rbn_port and self.cfg.rbn_backup_host else None),
                 backup_commands=self.cfg.rbn_backup_commands,
+                on_raw=self.bandact.add,
             )
             client.start()
             self._rbn_clients[port] = client
@@ -1213,6 +1224,8 @@ class PouncerApp:
             "wpm_popup": bool(self.cfg.cw_speed_popup),
             # minimum SNR of the list and how many weaker spots it hides
             "min_snr": self.cfg.min_snr,
+            # band open? {band: {state open/local/closed, dx, calls, spots}}
+            "bandopen": self._band_open() if self.cfg.band_lights else {},
             # pre-contest check (the phone warns when it isn't all fine)
             "checks": {"state": checksmod.worst(self._checks) if self._checks else "ok",
                        "items": [c for c in self._checks if c["state"] in ("warn", "bad")]},
@@ -1609,6 +1622,7 @@ class PouncerApp:
                 port=self.cfg.team_port,
                 version=__version__,
                 peers=list(self.cfg.team_peers),
+                get_bands=self.bandact.summary,
             )
             self.team.start()
         except OSError as exc:
@@ -1956,6 +1970,7 @@ class PouncerApp:
         )
         self.log_label.configure(text=worked)
         self._update_check_line()
+        self._update_band_lights()
         self._update_team_label()
         self._update_lights(snap)
 
@@ -2018,6 +2033,48 @@ class PouncerApp:
         text = checksmod.line(self._checks)
         if lbl.cget("text") != text or lbl.cget("bg") != bg:
             lbl.configure(text=text, bg=bg, fg=fg)
+
+    # ---- band open lights ---------------------------------------------------
+
+    BAND_COLORS = {"open": ("#2e7d32", "white"), "local": ("#f9a825", "black"),
+                   "closed": ("#bdbdbd", "#424242")}
+
+    def _band_open(self) -> dict[str, dict]:
+        """{band: {spots, calls, dx, state}} - ours, or the team master's."""
+        if self.team is not None and self.team.role() == "slave":
+            got = self.team.master_bands()
+            if isinstance(got, dict):
+                return {b: dict(v, state=state_of(v)) for b, v in got.items() if isinstance(v, dict)}
+            return {}
+        return self.bandact.summary()
+
+    def _update_band_lights(self) -> None:
+        shown = bool(self.bands_frame.winfo_manager())
+        if self.cfg.band_lights != shown:          # switched in Settings
+            if self.cfg.band_lights:
+                self.bands_frame.pack(fill="x", pady=(0, 4), after=self.lights_frame)
+            else:
+                self.bands_frame.pack_forget()
+        if not self.cfg.band_lights:
+            return
+        data = self._band_open()
+        here = self._current_band()
+        key = (tuple(sorted((b, v.get("dx"), v.get("state")) for b, v in data.items())), here)
+        if key == self._bands_last:
+            return
+        self._bands_last = key
+        if not self._band_lights:
+            self.bands_frame.add(tk.Label(self.bands_frame, text="Band open:", anchor="w"))
+            for band in CONTEST_BANDS:
+                self._band_lights[band] = self.bands_frame.add(
+                    tk.Label(self.bands_frame, text=band, padx=6, pady=1,
+                             font=("Segoe UI", 9, "bold"), relief="flat"))
+        for band, lbl in self._band_lights.items():
+            c = data.get(band) or {"state": "closed", "dx": 0, "spots": 0}
+            bg, fg = self.BAND_COLORS[c["state"]]
+            text = band.replace("m", "") + (f" {c['dx']}" if c["state"] == "open" else "")
+            lbl.configure(text=text, bg=bg, fg=fg,
+                          relief="solid" if band == here else "flat", bd=1 if band == here else 0)
 
     def _light_states(self, snap) -> list[tuple[str, str]]:
         role = self.team.role() if self.team is not None else "off"

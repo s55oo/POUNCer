@@ -571,6 +571,7 @@ class HttpBackupSwitchTests(unittest.TestCase):
                                       follow_modes=("CW",)),
             _rbn_clients={7000: client}, rbn_status="disconnected, reconnecting",
             _http_feed=None, _rbn_bad_since=None, _rbn_good_since=None,
+            bandact=types.SimpleNamespace(add=lambda s: None),
             spotter_filter=None, spot_queue=None)
         for name in ("_rbn_healthy", "_ensure_http_feed", "_stop_http_feed"):
             setattr(f, name, getattr(app.PouncerApp, name).__get__(f))
