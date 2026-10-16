@@ -519,6 +519,22 @@ wait_n1mm = true
 n1mm_timeout = 180
 ```
 
+**Which config.ini?** POUNCer reads the config.ini **next to the
+POUNCer.exe you start** (or the one given with `--config`). With two copies
+of POUNCer.exe (e.g. one in a `dist` folder) each has its own config.ini and
+its own autostart list - *File > Open the config folder* shows the one in use.
+
+**More than 4 programs:** put the rest in the autostart folder - a shortcut,
+or a small .bat that starts the program in its own folder:
+
+```bat
+@echo off
+start "" /D "C:\HAM\LogRouter" "C:\HAM\LogRouter\router.exe"
+```
+
+Name them `1 ....bat`, `2 ....bat` for the order; they start after
+programs 1-4 (and, with N1MM first, only when N1MM is up).
+
 Example - four copies of a log router, 5 s apart:
 
 ```ini
