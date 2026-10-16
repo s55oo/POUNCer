@@ -58,9 +58,16 @@ class TkLayoutTests(unittest.TestCase):
         frame.pack(fill="x")
         label = PouncerApp._wrap_label(frame, "word " * 80)
         self._settle("300x300+10+10")
-        self.assertLessEqual(int(str(label.cget("wraplength"))), 300)
-        self.assertLessEqual(label.winfo_reqwidth(), 310)
-        self.assertGreater(label.winfo_reqheight(), 40)  # several lines
+        self.root.update()
+        self.assertLessEqual(label.winfo_width(), 310)
+        self.assertGreater(label.winfo_height(), 40)  # several lines
+        # **...** = bold values; .cget("text") gives the plain text
+        label.configure(text="RBN: **logged in**   spotter=**S53WW**")
+        self.assertEqual(label.cget("text"), "RBN: logged in   spotter=S53WW")
+        bold = label.tag_ranges("b")
+        self.assertEqual([label.get(bold[i], bold[i + 1]) for i in range(0, len(bold), 2)],
+                         ["logged in", "S53WW"])
+        self.assertEqual(str(label.cget("state")), "disabled")   # read-only, copyable
 
 
     def test_fkey_row_stays_one_row(self) -> None:
@@ -279,6 +286,7 @@ class TkSpotListTests(unittest.TestCase):
             scp=types.SimpleNamespace(busted=lambda c: c == "PHB9CBR"),
             _is_dx=lambda c: False, _continent=lambda c: "EU",
             _act_on_spot=lambda s: tapped.append(s.dxcall))
+        f._tried = lambda s: (2, 3) if s.dxcall == "W2XYZ" else None
         for name in ("_rebuild", "_on_tree_key"):
             setattr(f, name, getattr(PouncerApp, name).__get__(f))
         f._row_key = PouncerApp._row_key            # a staticmethod

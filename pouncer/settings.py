@@ -119,6 +119,17 @@ SETTINGS: list[dict] = [
     {"key": "ui.min_snr_keep_mults", "attr": "min_snr_keep_mults", "kind": "bool",
      "live": True, "group": "Program", "label": "Min SNR: keep new mults",
      "help": "A new multiplier is shown even when it is weaker than the minimum SNR."},
+    {"key": "ui.mark_tried", "attr": "mark_tried", "kind": "bool",
+     "live": True, "group": "Program", "label": "Mark stations already tried",
+     "help": "A station you tapped (called) gets \u21bb3m = last tapped 3 min ago "
+             "(\u00d72 = twice), in the window and on the phone."},
+    {"key": "ui.tried_minutes", "attr": "tried_minutes", "kind": "int", "min": 1, "max": 720,
+     "live": True, "group": "Program", "label": "Tried mark for (minutes)",
+     "help": "How long after the last tap the mark stays."},
+    {"key": "ui.check_line", "attr": "check_line", "kind": "bool",
+     "live": True, "group": "Program", "label": "Pre-contest check line",
+     "help": "READY / CHECK / NOT READY line at the top of the window: N1MM, log, call, "
+             "RBN, cty, SCP, phone, PC clock. The phone warns only when something is wrong."},
     {"key": "ui.auto_update", "attr": "auto_update", "kind": "bool", "live": False,
      "group": "Program", "label": "Auto-update from GitHub", "help": ""},
 ]

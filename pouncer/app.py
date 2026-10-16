@@ -27,6 +27,7 @@ from .runhist import RARE_HOURS, RARE_RUN_PCT, RunHistory
 from .rbnhttp import RBNHttpFeed
 from .scp import ScpList
 from .cwspeed import SpeedReader
+from . import checks as checksmod
 from . import win32 as win32mod
 from . import summary as summarymod
 from . import settings as settingsmod
@@ -154,6 +155,8 @@ class PouncerApp:
         self._rbn_good_since: float | None = None
         # Every tapped station (for the contest summary): cache\taps.jsonl
         self.taps = summarymod.TapLog(config.run_history_dir or "cache")
+        self.clock = checksmod.ClockCheck()   # PC clock vs a web server's (check line)
+        self._checks: list[dict] = []
         if self.runhist is not None and config.warmup:
             self.runhist.warm_up()  # CQWW / ARRL DX / WPX: CW list + separate SSB list
         # Callsign -> continent (N1MM's wl_cty.dat) for EU / DX marking.
@@ -262,6 +265,13 @@ class PouncerApp:
         self.team_label = tk.Label(header, text="", anchor="w", font=("Segoe UI", 12, "bold"),
                                    padx=6, pady=2)
         self.team_label.pack(fill="x", pady=(0, 4))
+        # Pre-contest check: READY / CHECK / NOT READY + every item
+        self.check_label = tk.Label(header, text="", anchor="w", justify="left",
+                                    font=("Segoe UI", 10, "bold"), padx=6, pady=2)
+        self.check_label.bind("<Configure>", lambda e: self.check_label.configure(
+            wraplength=max(200, e.width - 12)))
+        if self.cfg.check_line:
+            self.check_label.pack(fill="x", pady=(0, 4), after=self.team_label)
         # Connection lights: green = working, amber = waiting, red = down, grey = off
         self.lights_frame = FlowFrame(header, padx=14, pady=2)
         self.lights_frame.pack(fill="x", pady=(0, 4))
@@ -521,6 +531,20 @@ class PouncerApp:
                 out[nr] = hwnd
         return out
 
+    def _tried(self, s) -> tuple[int, int] | None:
+        """Tapped this station on its band lately: (times, minutes since the
+        last tap); None when not (or [ui] mark_tried is off)."""
+        if not self.cfg.mark_tried:
+            return None
+        got = self.taps.tried(s.dxcall, band_from_khz(s.freq_khz), self.cfg.tried_minutes * 60)
+        if not got:
+            return None
+        return got[0], int((time.time() - got[1]) // 60)
+
+    def _tried_fields(self, s) -> dict:
+        t = self._tried(s)
+        return {"tried": t[1], "tries": t[0]} if t else {}
+
     def _wpm(self, nr: int) -> int | None:
         return self.cwspeed.wpm.get(nr) if self.cwspeed is not None else None
 
@@ -717,14 +741,12 @@ class PouncerApp:
             f"Settings: {self.cfg.config_path or 'config.ini'}\n{GITHUB_URL}"), parent=self.root)
 
     @staticmethod
-    def _wrap_label(parent, text: str) -> ttk.Label:
-        """A full-width label that wraps onto more lines when the window is narrow."""
-        label = ttk.Label(parent, text=text, anchor="w", justify="left")
+    def _wrap_label(parent, text: str):
+        """A full-width info line that wraps onto more lines when the window
+        is narrow; **...** in its text is shown bold (the values)."""
+        from .richlabel import RichLabel   # needs the real Tk (tests stub it)
+        label = RichLabel(parent, text)
         label.pack(fill="x")
-        label.bind(
-            "<Configure>",
-            lambda e, lbl=label: lbl.configure(wraplength=max(e.width - 4, 60)),
-        )
         return label
 
     def _on_sort(self, col: str) -> None:
@@ -1191,6 +1213,9 @@ class PouncerApp:
             "wpm_popup": bool(self.cfg.cw_speed_popup),
             # minimum SNR of the list and how many weaker spots it hides
             "min_snr": self.cfg.min_snr,
+            # pre-contest check (the phone warns when it isn't all fine)
+            "checks": {"state": checksmod.worst(self._checks) if self._checks else "ok",
+                       "items": [c for c in self._checks if c["state"] in ("warn", "bad")]},
             "snr_hidden": getattr(self, "_last_weak", 0),
             # phone CW keyboard (hold ENTER): allowed, open now, last problem
             "cw_keyboard": bool(self.cfg.web_cw_keyboard),
@@ -1237,6 +1262,7 @@ class PouncerApp:
                     "dx": self._is_dx(s.dxcall),
                     "mult": self._mults(s),
                     "busted": bool(self.scp is not None and self.scp.busted(s.dxcall)),
+                    **self._tried_fields(s),
                     **self._run_fields(s),
                     "cq_min": self._cq_minutes(s),
                     "first": self._first_heard_utc(s),
@@ -1630,6 +1656,20 @@ class PouncerApp:
         who = ", ".join(f"{ip} runs {ver}" for ip, ver in diff)
         return f"VERSIONS DIFFER: this one is {__version__}, {who} - update all to the same"
 
+    @staticmethod
+    def _bold_count(text: str) -> str:
+        """'SCP: 51234 calls (...)' -> the number bold."""
+        import re
+        return re.sub(r"(\d[\d,.]*)", r"**\1**", text, count=1)
+
+    @staticmethod
+    def _bold_team(text: str) -> str:
+        """Window only: role, IP and count bold ('team: slave of **10.0.0.5** ...')."""
+        import re
+        text = re.sub(r"\b(master|slave|alone)\b", r"**\1**", text, count=1)
+        text = re.sub(r"(\d+\.\d+\.\d+\.\d+)", r"**\1**", text)
+        return re.sub(r"\((\d+) POUNCers\)", r"(**\1** POUNCers)", text)
+
     def _team_text(self) -> str:
         if self.team is None:
             return ""
@@ -1880,43 +1920,104 @@ class PouncerApp:
         if snap and snap.get("freq_khz"):
             self.n1mm_label.configure(
                 text=(
-                    f"N1MM{' radio ' + 'AB'[self._radio_nr() - 1] if self._so2r() else ''}:"
-                    f" {snap['freq_khz']:.2f} kHz  "
-                    f"{snap.get('band') or '?'}  {snap.get('mode') or ''}"
+                    f"N1MM{' radio **' + 'AB'[self._radio_nr() - 1] + '**' if self._so2r() else ''}:"
+                    f" **{snap['freq_khz']:.2f}** kHz  "
+                    f"**{snap.get('band') or '?'}**  **{snap.get('mode') or ''}**"
                     f"   (updated {snap['age']:.0f}s ago)"
-                    f"{'   ' + self._wpm_text() if self._wpm_text() else ''}"
+                    f"{'   **' + self._wpm_text() + '**' if self._wpm_text() else ''}"
                 )
             )
         else:
             self.n1mm_label.configure(
-                text="N1MM: no radio info (enable Config > Broadcast Data > Radio to 127.0.0.1:12060)"
+                text="N1MM: **no radio info** (enable Config > Broadcast Data > Radio to **127.0.0.1:12060**)"
             )
         band = self._current_band()
         if self.worked.log_open or self.worked.log_state == "unknown":
-            worked = f"Log: {self.worked.db_name or '-'}   station: {self.own_call() or '?'}" \
-                f" ({self.home_cont})   worked: {self.worked.status}"
+            worked = f"Log: **{self.worked.db_name or '-'}**   station: **{self.own_call() or '?'}**" \
+                f" (**{self.home_cont}**)   worked: **{self.worked.status}**"
             if self.worked.log_open:
-                per_band = " ".join(f"{b} {n}" for b, n in self.worked.band_qsos())
-                worked += f"   QSOs: {per_band or '-'} (total {self.worked.qso_count})"
+                per_band = " ".join(f"{b} **{n}**" for b, n in self.worked.band_qsos())
+                worked += f"   QSOs: {per_band or '-'} (total **{self.worked.qso_count}**)"
         else:
-            worked = f"LOG: {self.worked.log_message}"
+            worked = f"LOG: **{self.worked.log_message}**"
         self.rbn_label.configure(
             text=(
-                f"RBN: {self.rbn_status if not (self.team and self.team.role() == 'slave') else 'via team master'}"
-                f"   {self._team_text()}   spotter={self.cfg.rbn_spotter or 'ALL'}"
-                f"{'   BACKUP: ' + self._backup_text() if self._backup_text() else ''}"
-                f"   mode={','.join(self.cfg.follow_modes)}"
-                f"   band={band or 'ALL'}   spots={len(self.displayed)}/{len(self.spots)}"
-                f"   hidden={self._worked_hidden}"
-                f"{'   weak (<' + str(self.cfg.min_snr) + ' dB)=' + str(self._snr_hidden) if self.cfg.min_snr else ''}"
-                f"{'   HTTP backup: ' + str(self._http_feed.spots_in) + ' spots' if self._http_feed else ''}"
-                f"{'   warm-up: ' + self.runhist.warm_status if self.runhist and self.runhist.warm_status else ''}"
-                f"{'   ' + self.scp.status if self.scp is not None else ''}"
+                f"RBN: **{self.rbn_status if not (self.team and self.team.role() == 'slave') else 'via team master'}**"
+                f"   {self._bold_team(self._team_text())}   spotter=**{self.cfg.rbn_spotter or 'ALL'}**"
+                f"{'   BACKUP: **' + self._backup_text() + '**' if self._backup_text() else ''}"
+                f"   mode=**{','.join(self.cfg.follow_modes)}**"
+                f"   band=**{band or 'ALL'}**   spots=**{len(self.displayed)}**/{len(self.spots)}"
+                f"   hidden=**{self._worked_hidden}**"
+                f"{'   weak (<' + str(self.cfg.min_snr) + ' dB)=**' + str(self._snr_hidden) + '**' if self.cfg.min_snr else ''}"
+                f"{'   HTTP backup: **' + str(self._http_feed.spots_in) + '** spots' if self._http_feed else ''}"
+                f"{'   warm-up: ' + self._bold_count(self.runhist.warm_status) if self.runhist and self.runhist.warm_status else ''}"
+                f"{'   ' + self._bold_count(self.scp.status) if self.scp is not None else ''}"
             )
         )
         self.log_label.configure(text=worked)
+        self._update_check_line()
         self._update_team_label()
         self._update_lights(snap)
+
+    # ---- pre-contest check ------------------------------------------------
+
+    def _check_facts(self) -> dict:
+        snap = self.state.snapshot(self.radio)
+        role = self.team.role() if self.team is not None else "off"
+        if role == "slave":
+            rbn = "team"
+        elif self._rbn_healthy():
+            rbn = "ok"
+        elif self._http_feed is not None and self._http_feed.spots_in:
+            rbn = "http"
+        else:
+            rbn = self.rbn_status or "no spots"
+        cty_days = scp_days = None
+        cty_path = getattr(self.cty, "path", "") if self.cty else ""
+        try:
+            if cty_path:
+                cty_days = (time.time() - os.path.getmtime(cty_path)) / 86400
+        except OSError:
+            pass
+        scp_src = getattr(self.scp, "source", "") if self.scp is not None else ""
+        try:
+            if scp_src:
+                scp_days = (time.time() - os.path.getmtime(scp_src)) / 86400
+        except OSError:
+            pass
+        return {
+            "n1mm_age": snap["age"] if snap and snap.get("freq_khz") else None,
+            "n1mm_freq": (snap or {}).get("freq_khz"),
+            "log_open": self.worked.log_open, "log_name": self.worked.db_name,
+            "log_msg": self.worked.log_message,
+            "call": self.own_call(),
+            "rbn": rbn,
+            "cty_loaded": bool(self.cty), "cty_days": cty_days,
+            "scp_enabled": self.scp is not None,
+            "scp_loaded": bool(self.scp is not None and self.scp.loaded), "scp_days": scp_days,
+            "web": ("ok" if self.web is not None else "bad") if self.cfg.web_enabled else "off",
+            "clock_offset": self.clock.offset,
+        }
+
+    def _update_check_line(self) -> None:
+        self._checks = checksmod.build(self._check_facts())
+        lbl = getattr(self, "check_label", None)
+        if lbl is None:
+            return
+        shown = bool(lbl.winfo_manager())
+        if self.cfg.check_line != shown:      # switched in Settings
+            if self.cfg.check_line:
+                lbl.pack(fill="x", pady=(0, 4), after=self.team_label)
+            else:
+                lbl.pack_forget()
+        if not self.cfg.check_line:
+            return
+        state = checksmod.worst(self._checks)
+        bg, fg = {"ok": ("#e8f5e9", "#1b5e20"), "warn": ("#fff8e1", "#8d6e00"),
+                  "bad": ("#ffebee", "#b71c1c")}[state]
+        text = checksmod.line(self._checks)
+        if lbl.cget("text") != text or lbl.cget("bg") != bg:
+            lbl.configure(text=text, bg=bg, fg=fg)
 
     def _light_states(self, snap) -> list[tuple[str, str]]:
         role = self.team.role() if self.team is not None else "off"
@@ -2115,6 +2216,9 @@ class PouncerApp:
             if keep is not None and self._row_key(s) == keep:
                 reselect = str(idx)
             call_text = ("\u26a1 " if rare else "") + s.dxcall + (" ?" if busted else "")
+            tried = self._tried(s)
+            if tried:
+                call_text += f"   \u21bb{tried[1]}m" + (f"\u00d7{tried[0]}" if tried[0] > 1 else "")
             self.tree.insert(
                 "", "end", iid=str(idx), tags=tags,
                 values=(
@@ -2203,10 +2307,11 @@ class PouncerApp:
             if self.cfg.touch_view:
                 self.root.after(1500, self._open_browser)
         else:
-            self.web_label.configure(text="Phone view: disabled ([web] enabled = false)")
+            self.web_label.configure(text="Phone view: **disabled** ([web] enabled = false)")
         if self.cfg.team:
             self._start_team()
         self._ensure_rbn_clients()
+        self.clock.start()              # PC clock check (check line), every 30 min
         if self.cwspeed is not None:
             self.cwspeed.start()        # N1MM's CW speed box, read once a second
         if self.scp is not None:
@@ -2245,7 +2350,7 @@ class PouncerApp:
             self.web = None
             self.web_url = ""
             self.web_label.configure(
-                text=f"Phone view: FAILED to listen on port {self.cfg.web_port} "
+                text=f"Phone view: **FAILED** to listen on port **{self.cfg.web_port}** "
                      f"({exc}) - port in use? Change [web] port in config.ini"
             )
             return
@@ -2261,8 +2366,8 @@ class PouncerApp:
         self.web_url = f"http://{ip}:{port}"
         self.web_label.configure(
             text=(
-                f"Phone view: {self.web_url}   ({network})"
-                f"   listening on {self.cfg.web_host or '0.0.0.0'}:{port}"
+                f"Phone view: **{self.web_url}**   ({network})"
+                f"   listening on **{self.cfg.web_host or '0.0.0.0'}:{port}**"
             )
         )
         self._web_addr_checked = time.time()
@@ -2279,6 +2384,8 @@ class PouncerApp:
         self._stop_http_feed()
         if getattr(self, "cwspeed", None) is not None:
             self.cwspeed.stop()
+        if getattr(self, "clock", None) is not None:
+            self.clock.stop()
         if getattr(self, "_ssb_client", None) is not None:
             self._ssb_client.stop()
             self._ssb_client = None
