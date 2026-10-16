@@ -30,6 +30,7 @@ from .cwspeed import SpeedReader
 from . import checks as checksmod
 from .bandopen import BandActivity, state_of
 from . import theme
+from . import autostart as autostartmod
 from . import win32 as win32mod
 from . import summary as summarymod
 from . import settings as settingsmod
@@ -41,7 +42,7 @@ from .web import WebServer, pick_web_address
 from .win32 import (
     decimal_separator, focus_snapshot, focused_edit_text, force_foreground, is_n1mm_running, restore_focus,
     send_cw_speed, set_focused_edit_text,
-    send_enter, send_filter_toggle, window_pid,
+    send_enter, send_filter_toggle, window_pid, running_process_names,
     send_fkey,
     type_text,
     clear_focused_edit,
@@ -421,6 +422,9 @@ class PouncerApp:
         file = tk.Menu(bar, tearoff=False)
         file.add_command(label="Open the config folder", command=self._open_config_folder)
         file.add_command(label="Reconnect log", command=self._reconnect_log)
+        file.add_command(label="Start autostart programs now", command=self._start_autostart)
+        file.add_command(label="Open the autostart folder",
+                         command=lambda: self._open_path(self._autostart_folder()))
         file.add_separator()
         file.add_command(label="Restart POUNCer", command=self._restart_now,
                          state="normal" if self.updater.exe else "disabled")
@@ -644,6 +648,39 @@ class PouncerApp:
     def _web_min_snr(self, db: int) -> None:
         self._web_queue.put(("minsnr", int(db)))
 
+    # ---- autostart -----------------------------------------------------------
+
+    def _autostart_folder(self) -> str:
+        f = self.cfg.autostart_folder
+        if not f:
+            return ""
+        if not os.path.isabs(f):
+            f = os.path.join(os.path.dirname(self.cfg.config_path or ".") or ".", f)
+        if not os.path.isdir(f):          # make it, so it is easy to find
+            try:
+                os.makedirs(f, exist_ok=True)
+                with open(os.path.join(f, "README.txt"), "w", encoding="utf-8") as fh:
+                    fh.write("Put programs (.exe .bat .cmd) or shortcuts (.lnk) here: POUNCer\n"
+                             "starts them when it starts, in name order (1 rotor.lnk, 2 cw.bat),\n"
+                             "[autostart] folder_delay seconds apart, after app1-app4.\n")
+            except OSError:
+                return ""
+        return f
+
+    def _start_autostart(self) -> None:
+        """Start programs 1-4 and the autostart folder, each after its delay."""
+        apps = [(getattr(self.cfg, f"autostart_app{n}", ""), getattr(self.cfg, f"autostart_delay{n}", 5))
+                for n in range(1, autostartmod.APPS + 1)]
+        items = autostartmod.plan(apps, self._autostart_folder(), self.cfg.autostart_folder_delay)
+        if not items:
+            return
+        self._autostart = autostartmod.Autostart(
+            items, running=running_process_names,
+            on_status=lambda t: self._web_queue.put(("status", "Autostart: " + t)))
+        self._autostart.start()
+        self.status_label.configure(text=f"Autostart: {len(items)} program(s) - "
+                                         f"first in {items[0]['delay']} s")
+
     def _apply_topmost(self) -> None:
         try:
             self.root.attributes("-topmost", bool(self.topmost_var.get()))
@@ -752,6 +789,19 @@ class PouncerApp:
             self.root.destroy()
         except tk.TclError:
             pass
+
+    def _open_path(self, path: str) -> None:
+        if not path:
+            self.status_label.configure(text="No autostart folder ([autostart] folder is empty)")
+            return
+        try:
+            if sys.platform == "win32":
+                os.startfile(path)
+            else:
+                import webbrowser
+                webbrowser.open("file://" + path)
+        except OSError as exc:
+            self.status_label.configure(text=f"Could not open {path}: {exc}")
 
     def _restart_now(self) -> None:
         """Menu File > Restart / Settings window: start POUNCer again."""
@@ -1452,6 +1502,9 @@ class PouncerApp:
                 return
             if item[0] == "key":
                 self._press_key(item[1], item[2])
+                continue
+            if item[0] == "status":
+                self.status_label.configure(text=item[1])
                 continue
             if item[0] == "minsnr":
                 self._set_min_snr(item[1])
@@ -2451,6 +2504,10 @@ class PouncerApp:
             self._start_team()
         self._ensure_rbn_clients()
         self.clock.start()              # PC clock check (check line), every 30 min
+        # your other programs (Settings > Autostart) - not again after a restart
+        restarted = os.environ.pop(autostartmod.RESTART_ENV, "") == "1"
+        if self.cfg.autostart and not restarted:
+            self._start_autostart()
         if self.cwspeed is not None:
             self.cwspeed.start()        # N1MM's CW speed box, read once a second
         if self.scp is not None:

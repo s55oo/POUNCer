@@ -168,6 +168,8 @@ class TkSettingsWindowTests(unittest.TestCase):
             updater=types.SimpleNamespace(exe="C:/x/POUNCer.exe"),
             _settings_win=types.SimpleNamespace(open=lambda: None),
             cfg=types.SimpleNamespace(config_path="C:/x/config.ini"),
+            _start_autostart=lambda: None, _open_path=lambda p: None,
+            _autostart_folder=lambda: "",
         )
         for name in ("_open_config_folder", "_reconnect_log", "_restart_now", "_shutdown_and_quit",
                      "_on_toggle_worked", "_clear_spots", "_open_browser", "_on_update_click",
@@ -183,6 +185,11 @@ class TkSettingsWindowTests(unittest.TestCase):
         self.assertIn("Hide worked (same band + mode)", vlabels)
         self.assertIn("Contest summary", vlabels)
         self.assertIn("Compact window (beside N1MM)", vlabels)
+        file = bar.nametowidget(bar.entrycget(0, "menu"))
+        flabels = [file.entrycget(i, "label") for i in range(file.index("end") + 1)
+                   if file.type(i) != "separator"]
+        self.assertIn("Start autostart programs now", flabels)
+        self.assertIn("Open the autostart folder", flabels)
         self.assertIn("Always on top", vlabels)
 
 

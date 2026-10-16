@@ -182,6 +182,7 @@ class Updater:
         env = dict(os.environ)
         env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"   # a fresh onefile instance
         env.pop("_MEIPASS2", None)
+        env["POUNCER_RESTARTED"] = "1"   # the new one doesn't autostart programs again
         flags = 0
         if sys.platform == "win32":
             flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP

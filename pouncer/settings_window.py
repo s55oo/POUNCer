@@ -114,6 +114,24 @@ class SettingsWindow:
                              state="readonly", width=12)
             w.bind("<<ComboboxSelected>>", lambda _e: self._save(it, var.get()))
             return w
+        if kind == "file":                 # a program path + Browse...
+            box = ttk.Frame(parent)
+            e = ttk.Entry(box, textvariable=var, width=46)
+            e.pack(side="left")
+            e.bind("<Return>", lambda _e: self._save(it, var.get()))
+            e.bind("<FocusOut>", lambda _e: self._save(it, var.get()))
+
+            def browse():
+                from tkinter import filedialog
+                path = filedialog.askopenfilename(
+                    parent=self.win, title=it["label"],
+                    filetypes=[("Programs", "*.exe *.bat *.cmd *.lnk *.vbs *.ps1"), ("All files", "*.*")])
+                if path:
+                    import os
+                    var.set(os.path.normpath(path))      # C:/a/b.exe -> C:\\a\\b.exe
+                    self._save(it, var.get())
+            ttk.Button(box, text="Browse...", command=browse).pack(side="left", padx=(4, 0))
+            return box
         w = ttk.Entry(parent, textvariable=var, width=8 if kind == "int" else 24)
         w.bind("<Return>", lambda _e: self._save(it, var.get()))
         w.bind("<FocusOut>", lambda _e: self._save(it, var.get()))
