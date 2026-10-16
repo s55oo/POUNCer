@@ -62,15 +62,60 @@ class ScpListTests(unittest.TestCase):
             self.assertTrue(os.path.exists(os.path.join(cache, "MASTER.SCP")))
             with open(os.path.join(n1mm, "SupportFiles", "MASTER.SCP")) as fh:
                 self.assertIn("HB9CBR", fh.read())            # N1MM's copy updated too
-            # fresh: no download at the next start
-            sl2 = S.ScpList(cache, fetch=lambda u: urls.append(u) or TEXT.encode())
-            sl2.load_and_update()
-            self.assertEqual(len(urls), 1)
-            # a week old: downloaded again
-            old = time.time() - 8 * 86400
-            os.utime(os.path.join(cache, "MASTER.SCP"), (old, old))
-            sl2.load_and_update()
-            self.assertEqual(len(urls), 2)
+
+    def test_every_start_asks_server_304_when_current(self) -> None:
+        """Real HTTP: the server answers 304 to 'changed since?' when our copy
+        is current - nothing is downloaded - and the new file when it isn't."""
+        import email.utils
+        import http.server
+        import threading
+        state = {"mtime": time.time() - 3 * 86400, "gets": 0, "full": 0, "etag": '"v1"'}
+
+        class H(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                state["gets"] += 1
+                ims = self.headers.get("If-Modified-Since")
+                inm = self.headers.get("If-None-Match")
+                if inm == state["etag"] or (ims and email.utils.parsedate_to_datetime(ims)
+                                            .timestamp() >= int(state["mtime"])):
+                    self.send_response(304)
+                    self.end_headers()
+                    return
+                state["full"] += 1
+                body = TEXT.encode()
+                self.send_response(200)
+                self.send_header("Last-Modified", email.utils.formatdate(state["mtime"], usegmt=True))
+                self.send_header("ETag", state["etag"])
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *a):
+                pass
+        srv = http.server.HTTPServer(("127.0.0.1", 0), H)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        url = f"http://127.0.0.1:{srv.server_port}/MASTER.SCP"
+        try:
+            with tempfile.TemporaryDirectory() as d:
+                cache = os.path.join(d, "cache")
+                sl = S.ScpList(cache, url=url)
+                sl.load_and_update()                       # no copy: full download
+                self.assertEqual((state["gets"], state["full"]), (1, 1))
+                self.assertTrue(sl.loaded)
+                self.assertAlmostEqual(os.path.getmtime(os.path.join(cache, "MASTER.SCP")),
+                                       int(state["mtime"]), delta=1)   # server's date kept
+                S.ScpList(cache, url=url).load_and_update()   # next start: 304
+                self.assertEqual((state["gets"], state["full"]), (2, 1))
+                state["mtime"] = time.time() - 60          # a new list on the server
+                state["etag"] = '"v2"'
+                sl3 = S.ScpList(cache, url=url)
+                sl3.load_and_update()
+                self.assertEqual((state["gets"], state["full"]), (3, 2))
+                sl4 = S.ScpList(cache, url=url)
+                sl4.load_and_update()                      # current again: 304
+                self.assertIn("up to date", sl4.status)
+        finally:
+            srv.shutdown()
 
     def test_broken_download_keeps_old_list(self) -> None:
         with tempfile.TemporaryDirectory() as d:

@@ -2605,7 +2605,7 @@ class PouncerApp:
         if self.cwspeed is not None:
             self.cwspeed.start()        # N1MM's CW speed box, read once a second
         if self.scp is not None:
-            self.scp.start()            # load MASTER.SCP, download a fresh one if old
+            self.scp.start()            # load MASTER.SCP, ask the server for a newer one (304 = current)
         self.root.after(REFRESH_MS, self._tick)
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
         try:

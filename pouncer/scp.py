@@ -6,7 +6,10 @@ the tap is worth it.
 
 The list (``MASTER.SCP``, one call per line, ``#`` comments) is kept fresh
 from the web: downloaded in the background at start when the copy in the
-cache folder is missing or older than ``refresh_days``, and - if wanted -
+cache folder is missing, and otherwise checked at every start (and every
+``refresh_days`` while POUNCer runs): the server is asked "changed since
+our copy?" (If-Modified-Since / If-None-Match) and answers 304 - a few
+bytes - when it isn't, so only a new list is downloaded. And - if wanted -
 also copied into N1MM's ``SupportFiles`` so N1MM's own check partial is up to
 date too. Until then (or offline) N1MM's own MASTER.SCP is used.
 """
@@ -17,7 +20,9 @@ import logging
 import os
 import re
 import threading
+import email.utils
 import time
+import urllib.error
 import urllib.request
 
 log = logging.getLogger(__name__)
@@ -65,7 +70,9 @@ class ScpList:
         self.url = url
         self.refresh_days = refresh_days
         self.update_n1mm = update_n1mm
-        self._fetch = fetch or self._http_get
+        # fetch(url) -> bytes (old style, tests) or the conditional getter below
+        self._fetch = fetch
+        self.last_check = ""             # "up to date" / "new list" + time
         self.path = os.path.join(cache_dir, "MASTER.SCP")
         dirs = [os.path.dirname(n1mm_ini)] if n1mm_ini else []
         dirs += list(n1mm_dirs)
@@ -95,12 +102,21 @@ class ScpList:
     # ---- load / update ----------------------------------------------------
 
     def start(self) -> None:
-        threading.Thread(target=self.load_and_update, name="scp", daemon=True).start()
+        """Load the copy we have, ask the server at once, then every
+        ``refresh_days`` (POUNCer running for days)."""
+        def loop():
+            self.load_and_update()
+            every = max(3600.0, self.refresh_days * 86400)
+            while True:
+                time.sleep(every)
+                if self.url:
+                    self.update()
+        threading.Thread(target=loop, name="scp", daemon=True).start()
 
     def load_and_update(self) -> None:
         self._load_best()
-        if self.url and self._stale():
-            self.update()
+        if self.url:
+            self.update()                # cheap: 304 when the copy is current
 
     def _stale(self) -> bool:
         try:
@@ -130,16 +146,66 @@ class ScpList:
         self.status = f"SCP: {len(calls)} calls ({when}{', N1MM copy' if path != self.path else ''})"
         return True
 
-    def update(self) -> bool:
-        """Download MASTER.SCP now; True if a good list was installed."""
+    def _etag_path(self) -> str:
+        return self.path + ".etag"
+
+    def _conditional_get(self) -> tuple[int, bytes, str, str]:
+        """(status, body, Last-Modified, ETag); 304 = our copy is current."""
+        if self._fetch is not None:                 # tests / old style: always the file
+            return 200, self._fetch(self.url), "", ""
+        headers = {"User-Agent": "POUNCer"}
+        if os.path.exists(self.path):
+            headers["If-Modified-Since"] = email.utils.formatdate(
+                os.path.getmtime(self.path), usegmt=True)
+            try:
+                with open(self._etag_path(), encoding="ascii") as fh:
+                    tag = fh.read().strip()
+                if tag:
+                    headers["If-None-Match"] = tag
+            except OSError:
+                pass
+        req = urllib.request.Request(self.url, headers=headers)
         try:
-            data = self._fetch(self.url)
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                return (resp.status, resp.read(), resp.headers.get("Last-Modified") or "",
+                        resp.headers.get("ETag") or "")
+        except urllib.error.HTTPError as exc:
+            if exc.code == 304:
+                return 304, b"", "", ""
+            raise
+
+    def update(self) -> bool:
+        """Ask the server for a newer MASTER.SCP; True if a new good list was
+        installed (False also when ours is current - 304)."""
+        try:
+            status, data, modified, etag = self._conditional_get()
+            if status == 304:
+                self.last_check = time.strftime("up to date (checked %H:%M)")
+                log.info("SCP: %s is current", self.url)
+                if self.loaded:
+                    self.status = self.status.split(" - ")[0] + " - " + self.last_check
+                return False
             text = data.decode("latin-1", "replace")
             calls = parse(text)
             if len(calls) < MIN_CALLS:
                 raise ValueError(f"only {len(calls)} calls - not a MASTER.SCP")
             os.makedirs(self.cache_dir, exist_ok=True)
             self._write(self.path, data)
+            # our copy gets the server's date: the next "changed since?" is exact
+            if modified:
+                try:
+                    t = email.utils.parsedate_to_datetime(modified).timestamp()
+                    os.utime(self.path, (t, t))
+                except (TypeError, ValueError, OSError):
+                    pass
+            try:
+                if etag:
+                    with open(self._etag_path(), "w", encoding="ascii") as fh:
+                        fh.write(etag)
+                elif os.path.exists(self._etag_path()):
+                    os.remove(self._etag_path())
+            except OSError:
+                pass
         except Exception as exc:  # offline etc.: keep what we have
             log.info("SCP download from %s failed: %s", self.url, exc)
             if not self.loaded:
@@ -164,8 +230,4 @@ class ScpList:
             fh.write(data)
         os.replace(tmp, path)
 
-    @staticmethod
-    def _http_get(url: str) -> bytes:
-        req = urllib.request.Request(url, headers={"User-Agent": "POUNCer"})
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            return resp.read()
+
