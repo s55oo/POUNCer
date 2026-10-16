@@ -1,5 +1,16 @@
 # POUNCer — Changelog
 
+## v0.7.47 — 2026-10-16 — phone list: only changed tiles are updated
+
+- The phone page no longer throws all tiles away and draws them again every
+  second. Each tile (call + MHz) is kept; only what changed is updated - a
+  new SNR or time changes that tile's text, a new station adds one tile, a
+  gone one removes it, a re-sort only moves tiles. With an unchanged list
+  nothing on the page is touched at all (was: 60 tiles rebuilt per second).
+- Faster and smoother in a busy contest, no flicker, and the tile under
+  your finger stays the same button; a tap always uses the spot's newest
+  data (e.g. a slightly moved frequency).
+
 ## v0.7.46 — 2026-10-15 — same as v0.7.45, complete release
 
 - v0.7.45 with the macOS builds too (the macOS tests hung on Tk objects
