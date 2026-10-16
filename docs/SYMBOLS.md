@@ -176,6 +176,15 @@ Marks in the call and Mult columns:
 | **?** | opens the help on the phone |
 | dot in the band menu | band open light, coloured orange (only your continent) to green (DX), with the DX count when open; grey = nothing heard |
 
+### Messages after a tap
+
+| What you see | Meaning |
+| --- | --- |
+| **QSY OK1BB ...** | the tap reached POUNCer |
+| **✓ OK1BB: radio on 7012.0 · call in** | N1MM moved the radio there and the call is in the Entry Window |
+| **⚠ OK1BB: N1MM didn't report 7012.0** | N1MM didn't confirm the new frequency - look at the radio |
+| **⚠ ... no answer from POUNCer** | POUNCer didn't answer in 8 s - is it running? |
+
 ### CW keyboard (hold ENTER 1.3 s)
 
 | What you see | Meaning |

@@ -1,5 +1,27 @@
 # POUNCer — Changelog
 
+## v0.7.67 — 2026-10-16 — log file, diagnostics, tap results on the phone, 8 autostart programs
+
+- **Log file** `cache\pouncer.log` (1 MB, 3 old ones kept): taps and QSYs
+  (and whether N1MM reported the new frequency), phone taps, which Entry
+  Window got the call, QSY failures, autostart, connections.
+  *Help > Open the log file*.
+- **Help > Save diagnostics (zip)**: log + facts (version, radios, log, team,
+  checks, last tap) + config.ini with password / token / key values removed,
+  saved next to config.ini.
+- **Phone: the real result of a tap** - after "QSY OK1BB ..." comes
+  "✓ OK1BB: radio on 7012.0 · call in" or "⚠ ... N1MM didn't report 7012.0"
+  (or "no answer from POUNCer" after 8 s).
+- **Phone: Reset this page** (help page, **?**): forgets what that browser
+  remembers (radio A / B, sort, band view, filters, alerts).
+- **Phone page reloads itself** once when POUNCer was updated under it.
+- **Autostart: 8 programs** (was 4), and per program **"only when N1MM is
+  up"** (`appN_wait_n1mm`): it waits until N1MM broadcasts (at most
+  `n1mm_timeout`), also when N1MM isn't in the list.
+- "Call shown twice": not seen with one radio (tested two taps on this
+  station's N1MM: the call went into the callsign box once); the log now
+  records which window got the call, for the next time it happens in SO2V.
+
 ## v0.7.66 — 2026-10-16 — phone band menu fixed after an SO2V session
 
 - **Bug:** a browser / phone that had **radio B** chosen once (SO2R / SO2V)

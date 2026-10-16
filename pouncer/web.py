@@ -474,6 +474,7 @@ INDEX_HTML = """<!doctype html>
   const logWarnEl = document.getElementById('logwarn');
   const logMsgEl = document.getElementById('logmsg');
   let toastTimer = null;
+  const PAGE_VERSION = '__VERSION__';   // filled in by POUNCer when it sends the page
   let lastData = {band: '', modes: [], spots: []};
   let lastWpm = {r: 0, v: 0};
   let sortKey = localStorage.getItem('pouncer.sort') || 'snr';
@@ -844,7 +845,18 @@ INDEX_HTML = """<!doctype html>
     cwCheck(data);
     if (data.tune_step && data.tune_step !== tuneStep) { tuneStep = data.tune_step; labelTune(); }
     syncHeaderHeight();
+    // POUNCer was updated while this page stayed open: load the new page once
+    if (data.version && data.version !== PAGE_VERSION) {
+      let done = '';
+      try { done = sessionStorage.getItem('pouncer-reload') || ''; } catch (e) {}
+      if (done !== data.version) {
+        try { sessionStorage.setItem('pouncer-reload', data.version); } catch (e) {}
+        location.reload();
+        return;
+      }
+    }
     lastData = data;
+    tapResult(data);
     // SO2R switch: shown when N1MM reports two radios (or B was chosen)
     const radioSw = document.getElementById('radiosw');
     const cur = data.radio === 2 ? 2 : 1;
@@ -1170,6 +1182,20 @@ INDEX_HTML = """<!doctype html>
   // Selected (last tapped) station, kept across the 1 s redraws.
   let selKey = '';
   const spotKey = s => s.call + '|' + Number(s.freq).toFixed(1);
+  // After a tap: what POUNCer / N1MM really did (radio moved? call typed?)
+  // comes back in the next lists as data.tap - shown in place of "QSY ...".
+  let pendingTap = null;
+  function tapResult(data) {
+    if (!pendingTap) return;
+    const t = data.tap;
+    if (t && t.n > pendingTap.since && String(t.call).toUpperCase() === pendingTap.call) {
+      toast((t.ok ? '\u2713 ' : '\u26a0 ') + t.call + ': ' + t.text, null, t.ok ? 4000 : 8000);
+      pendingTap = null;
+    } else if (Date.now() - pendingTap.at > 8000) {
+      toast('\u26a0 ' + pendingTap.call + ': no answer from POUNCer - is it still running?', null, 8000);
+      pendingTap = null;
+    }
+  }
   async function qsy(s, btn) {
     selKey = spotKey(s);
     document.querySelectorAll('button.tile.sel').forEach(t => t.classList.remove('sel'));
@@ -1178,7 +1204,9 @@ INDEX_HTML = """<!doctype html>
       const r = await fetch('/api/qsy?' + rp(
         {call: s.call, freq: s.freq, mode: s.mode}));
       const j = await r.json();
-      toast(j.ok ? ('QSY ' + s.call) : ('Failed: ' + (j.error || 'error')));
+      toast(j.ok ? ('QSY ' + s.call + ' ...') : ('Failed: ' + (j.error || 'error')));
+      if (j.ok) pendingTap = {call: String(s.call).toUpperCase(), since: (lastData.tap || {}).n || 0,
+                              at: Date.now()};
     } catch (e) {
       toast('Failed: ' + e);
     }
@@ -1400,6 +1428,9 @@ HELP_HTML = """<!doctype html>
   .amber { background: #ff8f00; color: #111; } .red { color: #ef9a9a; }
   .yel { color: #ffeb3b; font-weight: 700; } .mag { color: #f48fb1; font-weight: 700; }
   .sky { color: #4fc3f7; font-weight: 700; }
+  .resetbtn { background: #c62828; color: #fff; border: 0; border-radius: 10px;
+    padding: 12px 18px; font: inherit; font-weight: 700; }
+  .muted { opacity: .7; }
   .note { background: #1c2329; border-radius: 10px; padding: 10px 12px; margin-top: 10px;
     font-size: 13px; }
   @media (max-width: 420px) { dl { grid-template-columns: 1fr; gap: 2px 0; } dd { margin-bottom: 8px; } }
@@ -1460,7 +1491,10 @@ then - after switching contests the counts can belong to the old one until N1MM 
 <dl>
   <dt>Tap</dt>
   <dd>The radio goes to that spot and the call is typed into N1MM's Entry Window
-    (no transmit). The tile you tapped keeps a <span class="yel">yellow ring</span>.</dd>
+    (no transmit). The tile you tapped keeps a <span class="yel">yellow ring</span>.
+    The message then says what really happened: <b>&#10003; OK1BB: radio on 7012.0 &middot;
+    call in</b>, or <b>&#9888; ... N1MM didn't report 7012.0</b> when the radio didn't move
+    (no answer at all = POUNCer not running?).</dd>
   <dt>Hold 2 s</dt>
   <dd>Remove that call from the list (on this band), with Undo.</dd>
   <dt><span class="yel">YELLOW</span> call</dt>
@@ -1624,6 +1658,28 @@ phone (each phone its own).</p>
 <div class="note">Messages (e.g. "Cleared 12 spots", "CW faster") pop up level with the
 ENTER key for 5 s - tap to close them. The page refreshes every second; while you touch a tile the
 list holds still.</div>
+
+<h2 id="reset">Reset this page</h2>
+<p>Something odd on this phone / browser only (another browser works)? The page
+remembers a few choices <b>on this device</b>: radio A / B, sort, DX / MLT / &#9889;,
+the band picked in the band menu, alerts and the test options. <b>Reset</b> forgets
+them all and opens the spot list fresh - nothing in POUNCer or N1MM changes.</p>
+<p><button id="resetpage" class="resetbtn">Reset this page</button>
+  <span id="resetinfo" class="muted"></span></p>
+<script>
+  (function () {
+    const keys = () => { const k = []; try { for (let i = 0; i < localStorage.length; i++) {
+      const n = localStorage.key(i); if (n && n.indexOf('pouncer.') === 0) k.push(n); } } catch (e) {}
+      return k; };
+    const info = document.getElementById('resetinfo');
+    const n = keys().length;
+    info.textContent = n ? ' (' + n + ' saved choice' + (n > 1 ? 's' : '') + ')' : ' (nothing saved)';
+    document.getElementById('resetpage').onclick = () => {
+      keys().forEach(k => { try { localStorage.removeItem(k); } catch (e) {} });
+      location.href = '/';
+    };
+  })();
+</script>
 <p><a class="back" href="/">&larr; Back to the spots</a></p>
 </main></body>
 </html>
@@ -2101,9 +2157,11 @@ class _Handler(BaseHTTPRequestHandler):
                 kw = {"band": band}
                 if radio is not None:
                     kw["radio"] = radio
-                self._send_json(self.server.get_spots(**kw))
+                data = self.server.get_spots(**kw)
             else:
-                self._send_json(self._call(self.server.get_spots, parsed))
+                data = self._call(self.server.get_spots, parsed)
+            # the page reloads itself when POUNCer was updated under it
+            self._send_json({**data, "version": __version__} if isinstance(data, dict) else data)
             return
         if parsed.path == "/api/qsy":
             q = parse_qs(parsed.query)

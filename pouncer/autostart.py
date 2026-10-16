@@ -3,9 +3,10 @@
 Two ways, both in order, each after its own delay (seconds after the one
 before; the first after POUNCer's start):
 
-1. ``[autostart] app1`` ... ``app4`` in config.ini / Settings > Autostart:
+1. ``[autostart] app1`` ... ``app8`` in config.ini / Settings > Autostart:
    the full path of an .exe, .bat, .cmd or shortcut, with ``app1_delay`` ...
-   ``app4_delay``. Arguments: put the path in quotes and the arguments after
+   ``app8_delay``, and ``appN_wait_n1mm = true`` = start that one only once
+   N1MM is up (it broadcasts; at most ``n1mm_timeout`` s). Arguments: put the path in quotes and the arguments after
    it - ``"C:\\My Apps\\tool.exe" --port 9000``.
 2. The ``autostart`` folder next to config.ini: every .exe / .bat / .cmd /
    .lnk / .vbs / .ps1 in it, in name order (``1 rotor.lnk``, ``2 cw.bat``),
@@ -35,7 +36,7 @@ import time
 
 log = logging.getLogger(__name__)
 
-APPS = 4
+APPS = 8
 FOLDER_TYPES = (".exe", ".bat", ".cmd", ".lnk", ".vbs", ".ps1", ".url")
 RESTART_ENV = "POUNCER_RESTARTED"     # set by POUNCer when it restarts itself
 N1MM_EXE_PREFIX = "n1mmlogger"        # N1MMLogger.net.exe (any install folder)
@@ -68,14 +69,16 @@ def folder_entries(folder: str) -> list[str]:
 def plan(apps: list[tuple[str, int]], folder: str = "", folder_delay: int = 3) -> list[dict]:
     """What to start, in order: [{path, args, delay, from}]."""
     out = []
-    for n, (text, delay) in enumerate(apps, 1):
+    for n, app in enumerate(apps, 1):
+        text, delay = app[0], app[1]
+        wait = bool(app[2]) if len(app) > 2 else False
         path, args = split_command(text)
         if path:
             out.append({"path": path, "args": args, "delay": max(0, int(delay)),
-                        "from": f"app{n}"})
+                        "from": f"app{n}", "wait": wait})
     for path in folder_entries(folder) if folder else ():
         out.append({"path": path, "args": "", "delay": max(0, int(folder_delay)),
-                    "from": "folder"})
+                    "from": "folder", "wait": False})
     return out
 
 
@@ -141,12 +144,15 @@ class Autostart:
     """Runs the plan in a background thread; ``status`` = what happened."""
 
     def __init__(self, items: list[dict], running=None, launch=None, sleep=time.sleep,
-                 on_status=None) -> None:
+                 on_status=None, n1mm_up=None, wait_s: float = 180, clock=time.time) -> None:
         self.items = items
         self._running = running            # -> set of lower-case exe names, or None
         self._launch = launch or _launch
         self._sleep = sleep
         self.on_status = on_status
+        self._n1mm_up = n1mm_up            # -> True once N1MM broadcasts (per-item wait)
+        self.wait_s = wait_s
+        self._clock = clock
         self.results: list[tuple[str, str]] = []   # (path, "started" / "running" / error)
         self.status = ""
 
@@ -163,6 +169,12 @@ class Autostart:
             except Exception:  # noqa: BLE001
                 pass
 
+    def _up(self) -> bool:
+        try:
+            return bool(self._n1mm_up())
+        except Exception:  # noqa: BLE001
+            return False
+
     def run(self) -> None:
         total = len(self.items)
         # what ran BEFORE this list started: the same program listed twice
@@ -175,9 +187,16 @@ class Autostart:
             except Exception:  # noqa: BLE001
                 before = set()
         for n, it in enumerate(self.items, 1):
+            path, name = it["path"], os.path.basename(it["path"])
+            if it.get("wait") and self._n1mm_up is not None and not self._up():
+                self._say(f"{name}: waiting for N1MM ({n}/{total})")
+                end = self._clock() + self.wait_s
+                while not self._up() and self._clock() < end:
+                    self._sleep(1)
+                if not self._up():
+                    self._say(f"{name}: N1MM not up after {self.wait_s:.0f} s - starting anyway")
             if it["delay"]:
                 self._sleep(it["delay"])
-            path, name = it["path"], os.path.basename(it["path"])
             if not os.path.exists(path):
                 self.results.append((path, "not found"))
                 self._say(f"{name} not found ({n}/{total})")

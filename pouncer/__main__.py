@@ -9,6 +9,7 @@ import sys
 
 from .app import PouncerApp
 from .config import load_config
+from . import diag
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -41,6 +42,12 @@ def main(argv: list[str] | None = None) -> int:
         config.run_history_dir = os.path.join(
             os.path.dirname(os.path.abspath(args.config)), "cache"
         )
+    # cache/pouncer.log: what happened, readable afterwards (the exe has no console)
+    path = diag.setup_file_log(config.run_history_dir,
+                               logging.DEBUG if args.verbose else logging.INFO)
+    from . import __version__
+    logging.getLogger("pouncer").info("POUNCer %s start, config %s, log %s",
+                                      __version__, os.path.abspath(args.config), path)
     app = PouncerApp(config)
     app.run()
     return 0
