@@ -126,6 +126,18 @@ class Config:
     tried_minutes: int = 30      # ... for this long after the last tap
     check_line: bool = True      # pre-contest check line in the window (+ phone warning)
     band_lights: bool = True     # band open lights (skimmers on our continent, 10 min)
+    # [autostart]: your other programs, started with POUNCer (see autostart.py)
+    autostart: bool = True
+    autostart_app1: str = ""     # full path (+ args after a quoted path)
+    autostart_app2: str = ""
+    autostart_app3: str = ""
+    autostart_app4: str = ""
+    autostart_delay1: int = 5    # seconds after the one before (app1: after POUNCer's start)
+    autostart_delay2: int = 5
+    autostart_delay3: int = 5
+    autostart_delay4: int = 5
+    autostart_folder: str = "autostart"             # next to config.ini
+    autostart_folder_delay: int = 3
     max_age_minutes: int = 10
     fade_minutes: int = 5  # phone: tile fades when not re-spotted this long
     trigger: str = "single"
@@ -242,6 +254,15 @@ def load_config(path: str) -> Config:
     cfg.tried_minutes = max(1, min(720, i("ui", "tried_minutes", cfg.tried_minutes)))
     cfg.check_line = b("ui", "check_line", cfg.check_line)
     cfg.band_lights = b("ui", "band_lights", cfg.band_lights)
+    cfg.autostart = b("autostart", "enabled", cfg.autostart)
+    # raw: Windows paths may hold a "%" (no ini interpolation)
+    for n in range(1, 5):
+        setattr(cfg, f"autostart_app{n}",
+                parser.get("autostart", f"app{n}", raw=True, fallback="").strip())
+        setattr(cfg, f"autostart_delay{n}", max(0, min(600, i("autostart", f"app{n}_delay", 5))))
+    cfg.autostart_folder = s("autostart", "folder", cfg.autostart_folder).strip()
+    cfg.autostart_folder_delay = max(0, min(600, i("autostart", "folder_delay",
+                                                   cfg.autostart_folder_delay)))
     cfg.max_age_minutes = i("ui", "max_age_minutes", cfg.max_age_minutes)
     cfg.fade_minutes = max(1, i("ui", "fade_minutes", cfg.fade_minutes))
     cfg.tune_step_hz = max(1, i("ui", "tune_step_hz", cfg.tune_step_hz))

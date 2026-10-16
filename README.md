@@ -459,6 +459,26 @@ tag. N1MM Logger+ still runs on Windows; configure its broadcast destination
 to the Mac's IP address when using POUNCer on another computer. Local Windows
 keyboard and window controls are unavailable on macOS.
 
+## Autostart: your other programs
+
+POUNCer can start your other programs when it starts - in order, each a
+number of seconds after the one before:
+
+- **Settings > Autostart** (or `[autostart]` in config.ini): *Program 1-4*
+  with the full path of an .exe, .bat, .cmd or shortcut (**Browse...**), and
+  for each *start after (seconds)* - Program 1 after POUNCer's start, the
+  others after the program before. Arguments: put the path in quotes and the
+  arguments after it, `"C:\HAM\My Tool\tool.exe" --port 9000`.
+- The **autostart folder** next to config.ini (made at the first start,
+  *File > Open the autostart folder*): everything in it starts after
+  programs 1-4, in name order (`1 rotor.lnk`, `2 cw.bat`), `folder_delay`
+  seconds apart.
+
+Each program starts in its own folder, like a double-click. An .exe that
+already runs is not started a second time, and when POUNCer restarts itself
+(update, File > Restart) nothing is started again. *File > Start autostart
+programs now* runs the list by hand; the status bar shows what started.
+
 ## N1MM Logger+ setup
 
 1. Open N1MM Logger+.
@@ -558,6 +578,11 @@ All options live in `config.ini` and are documented there, line by line:
 | `enabled` | true | "?" on calls not in Super Check Partial. |
 | `url`, `refresh_days` | supercheckpartial.com/MASTER.SCP, 7 | Where and how often MASTER.SCP is downloaded. |
 | `update_n1mm` | false | Also copy it into N1MM's SupportFiles. |
+| **[autostart]** | | |
+| `enabled` | true | Start your other programs with POUNCer. |
+| `app1` ... `app4` | empty | Full path of an .exe / .bat / .cmd / shortcut; arguments after a quoted path: `"C:\\x\\tool.exe" --arg`. |
+| `app1_delay` ... `app4_delay` | 5 | Seconds after the one before (app1: after POUNCer's start). |
+| `folder`, `folder_delay` | autostart, 3 | Everything in this folder (next to config.ini) starts after app1-app4, in name order, this many seconds apart. |
 
 Most of these can also be changed in **Settings...** (main window) or on the
 **Settings** page; all connections and ports: [docs/NETWORK.md](docs/NETWORK.md).

@@ -1,5 +1,21 @@
 # POUNCer — Changelog
 
+## v0.7.56 — 2026-10-16 — autostart your other programs
+
+- **Settings > Autostart**: up to 4 programs (.exe, .bat, .cmd, shortcut;
+  full path, **Browse...**; arguments after a quoted path), each with its
+  own delay - *start after N seconds* (program 1 after POUNCer's start, the
+  others after the one before).
+- **autostart folder** next to config.ini (made at the first start, with a
+  README): everything in it starts after programs 1-4, in name order,
+  `folder_delay` (3) seconds apart.
+- An .exe that already runs is not started again; a POUNCer restart
+  (update, File > Restart) starts nothing again. *File > Start autostart
+  programs now* and *File > Open the autostart folder*. The status bar says
+  what was started (or not found).
+- `[autostart]` in config.ini: `enabled`, `app1`-`app4`, `app1_delay`-
+  `app4_delay`, `folder`, `folder_delay`.
+
 ## v0.7.55 — 2026-10-16 — new look for the main window
 
 (v0.7.54 had the same new look but still called itself 0.7.53 inside, so
