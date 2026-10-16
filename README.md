@@ -479,14 +479,14 @@ keyboard and window controls are unavailable on macOS.
 POUNCer can start your other programs when it starts - in order, each a
 number of seconds after the one before:
 
-- **Settings > Autostart** (or `[autostart]` in config.ini): *Program 1-4*
+- **Settings > Autostart** (or `[autostart]` in config.ini): *Program 1-8*
   with the full path of an .exe, .bat, .cmd or shortcut (**Browse...**), and
   for each *start after (seconds)* - Program 1 after POUNCer's start, the
   others after the program before. Arguments: put the path in quotes and the
   arguments after it, `"C:\HAM\My Tool\tool.exe" --port 9000`.
 - The **autostart folder** next to config.ini (made at the first start,
   *File > Open the autostart folder*): everything in it starts after
-  programs 1-4, in name order (`1 rotor.lnk`, `2 cw.bat`), `folder_delay`
+  programs 1-8, in name order (`1 rotor.lnk`, `2 cw.bat`), `folder_delay`
   seconds apart.
 
 Each program starts in its own folder, like a double-click. The same
@@ -525,7 +525,7 @@ POUNCer.exe you start** (or the one given with `--config`). With two copies
 of POUNCer.exe (e.g. one in a `dist` folder) each has its own config.ini and
 its own autostart list - *File > Open the config folder* shows the one in use.
 
-**More than 4 programs:** put the rest in the autostart folder - a shortcut,
+**More than 8 programs:** put the rest in the autostart folder - a shortcut,
 or a small .bat that starts the program in its own folder:
 
 ```bat
@@ -534,7 +534,11 @@ start "" /D "C:\HAM\LogRouter" "C:\HAM\LogRouter\router.exe"
 ```
 
 Name them `1 ....bat`, `2 ....bat` for the order; they start after
-programs 1-4 (and, with N1MM first, only when N1MM is up).
+programs 1-8 (and, with N1MM first, only when N1MM is up).
+
+**Only when N1MM is up**, per program: tick *... only when N1MM is up*
+(`appN_wait_n1mm = true`) and that program waits until N1MM broadcasts -
+useful for a log router that needs N1MM, also when you start N1MM yourself.
 
 Example - four copies of a log router, 5 s apart:
 
@@ -550,6 +554,25 @@ app3_delay = 5
 app4 = C:\HAM\LogRouter\router.exe
 app4_delay = 5
 ```
+
+## When something doesn't work
+
+- **Log file:** POUNCer writes what it does - taps and QSYs (and whether N1MM
+  reported the new frequency), which window got the call, autostart,
+  connection problems - to `cache\pouncer.log` next to config.ini (1 MB,
+  3 older ones kept). *Help > Open the log file*.
+- **Diagnostics:** *Help > Save diagnostics (zip)* puts the log, a facts
+  list (version, radios, log, team, checks, last tap) and config.ini with
+  any password / token / key removed into one zip next to config.ini and
+  opens the folder - send that zip when you report a problem.
+- **The phone shows what really happened:** after a tap, "QSY OK1BB ..." is
+  followed by **✓ OK1BB: radio on 7012.0 · call in**, or **⚠ ... N1MM didn't
+  report 7012.0** when the radio didn't move.
+- **Only one browser misbehaves?** Phone help page (**?**) > **Reset this
+  page**: forgets what that browser remembers (radio A / B, sort, band view,
+  filters) - nothing in POUNCer or N1MM changes.
+- **After an update** an open phone page reloads itself once with the new
+  version.
 
 ## N1MM Logger+ setup
 
@@ -652,9 +675,10 @@ All options live in `config.ini` and are documented there, line by line:
 | `update_n1mm` | false | Also copy it into N1MM's SupportFiles. |
 | **[autostart]** | | |
 | `enabled` | true | Start your other programs with POUNCer. |
-| `app1` ... `app4` | empty | Full path of an .exe / .bat / .cmd / shortcut; arguments after a quoted path: `"C:\\x\\tool.exe" --arg`. |
-| `app1_delay` ... `app4_delay` | 5 | Seconds after the one before (app1: after POUNCer's start). |
-| `folder`, `folder_delay` | autostart, 3 | Everything in this folder (next to config.ini) starts after app1-app4, in name order, this many seconds apart. |
+| `app1` ... `app8` | empty | Full path of an .exe / .bat / .cmd / shortcut; arguments after a quoted path: `"C:\\x\\tool.exe" --arg`. |
+| `app1_delay` ... `app8_delay` | 5 | Seconds after the one before (app1: after POUNCer's start). |
+| `app1_wait_n1mm` ... `app8_wait_n1mm` | false | Start this one only once N1MM is up (it broadcasts), at most `n1mm_timeout` s - for tools that need N1MM running, also when N1MM isn't in the list. |
+| `folder`, `folder_delay` | autostart, 3 | Everything in this folder (next to config.ini) starts after app1-app8, in name order, this many seconds apart. |
 
 Most of these can also be changed in **Settings...** (main window) or on the
 **Settings** page; all connections and ports: [docs/NETWORK.md](docs/NETWORK.md).

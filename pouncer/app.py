@@ -31,6 +31,7 @@ from . import checks as checksmod
 from .bandopen import BandActivity, dx_pct, share_color, state_of
 from . import theme
 from . import autostart as autostartmod
+from . import diag as diagmod
 from . import win32 as win32mod
 from . import summary as summarymod
 from . import settings as settingsmod
@@ -121,6 +122,13 @@ class FlowFrame(ttk.Frame):
         for (widget, _), (x, y) in zip(items, pos):
             widget.place(x=x, y=y)
         self.configure(height=max(height, 1))
+
+
+def _note_tap(app, spot: Spot, nr: int, ok: bool, short: str, full: str = "") -> None:
+    """What a tap really did - the phone shows it (``tap`` in /api/spots)."""
+    n = (getattr(app, "_last_tap", None) or {}).get("n", 0) + 1
+    app._last_tap = {"n": n, "call": spot.dxcall, "freq": spot.freq_khz, "radio": nr,
+                     "ok": ok, "text": short, "full": full or short, "t": time.time()}
 
 
 class PouncerApp:
@@ -469,6 +477,9 @@ class PouncerApp:
         helpm.add_command(label="What every button does", command=lambda: self._open_browser("help"))
         helpm.add_command(label="Check for a new version", command=self._on_update_click)
         helpm.add_command(label="POUNCer on GitHub", command=lambda: self._open_url(GITHUB_URL))
+        helpm.add_command(label="Save diagnostics (zip)", command=self._save_diagnostics)
+        helpm.add_command(label="Open the log file", command=lambda: self._open_path(
+            diagmod.log_path(self.cfg.run_history_dir or "cache")))
         helpm.add_separator()
         helpm.add_command(label=f"About POUNCer {__version__}", command=self._about)
         bar.add_cascade(label="Help", menu=helpm)
@@ -682,18 +693,19 @@ class PouncerApp:
                 with open(os.path.join(f, "README.txt"), "w", encoding="utf-8") as fh:
                     fh.write("Put programs (.exe .bat .cmd) or shortcuts (.lnk) here: POUNCer\n"
                              "starts them when it starts, in name order (1 rotor.lnk, 2 cw.bat),\n"
-                             "[autostart] folder_delay seconds apart, after app1-app4.\n")
+                             "[autostart] folder_delay seconds apart, after app1-app8.\n")
             except OSError:
                 return ""
         return f
 
     def _start_autostart(self, defer_pouncer: bool = False) -> bool:
-        """Start programs 1-4 and the autostart folder, each after its delay.
+        """Start programs 1-8 and the autostart folder, each after its delay.
 
         Program 1 = N1MM Logger+ that isn't running yet (and [autostart]
         wait_n1mm): start it, wait until it is up, then the other programs -
         and with ``defer_pouncer`` the rest of POUNCer too. True = waiting."""
-        apps = [(getattr(self.cfg, f"autostart_app{n}", ""), getattr(self.cfg, f"autostart_delay{n}", 5))
+        apps = [(getattr(self.cfg, f"autostart_app{n}", ""), getattr(self.cfg, f"autostart_delay{n}", 5),
+                 getattr(self.cfg, f"autostart_wait{n}", False))
                 for n in range(1, autostartmod.APPS + 1)]
         items = autostartmod.plan(apps, self._autostart_folder(), self.cfg.autostart_folder_delay)
         if not items:
@@ -716,10 +728,19 @@ class PouncerApp:
             return
         self._autostart = autostartmod.Autostart(
             items, running=running_process_names,
-            on_status=lambda t: self._web_queue.put(("status", "Autostart: " + t)))
+            on_status=lambda t: self._web_queue.put(("status", "Autostart: " + t)),
+            n1mm_up=self._n1mm_up, wait_s=getattr(self.cfg, "autostart_n1mm_timeout", 180))
         self._autostart.start()
         self.status_label.configure(text=f"Autostart: {len(items)} program(s) - "
                                          f"first in {items[0]['delay']} s")
+
+    def _n1mm_up(self) -> bool:
+        """N1MM broadcasts (RadioInfo in the last 30 s, or AppInfo) - thread-safe."""
+        last = self.state.last_update()
+        if last and time.time() - last < 30:
+            return True
+        app = self.state.app() or {}
+        return app.get("kind") == "AppInfo" and time.time() - app.get("t", 0) < 120
 
     def _launch_n1mm(self, item: dict) -> None:
         try:
@@ -895,6 +916,44 @@ class PouncerApp:
     def _shutdown_and_quit(self) -> None:
         """File > Exit: close the window; run() then shuts everything down."""
         self._on_close()
+
+    def _diag_facts(self) -> dict:
+        import platform
+        f = {"version": __version__, "frozen": bool(getattr(sys, "frozen", False)),
+             "platform": platform.platform(), "python": platform.python_version(),
+             "config": self.cfg.config_path, "time": time.strftime("%Y-%m-%d %H:%M:%S %z")}
+        try:
+            f["radios"] = {nr: {k: v for k, v in (self.state.snapshot(nr) or {}).items()
+                                if k in ("freq_khz", "band", "mode", "age", "entry_window_hwnd")}
+                           for nr in self.state.radio_numbers()}
+            f["chosen radio"] = self.radio
+            f["n1mm running"] = self._n1mm_running()
+            f["n1mm app info"] = self.state.app()
+            f["log"] = f"{self.worked.db_name} ({self.worked.status}, source {self.worked.contest_source})"
+            f["team"] = self.team.role() if self.team is not None else "off"
+            f["rbn"] = self.rbn_status
+            f["phone page"] = self._local_web_url() or "off"
+            f["last tap"] = getattr(self, "_last_tap", None)
+            f["autostart"] = getattr(getattr(self, "_autostart", None), "results", None)
+            f["checks"] = [(i["name"], i["state"], i["text"])
+                           for i in checksmod.build(self._check_facts())]
+        except Exception as exc:  # noqa: BLE001 - the zip still helps
+            f["facts error"] = repr(exc)
+        return f
+
+    def _save_diagnostics(self) -> None:
+        """Help > Save diagnostics: a zip next to config.ini, folder opened."""
+        folder = os.path.dirname(self.cfg.config_path) if self.cfg.config_path else os.getcwd()
+        out = os.path.join(folder, diagmod.zip_name())
+        try:
+            diagmod.build_zip(out, self.cfg.config_path, self.cfg.run_history_dir or "cache",
+                              self._diag_facts())
+        except OSError as exc:
+            self.status_label.configure(text=f"Diagnostics failed: {exc}")
+            return
+        log.info("diagnostics saved: %s", out)
+        self.status_label.configure(text=f"Diagnostics saved: {out} (passwords removed)")
+        self._open_path(folder)
 
     def _about(self) -> None:
         from tkinter import messagebox
@@ -1183,10 +1242,17 @@ class PouncerApp:
         """Put text into the focused N1MM box: in one go (settext - nothing
         can get mixed up), or cleared + typed key by key. True if the box
         was set / cleared."""
+        try:   # the log tells which window got the call (call shown twice?)
+            fg = win32mod.foreground_window()
+        except Exception:  # noqa: BLE001
+            fg = 0
         if self._settext() and hwnd and set_focused_edit_text(hwnd, text):
+            log.info("call %s -> set in Entry Window %s (front window %s)", text, hwnd, fg)
             return True
         cleared = clear_focused_edit(hwnd) if hwnd else False
         type_text(text)
+        log.info("call %s -> typed as keys, Entry Window %s cleared=%s (front window %s)",
+                 text, hwnd, cleared, fg)
         return cleared
 
     def _check_call(self, hwnd, call: str) -> str:
@@ -1286,6 +1352,8 @@ class PouncerApp:
 
         t0 = time.time()
         if not self._qsy(nr, spot.freq_khz, hwnd, focused):
+            _note_tap(self, spot, nr, False, self.status_label.cget("text") if hasattr(
+                self.status_label, "cget") else "QSY failed")
             return
         self.taps.record(spot.dxcall, spot.freq_khz)   # for the contest summary
         # wait until N1MM reports the radio on the new frequency (it wipes
@@ -1323,6 +1391,16 @@ class PouncerApp:
         msg += self._after_radio(nr, snap, hwnd)
         msg += f" ({time.time() - t0:.1f} s)"
         self.status_label.configure(text=msg)
+        log.info("tap %s: %s", spot.dxcall, msg)
+        if landed:
+            short = f"radio {self._radio_tag(nr)}on {spot.freq_khz:.1f}"
+        else:
+            short = f"N1MM didn't report {spot.freq_khz:.1f} - check the radio"
+        if "call typed" in msg:
+            short += " \u00b7 call in"
+        elif "call skipped" in msg:
+            short += " \u00b7 call NOT typed (N1MM not focused)"
+        _note_tap(self, spot, nr, bool(landed), short, msg)
 
     def _tick(self) -> None:
         self.updater.maybe_check()
@@ -1397,6 +1475,8 @@ class PouncerApp:
             "cw_error": self._cw_error,
             "cw_error_n": self._cw_error_n,
             "rbands": {str(nr): self._current_band(nr) for nr in self.state.radio_numbers()},
+            # the last tap's real result (radio moved? call typed?) for the toast
+            "tap": {k: v for k, v in (getattr(self, "_last_tap", None) or {}).items() if k != "full"},
             "home_cont": self.home_cont,
             "station": self.own_call(),
             "team": self._team_text(),
@@ -1620,6 +1700,7 @@ class PouncerApp:
                 self._set_removed(item[1], item[2], item[3])
                 continue
             _, call, freq, mode, radio = item
+            log.info("phone tap %s %.1f %s radio %s", call, freq, mode, radio or "-")
             spot = Spot(dxcall=call, freq_khz=freq, mode=mode or "CW",
                         snr=None, wpm=None, spot_type="", spotter="",
                         time_utc="", received=time.time())
@@ -1986,6 +2067,7 @@ class PouncerApp:
             if not (hwnd and focused):
                 self.status_label.configure(
                     text="QSY B failed: Entry Window B not in front (N1MM focus failed)")
+                log.warning("QSY B %.1f failed: Entry Window B not in front", khz)
                 return False
             # typed key by key, as up to v0.7.23 when B worked well (N1MM
             # reacts to typed keys; only the call goes in in one go)
@@ -2002,6 +2084,7 @@ class PouncerApp:
             self.controller.set_frequency(khz, mousebutton=button, radio_nr=nr)
         except OSError as exc:
             self.status_label.configure(text=f"N1MM QSY failed: {exc}")
+            log.warning("QSY %.1f radio %s failed: %s", khz, nr, exc)
             return False
         return True
 

@@ -87,6 +87,53 @@ class ConfigTests(unittest.TestCase):
             self.assertFalse(settings.save(cfg, p, "autostart.app2_delay", "9999")["ok"])
 
 
+class PerItemWaitTests(unittest.TestCase):
+    def test_waits_for_n1mm_then_starts(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            exe = os.path.join(d, "router.exe")
+            open(exe, "w").close()
+            items = a.plan([(exe, 0, True), (exe, 2)])
+            self.assertEqual([i["wait"] for i in items], [True, False])
+            now = [0.0]
+            up = {"v": False}
+            started, slept = [], []
+
+            def sleep(s):
+                slept.append(s)
+                now[0] += s
+                if now[0] >= 5:
+                    up["v"] = True          # N1MM broadcasts after 5 s
+            run = a.Autostart(items, launch=lambda p, x: started.append(now[0]), sleep=sleep,
+                              n1mm_up=lambda: up["v"], wait_s=60, clock=lambda: now[0])
+            run.run()
+            self.assertEqual(started, [5.0, 7.0])
+
+    def test_gives_up_after_wait(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            exe = os.path.join(d, "x.exe")
+            open(exe, "w").close()
+            now = [0.0]
+            started = []
+            run = a.Autostart(a.plan([(exe, 0, True)]), launch=lambda p, x: started.append(now[0]),
+                              sleep=lambda s: now.__setitem__(0, now[0] + s),
+                              n1mm_up=lambda: False, wait_s=10, clock=lambda: now[0])
+            run.run()
+            self.assertEqual(started, [10.0])
+            self.assertIn("started", run.status)
+
+    def test_eight_programs_in_ini_and_settings(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "config.ini")
+            with open(p, "w", encoding="utf-8") as fh:
+                fh.write("[autostart]\napp8 = C:\\t\\eight.exe\napp8_wait_n1mm = true\n")
+            cfg = load_config(p)
+            self.assertEqual(cfg.autostart_app8, "C:\\t\\eight.exe")
+            self.assertTrue(cfg.autostart_wait8)
+            self.assertFalse(cfg.autostart_wait1)
+            self.assertTrue(settings.save(cfg, p, "autostart.app6_wait_n1mm", "yes")["ok"])
+            self.assertTrue(load_config(p).autostart_wait6)
+
+
 class N1mmFirstTests(unittest.TestCase):
     def test_is_n1mm_anywhere(self) -> None:
         self.assertTrue(a.is_n1mm(r"C:\HAM\N1MM Logger+\N1MMLogger.net.exe"))

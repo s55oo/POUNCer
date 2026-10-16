@@ -128,14 +128,32 @@ class Config:
     band_lights: bool = True     # band open lights (skimmers on our continent, 10 min)
     # [autostart]: your other programs, started with POUNCer (see autostart.py)
     autostart: bool = True
-    autostart_app1: str = ""     # full path (+ args after a quoted path)
+    # programs 1-8: full path (+ args after a quoted path), seconds after the
+    # one before (app1: after POUNCer's start), wait until N1MM is up first
+    autostart_app1: str = ""
+    autostart_delay1: int = 5
+    autostart_wait1: bool = False
     autostart_app2: str = ""
-    autostart_app3: str = ""
-    autostart_app4: str = ""
-    autostart_delay1: int = 5    # seconds after the one before (app1: after POUNCer's start)
     autostart_delay2: int = 5
+    autostart_wait2: bool = False
+    autostart_app3: str = ""
     autostart_delay3: int = 5
+    autostart_wait3: bool = False
+    autostart_app4: str = ""
     autostart_delay4: int = 5
+    autostart_wait4: bool = False
+    autostart_app5: str = ""
+    autostart_delay5: int = 5
+    autostart_wait5: bool = False
+    autostart_app6: str = ""
+    autostart_delay6: int = 5
+    autostart_wait6: bool = False
+    autostart_app7: str = ""
+    autostart_delay7: int = 5
+    autostart_wait7: bool = False
+    autostart_app8: str = ""
+    autostart_delay8: int = 5
+    autostart_wait8: bool = False
     autostart_folder: str = "autostart"             # next to config.ini
     autostart_folder_delay: int = 3
     autostart_wait_n1mm: bool = True    # N1MM listed first: wait for it before the rest
@@ -258,10 +276,11 @@ def load_config(path: str) -> Config:
     cfg.band_lights = b("ui", "band_lights", cfg.band_lights)
     cfg.autostart = b("autostart", "enabled", cfg.autostart)
     # raw: Windows paths may hold a "%" (no ini interpolation)
-    for n in range(1, 5):
+    for n in range(1, 9):
         setattr(cfg, f"autostart_app{n}",
                 parser.get("autostart", f"app{n}", raw=True, fallback="").strip())
         setattr(cfg, f"autostart_delay{n}", max(0, min(600, i("autostart", f"app{n}_delay", 5))))
+        setattr(cfg, f"autostart_wait{n}", b("autostart", f"app{n}_wait_n1mm", False))
     cfg.autostart_folder = s("autostart", "folder", cfg.autostart_folder).strip()
     cfg.autostart_folder_delay = max(0, min(600, i("autostart", "folder_delay",
                                                    cfg.autostart_folder_delay)))

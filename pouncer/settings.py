@@ -14,6 +14,30 @@ import re
 from .config import parse_radio
 
 # kind: int / bool / choice / text ; live: used at once without a restart
+def _autostart_apps(count: int = 8) -> list[dict]:
+    """Settings for autostart programs 1..count: path, delay, wait for N1MM."""
+    out = []
+    for n in range(1, count + 1):
+        out += [
+            {"key": f"autostart.app{n}", "attr": f"autostart_app{n}", "kind": "file", "live": True,
+             "group": "Autostart", "label": f"Program {n}",
+             "help": ("Full path of an .exe, .bat or shortcut. Arguments: "
+                      "\"C:\\path\\tool.exe\" --arg") if n == 1 else ""},
+            {"key": f"autostart.app{n}_delay", "attr": f"autostart_delay{n}", "kind": "int",
+             "min": 0, "max": 600, "live": True, "group": "Autostart",
+             "label": "  ... start after (seconds)",
+             "help": "after POUNCer's start" if n == 1 else f"after program {n - 1}"},
+            {"key": f"autostart.app{n}_wait_n1mm", "attr": f"autostart_wait{n}", "kind": "bool",
+             "live": True, "group": "Autostart", "label": "  ... only when N1MM is up",
+             "help": "waits (up to the N1MM wait below) until N1MM broadcasts - for tools "
+                     "that need N1MM running" if n == 1 else ""},
+        ]
+    return out
+
+
+_AUTOSTART_APPS = _autostart_apps()
+
+
 SETTINGS: list[dict] = [
     {"key": "n1mm.qsy_wait_ms", "attr": "qsy_wait_ms", "kind": "int", "min": 0, "max": 10000,
      "live": True, "group": "Tap -> N1MM",
@@ -137,39 +161,12 @@ SETTINGS: list[dict] = [
              "with the DX share; grey = nothing."},
     {"key": "autostart.enabled", "attr": "autostart", "kind": "bool", "live": True,
      "group": "Autostart", "label": "Start my programs with POUNCer",
-     "help": "Programs 1-4 below, then everything in the autostart folder - each after its "
+     "help": "Programs 1-8 below, then everything in the autostart folder - each after its "
              "delay. Used at the next start of POUNCer (a restart starts nothing again)."},
-    {"key": "autostart.app1", "attr": "autostart_app1", "kind": "file", "live": True,
-     "group": "Autostart", "label": "Program 1",
-     "help": "Full path of an .exe, .bat or shortcut. Arguments: \"C:\\path\\tool.exe\" --arg"
-             if 1 == 1 else ""},
-    {"key": "autostart.app1_delay", "attr": "autostart_delay1", "kind": "int", "min": 0,
-     "max": 600, "live": True, "group": "Autostart", "label": "  ... start after (seconds)",
-     "help": "after POUNCer's start" if 1 == 1 else "after program 0"},
-    {"key": "autostart.app2", "attr": "autostart_app2", "kind": "file", "live": True,
-     "group": "Autostart", "label": "Program 2",
-     "help": "Full path of an .exe, .bat or shortcut. Arguments: \"C:\\path\\tool.exe\" --arg"
-             if 2 == 1 else ""},
-    {"key": "autostart.app2_delay", "attr": "autostart_delay2", "kind": "int", "min": 0,
-     "max": 600, "live": True, "group": "Autostart", "label": "  ... start after (seconds)",
-     "help": "after POUNCer's start" if 2 == 1 else "after program 1"},
-    {"key": "autostart.app3", "attr": "autostart_app3", "kind": "file", "live": True,
-     "group": "Autostart", "label": "Program 3",
-     "help": "Full path of an .exe, .bat or shortcut. Arguments: \"C:\\path\\tool.exe\" --arg"
-             if 3 == 1 else ""},
-    {"key": "autostart.app3_delay", "attr": "autostart_delay3", "kind": "int", "min": 0,
-     "max": 600, "live": True, "group": "Autostart", "label": "  ... start after (seconds)",
-     "help": "after POUNCer's start" if 3 == 1 else "after program 2"},
-    {"key": "autostart.app4", "attr": "autostart_app4", "kind": "file", "live": True,
-     "group": "Autostart", "label": "Program 4",
-     "help": "Full path of an .exe, .bat or shortcut. Arguments: \"C:\\path\\tool.exe\" --arg"
-             if 4 == 1 else ""},
-    {"key": "autostart.app4_delay", "attr": "autostart_delay4", "kind": "int", "min": 0,
-     "max": 600, "live": True, "group": "Autostart", "label": "  ... start after (seconds)",
-     "help": "after POUNCer's start" if 4 == 1 else "after program 3"},
+    *_AUTOSTART_APPS,
     {"key": "autostart.folder", "attr": "autostart_folder", "kind": "text", "live": True,
      "group": "Autostart", "label": "Autostart folder",
-     "help": "Everything in it (.exe .bat .cmd .lnk ...) starts after programs 1-4, in name "
+     "help": "Everything in it (.exe .bat .cmd .lnk ...) starts after programs 1-8, in name "
              "order. A name like 'autostart' = next to config.ini. Empty = no folder."},
     {"key": "autostart.folder_delay", "attr": "autostart_folder_delay", "kind": "int", "min": 0,
      "max": 600, "live": True, "group": "Autostart", "label": "  ... seconds between them",
