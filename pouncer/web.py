@@ -229,8 +229,14 @@ INDEX_HTML = """<!doctype html>
     cursor: pointer; }
   button.band::after { content: " ▾"; font-size: 12px; opacity: .6; }
   /* Min SNR: "SNR≥10" pill next to the sort keys (teal = on), sheet with presets */
-  .sorts button.snrmin { color: #80cbc4; font-weight: 700; }
-  .sorts button.snrmin.on { background: #00897b; color: #fff; }
+  /* SNR key: hold 1.3 s (fills teal) = minimum SNR sheet; "≥10" under it when on */
+  .sorts button#snrsort { position: relative; }
+  .sorts button#snrsort .snrbadge { position: absolute; left: 0; right: 0; bottom: 1px;
+    font-size: 9px; line-height: 1; font-weight: 800; color: #80cbc4; text-align: center; }
+  .sorts button#snrsort.active .snrbadge { color: #e0f2f1; }
+  @keyframes snrfill { from { box-shadow: inset 0 0 0 0 #00897b; }
+                       to { box-shadow: inset 0 -60px 0 0 #00897b; } }
+  .sorts button#snrsort.holding { animation: snrfill 1.3s linear forwards; }
   #snrsheet .bandgrid { grid-template-columns: repeat(4, 1fr); }
   #snrsheet .bandgrid button { font-size: 19px; padding: 13px 0; }
   #snrsheet .snrstep { display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 8px;
@@ -377,8 +383,7 @@ INDEX_HTML = """<!doctype html>
     <button class="clr" id="clr" title="Clear all spots (e.g. old spots before the contest). Undo for 5 s">CLR</button>
     <button data-sort="time">Time</button>
     <button data-sort="freq">Freq</button>
-    <button data-sort="snr">SNR</button>
-    <button class="snrmin" id="snrmin" title="Minimum SNR: weaker spots are not listed (here and in the POUNCer window)">&ge;dB</button>
+    <button data-sort="snr" id="snrsort" title="Sort by SNR. Hold 1.3 s: minimum SNR (weaker spots not listed)">SNR</button>
     <button class="dxfirst" id="dxfirst" title="DX (outside your continent) on top">DX</button>
     <button class="multfirst" id="multfirst" title="New multipliers on top: double, then single">MLT</button>
     <button class="rarefirst" id="rarefirst" title="Rare CQ on top: stations that rarely run or are on only a few hours (from past logs)">\u26a1</button>
@@ -857,7 +862,7 @@ INDEX_HTML = """<!doctype html>
     let meta = '<b>' + data.spots.length + '</b>' +
       (logBad ? ' spots' : ' needed spots') +
       (data.min_snr && data.snr_hidden ? ' <span class="weaktag" title="Weaker than ' +
-        data.min_snr + ' dB, not listed (\u2265 button)">(+' + data.snr_hidden + ' weak)</span>' : '');
+        data.min_snr + ' dB, not listed (hold SNR)">(+' + data.snr_hidden + ' weak)</span>' : '');
     const q = data.qsos;
     if (lg.open && q) {
       const parts = (q.bands || []).map(x =>
@@ -1046,13 +1051,13 @@ INDEX_HTML = """<!doctype html>
   }
   // ---- Min SNR (shared with the POUNCer window, saved in config.ini)
   const snrSheet = document.getElementById('snrsheet');
-  const snrBtn = document.getElementById('snrmin');
+  const snrBtn = document.getElementById('snrsort');
   const SNR_PRESETS = [0, 3, 6, 10, 13, 15, 20, 25];
   let minSnr = 0;
   function showMinSnr(v) {
     minSnr = v || 0;
-    snrBtn.textContent = minSnr ? '\u2265' + minSnr : '\u2265dB';
-    snrBtn.classList.toggle('on', minSnr > 0);
+    const html = 'SNR' + (minSnr ? '<span class="snrbadge">\u2265' + minSnr + '</span>' : '');
+    if (snrBtn.innerHTML !== html) snrBtn.innerHTML = html;
     document.getElementById('snrval').textContent = minSnr ? minSnr + ' dB' : 'all';
     document.querySelectorAll('#snrpresets button').forEach(b => {
       b.classList.toggle('cur', Number(b.dataset.db) === minSnr);
@@ -1075,7 +1080,24 @@ INDEX_HTML = """<!doctype html>
     b.onclick = () => { setMinSnr(db); snrSheet.classList.remove('show'); };
     document.getElementById('snrpresets').appendChild(b);
   });
-  snrBtn.onclick = () => { showMinSnr(minSnr); snrSheet.classList.add('show'); };
+  // hold the SNR sort key 1.3 s: the sheet (a short tap still sorts by SNR)
+  {
+    let timer = null;
+    const end = () => { clearTimeout(timer); snrBtn.classList.remove('holding'); };
+    snrBtn.addEventListener('pointerdown', () => {
+      snrBtn.dataset.held = '';
+      snrBtn.classList.add('holding');
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        snrBtn.dataset.held = '1';
+        end();
+        showMinSnr(minSnr);
+        snrSheet.classList.add('show');
+      }, 1300);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(t => snrBtn.addEventListener(t, end));
+    snrBtn.addEventListener('contextmenu', e => e.preventDefault());
+  }
   document.getElementById('snrdown').onclick = () => setMinSnr(minSnr - 1);
   document.getElementById('snrup').onclick = () => setMinSnr(minSnr + 1);
   document.getElementById('snrclose').onclick = () => snrSheet.classList.remove('show');
@@ -1272,6 +1294,7 @@ INDEX_HTML = """<!doctype html>
   }
   document.querySelectorAll('.sorts button[data-sort]').forEach(b => {
     b.onclick = () => {
+      if (b.dataset.held === '1') { b.dataset.held = ''; return; }   // SNR held: sheet, no sort
       if (b.dataset.sort === 'freq' && sortKey === 'freq') {   // Freq again: toggle
         freqFrom = !freqFrom;
         try { localStorage.setItem('pouncer.freqfrom', freqFrom ? '1' : '0'); } catch (e) {}
@@ -1433,11 +1456,11 @@ page.</p>
   <dt><span class="k green">F2</span> &hellip; <span class="k green">F7</span></dt>
   <dd>Press that function key in N1MM - it <b>transmits</b> N1MM's message (F2 report,
     F3 TU, F4 your call, F5 his call, F7 ?). The label under the key says which.</dd>
-  <dt><span class="k">&ge;10</span></dt>
-  <dd>Minimum SNR (next to the sort keys): spots weaker than this are not listed - here
-  and in the POUNCer window (same setting, saved). Tap it: <b>all</b> / 3 / 6 / 10 / 13 /
-  15 / 20 / 25 dB, or &minus;1 / +1. Teal = on; the top line then says how many weak spots
-  are hidden. Default <b>all</b> (0 = off). New multipliers and spots without an SNR (SSB)
+  <dt><span class="k">SNR</span> held 1.3 s</dt>
+  <dd>Minimum SNR: tap SNR = sort by SNR; <b>hold it 1.3 s</b> (it fills teal) to set the
+  minimum: spots weaker than this are not listed - here and in the POUNCer window (same
+  setting, saved). <b>all</b> / 3 / 6 / 10 / 13 / 15 / 20 / 25 dB, or &minus;1 / +1. When on,
+  the SNR key shows it small (&ge;10) and the top line says how many weak spots are hidden. Default <b>all</b> (0 = off). New multipliers and spots without an SNR (SSB)
   are always listed.</dd>
   <dt><span class="k green">ENTER</span></dt>
   <dd>Enter in N1MM: logs the QSO (no transmit).<br>

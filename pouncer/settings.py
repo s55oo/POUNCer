@@ -115,7 +115,7 @@ SETTINGS: list[dict] = [
     {"key": "ui.min_snr", "attr": "min_snr", "kind": "int", "min": 0, "max": 60,
      "live": True, "group": "Program", "label": "Minimum SNR (dB)",
      "help": "Window and phone list: hide spots weaker than this; 0 = off, all spots (default). Also next to "
-             "the sort buttons (window) and the SNR button on the phone."},
+             "the sort buttons (window); on the phone hold the SNR key 1.3 s."},
     {"key": "ui.min_snr_keep_mults", "attr": "min_snr_keep_mults", "kind": "bool",
      "live": True, "group": "Program", "label": "Min SNR: keep new mults",
      "help": "A new multiplier is shown even when it is weaker than the minimum SNR."},

@@ -113,7 +113,7 @@ class ApiTests(unittest.TestCase):
     def test_page_has_the_button(self) -> None:
         with urllib.request.urlopen(self.url + "/", timeout=30) as r:
             page = r.read().decode()
-        for part in ('id="snrmin"', 'id="snrsheet"', "/api/minsnr?", "weak)"):
+        for part in ('id="snrsort"', 'id="snrsheet"', "snrbadge", "/api/minsnr?", "weak)"):
             self.assertIn(part, page)
 
 

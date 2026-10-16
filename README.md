@@ -190,7 +190,8 @@ and both radios' frequencies, then the spot list with just frequency, call
 and the full window comes back at its old size. The compact size and
 position are remembered separately; *Always on top* also works on its own.
 
-**Min SNR** (next to the sort buttons; on the phone the **≥dB** button):
+**Min SNR** (next to the sort buttons; on the phone **hold the SNR key 1.3 s** -
+a short tap still sorts by SNR; when on, the key shows a small ≥10):
 spots weaker than that are not listed, in the window and on the phone -
 one setting (`[ui] min_snr`; **default 0 = off, all spots listed** - raise it
 only when a busy band needs it). New multipliers and SSB cluster

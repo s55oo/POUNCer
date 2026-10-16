@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.7.49 — 2026-10-16 — phone: minimum SNR on the SNR key (hold 1.3 s)
+
+- No extra ≥dB button in the phone's top row any more (too little space):
+  **hold the SNR sort key 1.3 s** (it fills teal) for the minimum-SNR sheet
+  (all / 3 / 6 / 10 / 13 / 15 / 20 / 25, −1 / +1). A short tap still sorts
+  by SNR. When a minimum is set the key shows it small under "SNR" (≥10).
+
 ## v0.7.48 — 2026-10-16 — minimum SNR (window and phone)
 
 - **Min SNR** box next to the sort buttons in the window (arrows, mouse
