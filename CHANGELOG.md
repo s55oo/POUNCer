@@ -1,13 +1,7 @@
 # POUNCer — Changelog
 
-## v0.7.59 — 2026-10-16 — band chips coloured by DX share, clock via NTP
+## v0.7.60 — 2026-10-16 — click a band chip; A/B switch only with two radios
 
-- **Band open chips coloured by the DX share** (window and the phone's
-  band-menu dots): orange = the stations heard are (almost) all from your
-  own continent, through yellow, to green = (almost) all DX - in proportion
-  to the % of DX among all different stations heard on the band. The chip
-  shows the %: **20m: 34 DX 85%** (also with only a few DX: **15m: 2 DX
-  100%**); **80m: EU only** = no DX at all. Grey = nothing heard.
 - The window's **Radio A / B** switch (and the one in the compact window)
   only shows while N1MM reports two radios / VFOs (SO2R / SO2V) - with one
   radio there is nothing to switch. Like the phone's A / B key.
@@ -16,7 +10,17 @@
   is. Click a spot there and the radio QSYs to it; the list then follows
   the radio again. Click the chip again (or the radio's own band) to go
   back. Like the phone's band menu.
+- Band chip text follows the same numbers as its colour: with only a few
+  DX stations it reads **15m: 2 DX 100%** (was "EU only" on a green chip);
+  **80m: EU only** = no DX at all.
 
+## v0.7.59 — 2026-10-16 — band chips coloured by DX share, clock via NTP
+
+- **Band open chips coloured by the DX share** (window and the phone's
+  band-menu dots): orange = the stations heard are (almost) all from your
+  own continent, through yellow, to green = (almost) all DX - in proportion
+  to the % of DX among all different stations heard on the band. The chip
+  shows the %: **20m: 34 DX 85%**. Grey = nothing heard.
 - The check line's PC clock now comes from an **NTP time server**
   (pool.ntp.org, else time.windows.com; UDP 123, milliseconds) instead of a
   web server's `Date` header, which could be seconds old when the answer
