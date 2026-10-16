@@ -252,6 +252,9 @@ is moved back onto the screen.
 
 ## Connection lights (Windows window)
 
+Every mark, colour and badge of the window and the phone page is explained
+in **[docs/SYMBOLS.md](docs/SYMBOLS.md)**.
+
 Under the MASTER / SLAVE bar a row of lights shows at a glance that
 everything is connected:
 
@@ -415,6 +418,8 @@ in the Windows firewall on each PC. `[team] enabled = false` = stand-alone.
 Give them all the same `[rbn] spotter` and modes.
 
 ## Reading a tile (phone view)
+
+All phone keys and marks: **[docs/SYMBOLS.md](docs/SYMBOLS.md#phone-page)**.
 
 ```
  M0KTZ ⚡          7003.1 R6%* ~4h
