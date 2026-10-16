@@ -478,8 +478,24 @@ Each program starts in its own folder, like a double-click. The same
 program can be listed more than once (e.g. 4 copies of a log router): all
 copies start. An .exe that was already running before POUNCer started its
 list is not started again, and when POUNCer restarts itself
-(update, File > Restart) nothing is started again. *File > Start autostart
-programs now* runs the list by hand; the status bar shows what started.
+(update, File > Restart) nothing is started again - so right after an
+auto-update use *File > Start autostart programs now* if they aren't
+running yet (it runs the list by hand); the status bar shows what started.
+
+Example - four copies of a log router, 5 s apart:
+
+```ini
+[autostart]
+enabled = true
+app1 = C:\HAM\LogRouter\router.exe
+app1_delay = 5
+app2 = C:\HAM\LogRouter\router.exe
+app2_delay = 5
+app3 = C:\HAM\LogRouter\router.exe
+app3_delay = 5
+app4 = C:\HAM\LogRouter\router.exe
+app4_delay = 5
+```
 
 ## N1MM Logger+ setup
 
