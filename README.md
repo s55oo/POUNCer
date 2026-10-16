@@ -474,8 +474,10 @@ number of seconds after the one before:
   programs 1-4, in name order (`1 rotor.lnk`, `2 cw.bat`), `folder_delay`
   seconds apart.
 
-Each program starts in its own folder, like a double-click. An .exe that
-already runs is not started a second time, and when POUNCer restarts itself
+Each program starts in its own folder, like a double-click. The same
+program can be listed more than once (e.g. 4 copies of a log router): all
+copies start. An .exe that was already running before POUNCer started its
+list is not started again, and when POUNCer restarts itself
 (update, File > Restart) nothing is started again. *File > Start autostart
 programs now* runs the list by hand; the status bar shows what started.
 

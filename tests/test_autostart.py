@@ -52,6 +52,17 @@ class PlanRunTests(unittest.TestCase):
         self.assertEqual([res for _, res in r.results], ["running", "not found", "started"])
         self.assertIn("started cw tool.bat (3/3)", said[-1])
 
+    def test_same_program_four_times(self) -> None:
+        launched = []
+        items = a.plan([(self.exe, 0)] * 4)
+        a.Autostart(items, running=lambda: set(), launch=lambda p, x: launched.append(p),
+                    sleep=lambda s: None).run()
+        self.assertEqual(launched, [self.exe] * 4)          # 4 copies
+        launched.clear()
+        a.Autostart(items, running=lambda: {"rotor.exe"}, launch=lambda p, x: launched.append(p),
+                    sleep=lambda s: None).run()
+        self.assertEqual(launched, [])                      # already running: none again
+
     def test_one_failure_does_not_stop_the_rest(self) -> None:
         def launch(p, x):
             if p == self.exe:

@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.7.57 — 2026-10-16 — autostart: the same program more than once
+
+- The same program listed several times (e.g. 4 copies of a log router as
+  programs 1-4) now starts every copy. Only programs that were already
+  running **before** POUNCer started its autostart list are skipped, so a
+  second POUNCer start doesn't add 4 more copies.
+
 ## v0.7.56 — 2026-10-16 — autostart your other programs
 
 - **Settings > Autostart**: up to 4 programs (.exe, .bat, .cmd, shortcut;
