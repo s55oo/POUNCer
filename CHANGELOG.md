@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## Docs — 2026-10-16 (4)
+
+- README / config.ini: **which config.ini** POUNCer reads (the one next to
+  the POUNCer.exe you start - two copies = two autostart lists), and **more
+  than 4 programs** (a shortcut or a `start "" /D ...` .bat in the autostart
+  folder). The N1MM-first wait was tested: N1MM starts, POUNCer waits, then
+  the rest and the other programs.
+
 ## v0.7.65 — 2026-10-16 — Autostart: N1MM first, the rest when it is up
 
 - **N1MM as Program 1**: when the first autostart program is N1MM Logger+
