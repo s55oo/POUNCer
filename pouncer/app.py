@@ -859,7 +859,8 @@ class PouncerApp:
                 self._apply_topmost()
             if data.get("zoomed") and not data.get("compact"):
                 self.root.state("zoomed")
-        except tk.TclError as exc:
+        except (tk.TclError, ValueError, TypeError) as exc:
+            # a bad saved window must never stop POUNCer from starting
             log.info("window state not restored: %s", exc)
 
     def _save_window(self) -> None:
