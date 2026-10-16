@@ -106,7 +106,7 @@ class Autostart:
     def run(self) -> None:
         total = len(self.items)
         # what ran BEFORE this list started: the same program listed twice
-        # (e.g. 4 x QSOrouter.exe) starts 4 times, but a second POUNCer start
+        # (e.g. 4 x the same router.exe) starts 4 times, but a second POUNCer start
         # doesn't add 4 more
         before: set[str] = set()
         if self._running is not None:
