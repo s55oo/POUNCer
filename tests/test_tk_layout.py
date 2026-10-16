@@ -51,6 +51,21 @@ class TkLayoutTests(unittest.TestCase):
         self._settle("2400x400+10+10")
         self.assertEqual(len({b.winfo_y() for b in buttons}), 1)  # one row again
 
+    def test_flow_hides_a_button_without_a_gap(self) -> None:
+        from pouncer.app import FlowFrame
+        flow = FlowFrame(self.root)
+        flow.pack(fill="x")
+        a, b, c = (flow.add(ttk.Button(flow, text=t)) for t in ("Time", "Radio A (A/B)", "SNR"))
+        self._settle("900x200+10+10")
+        x_c = c.winfo_x()
+        flow.set_visible(b, False)              # one radio: no A / B switch
+        self._settle("900x200+10+10")
+        self.assertFalse(b.winfo_ismapped())
+        self.assertLess(c.winfo_x(), x_c)       # SNR moved up into the gap
+        flow.set_visible(b, True)
+        self._settle("900x200+10+10")
+        self.assertTrue(b.winfo_ismapped())
+
     def test_label_wraps_to_window_width(self) -> None:
         from pouncer.app import PouncerApp
 

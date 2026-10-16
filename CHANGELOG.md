@@ -8,6 +8,9 @@
   to the % of DX among all different stations heard on the band. The chip
   shows the %: **20m: 34 DX 85%** (also with only a few DX: **15m: 2 DX
   100%**); **80m: EU only** = no DX at all. Grey = nothing heard.
+- The window's **Radio A / B** switch (and the one in the compact window)
+  only shows while N1MM reports two radios / VFOs (SO2R / SO2V) - with one
+  radio there is nothing to switch. Like the phone's A / B key.
 - **Click a band chip** in the window: the list shows that band's spots
   (▶ on the chip, "▶ list: 20m" in the top bar) - the radio stays where it
   is. Click a spot there and the radio QSYs to it; the list then follows

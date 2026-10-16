@@ -75,6 +75,7 @@ class FlowFrame(ttk.Frame):
     def __init__(self, master, padx: int = 6, pady: int = 4, **kw) -> None:
         super().__init__(master, **kw)
         self._items: list[tuple[tk.Widget, int]] = []
+        self._hidden: set = set()           # widgets left out of the rows
         self._padx, self._pady = padx, pady
         self._pending = False
         self._last: tuple | None = None
@@ -88,6 +89,18 @@ class FlowFrame(ttk.Frame):
         self._schedule()
         return widget
 
+    def set_visible(self, widget, visible: bool) -> None:
+        """Show / hide one child; the others close up (no gap)."""
+        if visible == (widget not in self._hidden):
+            return
+        if visible:
+            self._hidden.discard(widget)
+        else:
+            self._hidden.add(widget)
+            widget.place_forget()
+        self._last = None
+        self._schedule()
+
     def _schedule(self) -> None:
         if not self._pending:
             self._pending = True
@@ -96,15 +109,16 @@ class FlowFrame(ttk.Frame):
     def _layout(self) -> None:
         self._pending = False
         width = max(self.winfo_width(), 1)
-        sizes = [(w.winfo_reqwidth(), w.winfo_reqheight()) for w, _ in self._items]
+        items = [(w, g) for w, g in self._items if w not in self._hidden]
+        sizes = [(w.winfo_reqwidth(), w.winfo_reqheight()) for w, _ in items]
         pos, height = flow_positions(
-            sizes, width, self._padx, self._pady, [g for _, g in self._items]
+            sizes, width, self._padx, self._pady, [g for _, g in items]
         )
         key = (width, tuple(sizes), tuple(pos), height)
         if key == self._last:
             return
         self._last = key
-        for (widget, _), (x, y) in zip(self._items, pos):
+        for (widget, _), (x, y) in zip(items, pos):
             widget.place(x=x, y=y)
         self.configure(height=max(height, 1))
 
@@ -318,6 +332,7 @@ class PouncerApp:
         self._outer = outer
         flow = FlowFrame(outer)
         flow.pack(fill="x")
+        self._flow = flow
         flow.add(ttk.Label(flow, text="Sort", style="Muted.TLabel"))
         for col in ("time", "freq", "snr"):
             btn = flow.add(ttk.Button(
@@ -2035,7 +2050,23 @@ class PouncerApp:
         snap = self.state.snapshot(radio or self.radio)
         return (snap or {}).get("band")
 
+    def _update_radio_switch(self) -> None:
+        """Radio A / B switch only when N1MM reports two radios (SO2R / SO2V)
+        - or B is still chosen; with one radio there is nothing to switch."""
+        show = self._so2r() or self.radio == 2
+        flow = getattr(self, "_flow", None)
+        btn = getattr(self, "radio_btn", None)
+        if flow is not None and btn is not None:
+            flow.set_visible(btn, show)
+        cbtn = getattr(self, "_compact_btn", None)
+        if cbtn is not None and show != bool(cbtn.winfo_manager()):
+            if show:
+                cbtn.pack(side="left", before=self._compact_info)
+            else:
+                cbtn.pack_forget()
+
     def _update_labels(self) -> None:
+        self._update_radio_switch()
         self._update_compact_bar()
         # Min SNR changed elsewhere (Settings, phone): show it in the box
         box = getattr(self, "_min_snr_box", None)
