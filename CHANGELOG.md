@@ -1,6 +1,12 @@
 # POUNCer — Changelog
 
-## Unreleased — PC clock check via NTP
+## v0.7.59 — 2026-10-16 — band chips coloured by DX share, clock via NTP
+
+- **Band open chips coloured by the DX share** (window and the phone's
+  band-menu dots): orange = the stations heard are (almost) all from your
+  own continent, through yellow, to green = (almost) all DX - in proportion
+  to the % of DX among all different stations heard on the band. The chip
+  shows the %: **20m: 34 DX 85%**. Grey = nothing heard.
 
 - The check line's PC clock now comes from an **NTP time server**
   (pool.ntp.org, else time.windows.com; UDP 123, milliseconds) instead of a

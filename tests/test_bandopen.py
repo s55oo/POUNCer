@@ -60,9 +60,32 @@ class ChipTextTests(unittest.TestCase):
         app = _import_app()
         f = types.SimpleNamespace(home_cont="EU")
         t = lambda b, c: app.PouncerApp._band_chip_text(f, b, c)
-        self.assertEqual(t("40m", {"state": "open", "dx": 34}), "40m: 34 DX")
+        self.assertEqual(t("40m", {"state": "open", "dx": 34, "calls": 40}), "40m: 34 DX 85%")
         self.assertEqual(t("80m", {"state": "local", "dx": 1}), "80m: EU only")
         self.assertEqual(t("160m", {"state": "closed"}), "160m: \u2013")
+
+
+class ShareColorTests(unittest.TestCase):
+    def test_orange_to_green_by_dx_share(self) -> None:
+        from pouncer.bandopen import dx_pct, share_color
+        self.assertEqual(dx_pct({"calls": 40, "dx": 10}), 25)
+        self.assertEqual(dx_pct({"calls": 0, "dx": 0}), 0)
+        local, _ = share_color(0)
+        dx, _ = share_color(100)
+        r0, g0 = int(local[1:3], 16), int(local[3:5], 16)
+        r1, g1 = int(dx[1:3], 16), int(dx[3:5], 16)
+        self.assertGreater(r0, g0)          # orange: more red than green
+        self.assertGreater(g1, r1)          # green
+        self.assertEqual(share_color(50)[1], "#1f1f1f")   # dark text on the bright middle
+        self.assertEqual(share_color(-5), share_color(0))
+        self.assertEqual(share_color(250), share_color(100))
+
+    def test_summary_has_the_share(self) -> None:
+        now = [10000.0]
+        b = BandActivity(CONT.get, lambda: "EU", clock=lambda: now[0])
+        for call in ("K1ABC", "W2XYZ", "S50A", "LZ1AA"):
+            b.add(sp(call, 14020, "S53WW-#", 9990))
+        self.assertEqual(b.summary()["20m"]["pct"], 50)
 
 
 class FeedHookTests(unittest.TestCase):

@@ -31,6 +31,28 @@ def spotter_call(spotter: str) -> str:
     return str(spotter or "").split("-")[0].strip().upper()
 
 
+HUE_LOCAL, HUE_DX = 28, 125    # orange (only our continent) ... green (all DX)
+
+
+def dx_pct(counts: dict | None) -> int:
+    """DX stations as a % of all different stations heard on the band."""
+    if not counts or not counts.get("calls"):
+        return 0
+    return max(0, min(100, round(100 * counts.get("dx", 0) / counts["calls"])))
+
+
+def share_color(pct: float) -> tuple[str, str]:
+    """(background, text) from orange (0 % DX: only our continent) through
+    yellow to green (100 % DX), in proportion; the text black or white,
+    whichever reads better on it."""
+    import colorsys
+    t = max(0.0, min(1.0, pct / 100.0))
+    hue = (HUE_LOCAL + (HUE_DX - HUE_LOCAL) * t) / 360.0
+    rgb = [round(x * 255) for x in colorsys.hls_to_rgb(hue, 0.40, 0.75)]
+    lum = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]
+    return "#%02x%02x%02x" % tuple(rgb), ("#1f1f1f" if lum > 140 else "#ffffff")
+
+
 def state_of(counts: dict | None) -> str:
     if not counts or not counts.get("spots"):
         return "closed"
@@ -89,5 +111,6 @@ class BandActivity:
                 dx = {c for _, c, far in items if far}
                 c = {"spots": len(items), "calls": len(calls), "dx": len(dx)}
                 c["state"] = state_of(c)
+                c["pct"] = dx_pct(c)
                 out[band] = c
         return out
