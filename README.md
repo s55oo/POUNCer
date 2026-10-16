@@ -279,7 +279,9 @@ chooses which radio that phone works: taps (QSY + callsign), F-keys,
 ENTER, −/+ Hz and the band menu go to that radio's Entry Window, and the
 spot list follows that radio's band. Every phone keeps its own choice -
 e.g. one phone for radio A, a second one for radio B. In the main window
-the **Radio A (A/B)** button does the same for clicks and keyboard F-keys.
+the **Radio A (A/B)** button does the same for clicks and keyboard F-keys;
+it only shows while N1MM reports two radios (with one there is nothing to
+switch).
 `[n1mm] default_radio = A` / `B` sets the start radio. Radio B is
 QSYed with N1MM's UDP command for radio 2 with mouse button **Left**,
 nothing typed (`[n1mm] radio_b_qsy = udp-left`, as SP_Helper does; with
