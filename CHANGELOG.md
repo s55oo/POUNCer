@@ -1,5 +1,26 @@
 # POUNCer — Changelog
 
+## v0.7.55 — 2026-10-16 — new look for the main window
+
+(v0.7.54 had the same new look but still called itself 0.7.53 inside, so
+the update check kept offering it - use 0.7.55.)
+
+- **Dark top bar** with the radio frequency large (band, mode, CW speed and,
+  in SO2R / SO2V, the other radio's frequency next to it), the **READY /
+  CHECK / NOT READY** badge (click: show the check items) and the team
+  badge on the right - three rows less than before (team bar, check line,
+  N1MM line).
+- The check items only show while something is wrong (or after a click
+  on the badge).
+- Connection lights and *Band open* chips in **one row**.
+- N1MM / RBN / Log lines smaller and grey, values in dark bold.
+- Flat theme (ttk "clam", Segoe UI 10): the active **sort key filled
+  blue**, Radio A/B as an accent key, F-keys bold, **ENTER green**.
+- Spot list: taller rows (26 px), light **zebra stripes**, bold grey
+  headings, Cont / Mult / Mode / Type centred; same colours as before
+  (new mult red bold, worked grey, strong green, tuned-to blue, DX orange).
+- A **status bar** at the bottom: the last action and the phone page URL.
+
 ## v0.7.53 — 2026-10-16 — no false "Log" warning in the check line
 
 - The check line warned *CHECK: Log ... enable App Info* whenever the open

@@ -161,9 +161,24 @@ is required.
 <p align="center"><img src="docs/main-window.png" width="720"
   alt="POUNCer 0.7.39 main window: menu bar File / View / Settings / Help, team bar, connection lights, N1MM / RBN / Log lines, sort and A/B buttons, F-key row and the spot list"></p>
 
-*The Windows main window (0.7.39): menu bar, team bar, connection lights
-(RBN, N1MM, Log, Team, Phone, SSB, Warm-up, Update), the N1MM / RBN / Log
-lines, Sort and A/B buttons, the F-key row and the spot list.*
+*The Windows main window (0.7.39; the look changed in 0.7.55, see below):
+menu bar, team bar, connection lights (RBN, N1MM, Log, Team, Phone, SSB,
+Warm-up, Update), the N1MM / RBN / Log lines, Sort and A/B buttons, the
+F-key row and the spot list.*
+
+Since 0.7.55 the window is laid out like this, from the top:
+
+- a **dark top bar**: the radio frequency **large**, with band, mode, CW
+  speed (and the other radio's frequency in SO2R / SO2V) next to it; on the
+  right the **READY / CHECK / NOT READY** badge (click it to show the check
+  items) and the team badge (MASTER / SLAVE / ALONE / TEAM OFF);
+- the check items - only while something is wrong (or after a click);
+- **one row of status chips**: the connection lights, then *Band open*;
+- small grey info lines (N1MM, RBN, Log) with the values in bold;
+- Sort (the active sort key filled blue), Min SNR, Radio A/B;
+- the F-keys (ENTER green);
+- the spot list: taller rows, light zebra stripes, bold column headings;
+- a status bar: what the last tap did, and the phone page address.
 
 The options and actions are in the menu bar (sort, the A / B key and the
 F-keys stay as buttons - they're used all contest long):
