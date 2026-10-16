@@ -16,6 +16,8 @@
   every contest in the file.
 - The Log line says where the contest came from: *(from N1MM)*, *(from N1MM
   Logger.ini)* or *(newest QSO's contest)*.
+- Phone help page (?): how the QSO counts follow the open contest and the
+  App Info setting.
 
 ## v0.7.51 — 2026-10-16 — band open lights
 

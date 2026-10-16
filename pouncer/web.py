@@ -1433,6 +1433,11 @@ POUNCers in the team run different versions (it says which PC runs which) - upda
 them all to the same version (Restart after auto-update, or download the newest). Then: how many needed spots, your QSOs per band and in total, and
 the open log. An <b>orange bar</b> means N1MM has no log open (or isn't running) -
 open one and tap <b>Reconnect</b>.</p>
+<p>The QSO counts are always those of the <b>contest open in N1MM</b>, not of the whole
+database. Tick <b>App Info</b> in N1MM (<i>Config &gt; Config Ports &gt; Broadcast Data</i>,
+address <code>127.0.0.1:12060</code>, like Radio): N1MM then tells POUNCer at once which log
+and contest you opened. Without it POUNCer reads N1MM's ini, which N1MM saves only now and
+then - after switching contests the counts can belong to the old one until N1MM is restarted.</p>
 
 <h2>Spot tiles</h2>
 <dl>
