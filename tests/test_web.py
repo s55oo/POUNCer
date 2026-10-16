@@ -51,6 +51,15 @@ class WebServerTests(unittest.TestCase):
         # generous: the macOS CI runners are sometimes very slow (5 s timed out)
         return urllib.request.urlopen(self.url + path, timeout=30)
 
+    def test_tiles_are_kept_not_redrawn(self) -> None:
+        # the page updates its tiles in place (keyed by call + MHz) instead
+        # of emptying the grid every second (contest traffic: no flicker)
+        with self._get("/") as resp:
+            page = resp.read().decode("utf-8")
+        self.assertIn("const tiles = new Map()", page)
+        self.assertIn("el._spot = s", page)
+        self.assertNotIn("grid.textContent = ''", page)
+
     def test_index_serves_mobile_page(self) -> None:
         with self._get("/") as resp:
             body = resp.read().decode("utf-8")

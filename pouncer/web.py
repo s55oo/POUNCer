@@ -888,7 +888,6 @@ INDEX_HTML = """<!doctype html>
     const rows = Math.max(1, Math.ceil(spots.length / cols));
     grid.style.gridTemplateColumns = 'repeat(' + cols + ', minmax(0, 1fr))';
     grid.style.gridTemplateRows = 'repeat(' + rows + ', minmax(var(--row), auto))';
-    grid.textContent = '';
     // "Tuned to": the spot nearest the radio frequency, within 0.5 kHz.
     let tuned = null;
     if (typeof data.freq === 'number' && data.freq > 0) {
@@ -898,9 +897,21 @@ INDEX_HTML = """<!doctype html>
         if (d <= best) { best = d; tuned = s; }
       });
     }
+    // Tiles are kept between refreshes (by call + MHz): a tile is only
+    // touched when what it shows changed, and only moved when its place in
+    // the list changed - no full redraw every second, no flicker, and the
+    // tile under your finger stays the same element.
+    const seen = new Set();
+    let pos = 0;
+    // other column count / window width: measure "too wide" again
+    const layout = cols + 'x' + window.innerWidth;
+    if (layout !== tilesLayout) { tilesLayout = layout; tiles.forEach(t => { t.tight = null; }); }
+    if (emptyEl && emptyEl.parentNode) emptyEl.remove();
     spots.forEach(s => {
-      const b = document.createElement('button');
-      b.className = 'tile' + (snrVal(s) >= 20 ? ' strong' : '') +
+      let key = calmKey(s), n = 1;
+      while (seen.has(key)) key = calmKey(s) + '#' + (++n);
+      seen.add(key);
+      const cls = 'tile' + (snrVal(s) >= 20 ? ' strong' : '') +
         (s.mult >= 2 ? ' m2' : (s.mult === 1 ? ' m1' : '')) +
         (s === tuned ? ' onfreq' : '') +
         // not re-spotted for a while: probably gone - fade it
@@ -908,6 +919,7 @@ INDEX_HTML = """<!doctype html>
         (spotKey(s) === selKey ? ' sel' : '') +
         (calm && calmNew.has(calmKey(s)) ? ' fresh' : '');
       // DX (outside our continent): callsign in yellow; EU stays white
+      const b = {title: ''};          // collects the tooltip text
       if (s.country) b.title = s.country + (s.cont ? ' (' + s.cont + ')' : '');
       // Run history (past logs): R = % of QSOs made running; ⚡ = rarely
       // runs, so a CQ from it won't last - work it now.
@@ -923,7 +935,7 @@ INDEX_HTML = """<!doctype html>
         '? = not in the Super Check Partial list: maybe a skimmer error (busted call)';
       const len = (s.call || '').length;
       const size = len > 10 ? ' xlong' : (len > 8 ? ' long' : '');
-      b.innerHTML = '<span class="call' + size + (s.dx ? ' dx' : '') + '">' +
+      const html = '<span class="call' + size + (s.dx ? ' dx' : '') + '">' +
         esc(s.call) + (s.busted ? '<span class="busted">?</span>' : '') +
         (rare ? '<span class="rare">\u26a1</span>' : '') + '</span>' +
         '<span class="detail"><span><b class="fq">' + s.freq.toFixed(1) + '</b>' +
@@ -937,25 +949,54 @@ INDEX_HTML = """<!doctype html>
         (s.snr == null ? '--' : s.snr + 'dB') +
         (s.cq_min != null ? ' cq' + cqText(s.cq_min) : '') +
         '</span></span>';
-      attachPress(b, s);
-      grid.appendChild(b);
+      let t = tiles.get(key);
+      if (!t) {
+        const el = document.createElement('button');
+        t = {el: el, cls: null, title: null, html: null, tight: false};
+        attachPress(el);
+        tiles.set(key, t);
+      }
+      const el = t.el;
+      el._spot = s;                   // tap / hold use the latest spot data
+      if (t.html !== html) { el.innerHTML = html; t.html = html; t.tight = null; }
+      if (t.title !== b.title) { el.title = b.title; t.title = b.title; }
+      if (t.cls !== cls) {
+        // keep a running hold / tap flash while the rest of the look changes
+        const keepCls = ['holding', 'sel'].filter(c => el.classList.contains(c) && cls.indexOf(' ' + c) < 0);
+        el.className = cls + (t.tight ? ' tight' : '') + (keepCls.length ? ' ' + keepCls.join(' ') : '');
+        t.cls = cls;
+      }
+      if (grid.children[pos] !== el) grid.insertBefore(el, grid.children[pos] || null);
+      pos++;
       // still too wide (long call + every mark)? slightly smaller text
-      if (b.scrollWidth > b.clientWidth + 1) b.classList.add('tight');
+      if (t.tight === null) {
+        el.classList.remove('tight');
+        t.tight = el.scrollWidth > el.clientWidth + 1;
+        if (t.tight) el.classList.add('tight');
+      }
+    });
+    // gone from the list: take those tiles out
+    tiles.forEach((t, key) => {
+      if (!seen.has(key)) { t.el.remove(); tiles.delete(key); }
     });
     checkAlerts(spots);
     if (!spots.length) {
-      const d = document.createElement('div');
-      d.className = 'empty';
-      d.textContent = 'No needed spots on this band right now.';
-      grid.appendChild(d);
+      if (!emptyEl) {
+        emptyEl = document.createElement('div');
+        emptyEl.className = 'empty';
+        emptyEl.textContent = 'No needed spots on this band right now.';
+      }
+      grid.appendChild(emptyEl);
     }
     markSort();
   }
+  const tiles = new Map();          // call|MHz -> {el, cls, title, html, tight}
+  let emptyEl = null, tilesLayout = '';
   // Tap = QSY. Hold 2 s = offer to remove the call from the list.
   const HOLD_MS = 2000;
   let pressing = false;   // a tile is being held: don't redraw the list
   let releaseTimer = null;
-  function attachPress(b, s) {
+  function attachPress(b) {          // b._spot = the spot this tile shows now
     let timer = null, held = false;
     const cancel = () => {
       clearTimeout(timer); timer = null;
@@ -970,13 +1011,13 @@ INDEX_HTML = """<!doctype html>
       clearTimeout(releaseTimer);
       pressing = true;
       b.classList.add('holding');
-      timer = setTimeout(() => { held = true; cancel(); askRemove(s); }, HOLD_MS);
+      timer = setTimeout(() => { held = true; cancel(); askRemove(b._spot); }, HOLD_MS);
     });
     b.addEventListener('pointerup', cancel);
     b.addEventListener('pointerleave', cancel);
     b.addEventListener('pointercancel', cancel);
     b.addEventListener('contextmenu', e => e.preventDefault());
-    b.onclick = () => { if (held) { held = false; return; } qsy(s, b); };
+    b.onclick = () => { if (held) { held = false; return; } qsy(b._spot, b); };
   }
   const rmSheet = document.getElementById('rmsheet');
   let rmSpot = null;
