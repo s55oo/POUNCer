@@ -607,6 +607,19 @@ app4_delay = 5
   list (version, radios, log, team, checks, last tap) and config.ini with
   any password / token / key removed into one zip next to config.ini and
   opens the folder - send that zip when you report a problem.
+- **Performance log:** once a minute POUNCer writes a row to
+  `cache\perf.csv` (opens in Excel; *Help > Open the performance log*):
+  POUNCer's CPU (% of one core and of the whole PC), the PC's CPU, POUNCer's
+  memory (working set, private, peak) and the PC's memory, free disk, the
+  cache folder's size, POUNCer's disk reads / writes, threads, handles - and
+  POUNCer's own load: spots in the list, spots in / RBN spots per minute,
+  queue, refresh tick average / max ms, phone requests per minute and how
+  many phones are open. Also **N1MM Logger+** (its CPU, memory, disk reads /
+  writes, handles) and **Windows as a whole** (number of processes and the
+  three programs that used the most CPU in that minute, e.g.
+  `N1MMLogger.net.exe 34% | chrome.exe 12% | POUNCer.exe 3%`). Every 15 min
+  a summary line goes to pouncer.log.
+  About a week at 5 MB (one older file kept); in the diagnostics zip too.
 - **The phone shows what really happened:** after a tap, "QSY OK1BB ..." is
   followed by **✓ OK1BB: radio on 7012.0 · call in**, or **⚠ ... N1MM didn't
   report 7012.0** when the radio didn't move.

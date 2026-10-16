@@ -134,6 +134,26 @@ def running_process_names() -> set[str] | None:
         _kernel32.CloseHandle(snap)
 
 
+def process_list() -> list[tuple[int, str]] | None:
+    """(pid, exe name) of every running process (Windows; None elsewhere)."""
+    if not _WIN:
+        return None
+    snap = _kernel32.CreateToolhelp32Snapshot(_TH32CS_SNAPPROCESS, 0)
+    if not snap or snap == _INVALID_HANDLE_VALUE:
+        return None
+    try:
+        entry = _PROCESSENTRY32W()
+        entry.dwSize = ctypes.sizeof(_PROCESSENTRY32W)
+        out: list[tuple[int, str]] = []
+        ok = _kernel32.Process32FirstW(snap, ctypes.byref(entry))
+        while ok:
+            out.append((int(entry.th32ProcessID), entry.szExeFile))
+            ok = _kernel32.Process32NextW(snap, ctypes.byref(entry))
+        return out
+    finally:
+        _kernel32.CloseHandle(snap)
+
+
 def is_n1mm_running() -> bool | None:
     """True/False if N1MM Logger+ is running; None when it can't be told."""
     names = running_process_names()
