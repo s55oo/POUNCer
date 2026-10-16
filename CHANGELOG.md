@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## Docs — 2026-10-16 (3)
+
+- **docs/SYMBOLS.md**: every symbol, colour and badge explained, for the
+  window (top bar, READY checks, team badge, lights, band chips, spot-list
+  colours, ⚡ ? ↻ M / MM marks, keys) and the phone page (tiles, keys,
+  status tags, band menu, CW keyboard). Linked from the README.
+
 ## v0.7.64 — 2026-10-16 — same as v0.7.62
 
 - The v0.7.63 test (Alt+W after the call) is removed again - it didn't
