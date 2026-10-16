@@ -6,7 +6,8 @@ wrong): N1MM radio info, the log, the station call, RBN, the country file
 
 ``build`` turns plain facts into items {name, state, text}; state is
 "ok", "warn", "bad" or "off". ``ClockCheck`` compares the PC clock with a
-web server's clock (HTTP ``Date`` header) every 30 minutes.
+time server (NTP, UDP 123; a web ``Date`` header only as a fallback) every
+30 minutes.
 """
 
 from __future__ import annotations
@@ -94,8 +95,15 @@ def build(f: dict) -> list[dict]:
         add("Clock", "off", "not checked")
     else:
         a = abs(off)
-        state = "ok" if a <= CLOCK_OK_S else ("warn" if a <= CLOCK_BAD_S else "bad")
-        add("Clock", state, f"{off:+.0f} s" if a >= 1 else "")
+        # the web fallback is only good to a second or two: more slack
+        ok_s = CLOCK_OK_S if f.get("clock_source", "NTP").startswith("NTP") else CLOCK_OK_S * 2
+        state = "ok" if a <= ok_s else ("warn" if a <= CLOCK_BAD_S else "bad")
+        if a < 1:
+            text = ""
+        else:
+            # offset = how far the PC is BEHIND: + = PC slow, - = PC fast
+            text = f"PC {a:.0f} s {'slow' if off > 0 else 'fast'}"
+        add("Clock", state, text)
     return out
 
 
@@ -111,16 +119,64 @@ def line(items: list[dict]) -> str:
     return head + "   " + "   ".join(parts)
 
 
-class ClockCheck:
-    """PC clock against a web server's clock (``Date`` header, 1 s steps),
-    in the background every 30 minutes. ``offset`` = seconds the PC is
-    behind (+) or ahead (-); None until known."""
+NTP_SERVERS = ("pool.ntp.org", "time.windows.com")
+NTP_PORT = 123
+_NTP_DELTA = 2208988800            # 1900-01-01 -> 1970-01-01, seconds
 
-    def __init__(self, url: str = CLOCK_URL, every_s: float = 1800, fetch=None) -> None:
+
+def ntp_offset(host: str, port: int = NTP_PORT, timeout: float = 3.0, sock_factory=None) -> float:
+    """SNTP (RFC 4330) query: seconds the PC clock is BEHIND the server
+    (+ = PC slow, - = PC fast), from the four timestamps, so the network
+    delay cancels out. Raises OSError / ValueError on no / bad answer."""
+    import socket
+    import struct
+    make = sock_factory or (lambda: socket.socket(socket.AF_INET, socket.SOCK_DGRAM))
+    sock = make()
+    try:
+        sock.settimeout(timeout)
+        packet = bytearray(48)
+        packet[0] = 0x23                       # LI 0, version 4, mode 3 (client)
+        t1 = time.time()
+        sec = int(t1 + _NTP_DELTA)
+        frac = int((t1 % 1) * 2 ** 32)
+        struct.pack_into("!II", packet, 40, sec, frac)     # transmit timestamp
+        sock.sendto(bytes(packet), (host, port))
+        data, _ = sock.recvfrom(512)
+        t4 = time.time()
+    finally:
+        sock.close()
+    if len(data) < 48:
+        raise ValueError("short NTP answer")
+    mode, stratum = data[0] & 0x07, data[1]
+    if mode not in (4, 5) or not 1 <= stratum <= 15:
+        raise ValueError(f"bad NTP answer (mode {mode}, stratum {stratum})")
+
+    def ts(off):
+        a, b = struct.unpack_from("!II", data, off)
+        return a - _NTP_DELTA + b / 2 ** 32
+    t2, t3 = ts(32), ts(40)                    # server receive / transmit
+    return ((t2 - t1) + (t3 - t4)) / 2
+
+
+class ClockCheck:
+    """PC clock against a time server, in the background every 30 minutes.
+
+    First NTP (``pool.ntp.org``, then ``time.windows.com``; milliseconds,
+    like a time-sync program). Only if no NTP server answers: a web
+    server's ``Date`` header (whole seconds, and corrected by ``Age`` - a
+    cached answer's Date is older than now, that read "PC 24 s fast"
+    before). ``offset`` = seconds the PC is behind (+) or ahead (-);
+    ``source`` = "NTP <host>" or "web"; None until known."""
+
+    def __init__(self, url: str = CLOCK_URL, every_s: float = 1800, fetch=None,
+                 ntp=None, servers=NTP_SERVERS) -> None:
         self.url = url
         self.every_s = every_s
         self._fetch = fetch or self._date_header
+        self._ntp = ntp if ntp is not None else ntp_offset
+        self.servers = tuple(servers)
         self.offset: float | None = None
+        self.source = ""
         self._stop = threading.Event()
 
     def start(self) -> None:
@@ -130,12 +186,20 @@ class ClockCheck:
         self._stop.set()
 
     def check_once(self) -> float | None:
+        for host in self.servers:
+            try:
+                self.offset = float(self._ntp(host))
+                self.source = f"NTP {host}"
+                return self.offset
+            except Exception as exc:  # noqa: BLE001 - next server / the web
+                log.info("clock check: NTP %s: %s", host, exc)
         t0 = time.time()
-        date = self._fetch(self.url)
+        date, age = self._fetch(self.url)
         t1 = time.time()
-        server = email.utils.parsedate_to_datetime(date).timestamp()
+        server = email.utils.parsedate_to_datetime(date).timestamp() + float(age or 0)
         # the header is cut to whole seconds: +0.5 s is the best guess
         self.offset = server + 0.5 - (t0 + t1) / 2
+        self.source = "web"
         return self.offset
 
     def _run(self) -> None:
@@ -147,7 +211,12 @@ class ClockCheck:
             self._stop.wait(self.every_s)
 
     @staticmethod
-    def _date_header(url: str) -> str:
-        req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": "POUNCer"})
+    def _date_header(url: str) -> tuple[str, float]:
+        req = urllib.request.Request(url, method="HEAD", headers={
+            "User-Agent": "POUNCer", "Cache-Control": "no-cache"})
         with urllib.request.urlopen(req, timeout=10) as resp:
-            return resp.headers["Date"]
+            try:
+                age = float(resp.headers.get("Age") or 0)
+            except ValueError:
+                age = 0.0
+            return resp.headers["Date"], age

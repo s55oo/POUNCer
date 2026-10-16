@@ -160,7 +160,7 @@ class PouncerApp:
         self._rbn_good_since: float | None = None
         # Every tapped station (for the contest summary): cache\taps.jsonl
         self.taps = summarymod.TapLog(config.run_history_dir or "cache")
-        self.clock = checksmod.ClockCheck()   # PC clock vs a web server's (check line)
+        self.clock = checksmod.ClockCheck()   # PC clock vs NTP (check line)
         # band open? spots of every skimmer on our continent, per band, 10 min
         self.bandact = BandActivity(lambda c: self._continent(c), lambda: self.home_cont)
         self._checks: list[dict] = []
@@ -2123,6 +2123,7 @@ class PouncerApp:
             "scp_loaded": bool(self.scp is not None and self.scp.loaded), "scp_days": scp_days,
             "web": ("ok" if self.web is not None else "bad") if self.cfg.web_enabled else "off",
             "clock_offset": self.clock.offset,
+            "clock_source": self.clock.source,
         }
 
     def _update_check_line(self) -> None:

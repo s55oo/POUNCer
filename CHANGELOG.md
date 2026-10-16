@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## Unreleased — PC clock check via NTP
+
+- The check line's PC clock now comes from an **NTP time server**
+  (pool.ntp.org, else time.windows.com; UDP 123, milliseconds) instead of a
+  web server's `Date` header, which could be seconds old when the answer
+  came from a cache (a correct clock read "Clock -24 s"). The web header is
+  only a fallback, now corrected by `Age` and with more slack.
+- The text says **PC 24 s fast** / **PC 3 s slow** instead of "-24 s".
+
 ## Docs — 2026-10-16
 
 - **docs/NETWORK.md** brought up to v0.7.58: N1MM App Info (open log and

@@ -28,11 +28,12 @@ in the examples are private example addresses.
 | 8 | **out** | TCP (telnet) | 8000 | azure.s53m.com | DX cluster: SSB spots | `[ssb] host`, `port` |
 | 9 | **in** + out | UDP broadcast | 12079 | other POUNCers on the network | team: who is master, spots, run history; the master's band-open counts | `[team] port`, `peers` |
 | 10 | **in** | HTTP (TCP) | 8080 | phones, tablets, browsers on the LAN; other POUNCers | phone page, its API, settings, team sync | `[web] host`, `port` |
-| 11 | **out** | HTTPS | 443 | api.github.com, github.com | update check and download (SHA-256 checked); `HEAD api.github.com` every 30 min for the PC clock check (`Date` header) | `[ui] auto_update`; clock: `[ui] check_line` |
+| 11 | **out** | HTTPS | 443 | api.github.com, github.com | update check and download (SHA-256 checked); clock check fallback: `HEAD api.github.com` (`Date` + `Age`) only if no NTP server answers | `[ui] auto_update`; clock: `[ui] check_line` |
 | 12 | **out** | HTTPS | 443 | github.com (release `warmup`) | warm-up lists (CW, SSB) | `[ui] warmup` |
 | 13 | **out** | HTTPS | 443 | raw.githubusercontent.com (S53ZO's log archive) | run history of calls not in the lists | `[ui] run_history` |
 | 14 | **out** | HTTPS | 443 | www.supercheckpartial.com | MASTER.SCP (busted-call marks) | `[scp] url` |
 | 15 | – | UDP connect | – | 8.8.8.8 | finding the PC's LAN address – **nothing is sent** | – |
+| 17 | **out** | UDP (NTP) | 123 | pool.ntp.org, then time.windows.com | PC clock check every 30 min (SNTP, 48 bytes, no data of yours) | `[ui] check_line` |
 | 16 | local | process start | – | your own programs (.exe / .bat / shortcuts) | autostart with POUNCer – no network | `[autostart]` |
 
 Firewall: inbound **UDP 12060** (only from N1MM on the same PC), **TCP 8080**
@@ -291,8 +292,11 @@ query parameters (`radio=A|B` = which radio the phone works).
 - If newer: the asset `POUNCer.exe` is downloaded and its **SHA-256** is
   compared with the one GitHub gives for the asset before it replaces the
   exe (restart with the Restart button). macOS: only a notice.
-- `HEAD https://api.github.com` – at start and every 30 min: only the
-  `Date` header is read, to compare the PC clock (pre-contest check line).
+- PC clock (pre-contest check line), at start and every 30 min: an **NTP**
+  query (UDP 123, SNTP, one 48-byte packet each way) to `pool.ntp.org`, else
+  `time.windows.com` - accurate to milliseconds, like a time-sync program.
+  Only if neither answers: `HEAD https://api.github.com` and its `Date`
+  header, corrected by `Age` (a cached answer's Date is older than now).
 
 ## 12. Warm-up lists (HTTPS, out)
 

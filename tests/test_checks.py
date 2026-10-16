@@ -28,12 +28,13 @@ class BuildTests(unittest.TestCase):
             self.assertIn(part, text)
 
     def test_old_files_and_clock_warn(self) -> None:
-        items = by_name(checks.build(dict(GOOD, cty_days=75, scp_days=40, clock_offset=-12)))
+        items = by_name(checks.build(dict(GOOD, cty_days=75, scp_days=40, clock_offset=-12,
+                                          clock_source="NTP pool.ntp.org")))
         self.assertEqual(items["cty"]["state"], "warn")
         self.assertIn("Download latest country files", items["cty"]["text"])
         self.assertEqual(items["SCP"]["state"], "warn")
         self.assertEqual(items["Clock"]["state"], "warn")
-        self.assertEqual(items["Clock"]["text"], "-12 s")
+        self.assertEqual(items["Clock"]["text"], "PC 12 s fast")
         self.assertTrue(checks.line(list(items.values())).startswith("CHECK"))
 
     def test_broken_things_are_bad(self) -> None:
@@ -67,15 +68,66 @@ class BuildTests(unittest.TestCase):
 
 
 class ClockTests(unittest.TestCase):
-    def test_offset_from_date_header(self) -> None:
+    def test_ntp_first(self) -> None:
+        c = checks.ClockCheck(ntp=lambda host: -0.004, fetch=lambda u: self.fail("no web"))
+        self.assertAlmostEqual(c.check_once(), -0.004)
+        self.assertEqual(c.source, "NTP pool.ntp.org")
+
+    def test_second_ntp_server(self) -> None:
+        def ntp(host):
+            if host == "pool.ntp.org":
+                raise OSError("timed out")
+            return 1.5
+        c = checks.ClockCheck(ntp=ntp)
+        self.assertEqual(c.check_once(), 1.5)
+        self.assertEqual(c.source, "NTP time.windows.com")
+
+    def test_web_fallback_counts_the_cache_age(self) -> None:
         import time
-        ahead = email.utils.formatdate(time.time() + 30, usegmt=True)   # server 30 s ahead
-        c = checks.ClockCheck(fetch=lambda url: ahead)
-        off = c.check_once()
-        self.assertAlmostEqual(off, 30, delta=1.6)
+        # a cached answer: its Date is 24 s old, Age says so - the PC is right
+        old = email.utils.formatdate(time.time() - 24, usegmt=True)
+        def no_ntp(host):
+            raise OSError("UDP 123 blocked")
+        c = checks.ClockCheck(ntp=no_ntp, fetch=lambda url: (old, 24))
+        self.assertAlmostEqual(c.check_once(), 0, delta=1.6)
+        self.assertEqual(c.source, "web")
+
+    def test_real_sntp_packet_against_a_local_server(self) -> None:
+        import socket
+        import struct
+        import threading
+        import time
+        srv = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        srv.bind(("127.0.0.1", 0))
+        port = srv.getsockname()[1]
+
+        def serve():
+            data, addr = srv.recvfrom(512)
+            now = time.time() + 30 + checks._NTP_DELTA     # server 30 s ahead = PC slow
+            sec, frac = int(now), int((now % 1) * 2 ** 32)
+            reply = bytearray(48)
+            reply[0], reply[1] = 0x24, 2                   # mode 4 (server), stratum 2
+            reply[24:32] = data[40:48]                     # originate = client's transmit
+            struct.pack_into("!IIII", reply, 32, sec, frac, sec, frac)
+            srv.sendto(bytes(reply), addr)
+        t = threading.Thread(target=serve, daemon=True)
+        t.start()
+        try:
+            off = checks.ntp_offset("127.0.0.1", port=port, timeout=5)
+        finally:
+            srv.close()
+        self.assertAlmostEqual(off, 30, delta=0.5)
+
+    def test_wording(self) -> None:
+        fast = by_name(checks.build(dict(GOOD, clock_offset=-24, clock_source="NTP x")))["Clock"]
+        self.assertEqual((fast["state"], fast["text"]), ("warn", "PC 24 s fast"))
+        slow = by_name(checks.build(dict(GOOD, clock_offset=3.2, clock_source="NTP x")))["Clock"]
+        self.assertEqual((slow["state"], slow["text"]), ("ok", "PC 3 s slow"))
+        web = by_name(checks.build(dict(GOOD, clock_offset=8, clock_source="web")))["Clock"]
+        self.assertEqual(web["state"], "ok")          # the web is only good to ~1-2 s
 
     def test_unknown_until_checked(self) -> None:
-        self.assertIsNone(checks.ClockCheck(fetch=lambda u: "").offset)
+        self.assertIsNone(checks.ClockCheck(fetch=lambda u: ("", 0)).offset)
 
 
 class TriedTests(unittest.TestCase):
