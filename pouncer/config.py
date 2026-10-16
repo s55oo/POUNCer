@@ -120,6 +120,8 @@ class Config:
     team_port: int = 12079
     team_peers: tuple[str, ...] = ()  # extra POUNCer IPs (networks without broadcast)
     sort: str = "snr"
+    min_snr: int = 0             # list (window + phone): hide spots weaker than this (0 = all)
+    min_snr_keep_mults: bool = True  # ... but never hide a new multiplier
     max_age_minutes: int = 10
     fade_minutes: int = 5  # phone: tile fades when not re-spotted this long
     trigger: str = "single"
@@ -230,6 +232,8 @@ def load_config(path: str) -> Config:
     cfg.worked_refresh_seconds = i("worked", "refresh_seconds", cfg.worked_refresh_seconds)
 
     cfg.sort = s("ui", "sort", cfg.sort).strip().lower()
+    cfg.min_snr = max(0, min(60, i("ui", "min_snr", cfg.min_snr)))
+    cfg.min_snr_keep_mults = b("ui", "min_snr_keep_mults", cfg.min_snr_keep_mults)
     cfg.max_age_minutes = i("ui", "max_age_minutes", cfg.max_age_minutes)
     cfg.fade_minutes = max(1, i("ui", "fade_minutes", cfg.fade_minutes))
     cfg.tune_step_hz = max(1, i("ui", "tune_step_hz", cfg.tune_step_hz))

@@ -120,6 +120,7 @@ class PouncerApp:
             n1mm_running=self._n1mm_running,
         )
         self._worked_hidden = 0
+        self._snr_hidden = 0
         # No [rbn] callsign in config.ini: use the one N1MM has.
         if not config.rbn_callsign:
             config.rbn_callsign = n1mm_station_call(config.n1mm_ini or None)
@@ -285,6 +286,20 @@ class PouncerApp:
             ))
             self._sort_buttons[col] = btn
         self._update_sort_buttons()
+        # Min SNR next to the sort buttons: weaker spots are not listed
+        # (window and phone); 0 = all. Arrows / wheel / typed + Enter.
+        box = ttk.Frame(flow)
+        ttk.Label(box, text="Min SNR").pack(side="left")
+        self.min_snr_var = tk.StringVar(value=str(self.cfg.min_snr))
+        self._min_snr_box = ttk.Spinbox(
+            box, from_=0, to=60, increment=1, width=3, justify="center",
+            textvariable=self.min_snr_var, command=self._on_min_snr)
+        self._min_snr_box.pack(side="left", padx=(4, 2))
+        self._min_snr_box.bind("<Return>", lambda e: self._on_min_snr())
+        self._min_snr_box.bind("<FocusOut>", lambda e: self._on_min_snr())
+        ttk.Label(box, text="dB").pack(side="left")
+        flow.add(box, gap=12)
+        self._min_snr_save = None
 
         # (the options and actions are in the menu bar: File / View /
         # Settings / Help)
@@ -534,6 +549,44 @@ class PouncerApp:
                 continue          # first reading: no popup
             arrow = "\u25b2" if new > old else "\u25bc"
             self._show_wpm_popup(f"{self._radio_tag(nr)}CW {new} WPM {arrow}")
+
+    # ---- minimum SNR -----------------------------------------------------
+
+    def _on_min_snr(self) -> None:
+        """Main window Min SNR box changed (arrow, typed + Enter)."""
+        try:
+            v = int(float(self.min_snr_var.get().strip() or 0))
+        except ValueError:
+            self.min_snr_var.set(str(self.cfg.min_snr))
+            return
+        self._set_min_snr(v)
+
+    def _set_min_snr(self, v: int) -> None:
+        """New minimum SNR (window or phone): list now, config.ini a moment
+        later (clicking the arrows doesn't write the file every time)."""
+        v = max(0, min(60, int(v)))
+        if hasattr(self, "min_snr_var") and self.min_snr_var.get() != str(v):
+            self.min_snr_var.set(str(v))
+        if v == self.cfg.min_snr:
+            return
+        self.cfg.min_snr = v
+        self._dirty = True
+        self.status_label.configure(
+            text=f"Min SNR {v} dB: weaker spots are not listed (window and phone)"
+                 + ("" if v else " - 0 = all spots"))
+        if self._min_snr_save is not None:
+            self.root.after_cancel(self._min_snr_save)
+        self._min_snr_save = self.root.after(1000, self._save_min_snr)
+
+    def _save_min_snr(self) -> None:
+        self._min_snr_save = None
+        try:
+            self._save_setting("ui.min_snr", str(self.cfg.min_snr))
+        except Exception as exc:  # noqa: BLE001 - the list works anyway
+            log.info("min SNR not saved: %s", exc)
+
+    def _web_min_snr(self, db: int) -> None:
+        self._web_queue.put(("minsnr", int(db)))
 
     def _apply_topmost(self) -> None:
         try:
@@ -1114,6 +1167,7 @@ class PouncerApp:
 
     def _build_web_payload(self, radio: int | None = None, view_band: str | None = None) -> dict:
         radio = radio or self.radio
+        self._last_weak = 0
         real_band = self._current_band(radio)
         spots = sorted(
             self._visible_spots(radio, view_band),
@@ -1135,6 +1189,9 @@ class PouncerApp:
             # N1MM's CW speed per radio (read from its Entry Window), if known
             "wpm": {str(nr): w for nr, w in (self.cwspeed.wpm.items() if self.cwspeed else ())},
             "wpm_popup": bool(self.cfg.cw_speed_popup),
+            # minimum SNR of the list and how many weaker spots it hides
+            "min_snr": self.cfg.min_snr,
+            "snr_hidden": getattr(self, "_last_weak", 0),
             # phone CW keyboard (hold ENTER): allowed, open now, last problem
             "cw_keyboard": bool(self.cfg.web_cw_keyboard),
             "cw_open": self._cw_win is not None,
@@ -1328,6 +1385,9 @@ class PouncerApp:
                 return
             if item[0] == "key":
                 self._press_key(item[1], item[2])
+                continue
+            if item[0] == "minsnr":
+                self._set_min_snr(item[1])
                 continue
             if item[0] == "cw":
                 self._cw(*item[1:])
@@ -1811,6 +1871,11 @@ class PouncerApp:
 
     def _update_labels(self) -> None:
         self._update_compact_bar()
+        # Min SNR changed elsewhere (Settings, phone): show it in the box
+        box = getattr(self, "_min_snr_box", None)
+        if box is not None and self.root.focus_get() is not box \
+                and self.min_snr_var.get() != str(self.cfg.min_snr):
+            self.min_snr_var.set(str(self.cfg.min_snr))
         snap = self.state.snapshot(self.radio)
         if snap and snap.get("freq_khz"):
             self.n1mm_label.configure(
@@ -1843,6 +1908,7 @@ class PouncerApp:
                 f"   mode={','.join(self.cfg.follow_modes)}"
                 f"   band={band or 'ALL'}   spots={len(self.displayed)}/{len(self.spots)}"
                 f"   hidden={self._worked_hidden}"
+                f"{'   weak (<' + str(self.cfg.min_snr) + ' dB)=' + str(self._snr_hidden) if self.cfg.min_snr else ''}"
                 f"{'   HTTP backup: ' + str(self._http_feed.spots_in) + ' spots' if self._http_feed else ''}"
                 f"{'   warm-up: ' + self.runhist.warm_status if self.runhist and self.runhist.warm_status else ''}"
                 f"{'   ' + self.scp.status if self.scp is not None else ''}"
@@ -1961,6 +2027,21 @@ class PouncerApp:
             if k not in newest or s.received > newest[k].received:
                 newest[k] = s
         items = list(newest.values())
+        # Min SNR: weaker spots out (spots without SNR - SSB cluster - stay;
+        # new mults stay unless min_snr_keep_mults is off)
+        weak = 0
+        if self.cfg.min_snr > 0:
+            kept = []
+            for s in items:
+                if (s.snr is not None and s.snr < self.cfg.min_snr
+                        and not (self.cfg.min_snr_keep_mults and self._mults(s))):
+                    weak += 1
+                else:
+                    kept.append(s)
+            items = kept
+        self._last_weak = weak
+        if radio is None:
+            self._snr_hidden = weak
         if self.hide_worked_var.get():
             kept = []
             hidden = 0
@@ -2148,6 +2229,7 @@ class PouncerApp:
             self.web.set_summary_provider(self._summary)
             if self.cfg.web_cw_keyboard:
                 self.web.set_cw_handler(self._web_cw)
+            self.web.set_min_snr_handler(self._web_min_snr)
             self.web.set_settings_provider(
                 lambda: {"items": settingsmod.current(self.cfg), "path": self.cfg.config_path},
                 self._save_setting,

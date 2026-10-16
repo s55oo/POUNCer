@@ -228,10 +228,21 @@ INDEX_HTML = """<!doctype html>
     font-size: 16px; font-weight: 700; padding: 6px 8px 6px 0; text-align: left;
     cursor: pointer; }
   button.band::after { content: " ▾"; font-size: 12px; opacity: .6; }
-  #bandsheet, #rmsheet { display: none; position: fixed; inset: 0; z-index: 20;
+  /* Min SNR: "SNR≥10" pill next to the sort keys (teal = on), sheet with presets */
+  .sorts button.snrmin { color: #80cbc4; font-weight: 700; }
+  .sorts button.snrmin.on { background: #00897b; color: #fff; }
+  #snrsheet .bandgrid { grid-template-columns: repeat(4, 1fr); }
+  #snrsheet .bandgrid button { font-size: 19px; padding: 13px 0; }
+  #snrsheet .snrstep { display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 8px;
+    margin-top: 8px; align-items: center; }
+  #snrsheet .snrstep button { background: #37474f; color: #fff; border: 0; border-radius: 10px;
+    font: inherit; font-size: 22px; font-weight: 800; padding: 10px 0; cursor: pointer; }
+  #snrsheet .snrval { text-align: center; font-size: 24px; font-weight: 800; color: #80cbc4; }
+  .weaktag { color: #80cbc4; }
+  #bandsheet, #rmsheet, #snrsheet { display: none; position: fixed; inset: 0; z-index: 20;
     background: rgba(0,0,0,.55); align-items: flex-start; justify-content: center; }
-  #bandsheet.show, #rmsheet.show { display: flex; }
-  #bandsheet .sheet, #rmsheet .sheet { margin-top: 64px; width: min(420px, calc(100% - 24px));
+  #bandsheet.show, #rmsheet.show, #snrsheet.show { display: flex; }
+  #bandsheet .sheet, #rmsheet .sheet, #snrsheet .sheet { margin-top: 64px; width: min(420px, calc(100% - 24px));
     background: #1a2127; border-radius: 14px; padding: 14px; }
   .sheet-title { font-weight: 700; margin-bottom: 10px; }
   .sheet-title span { font-weight: 400; opacity: .6; font-size: 13px; }
@@ -367,6 +378,7 @@ INDEX_HTML = """<!doctype html>
     <button data-sort="time">Time</button>
     <button data-sort="freq">Freq</button>
     <button data-sort="snr">SNR</button>
+    <button class="snrmin" id="snrmin" title="Minimum SNR: weaker spots are not listed (here and in the POUNCer window)">&ge;dB</button>
     <button class="dxfirst" id="dxfirst" title="DX (outside your continent) on top">DX</button>
     <button class="multfirst" id="multfirst" title="New multipliers on top: double, then single">MLT</button>
     <button class="rarefirst" id="rarefirst" title="Rare CQ on top: stations that rarely run or are on only a few hours (from past logs)">\u26a1</button>
@@ -408,6 +420,16 @@ INDEX_HTML = """<!doctype html>
     <button id="cwdone" title="Enter in N1MM: send the rest, close the CW window">DONE &#9166;</button>
   </div>
 </div>
+<div id="snrsheet"><div class="sheet">
+  <div class="sheet-title">Minimum SNR <span>(weaker spots are not listed - here and in the window)</span></div>
+  <div class="bandgrid" id="snrpresets"></div>
+  <div class="snrstep">
+    <button id="snrdown">&minus;1</button>
+    <div class="snrval" id="snrval">-</div>
+    <button id="snrup">+1</button>
+  </div>
+  <button class="sheet-close" id="snrclose">Close</button>
+</div></div>
 <div id="rmsheet" class="sheetwrap"><div class="sheet">
   <div class="sheet-title" id="rmtitle">Remove from the list?</div>
   <div class="bandgrid" style="grid-template-columns: 1fr">
@@ -833,7 +855,9 @@ INDEX_HTML = """<!doctype html>
     logWarnEl.classList.toggle('show', logBad);
     if (logBad) logMsgEl.textContent = lg.message || 'No log open in N1MM - open a log';
     let meta = '<b>' + data.spots.length + '</b>' +
-      (logBad ? ' spots' : ' needed spots');
+      (logBad ? ' spots' : ' needed spots') +
+      (data.min_snr && data.snr_hidden ? ' <span class="weaktag" title="Weaker than ' +
+        data.min_snr + ' dB, not listed (\u2265 button)">(+' + data.snr_hidden + ' weak)</span>' : '');
     const q = data.qsos;
     if (lg.open && q) {
       const parts = (q.bands || []).map(x =>
@@ -868,6 +892,7 @@ INDEX_HTML = """<!doctype html>
       ' on ' + esc(data.radio_band || '?') + ' \u2715</span> &middot; ' + meta;
     if (calm) meta = '<span class="calmtag" title="Calm list: tiles keep their place, re-sorted every 15 s">calm</span> &middot; ' + meta;
     metaEl.innerHTML = meta;
+    if (!snrSheet.classList.contains('show') && typeof data.min_snr === 'number') showMinSnr(data.min_snr);
     const vt = document.getElementById('viewtag');
     if (vt) vt.onclick = () => { delete views[String(cur)]; saveViews(); selKey = ''; refresh(); };
     const cols = columns();
@@ -1019,6 +1044,42 @@ INDEX_HTML = """<!doctype html>
     b.addEventListener('contextmenu', e => e.preventDefault());
     b.onclick = () => { if (held) { held = false; return; } qsy(b._spot, b); };
   }
+  // ---- Min SNR (shared with the POUNCer window, saved in config.ini)
+  const snrSheet = document.getElementById('snrsheet');
+  const snrBtn = document.getElementById('snrmin');
+  const SNR_PRESETS = [0, 3, 6, 10, 13, 15, 20, 25];
+  let minSnr = 0;
+  function showMinSnr(v) {
+    minSnr = v || 0;
+    snrBtn.textContent = minSnr ? '\u2265' + minSnr : '\u2265dB';
+    snrBtn.classList.toggle('on', minSnr > 0);
+    document.getElementById('snrval').textContent = minSnr ? minSnr + ' dB' : 'all';
+    document.querySelectorAll('#snrpresets button').forEach(b => {
+      b.classList.toggle('cur', Number(b.dataset.db) === minSnr);
+    });
+  }
+  async function setMinSnr(v) {
+    v = Math.max(0, Math.min(60, v));
+    showMinSnr(v);
+    try {
+      const r = await fetch('/api/minsnr?' + new URLSearchParams({db: v}));
+      const j = await r.json();
+      if (!j.ok) toast('Failed: ' + (j.error || 'error'));
+    } catch (e) { toast('Failed: ' + e); }
+    setTimeout(refresh, 300);
+  }
+  SNR_PRESETS.forEach(db => {
+    const b = document.createElement('button');
+    b.dataset.db = db;
+    b.textContent = db ? db : 'all';
+    b.onclick = () => { setMinSnr(db); snrSheet.classList.remove('show'); };
+    document.getElementById('snrpresets').appendChild(b);
+  });
+  snrBtn.onclick = () => { showMinSnr(minSnr); snrSheet.classList.add('show'); };
+  document.getElementById('snrdown').onclick = () => setMinSnr(minSnr - 1);
+  document.getElementById('snrup').onclick = () => setMinSnr(minSnr + 1);
+  document.getElementById('snrclose').onclick = () => snrSheet.classList.remove('show');
+  snrSheet.onclick = (e) => { if (e.target === snrSheet) snrSheet.classList.remove('show'); };
   const rmSheet = document.getElementById('rmsheet');
   let rmSpot = null;
   function askRemove(s) {
@@ -1372,6 +1433,11 @@ page.</p>
   <dt><span class="k green">F2</span> &hellip; <span class="k green">F7</span></dt>
   <dd>Press that function key in N1MM - it <b>transmits</b> N1MM's message (F2 report,
     F3 TU, F4 your call, F5 his call, F7 ?). The label under the key says which.</dd>
+  <dt><span class="k">&ge;10</span></dt>
+  <dd>Minimum SNR (next to the sort keys): spots weaker than this are not listed - here
+  and in the POUNCer window (same setting, saved). Tap it: <b>all</b> / 3 / 6 / 10 / 13 /
+  15 / 20 / 25 dB, or &minus;1 / +1. Teal = on; the top line then says how many weak spots
+  are hidden. New multipliers and spots without an SNR (SSB) are always listed.</dd>
   <dt><span class="k green">ENTER</span></dt>
   <dd>Enter in N1MM: logs the QSO (no transmit).<br>
   <b>Hold it 1.3 s</b> (it fills up yellow): the <b>CW keyboard</b> opens at the top. What you
@@ -1846,6 +1912,7 @@ class _Server(ThreadingHTTPServer):
         self.on_qsy = on_qsy
         self.on_key = on_key
         self.on_cw = None  # phone CW keyboard (set_cw_handler)
+        self.on_min_snr = None  # phone SNR button (set_min_snr_handler)
         self.on_reconnect = on_reconnect
 
 
@@ -1961,6 +2028,18 @@ class _Handler(BaseHTTPRequestHandler):
                 self._send_json({"ok": False, "error": str(exc)}, 500)
                 return
             self._send_json({"ok": True, "call": call})
+            return
+        if parsed.path == "/api/minsnr":
+            fn = getattr(self.server, "on_min_snr", None)
+            try:
+                db = int(float((parse_qs(parsed.query).get("db") or [""])[0]))
+            except ValueError:
+                db = -1
+            if fn is None or not 0 <= db <= 60:
+                self._send_json({"ok": False, "error": "db must be 0..60"}, 400 if fn else 404)
+                return
+            fn(db)
+            self._send_json({"ok": True, "db": db})
             return
         if parsed.path == "/api/cw":
             fn = getattr(self.server, "on_cw", None)
@@ -2149,6 +2228,10 @@ class WebServer:
         self._httpd.save_setting = save
         self._httpd.restart_app = restart
         self._httpd.remote_settings = bool(remote)
+
+    def set_min_snr_handler(self, fn) -> None:
+        """Phone SNR button: fn(db) sets the minimum SNR (0 = all)."""
+        self._httpd.on_min_snr = fn
 
     def set_cw_handler(self, fn) -> None:
         """Phone CW keyboard: fn(op, text, n, radio=...)."""

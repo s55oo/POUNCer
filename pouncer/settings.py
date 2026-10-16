@@ -112,6 +112,13 @@ SETTINGS: list[dict] = [
     {"key": "ssb.login", "attr": "ssb_login", "kind": "text", "live": False,
      "group": "SSB", "label": "Login call",
      "help": "Empty = your call. E.g. S55OO-2 if the cluster already has you as the RBN backup."},
+    {"key": "ui.min_snr", "attr": "min_snr", "kind": "int", "min": 0, "max": 60,
+     "live": True, "group": "Program", "label": "Minimum SNR (dB)",
+     "help": "Window and phone list: hide spots weaker than this; 0 = all. Also next to "
+             "the sort buttons (window) and the SNR button on the phone."},
+    {"key": "ui.min_snr_keep_mults", "attr": "min_snr_keep_mults", "kind": "bool",
+     "live": True, "group": "Program", "label": "Min SNR: keep new mults",
+     "help": "A new multiplier is shown even when it is weaker than the minimum SNR."},
     {"key": "ui.auto_update", "attr": "auto_update", "kind": "bool", "live": False,
      "group": "Program", "label": "Auto-update from GitHub", "help": ""},
 ]

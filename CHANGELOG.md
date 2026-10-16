@@ -1,5 +1,18 @@
 # POUNCer — Changelog
 
+## v0.7.48 — 2026-10-16 — minimum SNR (window and phone)
+
+- **Min SNR** box next to the sort buttons in the window (arrows, mouse
+  wheel or type + Enter; 0 = all): spots weaker than that are not listed -
+  in the window **and** on the phone (one setting, saved in config.ini as
+  `[ui] min_snr`). The RBN line shows how many weak spots are hidden.
+- On the phone a **≥dB** button next to SNR (teal **≥10** when on): tap it
+  for all / 3 / 6 / 10 / 13 / 15 / 20 / 25 dB or −1 / +1. The top line
+  shows e.g. "12 needed spots (+5 weak)".
+- New multipliers are always listed, also when weaker
+  (`[ui] min_snr_keep_mults = true`); spots without an SNR (SSB cluster
+  spots) are always listed. Both in Settings too.
+
 ## v0.7.47 — 2026-10-16 — phone list: only changed tiles are updated
 
 - The phone page no longer throws all tiles away and draws them again every
