@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## v0.7.63 — 2026-10-16 — test: Alt+W after the call
+
+- **Test**: after a tap puts the call into N1MM's Entry Window, POUNCer now
+  presses **Alt+W** - the call showed twice (in the Entry Window and above
+  it); like a click on N1MM's bandmap it should stay only in the Entry
+  Window. Settings > Tap -> N1MM: *Alt+W after the call (test)* /
+  `[n1mm] alt_w_after_call` (on) - switch it off if the call disappears
+  from the Entry Window too.
+
 ## Docs — 2026-10-16 (2)
 
 - **docs/main-window.png**: a new screenshot of the 0.7.62 window (top bar,
