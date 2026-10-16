@@ -333,8 +333,11 @@ class RBNClient(threading.Thread):
         kind: str = "rbn",
         modes: Iterable[str] = (),
         name: str = "rbn",
+        on_raw=None,
     ) -> None:
         super().__init__(daemon=True, name="rbn")
+        # every live spot before the skimmer filter (band-open counter)
+        self.on_raw = on_raw
         # Backup telnet server (a DX cluster passing on the RBN skimmer
         # spots, e.g. azure.s53m.com:8000): used when RBN's own telnet
         # fails twice in a row or sends nothing for ``silent_s``; after
@@ -497,6 +500,11 @@ class RBNClient(threading.Thread):
                 spot = parse_cluster_spot(line)
             else:
                 spot = parse_spot(line)
+            if spot is not None and self.on_raw is not None:
+                try:
+                    self.on_raw(spot)
+                except Exception:  # noqa: BLE001 - never stop the feed
+                    pass
             if spot is None:
                 spot = parse_history(line)
                 if spot is None:

@@ -238,6 +238,7 @@ random id of that POUNCer) and `t` (type):
 
 ```json
 {"t":"hi","started":1786112000.5,"web":8080,"healthy":true,"ver":"0.7.41","id":"3f2a…"}
+{"t":"hi", …, "bands":{"40m":{"spots":90,"calls":40,"dx":34,"state":"open"}, …}}   (master: band-open counts for the slaves)
 ```
 
 - **Master** = the one running longest whose RBN works; it alone talks to

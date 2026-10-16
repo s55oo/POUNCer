@@ -130,6 +130,10 @@ SETTINGS: list[dict] = [
      "live": True, "group": "Program", "label": "Pre-contest check line",
      "help": "READY / CHECK / NOT READY line at the top of the window: N1MM, log, call, "
              "RBN, cty, SCP, phone, PC clock. The phone warns only when something is wrong."},
+    {"key": "ui.band_lights", "attr": "band_lights", "kind": "bool",
+     "live": True, "group": "Program", "label": "Band open lights",
+     "help": "Per band: green = open (5+ DX stations heard by skimmers on your continent in "
+             "10 min, number = how many), amber = only your continent, grey = nothing."},
     {"key": "ui.auto_update", "attr": "auto_update", "kind": "bool", "live": False,
      "group": "Program", "label": "Auto-update from GitHub", "help": ""},
 ]

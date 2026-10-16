@@ -1,5 +1,20 @@
 # POUNCer — Changelog
 
+## v0.7.51 — 2026-10-16 — band open lights
+
+- **Band open?** A row of band lights in the window (*Band open: 160 80
+  40 34 20 12 15 10*) and a dot on every band in the phone's band menu,
+  from what the skimmers on **your continent** hear - the whole RBN feed
+  (and the HTTP backup / SSB cluster), not only the skimmers of the list -
+  in the last 10 minutes:
+  - **green + number** = open: that many different DX stations (other
+    continents) heard (5 or more),
+  - **amber** = spots, but (almost) only your own continent,
+  - **grey** = nothing heard.
+  The band the radio is on has a frame. A team slave shows the master's
+  counts (sent with the team's "hi" message). `[ui] band_lights` (on;
+  Settings).
+
 ## v0.7.50 — 2026-10-16 — "already tried" marks, pre-contest check line
 
 - **Already tried**: a station you tapped (called) gets a mark after its

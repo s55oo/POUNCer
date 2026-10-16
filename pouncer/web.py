@@ -264,6 +264,14 @@ INDEX_HTML = """<!doctype html>
   .bandgrid button { background: #263238; color: #fff; border: 0; border-radius: 10px;
     font: inherit; font-size: 22px; font-weight: 800; padding: 16px 0; cursor: pointer; }
   .bandgrid button.cur { background: #2e7d32; }
+  .bandgrid button { position: relative; }
+  /* band open dot: green = open to DX (number = DX stations), amber = only
+     our continent, grey = nothing (skimmers on our continent, 10 min) */
+  .bopen { position: absolute; top: 5px; right: 6px; min-width: 10px; height: 10px;
+    border-radius: 6px; font-size: 11px; line-height: 10px; padding: 2px 4px; font-weight: 800; }
+  .bopen.open { background: #43a047; color: #fff; }
+  .bopen.local { background: #f9a825; color: #222; padding: 0; min-width: 10px; width: 10px; }
+  .bopen.closed { background: #546e7a; padding: 0; min-width: 10px; width: 10px; }
   .footbar .wpm[hidden] { display: none; }
   .bandgrid button.here { box-shadow: inset 0 0 0 2px #4fc3f7; }
   .viewtag { color: #4fc3f7; font-weight: 700; cursor: pointer; }
@@ -1193,6 +1201,16 @@ INDEX_HTML = """<!doctype html>
     bands.forEach(b => {
       const btn = document.createElement('button');
       btn.textContent = b;
+      // band open? (skimmers on our continent, 10 min): dot + DX stations heard
+      const bo = (lastData.bandopen || {})[b];
+      if (bo) {
+        const o = document.createElement('span');
+        o.className = 'bopen ' + bo.state;
+        o.textContent = bo.state === 'open' ? String(bo.dx) : '';
+        o.title = bo.state === 'open' ? bo.dx + ' DX stations heard by skimmers on your continent (10 min)'
+          : (bo.state === 'local' ? 'only your continent heard (' + bo.calls + ' stations)' : 'nothing heard');
+        btn.appendChild(o);
+      }
       if (b === shown) btn.classList.add('cur');
       if (b === real) btn.classList.add('here');   // the radio is on this band
       btn.onclick = () => chooseBand(b);
@@ -1480,6 +1498,11 @@ page.</p>
   setting, saved). <b>all</b> / 3 / 6 / 10 / 13 / 15 / 20 / 25 dB, or &minus;1 / +1. When on,
   the SNR key shows it small (&ge;10) and the top line says how many weak spots are hidden. Default <b>all</b> (0 = off). New multipliers and spots without an SNR (SSB)
   are always listed.</dd>
+  <dt>Band menu dots</dt>
+  <dd>Band open? From what the skimmers on <b>your continent</b> hear (the whole RBN feed)
+  in the last 10 minutes: <span style="color:#43a047">green + number</span> = open, that many
+  different DX stations heard; <span style="color:#f9a825">amber</span> = only your own
+  continent; grey = nothing. The POUNCer window shows the same as a row of band lights.</dd>
   <dt>&#8635;3m after a call</dt>
   <dd>Already tried: you tapped (called) this station on this band 3 minutes ago
   (&#8635;3m&times;2 = twice) - maybe skip the pile-up for now. Shown for 30 min
