@@ -2,7 +2,7 @@
 
 Every connection POUNCer opens or listens on, what goes over it and in which
 format: N1MM Logger+, the Reverse Beacon Network, the DX cluster, the phone
-page, the team, and the downloads from the internet. Valid for **v0.7.41**.
+page, the team, and the downloads from the internet. Valid for **v0.7.58**.
 Ports and addresses are the defaults; each can be changed in `config.ini`
 (the section and key are given).
 
@@ -18,21 +18,22 @@ in the examples are private example addresses.
 
 | # | Direction | Transport | Port | Other end | What for | config.ini |
 |---|---|---|---|---|---|---|
-| 1 | **in** | UDP | 12060 | N1MM Logger+ (same PC) | radio frequency, mode, Entry Window (RadioInfo XML) | `[n1mm] listen_ip`, `listen_port` |
+| 1 | **in** | UDP | 12060 | N1MM Logger+ (same PC) | radio frequency, mode, Entry Window (RadioInfo XML); the open log + contest (AppInfo XML; contest number also from contactinfo / lookupinfo) | `[n1mm] listen_ip`, `listen_port` |
 | 2 | **out** | UDP | 13064 | N1MM Logger+ (127.0.0.1) | QSY, wipe, CAT strings (XML commands) | `[n1mm] control_ip`, `control_port` |
 | 3 | local | files | – | N1MM's log `.s3db` + `-wal`, `N1MM Logger.ini`, `wl_cty.dat`, `MASTER.SCP` | worked stations, mults, contest, callsign, countries | `[n1mm] ini`, `[worked] db` |
-| 4 | local | Windows messages | – | N1MM Entry Windows | bring to front, put the call in, read it back, keys | `[n1mm] type_mode` |
+| 4 | local | Windows messages | – | N1MM Entry Windows | bring to front, put the call in, read it back, keys; read the CW speed box (WPM); Ctrl+K + typed text for the phone CW keyboard | `[n1mm] type_mode`, `cw_speed`; `[web] cw_keyboard` |
 | 5 | **out** | TCP (telnet) | 7000 / 7001 | telnet.reversebeacon.net | RBN skimmer spots (CW/RTTY 7000, FT8/FT4 7001) | `[rbn] host`, `port`, `ft8_port` |
 | 6 | **out** | TCP (telnet) | 8000 | azure.s53m.com | RBN backup when RBN's telnet is down | `[rbn] backup_host`, `backup_port` |
 | 7 | **out** | HTTPS | 443 | azure.s53m.com `/cors/rbn/live` | RBN over HTTP, second backup | `[rbn] http_backup` |
 | 8 | **out** | TCP (telnet) | 8000 | azure.s53m.com | DX cluster: SSB spots | `[ssb] host`, `port` |
-| 9 | **in** + out | UDP broadcast | 12079 | other POUNCers on the network | team: who is master, spots, run history | `[team] port`, `peers` |
+| 9 | **in** + out | UDP broadcast | 12079 | other POUNCers on the network | team: who is master, spots, run history; the master's band-open counts | `[team] port`, `peers` |
 | 10 | **in** | HTTP (TCP) | 8080 | phones, tablets, browsers on the LAN; other POUNCers | phone page, its API, settings, team sync | `[web] host`, `port` |
 | 11 | **out** | HTTPS | 443 | api.github.com, github.com | update check and download (SHA-256 checked); `HEAD api.github.com` every 30 min for the PC clock check (`Date` header) | `[ui] auto_update`; clock: `[ui] check_line` |
 | 12 | **out** | HTTPS | 443 | github.com (release `warmup`) | warm-up lists (CW, SSB) | `[ui] warmup` |
 | 13 | **out** | HTTPS | 443 | raw.githubusercontent.com (S53ZO's log archive) | run history of calls not in the lists | `[ui] run_history` |
 | 14 | **out** | HTTPS | 443 | www.supercheckpartial.com | MASTER.SCP (busted-call marks) | `[scp] url` |
 | 15 | – | UDP connect | – | 8.8.8.8 | finding the PC's LAN address – **nothing is sent** | – |
+| 16 | local | process start | – | your own programs (.exe / .bat / shortcuts) | autostart with POUNCer – no network | `[autostart]` |
 
 Firewall: inbound **UDP 12060** (only from N1MM on the same PC), **TCP 8080**
 (phones on the LAN) and **UDP 12079** (team) must be allowed; everything
