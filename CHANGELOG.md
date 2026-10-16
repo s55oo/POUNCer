@@ -1,5 +1,27 @@
 # POUNCer — Changelog
 
+## v0.7.50 — 2026-10-16 — "already tried" marks, pre-contest check line
+
+- **Already tried**: a station you tapped (called) gets a mark after its
+  call - in the window `K1ABC   ↻3m`, on the phone a small blue **↻3m** -
+  minutes since your last tap on that band; **×2** = tapped twice. So you
+  don't keep calling the same pile-up. Shown for 30 minutes after the last
+  tap; taps are kept over a restart. Settings / `[ui] mark_tried`
+  (on / off) and `tried_minutes`.
+- **Pre-contest check line** at the top of the window: **READY** (green) /
+  **CHECK** (amber) / **NOT READY** (red) with ✓ / ⚠ / ✗ for N1MM radio
+  info, the log, the station call, RBN (also via team or HTTP backup), the
+  country file (⚠ older than 60 days), Super Check Partial (⚠ older than
+  30 days), the phone page and the **PC clock** (compared with a web
+  server's clock every 30 minutes: ⚠ more than 5 s off, ✗ more than a
+  minute). The phone shows **⚠ cty** etc. in its top line only when
+  something is wrong - tap it for the details. `[ui] check_line` (on).
+- **Values in bold** in the window's info lines (the grey part): radio
+  frequency, band, mode and CW speed; RBN state, spotter, mode, band,
+  spot / hidden counts, team role and IP, SCP and warm-up counts; log
+  name, station call, QSOs per band; the phone URL and listening
+  address:port. The lines can still be selected and copied.
+
 ## v0.7.49 — 2026-10-16 — phone: minimum SNR on the SNR key (hold 1.3 s)
 
 - No extra ≥dB button in the phone's top row any more (too little space):

@@ -198,6 +198,17 @@ only when a busy band needs it). New multipliers and SSB cluster
 spots (no SNR) are always listed; the window's RBN line and the phone's
 top line ("+5 weak") say how many are hidden.
 
+**Already tried**: stations you tapped (called) get **↻3m** after the call
+(window and phone) = last tapped 3 minutes ago on this band, **×2** = twice,
+for 30 minutes (`[ui] mark_tried`, `tried_minutes`; Settings).
+
+**Pre-contest check line** (top of the window): **READY** / **CHECK** /
+**NOT READY** with ✓ / ⚠ / ✗ for N1MM radio info, log, station call, RBN,
+country file (⚠ > 60 days old), Super Check Partial (⚠ > 30 days), phone
+page and PC clock (checked against a web server every 30 min). The phone
+shows ⚠ in its top line only when something is wrong; tap it for details.
+`[ui] check_line = false` hides it.
+
 **CW speed**: POUNCer reads N1MM's keyer speed from the speed box of each
 Entry Window (A and B) once a second and shows it in the N1MM line
 (`CW 28 WPM`), the compact bar and on the phone between WPM − and WPM +.
@@ -487,6 +498,8 @@ All options live in `config.ini` and are documented there, line by line:
 | `sort`, `trigger` | snr, single | Start sort; `single` or `double` click to QSY. |
 | `min_snr` | 0 (off) | Hide spots weaker than this (dB) in the window and on the phone; 0 = all spots. |
 | `min_snr_keep_mults` | true | New multipliers are listed even when weaker than `min_snr`. |
+| `mark_tried`, `tried_minutes` | true, 30 | Mark stations you tapped (↻3m, ×2) for this many minutes. |
+| `check_line` | true | Pre-contest check line in the window; phone warns when something is wrong. |
 | `max_age_minutes`, `fade_minutes` | 10, 5 | Drop spots older than this; phone tiles fade when not re-spotted. |
 | `fkeys` | F2 F3 F4 F5 F7 Enter | TX/log buttons in the main window and phone page: `KEY[:label]` list (default `F2:RPRT F3:TU F4:CALL F5:HisCALL F7:? Enter`). Each F-key **transmits** its N1MM message; `Enter` logs the QSO. Empty = no buttons. |
 | `forward_fkeys` | true | F1-F12 pressed in POUNCer go to N1MM. |

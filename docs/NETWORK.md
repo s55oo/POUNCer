@@ -28,7 +28,7 @@ in the examples are private example addresses.
 | 8 | **out** | TCP (telnet) | 8000 | azure.s53m.com | DX cluster: SSB spots | `[ssb] host`, `port` |
 | 9 | **in** + out | UDP broadcast | 12079 | other POUNCers on the network | team: who is master, spots, run history | `[team] port`, `peers` |
 | 10 | **in** | HTTP (TCP) | 8080 | phones, tablets, browsers on the LAN; other POUNCers | phone page, its API, settings, team sync | `[web] host`, `port` |
-| 11 | **out** | HTTPS | 443 | api.github.com, github.com | update check and download (SHA-256 checked) | `[ui] auto_update` |
+| 11 | **out** | HTTPS | 443 | api.github.com, github.com | update check and download (SHA-256 checked); `HEAD api.github.com` every 30 min for the PC clock check (`Date` header) | `[ui] auto_update`; clock: `[ui] check_line` |
 | 12 | **out** | HTTPS | 443 | github.com (release `warmup`) | warm-up lists (CW, SSB) | `[ui] warmup` |
 | 13 | **out** | HTTPS | 443 | raw.githubusercontent.com (S53ZO's log archive) | run history of calls not in the lists | `[ui] run_history` |
 | 14 | **out** | HTTPS | 443 | www.supercheckpartial.com | MASTER.SCP (busted-call marks) | `[scp] url` |
@@ -278,6 +278,8 @@ query parameters (`radio=A|B` = which radio the phone works).
 - If newer: the asset `POUNCer.exe` is downloaded and its **SHA-256** is
   compared with the one GitHub gives for the asset before it replaces the
   exe (restart with the Restart button). macOS: only a notice.
+- `HEAD https://api.github.com` – at start and every 30 min: only the
+  `Date` header is read, to compare the PC clock (pre-contest check line).
 
 ## 12. Warm-up lists (HTTPS, out)
 

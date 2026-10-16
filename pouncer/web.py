@@ -245,6 +245,12 @@ INDEX_HTML = """<!doctype html>
     font: inherit; font-size: 22px; font-weight: 800; padding: 10px 0; cursor: pointer; }
   #snrsheet .snrval { text-align: center; font-size: 24px; font-weight: 800; color: #80cbc4; }
   .weaktag { color: #80cbc4; }
+  /* already tried (tapped): small blue mark after the call */
+  button.tile .call .tried { font-size: 13px; font-weight: 700; color: #90caf9;
+    margin-left: 5px; vertical-align: middle; }
+  /* pre-contest check: shown only when something is wrong (tap = details) */
+  .chktag { font-weight: 700; cursor: pointer; }
+  .chktag.warn { color: #ffd54f; } .chktag.bad { color: #ff8a80; }
   #bandsheet, #rmsheet, #snrsheet { display: none; position: fixed; inset: 0; z-index: 20;
     background: rgba(0,0,0,.55); align-items: flex-start; justify-content: center; }
   #bandsheet.show, #rmsheet.show, #snrsheet.show { display: flex; }
@@ -896,7 +902,14 @@ INDEX_HTML = """<!doctype html>
       esc(data.band) + ' list &middot; ' + (radioSw.hidden ? 'radio' : (cur === 2 ? 'B' : 'A')) +
       ' on ' + esc(data.radio_band || '?') + ' \u2715</span> &middot; ' + meta;
     if (calm) meta = '<span class="calmtag" title="Calm list: tiles keep their place, re-sorted every 15 s">calm</span> &middot; ' + meta;
+    const ck = data.checks;
+    if (ck && ck.state !== 'ok' && (ck.items || []).length) {
+      meta = '<span class="chktag ' + esc(ck.state) + '" id="chktag" title="Pre-contest check - tap for details">\u26a0 ' +
+        ck.items.map(i => esc(i.name)).join(', ') + '</span> &middot; ' + meta;
+    }
     metaEl.innerHTML = meta;
+    const ct = document.getElementById('chktag');
+    if (ct) ct.onclick = () => toast(ck.items.map(i => i.name + ': ' + i.text).join(' \u00b7 '), null, 8000);
     if (!snrSheet.classList.contains('show') && typeof data.min_snr === 'number') showMinSnr(data.min_snr);
     const vt = document.getElementById('viewtag');
     if (vt) vt.onclick = () => { delete views[String(cur)]; saveViews(); selKey = ''; refresh(); };
@@ -961,13 +974,18 @@ INDEX_HTML = """<!doctype html>
         (s.hours != null ? ', on air ~' + s.hours + ' h' : '') +
         ' in its past logs' + (s.rec ? ' (reconstructed from other logs: a minimum)' : '') +
         (rare ? ' - rare CQ: work it now' : '');
+      if (s.tried != null) b.title = (b.title ? b.title + ' - ' : '') +
+        'already tapped ' + (s.tries > 1 ? s.tries + ' times, last ' : '') + s.tried + ' min ago';
       if (s.busted) b.title = (b.title ? b.title + ' - ' : '') +
         '? = not in the Super Check Partial list: maybe a skimmer error (busted call)';
       const len = (s.call || '').length;
       const size = len > 10 ? ' xlong' : (len > 8 ? ' long' : '');
       const html = '<span class="call' + size + (s.dx ? ' dx' : '') + '">' +
         esc(s.call) + (s.busted ? '<span class="busted">?</span>' : '') +
-        (rare ? '<span class="rare">\u26a1</span>' : '') + '</span>' +
+        (rare ? '<span class="rare">\u26a1</span>' : '') +
+        // already tapped lately: minutes since the last tap (and how often)
+        (s.tried != null ? '<span class="tried">\u21bb' + s.tried + 'm' +
+          (s.tries > 1 ? '\u00d7' + s.tries : '') + '</span>' : '') + '</span>' +
         '<span class="detail"><span><b class="fq">' + s.freq.toFixed(1) + '</b>' +
         // mode only when it isn't CW (in a CW contest it always is)
         (s.mode && s.mode.toUpperCase() !== 'CW' && !ssbOnly ? ' ' + esc(s.mode) : '') +
@@ -1462,6 +1480,14 @@ page.</p>
   setting, saved). <b>all</b> / 3 / 6 / 10 / 13 / 15 / 20 / 25 dB, or &minus;1 / +1. When on,
   the SNR key shows it small (&ge;10) and the top line says how many weak spots are hidden. Default <b>all</b> (0 = off). New multipliers and spots without an SNR (SSB)
   are always listed.</dd>
+  <dt>&#8635;3m after a call</dt>
+  <dd>Already tried: you tapped (called) this station on this band 3 minutes ago
+  (&#8635;3m&times;2 = twice) - maybe skip the pile-up for now. Shown for 30 min
+  (<code>[ui] tried_minutes</code>); off with <code>mark_tried = false</code> or in Settings.</dd>
+  <dt><span style="color:#ffd54f">&#9888; cty, SCP</span> in the top line</dt>
+  <dd>Pre-contest check: something POUNCer needs is not right (N1MM radio info, log,
+  station call, RBN, country file, Super Check Partial, phone page, PC clock). Tap it for
+  details. Nothing is shown while everything is fine; the POUNCer window has the full line.</dd>
   <dt><span class="k green">ENTER</span></dt>
   <dd>Enter in N1MM: logs the QSO (no transmit).<br>
   <b>Hold it 1.3 s</b> (it fills up yellow): the <b>CW keyboard</b> opens at the top. What you

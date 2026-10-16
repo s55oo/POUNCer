@@ -49,6 +49,7 @@ class TapLog:
         self._clock = clock
         self._lock = threading.Lock()
         self._taps: list[tuple[float, str, str]] = []   # (time, call, band)
+        self._by_station: dict[tuple[str, str], list[float]] = {}   # "tried" marks
         self._load()
 
     def _load(self) -> None:
@@ -70,6 +71,8 @@ class TapLog:
             log.info("taps: %s", exc)
             return
         self._taps = kept
+        for t, c, b in kept:
+            self._by_station.setdefault((c, b), []).append(t)
         try:   # rewrite without the old ones
             with open(self.path, "w", encoding="utf-8") as fh:
                 for t, c, b in kept:
@@ -85,6 +88,7 @@ class TapLog:
         t = self._clock()
         with self._lock:
             self._taps.append((t, call, band))
+            self._by_station.setdefault((call, band), []).append(t)
         if not self.path:
             return
         try:
@@ -93,6 +97,17 @@ class TapLog:
                 fh.write(json.dumps({"t": round(t, 1), "c": call, "b": band}) + "\n")
         except OSError as exc:
             log.info("taps: %s", exc)
+
+    def tried(self, call: str, band: str | None, within_s: float) -> tuple[int, float] | None:
+        """Tapped (= called) this station on this band in the last
+        ``within_s`` seconds: (how many times, time of the last tap)."""
+        if not band:
+            return None
+        now = self._clock()
+        with self._lock:
+            times = self._by_station.get((str(call).strip().upper(), band))
+            recent = [t for t in times or () if now - t <= within_s]
+        return (len(recent), max(recent)) if recent else None
 
     def snapshot(self) -> list[tuple[float, str, str]]:
         with self._lock:
