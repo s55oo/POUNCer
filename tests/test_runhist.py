@@ -119,7 +119,9 @@ class RunHistoryTests(unittest.TestCase):
             self.assertEqual(urls, [])
 
     def test_parallel_lookups_share_one_shard_download(self) -> None:
-        with tempfile.TemporaryDirectory() as d:
+        # the lookups run in background threads that may still write to the
+        # cache folder while it is removed (macOS: "Directory not empty")
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
             shard = os.path.join(d, "src.sqlite")
             con = sqlite3.connect(shard)
             con.execute("CREATE TABLE logs (path TEXT, callsign TEXT, contest TEXT,"

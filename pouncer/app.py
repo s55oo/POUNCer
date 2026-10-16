@@ -1798,6 +1798,13 @@ class PouncerApp:
         return f"VERSIONS DIFFER: this one is {__version__}, {who} - update all to the same"
 
     @staticmethod
+    def _bold_warm(text: str) -> str:
+        """'CW 46044 + SSB 60917 stations known ...' -> both counts bold."""
+        import re
+        out = re.sub(r"\b(CW|SSB|RTTY|PH) (\d[\d,.]*)", r"\1 **\2**", text)
+        return out if out != text else re.sub(r"(\d[\d,.]*)", r"**\1**", text, count=1)
+
+    @staticmethod
     def _bold_count(text: str) -> str:
         """'SCP: 51234 calls (...)' -> the number bold."""
         import re
@@ -2110,7 +2117,7 @@ class PouncerApp:
                 f"   hidden=**{self._worked_hidden}**"
                 f"{'   weak (<' + str(self.cfg.min_snr) + ' dB)=**' + str(self._snr_hidden) + '**' if self.cfg.min_snr else ''}"
                 f"{'   HTTP backup: **' + str(self._http_feed.spots_in) + '** spots' if self._http_feed else ''}"
-                f"{'   warm-up: ' + self._bold_count(self.runhist.warm_status) if self.runhist and self.runhist.warm_status else ''}"
+                f"{'   warm-up: ' + self._bold_warm(self.runhist.warm_status) if self.runhist and self.runhist.warm_status else ''}"
                 f"{'   ' + self._bold_count(self.scp.status) if self.scp is not None else ''}"
             )
         )
