@@ -38,7 +38,16 @@ jobs:
 
       # POUNCer is stdlib-only, so there are no runtime dependencies.
       - name: Tests
-        run: python -m unittest discover -s tests -v
+        shell: bash
+        run: |
+          set +e
+          python -m unittest discover -s tests -v 2> test-out.txt
+          rc=$?
+          cat test-out.txt
+          # failing tests as annotations (readable without the full log)
+          grep -E "^(ERROR|FAIL):" test-out.txt | head -10 | sed 's/^/::error::/'
+          grep -E "^[A-Za-z]*(Error|Exception):|^AssertionError" test-out.txt | head -10 | sed 's/^/::error::/'
+          exit $rc
 
       # The Windows window layout (buttons flow onto more rows, text wraps)
       # checked on a real Tk window; the result goes into the release notes.
