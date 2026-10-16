@@ -299,6 +299,9 @@ class PouncerApp:
         self.lights_frame.pack(fill="x", padx=12, pady=(6, 2))
         self.bands_frame = None          # made after the lights (same row)
         self._band_lights: dict[str, tk.Label] = {}
+        # band chip clicked: the list shows that band (radio stays); None = follow the radio
+        self._view_band: str | None = None
+        self._view_from: str | None = None
         self._bands_last = None
         self._lights: list[tuple[tk.Label, tk.Label]] = []
         self._lights_last: list | None = None
@@ -1733,6 +1736,8 @@ class PouncerApp:
             sub = "   ".join(p for p in parts if p)
         else:
             big, sub = "----.-", "no radio info from N1MM"
+        if getattr(self, "_view_band", None):
+            sub += f"      \u25b6 list: {self._view_band} (click it again: back)"
         if self.freq_big.cget("text") != big:
             self.freq_big.configure(text=big)
         if self.freq_sub.cget("text") != sub:
@@ -2180,11 +2185,11 @@ class PouncerApp:
     def _band_chip_text(self, band: str, c: dict) -> str:
         """'40m: 34 DX 70%' (open) / '80m: EU only' (only our continent) /
         '160m: -' (nothing). The % = DX stations of all heard (the colour)."""
-        if c.get("state") == "open":
+        if c.get("state") == "closed" or not c.get("calls"):
+            return f"{band}: \u2013"
+        if c.get("dx"):                    # some DX: how many, and their share (= the colour)
             return f"{band}: {c.get('dx', 0)} DX {dx_pct(c)}%"
-        if c.get("state") == "local":
-            return f"{band}: {self.home_cont} only"
-        return f"{band}: \u2013"
+        return f"{band}: {self.home_cont} only"
 
     @staticmethod
     def _band_chip_color(c: dict) -> tuple[str, str]:
@@ -2193,6 +2198,32 @@ class PouncerApp:
         if c.get("state") == "closed" or not c.get("calls"):
             return "#bdbdbd", "#424242"
         return share_color(dx_pct(c))
+
+    def _view_band_now(self) -> str | None:
+        """The band the window's list shows instead of the radio's - until
+        the radio changes band (then it follows the radio again)."""
+        if self._view_band and self._current_band() != self._view_from:
+            self._view_band = self._view_from = None
+            self._bands_last = None
+            self._dirty = True
+        return self._view_band
+
+    def _on_band_chip(self, band: str) -> None:
+        """Band chip clicked: show that band's spots (the radio stays where
+        it is). Clicked again, or the radio's own band: follow the radio."""
+        here = self._current_band()
+        if band == self._view_band or band == here:
+            self._view_band = self._view_from = None
+            msg = f"List follows the radio again ({here or 'all bands'})"
+        else:
+            self._view_band, self._view_from = band, here
+            msg = (f"List shows {band} (the radio stays on {here or '?'}) - click a spot to QSY "
+                   f"there; click {band} again to go back")
+        self._bands_last = None
+        self._dirty = True
+        self.status_label.configure(text=msg)
+        self._update_band_lights()
+        self._update_top_bar(self.state.snapshot(self.radio))
 
     def _update_band_lights(self) -> None:
         if self.bands_frame is None:         # made with the lights (same row)
@@ -2207,7 +2238,7 @@ class PouncerApp:
         data = self._band_open()
         here = self._current_band()
         key = (tuple(sorted((b, v.get("dx"), v.get("calls"), v.get("state")) for b, v in data.items())),
-               here)
+               here, self._view_band)
         if key == self._bands_last:
             return
         self._bands_last = key
@@ -2217,14 +2248,18 @@ class PouncerApp:
                      font=(theme.FONT, 9)).pack(side="left", padx=(0, 4))
             for band in CONTEST_BANDS:
                 lbl = tk.Label(self.bands_frame, text=band, padx=6, pady=1,
-                               font=(theme.FONT, 9, "bold"), relief="flat")
+                               font=(theme.FONT, 9, "bold"), relief="flat", cursor="hand2")
                 lbl.pack(side="left", padx=1)
+                lbl.bind("<Button-1>", lambda _e, b=band: self._on_band_chip(b))
                 self._band_lights[band] = lbl
         for band, lbl in self._band_lights.items():
             c = data.get(band) or {"state": "closed", "dx": 0, "spots": 0}
             bg, fg = self._band_chip_color(c)
-            lbl.configure(text=self._band_chip_text(band, c), bg=bg, fg=fg,
-                          relief="solid" if band == here else "flat", bd=1 if band == here else 0)
+            viewed = band == self._view_band
+            lbl.configure(text=("\u25b6 " if viewed else "") + self._band_chip_text(band, c),
+                          bg=bg, fg=fg,
+                          relief="solid" if band in (here, self._view_band) else "flat",
+                          bd=2 if viewed else (1 if band == here else 0))
 
     def _light_states(self, snap) -> list[tuple[str, str]]:
         role = self.team.role() if self.team is not None else "off"
@@ -2370,7 +2405,7 @@ class PouncerApp:
         return items
 
     def _sorted_visible(self) -> list[Spot]:
-        items = self._visible_spots()
+        items = self._visible_spots(band=self._view_band_now())
         key = self._sort_key(self.sort_col)
         present = [s for s in items if key(s) is not None]
         missing = [s for s in items if key(s) is None]

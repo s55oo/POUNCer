@@ -61,7 +61,8 @@ class ChipTextTests(unittest.TestCase):
         f = types.SimpleNamespace(home_cont="EU")
         t = lambda b, c: app.PouncerApp._band_chip_text(f, b, c)
         self.assertEqual(t("40m", {"state": "open", "dx": 34, "calls": 40}), "40m: 34 DX 85%")
-        self.assertEqual(t("80m", {"state": "local", "dx": 1}), "80m: EU only")
+        self.assertEqual(t("80m", {"state": "local", "dx": 0, "calls": 9}), "80m: EU only")
+        self.assertEqual(t("15m", {"state": "local", "dx": 2, "calls": 2}), "15m: 2 DX 100%")
         self.assertEqual(t("160m", {"state": "closed"}), "160m: \u2013")
 
 

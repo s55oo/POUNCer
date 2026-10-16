@@ -6,7 +6,13 @@
   band-menu dots): orange = the stations heard are (almost) all from your
   own continent, through yellow, to green = (almost) all DX - in proportion
   to the % of DX among all different stations heard on the band. The chip
-  shows the %: **20m: 34 DX 85%**. Grey = nothing heard.
+  shows the %: **20m: 34 DX 85%** (also with only a few DX: **15m: 2 DX
+  100%**); **80m: EU only** = no DX at all. Grey = nothing heard.
+- **Click a band chip** in the window: the list shows that band's spots
+  (▶ on the chip, "▶ list: 20m" in the top bar) - the radio stays where it
+  is. Click a spot there and the radio QSYs to it; the list then follows
+  the radio again. Click the chip again (or the radio's own band) to go
+  back. Like the phone's band menu.
 
 - The check line's PC clock now comes from an **NTP time server**
   (pool.ntp.org, else time.windows.com; UDP 123, milliseconds) instead of a
