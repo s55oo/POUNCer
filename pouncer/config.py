@@ -83,6 +83,7 @@ class Config:
     freq_decimal: str = "auto"  # typed frequency: auto (Windows setting), "." or ","
     set_callsign: bool = True
     wipe_before_call: bool = True
+    alt_w_after_call: bool = True    # TEST: Alt+W after the call is in N1MM
     focus_n1mm: bool = True
     return_focus: bool = True  # SO2R: after a tap on the other radio, cursor back where it was
     focus_back_to_a: bool = False  # SO2R/SO2V: after a radio B tap, always to Entry Window A
@@ -232,6 +233,7 @@ def load_config(path: str) -> Config:
     cfg.freq_decimal = fd if fd in ("auto", ".", ",") else "auto"
     cfg.set_callsign = b("n1mm", "set_callsign", cfg.set_callsign)
     cfg.wipe_before_call = b("n1mm", "wipe_before_call", cfg.wipe_before_call)
+    cfg.alt_w_after_call = b("n1mm", "alt_w_after_call", cfg.alt_w_after_call)
     cfg.focus_n1mm = b("n1mm", "focus_n1mm", cfg.focus_n1mm)
     cfg.return_focus = b("n1mm", "return_focus", cfg.return_focus)
     cfg.focus_back_to_a = b("n1mm", "focus_back_to_a", cfg.focus_back_to_a)

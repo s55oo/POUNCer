@@ -505,6 +505,40 @@ class RadioBTimingTests(unittest.TestCase):
         self.assertLess(took, 3.5, took)
 
 
+class AltWAfterCallTests(unittest.TestCase):
+    """[n1mm] alt_w_after_call: Alt+W pressed after the call is in N1MM."""
+
+    def _tap(self, on: bool):
+        app = _import_app()
+        f = AppRadioTests._fake(AppRadioTests(), app, radio=1)
+        f.cfg.alt_w_after_call = on
+        f.cfg.qsy_wait_ms = f.cfg.qsy_settle_ms = 0
+        f.cfg.wipe_before_call = False
+        f.cfg.radio_b_qsy = "udp-left"
+        order, msgs = [], []
+        f.status_label = types.SimpleNamespace(configure=lambda **kw: msgs.append(kw["text"]))
+        f._enter_text = lambda hwnd, call: order.append(("call", call)) or "settext"
+        f._check_call = lambda hwnd, call: ""
+        spot = app.Spot(dxcall="K1ABC", freq_khz=14025.0, mode="CW", snr=10, wpm=28,
+                        spot_type="CQ", spotter="S53WW", time_utc="1200Z", received=0)
+        with mock.patch.object(app, "force_foreground", return_value=True), \
+                mock.patch.object(app, "focus_snapshot", return_value=None), \
+                mock.patch.object(app, "wipe_callsign", side_effect=lambda: order.append("alt+w")), \
+                mock.patch.object(app.time, "sleep"):
+            app.PouncerApp._act_on_spot(f, spot, 1)
+        return order, msgs[-1]
+
+    def test_on_alt_w_comes_last(self) -> None:
+        order, msg = self._tap(True)
+        self.assertEqual(order, [("call", "K1ABC"), "alt+w"])
+        self.assertIn("+ Alt+W", msg)
+
+    def test_off_no_alt_w(self) -> None:
+        order, msg = self._tap(False)
+        self.assertEqual(order, [("call", "K1ABC")])
+        self.assertNotIn("Alt+W", msg)
+
+
 class FocusBackToATests(unittest.TestCase):
     """[n1mm] focus_back_to_a: after a radio B tap the cursor goes to Entry Window A."""
 

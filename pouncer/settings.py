@@ -32,6 +32,12 @@ SETTINGS: list[dict] = [
     {"key": "n1mm.wipe_before_call", "attr": "wipe_before_call", "kind": "bool",
      "live": True, "group": "Tap -> N1MM",
      "label": "Wipe the Entry Window first", "help": "N1MM's {WIPE} before the new call."},
+    {"key": "n1mm.alt_w_after_call", "attr": "alt_w_after_call", "kind": "bool",
+     "live": True, "group": "Tap -> N1MM",
+     "label": "Alt+W after the call (test)",
+     "help": "After the call is in N1MM's Entry Window, press Alt+W - against the call "
+             "showing twice (Entry Window and above it). If the call disappears from "
+             "the Entry Window too, switch this off."},
     {"key": "n1mm.focus_n1mm", "attr": "focus_n1mm", "kind": "bool",
      "live": True, "group": "Tap -> N1MM",
      "label": "Bring N1MM to the front", "help": "Needed to put the call in."},
