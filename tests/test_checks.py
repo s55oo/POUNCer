@@ -45,6 +45,13 @@ class BuildTests(unittest.TestCase):
         self.assertEqual(items["Log"]["text"], "log not found")
         self.assertTrue(checks.line(list(items.values())).startswith("NOT READY"))
 
+    def test_log_from_ini_warns_only_when_out_of_date(self) -> None:
+        ok = by_name(checks.build(dict(GOOD, log_source="ini", log_stale_nr=None)))["Log"]
+        self.assertEqual(ok["state"], "ok")
+        bad = by_name(checks.build(dict(GOOD, log_source="ini", log_stale_nr=9)))["Log"]
+        self.assertEqual(bad["state"], "warn")
+        self.assertIn("contest #9", bad["text"])
+
     def test_off_items_left_out(self) -> None:
         items = checks.build(dict(GOOD, scp_enabled=False, web="off", clock_offset=None))
         text = checks.line(items)

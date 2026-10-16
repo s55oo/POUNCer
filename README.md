@@ -455,7 +455,10 @@ keyboard and window controls are unavailable on macOS.
    a contest - so POUNCer counts **only the open contest** at once (QSOs per
    band, worked, mults). Without it POUNCer reads `N1MM Logger.ini`, which
    N1MM saves only now and then, so after switching contests it can still
-   name the old one; the check line then says CHECK. (Ticking **Contacts**
+   name the old one; the check line says CHECK when today's QSOs are in
+   another contest than the ini names. (N1MM sends App Info only at its
+   start and when a contest is opened, so a POUNCer started later reads the
+   ini until then - that's fine.) (Ticking **Contacts**
    helps too: every logged QSO carries the contest number.)
 6. Click OK. N1MM now broadcasts radio info every ~10 s and on every change.
 

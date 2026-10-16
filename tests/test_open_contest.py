@@ -70,6 +70,25 @@ class OpenContestTests(unittest.TestCase):
         self.assertEqual(dict(wl.band_qsos()), {"40m": 1, "20m": 1})
         self.assertEqual(wl.qso_count, 2)
 
+    def test_ini_fine_when_todays_qsos_are_in_its_contest(self) -> None:
+        self._ini(2)                     # CQWW SSB open, POUNCer started after N1MM
+        wl = WorkedLog("", self.ini)
+        wl.maybe_reload()
+        self.assertEqual(wl.contest_source, "ini")
+        self.assertIsNone(wl.ini_stale_nr)          # no warning
+
+    def test_ini_stale_when_todays_qsos_are_elsewhere(self) -> None:
+        import time
+        con = sqlite3.connect(self.db)
+        now = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+        con.execute("INSERT INTO DXLOG VALUES ('JA1AA', 21.0, 'CW', 3, ?)", (now,))
+        con.commit()
+        con.close()
+        self._ini(1)                     # ini still names the old contest
+        wl = WorkedLog("", self.ini)
+        wl.maybe_reload()
+        self.assertEqual(wl.ini_stale_nr, 3)
+
     def test_no_contest_number_never_counts_the_whole_database(self) -> None:
         self._ini(None)
         wl = WorkedLog("", self.ini)
