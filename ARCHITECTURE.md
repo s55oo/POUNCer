@@ -550,3 +550,7 @@ unit-tested (verified manually / by smoke runs).
 - `_act_on_spot` → module `_note_tap(app, spot, nr, ok, short)` → `app._last_tap` {n, call, freq, radio, ok, text}; `/api/spots` carries it as `tap`. The page's `qsy()` sets `pendingTap {call, since n}`; `tapResult(data)` toasts ✓ / ⚠ when `tap.n` grows for that call, or "no answer" after 8 s.
 - `/api/spots` carries `version`; the page compares with `PAGE_VERSION` (filled in when served) and reloads once per version (`sessionStorage pouncer-reload`).
 - Help page **Reset this page** removes every `pouncer.*` localStorage key. Since v0.7.66 the page also drops a remembered radio B when the server reports one radio.
+
+## Mults waiting per band
+
+`PouncerApp._mults_waiting()` (cached 3 s): every (call, band) in `self.spots` in the shown modes, not removed / own call / beacon, `_mults(s)` > 0 → {band: {mults, mm}}. `_band_info()` = `_band_open()` + that; used by `_update_band_lights` (chip text `· n mults`) and the phone payload `bandopen` (band menu `.bmult` badge).

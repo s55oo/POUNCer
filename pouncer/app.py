@@ -1465,7 +1465,7 @@ class PouncerApp:
             "min_snr": self.cfg.min_snr,
             # band open? {band: {state open/local/closed, dx, calls, spots}}
             "bandopen": ({b: dict(v, bg=self._band_chip_color(v)[0], fg=self._band_chip_color(v)[1])
-                          for b, v in self._band_open().items()} if self.cfg.band_lights else {}),
+                          for b, v in self._band_info().items()} if self.cfg.band_lights else {}),
             # pre-contest check (the phone warns when it isn't all fine)
             "checks": {"state": checksmod.worst(self._checks) if self._checks else "ok",
                        "items": [c for c in self._checks if c["state"] in ("warn", "bad")]},
@@ -2368,14 +2368,58 @@ class PouncerApp:
             return {}
         return self.bandact.summary()
 
+    def _mults_waiting(self) -> dict[str, dict]:
+        """{band: {"mults": stations that are a new multiplier there, "mm":
+        of them double}} - from the spots in the list (all bands, the shown
+        modes, not removed, not ourselves). Worked out every 3 s at most."""
+        now = time.time()
+        cache = getattr(self, "_mw_cache", None)
+        if cache and now - cache[0] < 3:
+            return cache[1]
+        modes = {m.upper() for m in self._effective_modes(None)}
+        own = self.own_call()
+        best: dict[tuple[str, str], int] = {}
+        for sp in list(self.spots.values()):
+            band = band_from_khz(sp.freq_khz)
+            if band not in CONTEST_BANDS or sp.mode.upper() not in modes:
+                continue
+            key = (sp.dxcall.upper(), band)
+            if key in best or key in self._removed or same_station(sp.dxcall, own):
+                continue
+            if self.cfg.hide_beacons and is_beacon(sp):
+                continue
+            best[key] = self._mults(sp)
+        out = {b: {"mults": 0, "mm": 0} for b in CONTEST_BANDS}
+        for (_call, band), m in best.items():
+            if m:
+                out[band]["mults"] += 1
+                out[band]["mm"] += 1 if m >= 2 else 0
+        self._mw_cache = (now, out)
+        return out
+
+    def _band_info(self) -> dict[str, dict]:
+        """Band open counts plus the new multipliers spotted per band."""
+        data = {b: dict(v) for b, v in self._band_open().items()}
+        try:
+            waiting = self._mults_waiting()
+        except Exception as exc:  # noqa: BLE001 - the lights still work without
+            log.debug("mults waiting: %s", exc)
+            waiting = {}
+        for b, w in waiting.items():
+            data.setdefault(b, {"state": "closed", "dx": 0, "calls": 0, "spots": 0}).update(w)
+        return data
+
     def _band_chip_text(self, band: str, c: dict) -> str:
         """'40m: 34 DX 70%' (open) / '80m: EU only' (only our continent) /
-        '160m: -' (nothing). The % = DX stations of all heard (the colour)."""
+        '160m: -' (nothing). The % = DX stations of all heard (the colour).
+        '· 6 mults' = new multipliers spotted on that band now."""
+        m = c.get("mults") or 0
+        more = f" \u00b7 {m} mult{'s' if m != 1 else ''}" if m else ""
         if c.get("state") == "closed" or not c.get("calls"):
-            return f"{band}: \u2013"
+            return f"{band}: {m} mult{'s' if m != 1 else ''}" if m else f"{band}: \u2013"
         if c.get("dx"):                    # some DX: how many, and their share (= the colour)
-            return f"{band}: {c.get('dx', 0)} DX {dx_pct(c)}%"
-        return f"{band}: {self.home_cont} only"
+            return f"{band}: {c.get('dx', 0)} DX {dx_pct(c)}%" + more
+        return f"{band}: {self.home_cont} only" + more
 
     @staticmethod
     def _band_chip_color(c: dict) -> tuple[str, str]:
@@ -2421,15 +2465,17 @@ class PouncerApp:
                 self._band_lights = {}
                 self._bands_last = None
             return
-        data = self._band_open()
+        data = self._band_info()
         here = self._current_band()
-        key = (tuple(sorted((b, v.get("dx"), v.get("calls"), v.get("state")) for b, v in data.items())),
+        key = (tuple(sorted((b, v.get("dx"), v.get("calls"), v.get("state"), v.get("mults"))
+                            for b, v in data.items())),
                here, self._view_band)
         if key == self._bands_last:
             return
         self._bands_last = key
         if not self._band_lights:
-            tk.Label(self.bands_frame, text="Band open (DX heard, 10 min):", bg=theme.BG,
+            tk.Label(self.bands_frame, text="Band open (DX heard, 10 min; new mults spotted):",
+                     bg=theme.BG,
                      fg=theme.MUTED,
                      font=(theme.FONT, 9)).pack(side="left", padx=(0, 4))
             for band in CONTEST_BANDS:

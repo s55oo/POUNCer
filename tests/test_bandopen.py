@@ -64,6 +64,30 @@ class ChipTextTests(unittest.TestCase):
         self.assertEqual(t("80m", {"state": "local", "dx": 0, "calls": 9}), "80m: EU only")
         self.assertEqual(t("15m", {"state": "local", "dx": 2, "calls": 2}), "15m: 2 DX 100%")
         self.assertEqual(t("160m", {"state": "closed"}), "160m: \u2013")
+        # new multipliers spotted on the band
+        self.assertEqual(t("40m", {"state": "open", "dx": 34, "calls": 40, "mults": 6}),
+                         "40m: 34 DX 85% \u00b7 6 mults")
+        self.assertEqual(t("80m", {"state": "local", "dx": 0, "calls": 9, "mults": 1}),
+                         "80m: EU only \u00b7 1 mult")
+        self.assertEqual(t("160m", {"state": "closed", "mults": 2}), "160m: 2 mults")
+
+    def test_mults_waiting_per_band(self) -> None:
+        from tests.test_so2r import _import_app
+        P = _import_app().PouncerApp
+        sp = lambda call, f, mode="CW": types.SimpleNamespace(dxcall=call, freq_khz=f, mode=mode)
+        spots = {1: sp("JA1AA", 14010), 2: sp("JA1AA", 14012),        # same station twice
+                 3: sp("W1AW", 14020), 4: sp("DL1AA", 7010), 5: sp("VK2AA", 7020, "SSB"),
+                 6: sp("S50XX", 7030), 7: sp("ZL1AA", 21010)}
+        mults = {"JA1AA": 2, "W1AW": 0, "DL1AA": 1, "VK2AA": 1, "S50XX": 1, "ZL1AA": 1}
+        f = types.SimpleNamespace(
+            spots=spots, _removed={("ZL1AA", "15m")}, cfg=types.SimpleNamespace(hide_beacons=False),
+            _effective_modes=lambda r: ("CW",), own_call=lambda: "S50XX",
+            _mults=lambda s: mults[s.dxcall])
+        got = P._mults_waiting(f)
+        self.assertEqual(got["20m"], {"mults": 1, "mm": 1})     # JA once (double)
+        self.assertEqual(got["40m"], {"mults": 1, "mm": 0})     # DL; not SSB VK, not ourselves
+        self.assertEqual(got["15m"], {"mults": 0, "mm": 0})     # removed from the list
+        self.assertIs(P._mults_waiting(f), got)                 # cached (3 s)
 
 
 class WarmBoldTests(unittest.TestCase):

@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## v0.7.69 — 2026-10-16 — new multipliers waiting, per band
+
+- **Band chips show the new multipliers spotted per band**: "20m: 34 DX 85%
+  · 6 mults" = 6 stations spotted on 20m right now would be a new
+  multiplier there (counted from the spots in the list: same modes, removed
+  calls and your own call left out; a station spotted twice counts once).
+  The phone band menu shows it as a pink **6M** on the band (hold it: how
+  many are double). Which band next, at a glance. With the band lights
+  (`[ui] band_lights`).
+
 ## v0.7.68 — 2026-10-16 — start crash with the window a bit off the screen edge
 
 - **Fix:** POUNCer didn't start ("invalid literal for int() with base 10:

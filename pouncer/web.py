@@ -272,6 +272,9 @@ INDEX_HTML = """<!doctype html>
   .bopen.open { background: #43a047; color: #fff; }
   .bopen.local { background: #f9a825; color: #222; padding: 0; min-width: 10px; width: 10px; }
   .bopen.closed { background: #546e7a; padding: 0; min-width: 10px; width: 10px; }
+  /* new multipliers spotted on that band now (pink = mult, as the tile stripe) */
+  .bmult { position: absolute; bottom: 4px; right: 6px; background: #ec407a; color: #fff;
+    border-radius: 8px; padding: 0 5px; font-size: 11px; font-weight: 700; line-height: 15px; }
   .footbar .wpm[hidden] { display: none; }
   .bandgrid button.here { box-shadow: inset 0 0 0 2px #4fc3f7; }
   .viewtag { color: #4fc3f7; font-weight: 700; cursor: pointer; }
@@ -1255,6 +1258,14 @@ INDEX_HTML = """<!doctype html>
         o.title = bo.state === 'open' ? bo.dx + ' DX stations (' + (bo.pct || 0) + '% of all heard) by skimmers on your continent (10 min)'
           : (bo.state === 'local' ? 'only your continent heard (' + bo.calls + ' stations)' : 'nothing heard');
         btn.appendChild(o);
+        if (bo.mults) {           // new multipliers spotted on that band now
+          const m = document.createElement('span');
+          m.className = 'bmult';
+          m.textContent = bo.mults + 'M';
+          m.title = bo.mults + ' new multiplier' + (bo.mults > 1 ? 's' : '') + ' spotted' +
+            (bo.mm ? ' (' + bo.mm + ' double)' : '');
+          btn.appendChild(m);
+        }
       }
       if (b === shown) btn.classList.add('cur');
       if (b === real) btn.classList.add('here');   // the radio is on this band
@@ -1558,7 +1569,9 @@ page.</p>
   <dd>Band open? From what the skimmers on <b>your continent</b> hear (the whole RBN feed)
   in the last 10 minutes: <span style="color:#43a047">green + number</span> = open, that many
   different DX stations heard; <span style="color:#f9a825">amber</span> = only your own
-  continent; grey = nothing. The POUNCer window shows the same as a row of band lights.</dd>
+  continent; grey = nothing. A <span style="color:#ec407a"><b>pink 6M</b></span> = 6 stations
+  spotted on that band now would be a new multiplier (2 of them double: hold for the
+  details). The POUNCer window shows the same as a row of band lights.</dd>
   <dt>&#8635;3m after a call</dt>
   <dd>Already tried: you tapped (called) this station on this band 3 minutes ago
   (&#8635;3m&times;2 = twice) - maybe skip the pile-up for now. Shown for 30 min
