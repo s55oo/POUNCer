@@ -407,6 +407,23 @@ Zones come from the country file: a big country (W, VE, UA, VK ...) gets
 the zone cty.dat gives the call (its main zone unless cty lists that call).
 A team slave has no RBN feed of its own: open the page on the master.
 
+## Band opening timeline
+
+<p align="center"><img src="docs/timeline-page.png" width="820"
+  alt="POUNCer band opening timeline: six rows 160 to 10 m, 10-minute boxes over 24 hours, coloured orange to green by DX share and brighter with more spots (example data)"></p>
+<p align="center"><i>The band opening timeline, 24 h (example data)</i></p>
+
+*View > Band opening timeline* in the window, or **Band opening timeline** in
+the phone band menu, opens `/timeline`: **one row per band (160-10 m), time
+from left to right in 10-minute boxes**, every hour marked (UTC), now at the
+right (yellow frame). It counts what the skimmers on **your continent** heard
+- the same spots as the band chips. **Colour** = the DX share (orange = only
+your continent, green = DX), **brighter** = more spots; the number after each
+row = its spots. Tap a box: spots, stations and DX stations in it.
+**6 / 12 / 24 / 48 h** and **10 min / 1 hour** boxes. Kept 48 hours in
+`cache\timeline.json`, so a restart doesn't lose it. A team slave has no RBN
+feed of its own: open the page on the master.
+
 ## Busy contests: test options (phone page)
 
 Two options to try, on / off under **Test options** on the help page (**?**),

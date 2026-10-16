@@ -558,3 +558,7 @@ unit-tested (verified manually / by smoke runs).
 ## CQ zones page
 
 `pouncer/zones.py` `ZoneMap(entity, home, own)`: fed by `PouncerApp._on_raw_spot` (the `on_raw` hook of RBN telnet / HTTP / SSB cluster, also feeding `bandact`). A spot of our call (base call, `/P` ignored) → `hears_me` (band, skimmer's CQ zone); a spot by a skimmer on our continent → `i_hear` (band, spotted station's CQ zone). Events kept 1 h (max 50 000); `table(window_s)` → {band: {zone: {snr (best), n, calls, who[:8], age (min)}}}. `PouncerApp._zones(minutes=15)` adds own / my_zone / home / team; `/api/zones?min=` and the `/zones` page (`ZONES_HTML`, refresh 15 s, 15 / 30 / 60 min, `pouncer.zonemin`).
+
+## Band opening timeline
+
+`pouncer/timeline.py` `Timeline(path)`: `BandActivity.on_count(band, t, call, dx)` (every spot it counts: skimmer on our continent) → `add` into 10-min slots {band: [spots, calls, dx]} - sets while the slot runs, counts once it is over (keeps `cache/timeline.json` small); kept 48 h; saved every 5 min, at `_save_window` (close / restart / update) and `_shutdown`. `grid(hours)` → slots + cells per band; `/api/timeline?hours=` via `PouncerApp._timeline`; page `TIMELINE_HTML` (6/12/24/48 h, 10 min / 1 h boxes, colour = DX share hue 28→125, lightness = log(spots) / log(max), scrolled to now on narrow screens).
