@@ -2174,6 +2174,14 @@ class PouncerApp:
             return {}
         return self.bandact.summary()
 
+    def _band_chip_text(self, band: str, c: dict) -> str:
+        """'40m: 34 DX' (open) / '80m: EU only' (only our continent) / '160m: -'."""
+        if c.get("state") == "open":
+            return f"{band}: {c.get('dx', 0)} DX"
+        if c.get("state") == "local":
+            return f"{band}: {self.home_cont} only"
+        return f"{band}: \u2013"
+
     def _update_band_lights(self) -> None:
         if self.bands_frame is None:         # made with the lights (same row)
             return
@@ -2191,7 +2199,8 @@ class PouncerApp:
             return
         self._bands_last = key
         if not self._band_lights:
-            tk.Label(self.bands_frame, text="Band open", bg=theme.BG, fg=theme.MUTED,
+            tk.Label(self.bands_frame, text="Band open (DX heard, 10 min):", bg=theme.BG,
+                     fg=theme.MUTED,
                      font=(theme.FONT, 9)).pack(side="left", padx=(0, 4))
             for band in CONTEST_BANDS:
                 lbl = tk.Label(self.bands_frame, text=band, padx=6, pady=1,
@@ -2201,8 +2210,7 @@ class PouncerApp:
         for band, lbl in self._band_lights.items():
             c = data.get(band) or {"state": "closed", "dx": 0, "spots": 0}
             bg, fg = self.BAND_COLORS[c["state"]]
-            text = band.replace("m", "") + (f" {c['dx']}" if c["state"] == "open" else "")
-            lbl.configure(text=text, bg=bg, fg=fg,
+            lbl.configure(text=self._band_chip_text(band, c), bg=bg, fg=fg,
                           relief="solid" if band == here else "flat", bd=1 if band == here else 0)
 
     def _light_states(self, snap) -> list[tuple[str, str]]:

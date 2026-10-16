@@ -54,6 +54,17 @@ class CountTests(unittest.TestCase):
         self.assertEqual(state_of({"spots": 3, "dx": 0}), "local")
 
 
+class ChipTextTests(unittest.TestCase):
+    def test_band_and_value(self) -> None:
+        from tests.test_so2r import _import_app
+        app = _import_app()
+        f = types.SimpleNamespace(home_cont="EU")
+        t = lambda b, c: app.PouncerApp._band_chip_text(f, b, c)
+        self.assertEqual(t("40m", {"state": "open", "dx": 34}), "40m: 34 DX")
+        self.assertEqual(t("80m", {"state": "local", "dx": 1}), "80m: EU only")
+        self.assertEqual(t("160m", {"state": "closed"}), "160m: \u2013")
+
+
 class FeedHookTests(unittest.TestCase):
     def test_telnet_counts_every_live_spot_not_history(self) -> None:
         raw = []

@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.7.58 — 2026-10-16 — band open chips say what they mean
+
+- The window's band-open chips now read **20m: 34 DX** (open: 34 different
+  DX stations heard), **80m: EU only** (only your own continent) and
+  **160m: –** (nothing heard), after the title *Band open (DX heard,
+  10 min):* - before it was just "20 34".
+
 ## v0.7.57 — 2026-10-16 — autostart: the same program more than once
 
 - The same program listed several times (e.g. 4 copies of a log router as
