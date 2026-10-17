@@ -353,6 +353,11 @@ INDEX_HTML = """<!doctype html>
     white-space: nowrap; background: #2e7d32; color: #fff; border: 0; padding: 0 4px;
     border-radius: 12px; font: inherit; font-size: var(--kfont); font-weight: 700;
     cursor: pointer; transition: background .12s ease; }
+  /* half-height keys (F3 + F1 share one key's place): name and label side by side */
+  .fkeys button.half { flex: 0 1 var(--row); min-height: 30px; flex-direction: row; gap: 6px;
+    justify-content: center; }
+  .fkeys button.half .fk { font-size: calc(var(--kfont) * 0.85); }
+  .fkeys button.half .fl { font-size: calc(var(--kfont) * 0.55); }
   /* red while pressed, and for a moment after the tap (.sel) */
   .fkeys button:active, .fkeys button.sel { background: #c62828; }
   /* ENTER held: fills up in 1.3 s, then the CW keyboard opens */
@@ -773,6 +778,7 @@ INDEX_HTML = """<!doctype html>
       b.innerHTML = '<span class="fk">' + esc(big) + '</span>' +
         (small ? '<span class="fl">' + esc(small) + '</span>' : '');
       const isEnter = /^enter$/i.test(f.key);
+      if (f.half) b.classList.add('half');    // half as tall ([web] fkeys_half, e.g. F1 + F3)
       b.title = isEnter ? 'Enter - log the QSO' : f.key + ' (transmits)';
       if (isEnter) {
         b.classList.add('log');

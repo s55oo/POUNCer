@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.76 — 2026-10-17 — half-size F-keys on the phone
+
+- Phone page: **F3, F1, F5 and F7 are half as tall** (same width): F3 + a
+  new **F1 (QRL?)** key share one key's place under F2, F5 + F7 one under F4,
+  so the column is shorter. Default keys now `F2:RPRT F3:TU F1:QRL? F4:CALL
+  F5:HisCALL F7:? Enter`; which keys are half size: `[ui] fkeys_half =
+  F1 F3 F5 F7` (empty = all full size). F1 transmits, like every F-key.
+
 ## v0.7.75 — 2026-10-17 — phone messages stack
 
 - **Phone: pop-up messages stack** instead of replacing each other - press
