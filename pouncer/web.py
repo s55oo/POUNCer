@@ -154,14 +154,18 @@ INDEX_HTML = """<!doctype html>
   body { padding-bottom: var(--ftr, 0px); }
   /* pop-up message: level with the ENTER key, over the spot list (set from
      JS, placeToast); faded out when hidden; 5 s, tap to close */
-  #toast { position: fixed; left: 50%;
-    top: calc(var(--hdr, 0px) + 12px);
-    transform: translateX(-50%) translateY(-12px); opacity: 0; visibility: hidden;
-    pointer-events: none; max-width: calc(100vw - 32px);
-    background: #37474f; color: #fff; padding: 12px 18px; border-radius: 12px;
-    font-size: 16px; font-weight: 600; z-index: 10; border: 2px solid #cfd8dc;
-    box-shadow: 0 6px 24px rgba(0, 0, 0, .7);
-    transition: transform .15s ease, opacity .15s ease, visibility 0s linear .15s; }
+  /* pop-up messages: a small stack (newest at the bottom, up to 4), level with
+     the ENTER key over the spot list (placeToast) - press 2-3 keys and you
+     see each one; every message fades out after its time, tap one to close */
+  #toast { position: fixed; left: 50%; top: calc(var(--hdr, 0px) + 12px);
+    transform: translateX(-50%); display: flex; flex-direction: column; align-items: center;
+    gap: 6px; pointer-events: none; max-width: calc(100vw - 32px); z-index: 10; }
+  #toast .msg { background: #37474f; color: #fff; padding: 10px 16px; border-radius: 12px;
+    font-size: 16px; font-weight: 600; border: 2px solid #cfd8dc;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, .7); pointer-events: auto; max-width: 100%;
+    opacity: 0; transform: translateY(-8px); transition: transform .15s ease, opacity .15s ease; }
+  #toast .msg.show { opacity: 1; transform: translateY(0); }
+  #toast .msg.old { opacity: .72; font-size: 14px; padding: 7px 14px; }
   .call .rare { font-size: .8em; margin-left: 4px; }
   .call .busted { color: #ffb74d; margin-left: 3px; font-weight: 700; }
   .detail .fq { font-weight: 800; color: #fff; }  /* spot frequency stands out */
@@ -178,9 +182,6 @@ INDEX_HTML = """<!doctype html>
     button.tile .call .rare { margin-left: 2px; }
   }
   #toast[hidden] { display: none !important; }
-  #toast.show { transform: translateX(-50%) translateY(0); opacity: 1;
-    visibility: visible; pointer-events: auto;
-    transition: transform .15s ease, opacity .15s ease, visibility 0s; }
   #toast button { margin-left: 12px; background: #fff; color: #263238; border: 0;
     border-radius: 8px; padding: 6px 12px; font: inherit; font-weight: 700; }
   /* long-press on a tile: no iOS text selection / callout menu */
@@ -479,7 +480,6 @@ INDEX_HTML = """<!doctype html>
   const toastEl = document.getElementById('toast');
   const logWarnEl = document.getElementById('logwarn');
   const logMsgEl = document.getElementById('logmsg');
-  let toastTimer = null;
   const PAGE_VERSION = '__VERSION__';   // filled in by POUNCer when it sends the page
   let lastData = {band: '', modes: [], spots: []};
   let lastWpm = {r: 0, v: 0};
@@ -543,35 +543,55 @@ INDEX_HTML = """<!doctype html>
     toastEl.style.left = ((grid.left + grid.right) / 2) + 'px';
     toastEl.style.maxWidth = Math.max(160, grid.width - 16) + 'px';
   }
+  const TOAST_MAX = 4;               // messages on screen at once
   function toast(msg, undo, ms) {
-    toastEl.textContent = msg;
+    const el = document.createElement('div');
+    el.className = 'msg';
+    el.textContent = msg;
     if (undo) {
       const u = document.createElement('button');
       u.textContent = 'Undo';
       u.onclick = undo;
-      toastEl.appendChild(u);
+      el.appendChild(u);
     }
-    // Shown: put it back in the page, then fade in on the next frame.
-    clearTimeout(toastTimer);
-    clearTimeout(toastGone);
+    el.addEventListener('click', (e) => { if (e.target === el) dropToast(el); });
     toastEl.hidden = false;
+    toastEl.appendChild(el);
+    // older ones step back (smaller, a bit faded); too many: the oldest goes
+    const all = Array.from(toastEl.children).filter(x => !x.dataset.gone);
+    all.forEach((x, i) => x.classList.toggle('old', i < all.length - 1));
+    all.slice(0, Math.max(0, all.length - TOAST_MAX)).forEach(dropToast);
     placeToast();
-    void toastEl.offsetWidth;
-    toastEl.classList.add('show');
-    toastTimer = setTimeout(hideToast, ms || 5000);
+    void el.offsetWidth;
+    el.classList.add('show');
+    el._timer = setTimeout(() => dropToast(el), ms || 5000);
+    return el;
   }
-  // Hidden: fade out, then take it out of the page completely (display:none),
-  // so no box or ghost can stay on screen (iOS kept one before).
-  let toastGone = null;
-  function hideToast() {
-    clearTimeout(toastTimer);
-    toastEl.classList.remove('show');
-    clearTimeout(toastGone);
-    toastGone = setTimeout(() => { toastEl.hidden = true; }, 200);
+  // change a message in place (e.g. "QSY OK1BB ..." -> "✓ OK1BB: radio on ...")
+  function retoast(el, msg, ms) {
+    if (!el || el.dataset.gone || !el.parentNode) return toast(msg, null, ms);
+    el.firstChild.nodeValue = msg;
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => dropToast(el), ms || 5000);
+    placeToast();
+    return el;
   }
-  toastEl.addEventListener('click', (e) => {
-    if (e.target === toastEl) hideToast();
-  });
+  function dropToast(el) {
+    if (!el || el.dataset.gone) return;
+    el.dataset.gone = '1';
+    clearTimeout(el._timer);
+    el.classList.remove('show');
+    setTimeout(() => {
+      el.remove();
+      const left = Array.from(toastEl.children).filter(x => !x.dataset.gone);
+      left.forEach((x, i) => x.classList.toggle('old', i < left.length - 1));
+      if (!toastEl.children.length) toastEl.hidden = true;
+      else placeToast();
+    }, 200);
+  }
+  function hideToast() {           // all of them (e.g. a sheet opened)
+    Array.from(toastEl.children).forEach(dropToast);
+  }
   function columns() {
     return window.innerWidth >= 620 ? 2 : 1;
   }
@@ -1196,10 +1216,10 @@ INDEX_HTML = """<!doctype html>
     if (!pendingTap) return;
     const t = data.tap;
     if (t && t.n > pendingTap.since && String(t.call).toUpperCase() === pendingTap.call) {
-      toast((t.ok ? '\u2713 ' : '\u26a0 ') + t.call + ': ' + t.text, null, t.ok ? 4000 : 8000);
+      retoast(pendingTap.el, (t.ok ? '\u2713 ' : '\u26a0 ') + t.call + ': ' + t.text, t.ok ? 4000 : 8000);
       pendingTap = null;
     } else if (Date.now() - pendingTap.at > 8000) {
-      toast('\u26a0 ' + pendingTap.call + ': no answer from POUNCer - is it still running?', null, 8000);
+      retoast(pendingTap.el, '\u26a0 ' + pendingTap.call + ': no answer from POUNCer - is it still running?', 8000);
       pendingTap = null;
     }
   }
@@ -1226,9 +1246,9 @@ INDEX_HTML = """<!doctype html>
       const r = await fetch('/api/qsy?' + rp(
         {call: s.call, freq: s.freq, mode: s.mode}));
       const j = await r.json();
-      toast(j.ok ? ('QSY ' + s.call + ' ...') : ('Failed: ' + (j.error || 'error')));
+      const el = toast(j.ok ? ('QSY ' + s.call + ' ...') : ('Failed: ' + (j.error || 'error')), null, j.ok ? 9000 : 5000);
       if (j.ok) pendingTap = {call: String(s.call).toUpperCase(), since: (lastData.tap || {}).n || 0,
-                              at: Date.now()};
+                              at: Date.now(), el: el};
     } catch (e) {
       toast('Failed: ' + e);
     }
@@ -1701,7 +1721,8 @@ phone (each phone its own).</p>
 </script>
 
 <div class="note">Messages (e.g. "Cleared 12 spots", "CW faster") pop up level with the
-ENTER key for 5 s - tap to close them. The page refreshes every second; while you touch a tile the
+ENTER key for 5 s - press two or three keys and they <b>stack</b> (newest at the bottom, up to
+4), so you see each one; tap one to close it. The page refreshes every second; while you touch a tile the
 list holds still.</div>
 
 <h2 id="reset">Reset this page</h2>

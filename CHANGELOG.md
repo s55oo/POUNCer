@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.7.75 — 2026-10-17 — phone messages stack
+
+- **Phone: pop-up messages stack** instead of replacing each other - press
+  two or three keys and you see each one (newest at the bottom, up to 4,
+  the older ones a bit smaller); each fades after its own time, tap one to
+  close it. The tap's "QSY OK1BB ..." turns into its result in place.
+
 ## v0.7.74 — 2026-10-17 — settings window scrolls
 
 - **Settings window: every tab scrolls** (scrollbar + mouse wheel) - the
