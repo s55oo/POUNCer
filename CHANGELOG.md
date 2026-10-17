@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## Docs — 2026-10-17
+
+- README: **Everything at a glance** (all features in one list, with links),
+  the menus (CQ zones, timeline, diagnostics, log, performance log, Don't
+  wait for N1MM), the settings tabs (Autostart, keys, scrolling), stacked
+  messages and the alert switch. Help page: F1-F7 and half-size keys,
+  stacked messages, how to mute the alert beep. ARCHITECTURE: pin, scrolling
+  settings, toasts, keys.
+
 ## v0.7.78 — 2026-10-17 — F1 first; key list upgraded and in Settings
 
 - Default keys now **F1 first**: `F1:QRL? F3:TU F2:RPRT F4:CALL F5:HisCALL
