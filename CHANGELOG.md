@@ -1,5 +1,11 @@
 # POUNCer — Changelog
 
+## v0.7.74 — 2026-10-17 — settings window scrolls
+
+- **Settings window: every tab scrolls** (scrollbar + mouse wheel) - the
+  Autostart tab with 8 programs didn't fit and the last ones couldn't be
+  reached. The window is also as tall as the screen allows (up to 760 px).
+
 ## v0.7.73 — 2026-10-17 — the tapped station stays in its place
 
 - **The station you tap (phone) or click (window) keeps its place in the
