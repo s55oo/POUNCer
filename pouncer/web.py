@@ -1612,9 +1612,12 @@ page.</p>
 
 <h2>Keys on the right</h2>
 <dl>
-  <dt><span class="k green">F2</span> &hellip; <span class="k green">F7</span></dt>
-  <dd>Press that function key in N1MM - it <b>transmits</b> N1MM's message (F2 report,
-    F3 TU, F4 your call, F5 his call, F7 ?). The label under the key says which.</dd>
+  <dt><span class="k green">F1</span> &hellip; <span class="k green">F7</span></dt>
+  <dd>Press that function key in N1MM - it <b>transmits</b> N1MM's message (F1 QRL?,
+    F2 report, F3 TU, F4 your call, F5 his call, F7 ?). The label on the key says which.
+    <b>Half-size</b> keys share one key's place: F1 + F3 at the top, F5 + F7 under F4
+    (the order and which are half size: <i>Settings &gt; Program</i>, or
+    <code>[ui] fkeys</code> / <code>fkeys_half</code>).</dd>
   <dt><span class="k">SNR</span> held 1.3 s</dt>
   <dd>Minimum SNR: tap SNR = sort by SNR; <b>hold it 1.3 s</b> (it fills teal) to set the
   minimum: spots weaker than this are not listed - here and in the POUNCer window (same
@@ -1741,8 +1744,9 @@ phone (each phone its own).</p>
 
 <div class="note">Messages (e.g. "Cleared 12 spots", "CW faster") pop up level with the
 ENTER key for 5 s - press two or three keys and they <b>stack</b> (newest at the bottom, up to
-4), so you see each one; tap one to close it. The page refreshes every second; while you touch a tile the
-list holds still.</div>
+4), so you see each one; tap one to close it. Only the rare-CQ + new-mult alert beeps:
+<b>Alerts</b> in the band menu turns it off. The page refreshes every second; while you touch a
+tile the list holds still, and the tile you tapped keeps its place until you log it (or 60 s).</div>
 
 <h2 id="reset">Reset this page</h2>
 <p>Something odd on this phone / browser only (another browser works)? The page

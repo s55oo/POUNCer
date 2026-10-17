@@ -156,6 +156,45 @@ phone page, downloads) with their ports and message formats:
 Only the Python standard library is used (tkinter for the GUI). No pip install
 is required.
 
+## Everything at a glance
+
+**Spots and tapping**
+- RBN skimmer spots (CW, default S53WW, backup skimmers / RBN over HTTP when
+  quiet) and DX-cluster spots (SSB) for the band your radio is on.
+- Marks: new multiplier (single / double), worked, ⚡ rare CQ (from 5 years
+  of logs), ? busted call (Super Check Partial), ↻ already tried, strong.
+- **Tap** (phone) or **click** (window) = QSY + call into N1MM, no TX. The
+  phone then says what really happened (✓ radio on 7012.0 · call in / ⚠ N1MM
+  didn't report it). The tapped station **keeps its place** until logged or
+  60 s.
+- Band menu / band chips: look at another band without moving the radio.
+- Minimum SNR, DX / MLT / ⚡ first, calm list, NEXT, CLR with undo.
+
+**Keys** - F1 ... F7 (transmit), ENTER (log; hold 1.3 s = CW keyboard),
+**SPOTit** (N1MM Alt+P, spot to the cluster), WPM − / +, −/+ 25 Hz;
+half-size keys on the phone (F1 + F3, F5 + F7, SPOTit). Order and sizes in
+*Settings > Program*.
+
+**Pictures of the band**
+- Band chips: DX heard, DX share colour, **new mults waiting** per band.
+- **CQ zones** page: who hears you / what you hear, per band and zone 1-40.
+- **Band opening timeline**: spots per band in 10-minute boxes, 48 h.
+- **Contest summary**: QSOs, from POUNCer, mults, rate, best 60 min.
+
+**Station** - SO2R / SO2V (radio A / B, per phone), team of POUNCers on the
+LAN (one RBN feed for all), pre-contest check (READY / CHECK), connection
+lights, CW speed popup, autostart of your other programs (**N1MM first**,
+then the rest when N1MM is up; 8 programs, each optionally "only when N1MM is
+up"), auto-update from GitHub.
+
+**When something is wrong** - `cache\pouncer.log`, *Help > Save
+diagnostics* (zip, no passwords), `cache\perf.csv` (CPU / memory / disk of
+POUNCer, N1MM and Windows, a row a minute), phone *Reset this page*.
+
+Every symbol and colour: [docs/SYMBOLS.md](docs/SYMBOLS.md) · network
+connections: [docs/NETWORK.md](docs/NETWORK.md) · code:
+[ARCHITECTURE.md](ARCHITECTURE.md) · changes: [CHANGELOG.md](CHANGELOG.md).
+
 ## Main window menu
 
 <p align="center"><img src="docs/main-window.png" width="760"
@@ -186,13 +225,16 @@ The options and actions are in the menu bar (sort, the A / B key and the
 F-keys stay as buttons - they're used all contest long):
 
 * **File** - open the config folder (Explorer), Reconnect log, Start
-  autostart programs now, Open the autostart folder, Restart POUNCer, Exit.
+  autostart programs now, Don't wait for N1MM (start the rest now), Open the
+  autostart folder, Restart POUNCer, Exit.
 * **View** - *Also enter callsign in N1MM* and *Hide worked* (tick),
   **Compact window (beside N1MM)** and **Always on top** (tick), Clear spots,
-  Contest summary, Phone page in the browser.
+  Contest summary, **CQ zones: who hears me**, **Band opening timeline**,
+  Phone page in the browser.
 * **Settings...** - the settings window (below).
 * **Help** - what every button does, check for a new version, POUNCer on
-  GitHub, About.
+  GitHub, **Save diagnostics (zip)**, **Open the log file**, **Open the
+  performance log**, About.
 
 The spot list: **new multiplier** rows in bold red, **worked** ones in grey
 (when *Hide worked* is off), **⚡** before the call = rare CQ, **?** after it
@@ -315,8 +357,11 @@ and that radio goes to it.
 
 **Settings...** in the main window's menu bar opens the settings window: the
 most-used settings on tabs (*Tap -> N1MM*, *SO2R / SO2V*, *RBN*, *SSB*,
-*Program*) - wait times, settext / keys, radio B, focus back to A, decimal
-sign, cursor back, skimmer, backup server, SSB cluster, auto-update. A tick
+*Program*, *Autostart*) - wait times, settext / keys, radio B, focus back to
+A, decimal sign, cursor back, skimmer, backup server, SSB cluster, minimum
+SNR, tried marks, check line, band lights, the TX / log keys and which are
+half size, autostart programs 1-8 and the N1MM wait, auto-update. Every tab
+scrolls (scrollbar / mouse wheel). A tick
 box or list is saved at once, a number or text with Enter (or when you leave
 the box), straight into this POUNCer's config.ini (only that line; comments
 stay). Most work at once, the ones marked ↻ after **Restart POUNCer**.
@@ -461,6 +506,10 @@ in the Windows firewall on each PC. `[team] enabled = false` = stand-alone.
 Give them all the same `[rbn] spotter` and modes.
 
 ## Reading a tile (phone view)
+
+Pop-up messages **stack**: press several keys quickly and each one's
+message stays, newest at the bottom (up to 4). Only the rare-CQ + new-mult
+alert beeps - *Alerts* in the band menu turns it off.
 
 All phone keys and marks: **[docs/SYMBOLS.md](docs/SYMBOLS.md#phone-page)**.
 

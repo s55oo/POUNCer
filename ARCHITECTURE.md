@@ -566,3 +566,10 @@ unit-tested (verified manually / by smoke runs).
 ## Performance log
 
 `pouncer/perf.py` `PerfMonitor(cache_dir, stats)`: a daemon thread, every 60 s `sample()` → `write()` one row to `cache/perf.csv` (rotates at 5 MB to `.1`; a new header = new file). CPU from `time.process_time` deltas (all threads), PC CPU from `GetSystemTimes`; memory `GetProcessMemoryInfo` (working set, private, peak) and `GlobalMemoryStatusEx`; disk I/O `GetProcessIoCounters`; handles `GetProcessHandleCount` (ctypes with declared argtypes - 64-bit handles); `/proc` / `resource` elsewhere. `PouncerApp._perf_stats()` adds rates since the last row from `_perf` counters: `_tick` = timed wrapper around `_tick_body`, spots in (`_drain_spots`), raw feed (`_on_raw_spot`), rebuilds, `WebServer.load()` (requests, client IPs seen in 2 min). Windows: `ProcessWatch` (`win32.process_list()` + `OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION)` / `GetProcessTimes` per process each minute) → `n1mm_*` columns for N1MMLogger.net.exe (CPU, memory, disk I/O, handles) and `pc_top_cpu` (three busiest programs). Summary line to pouncer.log every 15 min.
+
+## Phone and window details (v0.7.73 - v0.7.78)
+
+- **Pin**: `_act_on_spot` stores `self._pin = ((call, band), row index, time)`; `_rebuild` → `_apply_pin(items)` moves that station back to its row until it leaves the list, `worked.is_worked` says it is logged, or `PIN_S` (60 s). Phone: `qsy()` sets `pin {key: calmKey, idx, at}`, `applyPin(spots)` after `arrange()` (`PIN_MS`).
+- **Settings window**: every tab is `_scroll_tab` (Canvas + inner Frame + Scrollbar shown only when needed); `_wheel` scrolls the tab under the mouse (`bind_all` MouseWheel / Button-4/5).
+- **Toasts** stack (`TOAST_MAX` 4, `retoast` updates one in place, e.g. the tap result).
+- **Keys**: `config.parse_fkeys` accepts F1-F12, Enter, `SpotIt` (→ `win32.send_alt_p`, N1MM Alt+P); `fkeys_half` → payload `fkeys[].half` → `.fkeys button.half` (flex basis one row). `OLD_DEFAULT_FKEYS`: an unchanged old default list is read as the new default; `fkeys_text` / `fkeys_half_text` for Settings > Program.
