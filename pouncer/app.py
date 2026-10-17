@@ -1564,7 +1564,9 @@ class PouncerApp:
                 "message": self.worked.log_message,
                 "name": self.worked.db_name,
             },
-            "fkeys": [{"key": k, "label": v} for k, v in self.cfg.fkeys],
+            "fkeys": [{"key": k, "label": v,
+                       "half": k.upper() in getattr(self.cfg, "fkeys_half", ())}
+                      for k, v in self.cfg.fkeys],
             "spots": [
                 {
                     "call": s.dxcall, "freq": s.freq_khz, "mode": s.mode,

@@ -98,9 +98,11 @@ class Config:
     worked_refresh_seconds: int = 10
 
     fkeys: tuple[tuple[str, str], ...] = (
-        ("F2", "RPRT"), ("F3", "TU"), ("F4", "CALL"), ("F5", "HisCALL"), ("F7", "?"),
-        ("Enter", "Enter"),
+        ("F2", "RPRT"), ("F3", "TU"), ("F1", "QRL?"), ("F4", "CALL"), ("F5", "HisCALL"),
+        ("F7", "?"), ("Enter", "Enter"),
     )
+    # phone page: these keys are half as tall (F3 + F1, F5 + F7 share one key's place)
+    fkeys_half: tuple[str, ...] = ("F1", "F3", "F5", "F7")
 
     tune_step_hz: int = 25
     # RX filter width assumed at start (N1MM only toggles): narrow/wide/""
@@ -310,6 +312,8 @@ def load_config(path: str) -> Config:
     cfg.fkeys = parse_fkeys(
         s("ui", "fkeys", s("web", "fkeys", ",".join(f"{k}:{v}" for k, v in cfg.fkeys)))
     )
+    half = s("ui", "fkeys_half", s("web", "fkeys_half", " ".join(cfg.fkeys_half)))
+    cfg.fkeys_half = tuple(k.upper() for k in re.split(r"[,;\s]+", half) if k.strip())
 
     sm = s("ssb", "mode", cfg.ssb_mode).strip().lower()
     cfg.ssb_mode = sm if sm in ("auto", "always", "off") else "auto"
