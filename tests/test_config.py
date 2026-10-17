@@ -43,7 +43,7 @@ class LoadConfigTests(unittest.TestCase):
         self.assertEqual(cfg.rbn_ft8_port, 7001)
         self.assertFalse(cfg.touch_view)
         self.assertEqual(cfg.fkeys, (
-            ("F2", "RPRT"), ("F3", "TU"), ("F1", "QRL?"), ("F4", "CALL"), ("F5", "HisCALL"),
+            ("F1", "QRL?"), ("F3", "TU"), ("F2", "RPRT"), ("F4", "CALL"), ("F5", "HisCALL"),
             ("F7", "?"), ("Enter", "Enter"), ("SpotIt", "SPOTit"),
         ))
         self.assertEqual(cfg.fkeys_half, ("F1", "F3", "F5", "F7", "SPOTIT"))
@@ -124,6 +124,25 @@ class ForwardKeysTests(unittest.TestCase):
             with open(path, "w") as fh:
                 fh.write("[ui]\nforward_fkeys = false\n")
             self.assertFalse(load_config(path).forward_fkeys)
+
+
+class FkeysUpgradeTests(unittest.TestCase):
+    def test_old_default_list_gets_the_new_keys(self) -> None:
+        import os
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "config.ini")
+            with open(p, "w", encoding="utf-8") as fh:
+                fh.write("[ui]\nfkeys = F2:RPRT F3:TU F4:CALL F5:HisCALL F7:? Enter\n")
+            cfg = load_config(p)
+            self.assertEqual(cfg.fkeys[0], ("F1", "QRL?"))
+            self.assertIn(("SpotIt", "SPOTit"), cfg.fkeys)
+            with open(p, "w", encoding="utf-8") as fh:
+                fh.write("[ui]\nfkeys = F4:CALL Enter\nfkeys_half =\n")
+            cfg = load_config(p)                       # changed by you: kept
+            self.assertEqual(cfg.fkeys, (("F4", "CALL"), ("Enter", "Enter")))
+            self.assertEqual(cfg.fkeys_half, ())
+            self.assertEqual(cfg.fkeys_text, "F4:CALL Enter")
 
 
 if __name__ == "__main__":

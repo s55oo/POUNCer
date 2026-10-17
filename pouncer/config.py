@@ -20,6 +20,16 @@ def parse_modes(text: str, default: tuple[str, ...] = ("CW",)) -> tuple[str, ...
     return tuple(seen) or default
 
 
+# key lists older POUNCers wrote as their default: read as "not changed"
+OLD_DEFAULT_FKEYS = (
+    (("F2", "RPRT"), ("F3", "TU"), ("F4", "CALL"), ("F5", "HisCALL"), ("F7", "?"), ("Enter", "Enter")),
+    (("F2", "RPRT"), ("F3", "TU"), ("F1", "QRL?"), ("F4", "CALL"), ("F5", "HisCALL"), ("F7", "?"),
+     ("Enter", "Enter")),
+    (("F2", "RPRT"), ("F3", "TU"), ("F1", "QRL?"), ("F4", "CALL"), ("F5", "HisCALL"), ("F7", "?"),
+     ("Enter", "Enter"), ("SpotIt", "SPOTit")),
+)
+
+
 def parse_fkeys(text: str) -> tuple[tuple[str, str], ...]:
     """Parse a key list like ``F4:MyCall, F1:CQ, Enter:Log`` into (key, label).
 
@@ -100,9 +110,11 @@ class Config:
     worked_refresh_seconds: int = 10
 
     fkeys: tuple[tuple[str, str], ...] = (
-        ("F2", "RPRT"), ("F3", "TU"), ("F1", "QRL?"), ("F4", "CALL"), ("F5", "HisCALL"),
+        ("F1", "QRL?"), ("F3", "TU"), ("F2", "RPRT"), ("F4", "CALL"), ("F5", "HisCALL"),
         ("F7", "?"), ("Enter", "Enter"), ("SpotIt", "SPOTit"),
     )
+    fkeys_text: str = ""                 # the [ui] fkeys line as written (Settings)
+    fkeys_half_text: str = ""
     # phone page: these keys are half as tall (F3 + F1, F5 + F7 share one key's place)
     fkeys_half: tuple[str, ...] = ("F1", "F3", "F5", "F7", "SPOTIT")
 
@@ -311,11 +323,18 @@ def load_config(path: str) -> Config:
     )
     cfg.trigger = s("ui", "trigger", cfg.trigger).strip().lower()
     cfg.touch_view = b("ui", "touch_view", cfg.touch_view)
+    default_keys = cfg.fkeys
     cfg.fkeys = parse_fkeys(
         s("ui", "fkeys", s("web", "fkeys", ",".join(f"{k}:{v}" for k, v in cfg.fkeys)))
     )
+    # an unchanged key list of an older POUNCer (the old default) gets the new
+    # default keys (F1, SPOTit, ...) - a list you changed yourself stays
+    if cfg.fkeys in OLD_DEFAULT_FKEYS:
+        cfg.fkeys = default_keys
+    cfg.fkeys_text = " ".join(k if v == k else f"{k}:{v}" for k, v in cfg.fkeys)
     half = s("ui", "fkeys_half", s("web", "fkeys_half", " ".join(cfg.fkeys_half)))
     cfg.fkeys_half = tuple(k.upper() for k in re.split(r"[,;\s]+", half) if k.strip())
+    cfg.fkeys_half_text = " ".join(cfg.fkeys_half)
 
     sm = s("ssb", "mode", cfg.ssb_mode).strip().lower()
     cfg.ssb_mode = sm if sm in ("auto", "always", "off") else "auto"

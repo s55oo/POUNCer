@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## v0.7.78 — 2026-10-17 — F1 first; key list upgraded and in Settings
+
+- Default keys now **F1 first**: `F1:QRL? F3:TU F2:RPRT F4:CALL F5:HisCALL
+  F7:? Enter SpotIt:SPOTit` - on the phone F1 + F3 (half size) at the top.
+- A key list an older POUNCer wrote **unchanged** (its default, without F1 /
+  SPOTit) is now read as the new default - so a PC that updated gets F1 and
+  SPOTit without editing config.ini. A list you changed yourself stays.
+- **Settings > Program**: *TX / log keys* and *half-size keys* (used after a
+  restart).
+
 ## v0.7.77 — 2026-10-17 — SPOTit key (N1MM Alt+P)
 
 - New half-size **SPOTit** key under ENTER (phone; also in the window):
