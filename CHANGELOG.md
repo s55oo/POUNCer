@@ -8,6 +8,9 @@
 
 ## Docs — 2026-10-17
 
+- New phone page picture (80 m, F1-F7 with half-size keys and SPOTit) in
+  README and SYMBOLS, with a caption to match.
+
 - README: **Everything at a glance** (all features in one list, with links),
   the menus (CQ zones, timeline, diagnostics, log, performance log, Don't
   wait for N1MM), the settings tabs (Autostart, keys, scrolling), stacked

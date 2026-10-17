@@ -14,15 +14,16 @@ Windows (POUNCer.exe) and macOS; nothing to install - put the exe and
 `config.ini` in a folder next to N1MM and start it.
 
 <p align="center"><img src="docs/phone-view.jpg" width="320"
-  alt="POUNCer phone page in SO2R on 20 m: radio A and B frequencies, the A / B key, sort and filter buttons, spot tiles and the F-key column"></p>
+  alt="POUNCer phone page on 80 m: frequency with band menu, sort and filter buttons, spot tiles, the F-key column with half-size keys and SPOTit, WPM / Hz / NEXT at the bottom"></p>
 
-*The phone page in a contest (SO2R): radio **A** on 14043.0 with **B**
-(7013.0) under it, the **A / B** key, CLR / Time / Freq / SNR / DX / MLT / ⚡
-sorting, **S** = slave in a team, "backup skimmers" while S53WW was quiet.
-Tiles: green = strong (20 dB+), ⚡ = rare CQ, run % and hours from past
-logs (R58% ~9h), first heard, SNR and how long it has been calling (cq2m);
-yellow frame = the station you tapped last, blue ring = the radio is on it. F-keys on the right, WPM / ±Hz / NEXT at the
-bottom.*
+*The phone page in a contest on 80 m: frequency 3523.2 (tap it for the band
+menu), CLR / Time / Freq / SNR / DX / MLT / ⚡ sorting, needed spots and QSOs
+per band under it. Tiles: green = strong (20 dB+), ⚡ = rare CQ, run % and
+hours from past logs (R52% ~12h), first heard, SNR and how long it has been
+calling (cq5m), pink stripe = new multiplier, ↻11m = you tapped it 11
+minutes ago, faded = not re-spotted for 5 minutes. On the right F1 CQ, F2 RPRT, F3 TU, F4 CALL, F5 HisCALL, F7 ?, ENTER
+and SPOTit (half-size keys for F1 / F3 / F5 / F7 / SPOTit); WPM / ±25 Hz /
+NEXT at the bottom.*
 
 ## How it works
 
