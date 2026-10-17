@@ -1,5 +1,11 @@
 # POUNCer — Changelog
 
+## v0.7.79 — 2026-10-17 — help page up to date
+
+- The phone help page (**?**) describes F1-F7 and the half-size keys,
+  SPOTit, stacked messages, the pinned tapped station and how to mute the
+  alert beep (no other change).
+
 ## Docs — 2026-10-17
 
 - README: **Everything at a glance** (all features in one list, with links),
