@@ -56,7 +56,9 @@ class SettingsWindow:
         win = tk.Toplevel(self.root)
         self.win = win
         win.title("POUNCer settings")
-        win.geometry("700x520")
+        # as tall as the screen allows (up to 760 px): more rows without scrolling
+        h = max(420, min(760, win.winfo_screenheight() - 120))
+        win.geometry(f"720x{h}")
         win.minsize(460, 320)
         top = ttk.Frame(win, padding=(10, 8, 10, 4))
         top.pack(fill="x")
@@ -71,12 +73,71 @@ class SettingsWindow:
         book = ttk.Notebook(win)
         book.pack(fill="both", expand=True, padx=10, pady=(4, 10))
         for group, items in group_items(self.get_items()):
-            tab = ttk.Frame(book, padding=10)
-            tab.columnconfigure(0, weight=1)
-            book.add(tab, text=group)
+            outer, tab = self._scroll_tab(book)
+            book.add(outer, text=group)
             for row, it in enumerate(items):
                 self._row(tab, row, it)
         win.bind("<Escape>", lambda _e: win.destroy())
+        # the mouse wheel scrolls the tab under the mouse (all tabs can be long)
+        win.bind_all("<MouseWheel>", self._wheel, add="+")
+        win.bind_all("<Button-4>", self._wheel, add="+")    # Linux
+        win.bind_all("<Button-5>", self._wheel, add="+")
+
+    def _scroll_tab(self, book):
+        """A tab that scrolls: a Canvas with the rows in a frame, and a
+        scrollbar that shows only when the rows don't fit."""
+        outer = ttk.Frame(book)
+        canvas = tk.Canvas(outer, highlightthickness=0, borderwidth=0)
+        try:
+            canvas.configure(background=ttk.Style().lookup("TFrame", "background") or "#eef1f5")
+        except tk.TclError:
+            pass
+        bar = ttk.Scrollbar(outer, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=bar.set)
+        canvas.pack(side="left", fill="both", expand=True)
+        inner = ttk.Frame(canvas, padding=10)
+        inner.columnconfigure(0, weight=1)
+        item = canvas.create_window((0, 0), window=inner, anchor="nw")
+
+        def fit(_e=None):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+            need = inner.winfo_reqheight() > canvas.winfo_height() + 1
+            if need and not bar.winfo_ismapped():
+                bar.pack(side="right", fill="y")
+            elif not need and bar.winfo_ismapped():
+                bar.pack_forget()
+                canvas.yview_moveto(0)
+
+        inner.bind("<Configure>", fit)
+        canvas.bind("<Configure>", lambda e: (canvas.itemconfigure(item, width=e.width), fit()))
+        canvas._pouncer_scroll = True          # the wheel handler finds it
+        return outer, inner
+
+    def _wheel(self, event) -> None:
+        """Scroll the settings tab under the mouse."""
+        if self.win is None or not self.win.winfo_exists():
+            return
+        w = event.widget
+        try:
+            if not str(w).startswith(str(self.win)):
+                return
+        except tk.TclError:
+            return
+        while w is not None and not getattr(w, "_pouncer_scroll", False):
+            w = getattr(w, "master", None)
+        if w is None:
+            return
+        if getattr(event, "num", None) == 4:
+            step = -1
+        elif getattr(event, "num", None) == 5:
+            step = 1
+        else:
+            step = -1 if event.delta > 0 else 1
+            step *= max(1, abs(event.delta) // 120) if abs(event.delta) >= 120 else 1
+        first, last = w.yview()
+        if first <= 0 and last >= 1:
+            return                               # all of it fits: nothing to scroll
+        w.yview_scroll(step * 3, "units")
 
     def _row(self, parent, row: int, it: dict) -> None:
         key = it["key"]

@@ -175,7 +175,7 @@ SETTINGS: list[dict] = [
      "group": "Autostart", "label": "N1MM as program 1: wait until it is up",
      "help": "When program 1 is N1MMLogger.net.exe and N1MM isn't running: start it, wait for "
              "its first broadcast (Entry Window / log open), then start the rest of POUNCer "
-             "and programs 2-4. N1MM: Config > Broadcast Data > Radio / App Info."},
+             "and programs 2-8. N1MM: Config > Broadcast Data > Radio / App Info."},
     {"key": "autostart.n1mm_timeout", "attr": "autostart_n1mm_timeout", "kind": "int",
      "min": 10, "max": 900, "live": True, "group": "Autostart",
      "label": "  ... wait at most (seconds)", "help": "then POUNCer goes on anyway"},
