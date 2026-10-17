@@ -473,7 +473,8 @@ INDEX_HTML = """<!doctype html>
 <div id="bandsheet"><div class="sheet">
   <div class="sheet-title">Band<span id="bandfor"></span> <span>(shows its spots - tap a station to QSY)</span></div>
   <div class="bandgrid" id="bandgrid"></div>
-  <button class="sheet-close" id="alertbtn">Alerts: on</button>
+  <button class="sheet-close" id="alertpopbtn">Alert pop-up: on</button>
+  <button class="sheet-close" id="alertsndbtn">Alert sound: on</button>
   <a class="sheet-close helplink" href="/summary">Contest summary</a>
   <a class="sheet-close helplink" href="/zones">CQ zones: who hears me</a>
   <a class="sheet-close helplink" href="/timeline">Band opening timeline</a>
@@ -627,10 +628,16 @@ INDEX_HTML = """<!doctype html>
     return (isRare(s) ? 0 : 1e4) + s.run * 10 + h;
   }
   // Alert: a rare CQ (\u26a1) that is also a new multiplier appears on the
-  // band -> beep (+ vibrate where the phone can) and a pop-up. Once per
-  // station and band; nothing for what is already listed when the page opens.
-  let alertsOn = true;
-  try { alertsOn = localStorage.getItem('pouncer.alerts') !== '0'; } catch (e) {}
+  // band -> a pop-up and / or a beep (+ vibrate where the phone can), each
+  // switched on its own. Once per station and band; nothing for what is
+  // already listed when the page opens.
+  let alertPop = true, alertSound = true;
+  try {
+    const old = localStorage.getItem('pouncer.alerts');      // one switch before v0.7.80
+    const p = localStorage.getItem('pouncer.alertpop'), so = localStorage.getItem('pouncer.alertsound');
+    alertPop = (p === null ? old : p) !== '0';
+    alertSound = (so === null ? old : so) !== '0';
+  } catch (e) {}
   const alerted = new Set();
   let alertsReady = false;
   let audioCtx = null;
@@ -660,11 +667,13 @@ INDEX_HTML = """<!doctype html>
       if (!alerted.has(k)) { alerted.add(k); fresh.push(s); }
     });
     if (!alertsReady) { alertsReady = true; return; }  // page just opened
-    if (!fresh.length || !alertsOn) return;
-    beep();
-    if (navigator.vibrate) { try { navigator.vibrate([120, 60, 120]); } catch (e) {} }
+    if (!fresh.length) return;
+    if (alertSound) {
+      beep();
+      if (navigator.vibrate) { try { navigator.vibrate([120, 60, 120]); } catch (e) {} }
+    }
     const s = fresh[0];
-    toast('\u26a1 rare CQ + new mult: ' + s.call + ' ' + s.freq.toFixed(1));
+    if (alertPop) toast('\u26a1 rare CQ + new mult: ' + s.call + ' ' + s.freq.toFixed(1));
   }
   function bandOf(khz) { return Math.round(khz / 1000); }
   function cqText(m) {
@@ -740,17 +749,25 @@ INDEX_HTML = """<!doctype html>
     }
   }
   document.getElementById('clr').onclick = () => clearSpots(false);
-  const alertBtn = document.getElementById('alertbtn');
+  const alertPopBtn = document.getElementById('alertpopbtn');
+  const alertSndBtn = document.getElementById('alertsndbtn');
   function labelAlerts() {
-    alertBtn.textContent = 'Alerts (rare CQ + new mult): ' + (alertsOn ? 'on' : 'off');
+    alertPopBtn.textContent = 'Alert pop-up (rare CQ + new mult): ' + (alertPop ? 'on' : 'off');
+    alertSndBtn.textContent = 'Alert sound (beep + vibrate): ' + (alertSound ? 'on' : 'off');
   }
   labelAlerts();
-  alertBtn.onclick = () => {
-    alertsOn = !alertsOn;
-    try { localStorage.setItem('pouncer.alerts', alertsOn ? '1' : '0'); } catch (e) {}
+  alertPopBtn.onclick = () => {
+    alertPop = !alertPop;
+    try { localStorage.setItem('pouncer.alertpop', alertPop ? '1' : '0'); } catch (e) {}
+    labelAlerts();
+    if (alertPop) toast('\u26a1 alert pop-up on');
+  };
+  alertSndBtn.onclick = () => {
+    alertSound = !alertSound;
+    try { localStorage.setItem('pouncer.alertsound', alertSound ? '1' : '0'); } catch (e) {}
     labelAlerts();
     unlockAudio();
-    if (alertsOn) beep();
+    if (alertSound) beep();
   };
   document.getElementById('rarefirst').onclick = () => {
     rareFirst = !rareFirst;
@@ -1606,9 +1623,10 @@ then - after switching contests the counts can belong to the old one until N1MM 
 stopped calling there. Not shown: stations you already worked on this band and mode,
 your own call, and beacons. One tile per station and band (the newest spot).</p>
 <p><b>Alert</b>: when a rare CQ (&#9889;) that is also a new multiplier appears on your
-band, the phone beeps (and vibrates where it can) and shows it in a pop-up. Turn it
-on/off in the band menu (tap the frequency). Sound works after your first tap on the
-page.</p>
+band, the phone shows it in a pop-up and beeps (and vibrates where it can). Two
+switches in the band menu (tap the frequency): <b>Alert pop-up</b> and <b>Alert
+sound</b> - e.g. the pop-up without the beep. Sound works after your first tap on the
+page. The Windows window has its own two (View menu).</p>
 
 <h2>Keys on the right</h2>
 <dl>
@@ -1745,7 +1763,7 @@ phone (each phone its own).</p>
 <div class="note">Messages (e.g. "Cleared 12 spots", "CW faster") pop up level with the
 ENTER key for 5 s - press two or three keys and they <b>stack</b> (newest at the bottom, up to
 4), so you see each one; tap one to close it. Only the rare-CQ + new-mult alert beeps:
-<b>Alerts</b> in the band menu turns it off. The page refreshes every second; while you touch a
+<b>Alert sound</b> in the band menu turns the beep off (<b>Alert pop-up</b> its message). The page refreshes every second; while you touch a
 tile the list holds still, and the tile you tapped keeps its place until you log it (or 60 s).</div>
 
 <h2 id="reset">Reset this page</h2>

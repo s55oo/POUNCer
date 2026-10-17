@@ -74,6 +74,15 @@ heard in the last 10 minutes.
 Click a chip to see that band's spots; click it again, or change band on
 the radio, to follow the radio again.
 
+### Compact window (View menu, Ctrl+M)
+
+| What you see | Meaning |
+| --- | --- |
+| **Radio A** button | which radio the clicks go to (click = the other one) |
+| **A 14025.0   B 7012.0   28 WPM   (12 spots)** | both radios' frequencies, the CW speed, how many spots are listed |
+| **⤢** (right) | back to the full window (also Ctrl+M) |
+| small chips **160 80 40·3 20 15 10** | the band chips, small: same colours, **·3** = 3 new mults spotted there, thin frame = radio's band, **▶** + thick frame = the band listed (click a chip) |
+
 ### Info lines (grey area)
 
 The values in bold - spotter, mode, spot counts, ports, IPs, the CW and SSB
@@ -119,6 +128,7 @@ Marks in the call and Mult columns:
 | **F1 ... F12** | send N1MM's function key: they **transmit** (the edge turns red under the mouse) |
 | **Radio A / Radio B** | which radio POUNCer follows. Shown only when N1MM reports two radios / VFOs |
 | **CW 30 WPM ▲** / **▼** popup | the CW speed was changed in N1MM: up or down |
+| yellow **⚡ rare CQ + new mult: 3B8X 7012.0** pop-up | a rare CQ that is also a new multiplier just appeared (once per station and band); **click it = QSY and call**; gone after 8 s. *View > Alert pop-up* on / off, *Alert sound* = two beeps (each on its own) |
 | **min SNR** box | spots weaker than this are not listed (0 = all) |
 
 ## Phone page
@@ -150,7 +160,7 @@ Marks in the call and Mult columns:
 
 | Key | Meaning |
 | --- | --- |
-| **POUNCer** (title) | tap for the band menu (pick a band, alerts on/off) |
+| **POUNCer** (title) | tap for the band menu (pick a band, alert pop-up / sound on/off) |
 | **A / B** | which radio this phone works: blue = A, orange = B. Shown only when N1MM runs two radios |
 | **CLR** (red text) | clear all spots (e.g. old ones before the contest); undo for 5 s |
 | **Time / Freq / SNR** | sort keys; the active one is green |

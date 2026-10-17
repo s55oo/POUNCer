@@ -1,5 +1,22 @@
 # POUNCer — Changelog
 
+## v0.7.80 — 2026-10-17 — window alert, compact chips, zones / timeline windows
+
+- **Alert in the window**: when a rare CQ (⚡) that is also a new multiplier
+  appears in the list, a yellow **pop-up** at the top of the window for 8 s -
+  **click it = QSY and call** (it never takes the keyboard from N1MM) - and /
+  or **two beeps**. *View > Alert pop-up* (on) and *View > Alert sound* (off)
+  switch them on their own; saved as `[ui] alert_popup` / `alert_sound`.
+  Once per station and band, nothing for the first 30 s after the start.
+- **Phone**: the one *Alerts* switch is now two in the band menu - **Alert
+  pop-up** and **Alert sound** (beep + vibrate). An old "off" turns both off.
+- **Compact window**: a row of small **band chips** (colour = band open,
+  `40·3` = 3 new mults there, click = list that band), a **⤢** button back
+  to the full window, and **Ctrl+M** to switch.
+- **CQ zones** and **Band opening timeline** (View menu) open as **windows of
+  POUNCer** - the same pictures as the pages, refreshed by themselves, click
+  a box for the details, *Open in the browser* for the page.
+
 ## v0.7.79 — 2026-10-17 — help page up to date
 
 - The phone help page (**?**) describes F1-F7 and the half-size keys,

@@ -562,14 +562,17 @@ def child_summary(window_hwnd: int, limit: int = 150) -> list[str]:
     return out
 
 
-def make_no_activate(hwnd: int) -> bool:
+def make_no_activate(hwnd: int, click_through: bool = True) -> bool:
     """A popup that never takes the keyboard from N1MM: no activation, not in
-    the task bar, clicks go through it, always on top."""
+    the task bar, always on top; clicks go through it (``click_through``) or,
+    for the alert pop-up, reach it - still without activating it."""
     if not _WIN or not hwnd:
         return False
     style = _GetLong(hwnd, _GWL_EXSTYLE)
-    _SetLong(hwnd, _GWL_EXSTYLE, style | _WS_EX_NOACTIVATE | _WS_EX_TOOLWINDOW
-             | _WS_EX_TRANSPARENT | _WS_EX_TOPMOST)
+    style |= _WS_EX_NOACTIVATE | _WS_EX_TOOLWINDOW | _WS_EX_TOPMOST
+    if click_through:
+        style |= _WS_EX_TRANSPARENT
+    _SetLong(hwnd, _GWL_EXSTYLE, style)
     return True
 
 
