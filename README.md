@@ -488,7 +488,9 @@ A **faded** tile = not re-spotted for 5 min (probably gone). When a rare CQ
 in the band menu). If S53WW goes quiet for 5 min, other skimmers on your
 continent are used ("⚠ backup skimmers") until it is back.
 
-Tap = QSY + call into N1MM (no TX; the callsign box is always emptied first); hold 2 s = remove from the list. The
+Tap = QSY + call into N1MM (no TX; the callsign box is always emptied first); hold 2 s = remove from the list.
+The station you tapped (or clicked in the window) **keeps its place in the
+list** until you log it or for 60 s, while the others re-sort around it. The
 **?** after the status line opens the same explanation on the phone.
 
 ## Download

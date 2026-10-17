@@ -134,6 +134,8 @@ def _note_tap(app, spot: Spot, nr: int, ok: bool, short: str, full: str = "") ->
                      "ok": ok, "text": short, "full": full or short, "t": time.time()}
 
 
+PIN_S = 60     # a clicked / tapped station keeps its row this long (or until logged)
+
 class PouncerApp:
     def __init__(self, config: Config) -> None:
         self.cfg = config
@@ -1371,6 +1373,12 @@ class PouncerApp:
                 time.sleep(0.15)
 
         t0 = time.time()
+        # the clicked station keeps its row in the window list until it is
+        # logged (leaves the list) or PIN_S passed
+        key = (spot.dxcall.upper(), band_from_khz(spot.freq_khz))
+        idx = next((i for i, x in enumerate(getattr(self, "displayed", []) or [])
+                    if (x.dxcall.upper(), band_from_khz(x.freq_khz)) == key), 0)
+        self._pin = (key, idx, time.time())
         if not self._qsy(nr, spot.freq_khz, hwnd, focused):
             _note_tap(self, spot, nr, False, self.status_label.cget("text") if hasattr(
                 self.status_label, "cget") else "QSY failed")
@@ -2719,6 +2727,8 @@ class PouncerApp:
 
     def _sorted_visible(self) -> list[Spot]:
         items = self._visible_spots(band=self._view_band_now())
+        if hasattr(self, "_apply_pin"):
+            items = self._apply_pin(items)
         key = self._sort_key(self.sort_col)
         present = [s for s in items if key(s) is not None]
         missing = [s for s in items if key(s) is None]
@@ -2798,6 +2808,30 @@ class PouncerApp:
         if reselect is not None:
             self.tree.selection_set(reselect)
             self.tree.focus(reselect)
+
+    def _apply_pin(self, items: list) -> list:
+        """The clicked / tapped station stays on its row (``PIN_S``)."""
+        pin = getattr(self, "_pin", None)
+        if not pin:
+            return items
+        key, idx, at = pin
+        if time.time() - at > PIN_S:
+            self._pin = None
+            return items
+        j = next((i for i, x in enumerate(items)
+                  if (x.dxcall.upper(), band_from_khz(x.freq_khz)) == key), -1)
+        if j < 0:                       # logged / gone: let go
+            self._pin = None
+            return items
+        w = getattr(self, "worked", None)
+        if w is not None and w.is_worked(items[j].dxcall, items[j].freq_khz, items[j].mode):
+            self._pin = None            # logged (and shown grey): let go
+            return items
+        to = min(idx, len(items) - 1)
+        if j != to:
+            items = list(items)
+            items.insert(to, items.pop(j))
+        return items
 
     @staticmethod
     def _row_key(s: Spot) -> tuple:
