@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## Docs — 2026-10-17 — one-page overview
+
+- New **docs/OVERVIEW.md**: POUNCer on one page (what it is, how it works,
+  main features, getting started, when something goes wrong), with a
+  section on the parts built on **S53ZO's** work. Linked at the top of the
+  README; README ends with a **Thanks** section.
+
 ## v0.7.80 — 2026-10-17 — window alert, compact chips, zones / timeline windows
 
 - **Alert in the window**: when a rare CQ (⚡) that is also a new multiplier

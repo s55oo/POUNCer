@@ -13,6 +13,10 @@ operators' POUNCers share one feed as a team.
 Windows (POUNCer.exe) and macOS; nothing to install - put the exe and
 `config.ini` in a folder next to N1MM and start it.
 
+> **New to POUNCer? Read the [one-page overview](docs/OVERVIEW.md) first** -
+> what it does, how it works, getting started, and the parts built on
+> **S53ZO's** work.
+
 <p align="center"><img src="docs/phone-view.jpg" width="320"
   alt="POUNCer phone page on 80 m: frequency with band menu, sort and filter buttons, spot tiles, the F-key column with half-size keys and SPOTit, WPM / Hz / NEXT at the bottom"></p>
 
@@ -828,3 +832,11 @@ Most of these can also be changed in **Settings...** (main window) or on the
 ```
 python -m unittest discover -s tests -v
 ```
+
+## Thanks
+
+POUNCer is built on **S53ZO's** work: his public
+[contest-log archive](https://github.com/s53zo/Hamradio-Contest-logs-Archives)
+(run % / hours and the ⚡ rare CQ mark), his **RBN over HTTP** feed on Azure
+(the backup when RBN's telnet is down), the **macOS builds**, and the radio B
+tuning method of his SP_Helper. See the [overview](docs/OVERVIEW.md#built-on-s53zos-work).
