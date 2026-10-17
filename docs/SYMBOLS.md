@@ -180,6 +180,8 @@ Marks in the call and Mult columns:
 
 ### Messages after a tap
 
+Messages stack: press two or three keys and each one shows (newest at the bottom, up to 4).
+
 | What you see | Meaning |
 | --- | --- |
 | **QSY OK1BB ...** | the tap reached POUNCer |
