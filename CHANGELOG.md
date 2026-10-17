@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.7.73 — 2026-10-17 — the tapped station stays in its place
+
+- **The station you tap (phone) or click (window) keeps its place in the
+  list** until you log it (it leaves the list or turns grey) or for 60 s -
+  new SNRs / run % re-sort the others around it, so it can't jump away
+  while you work it. (From the first contest test.)
+
 ## v0.7.72 — 2026-10-16 — performance log (CPU, memory, disk)
 
 - **`cache\perf.csv`**, one row a minute (opens in Excel; *Help > Open the

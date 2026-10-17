@@ -965,6 +965,7 @@ INDEX_HTML = """<!doctype html>
     }
     lastWpm = {r: cur, v: wpm || 0};
     const spots = arrange(data);
+    applyPin(spots);
     shown = spots;
     const rows = Math.max(1, Math.ceil(spots.length / cols));
     grid.style.gridTemplateColumns = 'repeat(' + cols + ', minmax(0, 1fr))';
@@ -1202,7 +1203,22 @@ INDEX_HTML = """<!doctype html>
       pendingTap = null;
     }
   }
+  // The station you tapped keeps its place in the list until you log it
+  // (it leaves the list) or for PIN_MS - a re-sort (new SNR, run %) can't
+  // move it away from under your finger while you work it.
+  const PIN_MS = 60000;
+  let pin = null;                     // {key: call|MHz, idx, at}
+  function applyPin(list) {
+    if (!pin) return;
+    if (Date.now() - pin.at > PIN_MS) { pin = null; return; }
+    const j = list.findIndex(x => calmKey(x) === pin.key);
+    if (j < 0) { pin = null; return; }           // logged / gone: let go
+    const to = Math.min(pin.idx, list.length - 1);
+    if (j !== to) list.splice(to, 0, list.splice(j, 1)[0]);
+  }
   async function qsy(s, btn) {
+    const at = shown.findIndex(x => calmKey(x) === calmKey(s));
+    pin = {key: calmKey(s), idx: at < 0 ? 0 : at, at: Date.now()};
     selKey = spotKey(s);
     document.querySelectorAll('button.tile.sel').forEach(t => t.classList.remove('sel'));
     btn.classList.add('sel');
@@ -1505,7 +1521,8 @@ then - after switching contests the counts can belong to the old one until N1MM 
 <dl>
   <dt>Tap</dt>
   <dd>The radio goes to that spot and the call is typed into N1MM's Entry Window
-    (no transmit). The tile you tapped keeps a <span class="yel">yellow ring</span>.
+    (no transmit). The tile you tapped keeps a <span class="yel">yellow ring</span> and
+    <b>stays in its place</b> until you log it (or 60 s) - the others re-sort around it.
     The message then says what really happened: <b>&#10003; OK1BB: radio on 7012.0 &middot;
     call in</b>, or <b>&#9888; ... N1MM didn't report 7012.0</b> when the radio didn't move
     (no answer at all = POUNCer not running?).</dd>
