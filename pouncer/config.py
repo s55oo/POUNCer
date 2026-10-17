@@ -142,6 +142,10 @@ class Config:
     tried_minutes: int = 30      # ... for this long after the last tap
     check_line: bool = True      # pre-contest check line in the window (+ phone warning)
     band_lights: bool = True     # band open lights (skimmers on our continent, 10 min)
+    # window alert when a rare CQ (⚡) that is also a new multiplier shows up
+    # on the band: a pop-up (click it = QSY) and / or a beep, each on its own
+    alert_popup: bool = True
+    alert_sound: bool = False
     # [autostart]: your other programs, started with POUNCer (see autostart.py)
     autostart: bool = True
     # programs 1-8: full path (+ args after a quoted path), seconds after the
@@ -290,6 +294,8 @@ def load_config(path: str) -> Config:
     cfg.tried_minutes = max(1, min(720, i("ui", "tried_minutes", cfg.tried_minutes)))
     cfg.check_line = b("ui", "check_line", cfg.check_line)
     cfg.band_lights = b("ui", "band_lights", cfg.band_lights)
+    cfg.alert_popup = b("ui", "alert_popup", cfg.alert_popup)
+    cfg.alert_sound = b("ui", "alert_sound", cfg.alert_sound)
     cfg.autostart = b("autostart", "enabled", cfg.autostart)
     # raw: Windows paths may hold a "%" (no ini interpolation)
     for n in range(1, 9):

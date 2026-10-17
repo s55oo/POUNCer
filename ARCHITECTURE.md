@@ -109,7 +109,7 @@ drain web actions → refresh the cached web payload.
 | `server/runlist.py` | Run list server (Docker, `server/README.md`): `build` = partial clone + sparse checkout of `<CONTEST>/{cw,ph,...}/<last N years>` of the archive, `run_share` per log → `runlist.sqlite` (call, contest, mode, year, run, qsos); `serve` = `/runs`, `/run`, `/status` on 8077. POUNCer's `RunHistory(run_list=...)` loads a local `runlist.sqlite` at start (newest year per call/contest/mode; `[ui] run_list`, default next to config.ini), and `RunHistory(server=...)` loads `/runs` once per (contest, mode); workers wait for it (≤15 s) before per-call GitHub lookups. |
 | own call | `WorkedLog.station_call` = `SELECT Call FROM Station` of the open log (Change Your Station Data) → `PouncerApp.own_call()` (fallback `[rbn] callsign` / ini) → `home_cont` property (cty continent, re-evaluated when the call changes) and `_visible_spots` drops `same_station(dxcall, own)` (exact, or same longest part: S55OO/P, 9A/S55OO). |
 | CQ time | `rbn.OnFreqTracker` (in `PouncerApp._on_freq`): per (call, band) [freq, first, last]; a spot within 0.5 kHz and 20 min of the last = same stay, else a new start; beacons ignored; `cq_min` in `/api/spots`. |
-| backup skimmers / fade / alert | `rbn.SpotterFilter` (given to `RBNClient` instead of the prefix): primary prefix always; after `quiet_s` without a primary spot also `backups` or skimmers whose continent (cty) = home continent; switches back on the next primary spot. `_visible_spots` keeps one spot per (call, band), newest. Payload `age` per spot + `fade_s` → `.stale`; page `checkAlerts()` beeps (WebAudio, unlocked on first tap) / vibrates once per call+band for ⚡ + mult ≥ 1, toggle in the band sheet (`pouncer.alerts`). |
+| backup skimmers / fade / alert | `rbn.SpotterFilter` (given to `RBNClient` instead of the prefix): primary prefix always; after `quiet_s` without a primary spot also `backups` or skimmers whose continent (cty) = home continent; switches back on the next primary spot. `_visible_spots` keeps one spot per (call, band), newest. Payload `age` per spot + `fade_s` → `.stale`; page `checkAlerts()` beeps (WebAudio, unlocked on first tap) / vibrates once per call+band for ⚡ + mult ≥ 1, two toggles in the band sheet: `pouncer.alertpop` (toast) and `pouncer.alertsound` (beep + vibrate); an old `pouncer.alerts = 0` turns both off. |
 | `pouncer/lights.py` | Connection lights for the Tk window: pure functions `rbn_light`, `n1mm_light`, `log_light`, `team_light`, `web_light`, `warm_light` → (`ok`/`wait`/`bad`/`off`, label); `COLORS`. App `_update_lights` (each tick, redraws only on change) puts a ● + label per light in a `FlowFrame` under the team bar. |
 | `pouncer/update.py` | `Updater` (exe only, `sys.frozen`): `maybe_check()` from `_tick` (start + every 6 h) → thread: GET api.github.com …/releases/latest, `is_newer(tag, __version__)`, asset `POUNCer.exe`, `expected_sha256` (asset `digest`, else the hash in the notes; none = refuse), download, verify, `_install`: write `.new`, rename running exe → `.old` (Windows allows renaming a running exe), `.new` → exe (rolls back on error). `cleanup_old()` at start. Built macOS (non-Windows frozen) = `notify_only`: checks, state `available` (blue light, "vX available on GitHub"), never downloads. `restart()`: `_shutdown`, then Popen the exe with `PYINSTALLER_RESET_ENVIRONMENT=1`, detached, `os._exit`. Light: `lights.update_light`; app adds the **Restart -> vX** button when `ready`. |
 | `pouncer/rbn.py` (history) | 2 s after login `RBNClient._ask_history` sends `sh/dx/100 spotter=<primary>-#` (AR-Cluster), and `sh/dx/<history>` if no history line came within 5 s; `parse_history` reads the SH/DX lines (`freq call dd-Mon-yyyy hhmmZ comment <spotter>`), `received` = the spot's own UTC time. Socket timeout 1 s for the timing. `[rbn] history`. |
@@ -573,3 +573,33 @@ unit-tested (verified manually / by smoke runs).
 - **Settings window**: every tab is `_scroll_tab` (Canvas + inner Frame + Scrollbar shown only when needed); `_wheel` scrolls the tab under the mouse (`bind_all` MouseWheel / Button-4/5).
 - **Toasts** stack (`TOAST_MAX` 4, `retoast` updates one in place, e.g. the tap result).
 - **Keys**: `config.parse_fkeys` accepts F1-F12, Enter, `SpotIt` (→ `win32.send_alt_p`, N1MM Alt+P); `fkeys_half` → payload `fkeys[].half` → `.fkeys button.half` (flex basis one row). `OLD_DEFAULT_FKEYS`: an unchanged old default list is read as the new default; `fkeys_text` / `fkeys_half_text` for Settings > Program.
+
+## Window alert, compact chips, zones / timeline windows (v0.7.80)
+
+- **Alert** (`pouncer/alerts.py`): `_rebuild` collects the rows that are rare
+  (run % / hours, like the ⚡) **and** a new mult **and** not worked, and hands
+  them to `_check_alerts` → `AlertWatch.fresh([(row_key, spot)])` (once per
+  call + band; nothing returned in the first `warmup_s` = 30 s, so SH/DX and
+  the run history coming in don't fire). `cfg.alert_popup` → `_show_alert`
+  (one overrideredirect Toplevel made at start like the CW speed popup, never
+  withdrawn: moved on / off screen + alpha; `make_no_activate(hwnd,
+  click_through=False)` = WS_EX_NOACTIVATE without WS_EX_TRANSPARENT, so a
+  click reaches it → `_on_alert_click` → `_act_on_spot`; hidden after
+  `ALERT_MS` = 8 s). `cfg.alert_sound` → `alerts.beep` (winsound.Beep in a
+  daemon thread; `root.bell()` elsewhere). View menu `alert_popup_var` /
+  `alert_sound_var` → `_set_alert` → `settings.save` (`[ui] alert_popup`,
+  `alert_sound`, both live).
+- **Compact window**: `_compact_full` (⤢) and Ctrl+M (`bind_all`) →
+  `_toggle_compact`. `_compact_bands` (a frame packed under `_compact_bar`
+  while compact and `band_lights` on) holds `_compact_chips`; filled by
+  `_update_compact_bands(data, here)` from `_update_band_lights` (its change
+  key includes the compact state), click → `_on_band_chip`.
+- **Zones / timeline windows** (`pouncer/panels.py`): `ZonesWindow(root,
+  app._zones)` / `TimelineWindow(root, app._timeline)`, each a `_Panel`: the
+  Toplevel is made on the first `open()` (raised on the next), a Canvas drawn
+  from the same dict as `/api/zones` / `/api/timeline` (`zone_color`,
+  `timeline_color`, `group_boxes` = the pages' JS in Python), `refresh()`
+  every 15 s / 60 s while open (`after`, cancelled on close), click → hit
+  list → `describe()` in the info line, *Open in the browser* →
+  `_open_browser(page)`. Choices (minutes, hours, box size) live in the
+  object until POUNCer closes.

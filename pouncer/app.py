@@ -32,6 +32,8 @@ from .bandopen import BandActivity, dx_pct, share_color, state_of
 from .zones import ZoneMap
 from .timeline import Timeline
 from .perf import PerfMonitor
+from .alerts import AlertWatch, beep as alert_beep
+from .panels import TimelineWindow, ZonesWindow
 from . import theme
 from . import autostart as autostartmod
 from . import diag as diagmod
@@ -295,6 +297,13 @@ class PouncerApp:
             config_path=self.cfg.config_path)
         self._build_menu()
         self._build_wpm_popup()
+        self._alerts = AlertWatch()
+        self._build_alert_popup()
+        # View > CQ zones / Band opening timeline: windows of their own
+        self._zones_win = ZonesWindow(self.root, self._zones,
+                                      browser=lambda: self._open_browser("zones"))
+        self._timeline_win = TimelineWindow(self.root, self._timeline,
+                                            browser=lambda: self._open_browser("timeline"))
 
         header = ttk.Frame(self.root, padding=0)
         header.pack(fill="x")
@@ -304,8 +313,24 @@ class PouncerApp:
         self._compact_bar = ttk.Frame(self.root, padding=(6, 4, 6, 2))
         self._compact_btn = ttk.Button(self._compact_bar, text="", command=self._toggle_radio)
         self._compact_btn.pack(side="left")
+        # one click back to the full window (or Ctrl+M, or untick it in View)
+        self._compact_full = ttk.Button(self._compact_bar, text="\u2922", width=3,
+                                        command=self._toggle_compact)
+        self._compact_full.pack(side="right")
         self._compact_info = ttk.Label(self._compact_bar, text="", anchor="w")
         self._compact_info.pack(side="left", padx=(8, 0), fill="x", expand=True)
+        # ... and under it the band chips, small: colour = band open, number =
+        # new mults spotted there; click = list that band (like the full window)
+        self._compact_bands = tk.Frame(self.root, bg=theme.BG, padx=6, pady=1)
+        self._compact_chips: dict[str, tk.Label] = {}
+        for band in CONTEST_BANDS:
+            lbl = tk.Label(self._compact_bands, text=band, padx=3, pady=0, cursor="hand2",
+                           font=(theme.FONT, 8, "bold"))
+            lbl.pack(side="left", padx=1, fill="x", expand=True)
+            lbl.bind("<Button-1>", lambda _e, b=band: self._on_band_chip(b))
+            self._compact_chips[band] = lbl
+        self.root.bind_all("<Control-m>", lambda _e: self._toggle_compact())
+        self.root.bind_all("<Control-M>", lambda _e: self._toggle_compact())
         # Top bar (dark): the radio frequency big, band / mode / WPM next to
         # it; on the right the pre-contest READY badge and the team role.
         top = tk.Frame(header, bg=theme.TOP_BG, padx=12, pady=6)
@@ -479,14 +504,23 @@ class PouncerApp:
                              variable=self.hide_worked_var, command=self._on_toggle_worked)
         view.add_separator()
         view.add_checkbutton(label="Compact window (beside N1MM)", variable=self.compact_var,
-                             command=self._apply_compact)
+                             command=self._apply_compact, accelerator="Ctrl+M")
         view.add_checkbutton(label="Always on top", variable=self.topmost_var,
                              command=self._apply_topmost)
         view.add_separator()
+        # rare CQ + new mult alert: pop-up and sound, each on its own
+        self.alert_popup_var = tk.BooleanVar(value=bool(self.cfg.alert_popup))
+        self.alert_sound_var = tk.BooleanVar(value=bool(self.cfg.alert_sound))
+        view.add_checkbutton(label="Alert pop-up (rare CQ + new mult)",
+                             variable=self.alert_popup_var,
+                             command=lambda: self._set_alert("popup"))
+        view.add_checkbutton(label="Alert sound", variable=self.alert_sound_var,
+                             command=lambda: self._set_alert("sound"))
+        view.add_separator()
         view.add_command(label="Clear spots", command=self._clear_spots)
         view.add_command(label="Contest summary", command=lambda: self._open_browser("summary"))
-        view.add_command(label="CQ zones: who hears me", command=lambda: self._open_browser("zones"))
-        view.add_command(label="Band opening timeline", command=lambda: self._open_browser("timeline"))
+        view.add_command(label="CQ zones: who hears me", command=lambda: self._zones_win.open())
+        view.add_command(label="Band opening timeline", command=lambda: self._timeline_win.open())
         view.add_command(label="Phone page in the browser", command=self._open_browser)
         bar.add_cascade(label="View", menu=view)
         bar.add_command(label="Settings...", command=self._settings_win.open)
@@ -522,6 +556,10 @@ class PouncerApp:
                 if f is not None:
                     f.pack_forget()
             self._compact_bar.pack(fill="x", before=self._tree_frame)
+            bands = getattr(self, "_compact_bands", None)
+            if bands is not None and self.cfg.band_lights:
+                bands.pack(fill="x", before=self._tree_frame)
+                self._bands_last = None
             self.tree.configure(displaycolumns=self.COMPACT_COLUMNS)
             self.root.minsize(240, 200)
             geom = self._compact_geom or self.COMPACT_GEOMETRY
@@ -533,6 +571,8 @@ class PouncerApp:
         else:
             self._compact_geom = self.root.geometry()
             self._compact_bar.pack_forget()
+            if getattr(self, "_compact_bands", None) is not None:
+                self._compact_bands.pack_forget()
             self._tree_frame.pack_forget()
             for f in frames[:3]:
                 if f is not None:
@@ -546,6 +586,129 @@ class PouncerApp:
                 self._normal_geom = ""
             self.topmost_var.set(False)
         self._apply_topmost()
+
+    def _toggle_compact(self) -> str:
+        """Ctrl+M / the ⤢ button: compact window on / off."""
+        self.compact_var.set(not self.compact_var.get())
+        self._apply_compact()
+        return "break"
+
+    def _update_compact_bands(self, data: dict, here: str | None) -> None:
+        """The small band chips of the compact window: colour = band open,
+        '40·3' = 3 new mults spotted on 40 m; frame = radio's band, ▶ = shown."""
+        chips = getattr(self, "_compact_chips", None)
+        if not chips or not self.compact_var.get():
+            return
+        for band, lbl in chips.items():
+            c = data.get(band) or {"state": "closed", "dx": 0, "spots": 0}
+            bg, fg = self._band_chip_color(c)
+            m = c.get("mults") or 0
+            viewed = band == self._view_band
+            lbl.configure(text=("\u25b6" if viewed else "") + band.rstrip("m")
+                          + (f"\u00b7{m}" if m else ""), bg=bg, fg=fg,
+                          relief="solid" if band in (here, self._view_band) else "flat",
+                          bd=2 if viewed else (1 if band == here else 0))
+
+    # ---- rare CQ + new mult alert (window) --------------------------------
+    ALERT_MS = 8000
+
+    def _set_alert(self, which: str) -> None:
+        """View > Alert pop-up / Alert sound: used at once, saved in config.ini."""
+        var = self.alert_popup_var if which == "popup" else self.alert_sound_var
+        on = bool(var.get())
+        try:
+            self._save_setting(f"ui.alert_{which}", "true" if on else "false")
+        except Exception as exc:  # noqa: BLE001 - still works until the restart
+            log.info("alert setting not saved: %s", exc)
+            setattr(self.cfg, f"alert_{which}", on)
+        if which == "sound" and on:
+            alert_beep(self.root)                 # so you hear what it sounds like
+
+    def _build_alert_popup(self) -> None:
+        """A yellow pop-up over the window, made once (like the CW speed one):
+        it never takes the keyboard from N1MM, but a click on it = QSY and
+        call that station."""
+        self._alert_pop = None
+        self._alert_after = None
+        self._alert_spot = None
+        self._alert_shown = False
+        try:
+            # never withdrawn / re-shown (showing a window can take the
+            # keyboard): it stays mapped, moved off screen and transparent
+            pop = tk.Toplevel(self.root)
+            pop.overrideredirect(True)
+            pop.attributes("-topmost", True)
+            pop.attributes("-alpha", 0.0)
+            pop.geometry("+-3000+-3000")
+            self._alert_label = tk.Label(pop, text="", font=(theme.FONT, 13, "bold"),
+                                         bg="#ffd600", fg="#212121", padx=16, pady=8,
+                                         cursor="hand2", justify="left")
+            self._alert_label.pack()
+            self._alert_label.bind("<Button-1>", lambda _e: self._on_alert_click())
+            pop.update_idletasks()
+            if win32mod._WIN:
+                try:
+                    win32mod.make_no_activate(int(pop.wm_frame(), 16), click_through=False)
+                except (ValueError, tk.TclError):
+                    pass
+            self._alert_pop = pop
+        except tk.TclError:
+            self._alert_pop = None
+
+    def _check_alerts(self, candidates: list) -> None:
+        """Rows that are a rare CQ and a new mult now: alert the new ones."""
+        fresh = self._alerts.fresh([(self._row_key(s), s) for s in candidates])
+        if not fresh:
+            return
+        s = fresh[0]
+        more = f"  (+{len(fresh) - 1} more)" if len(fresh) > 1 else ""
+        log.info("alert: rare CQ + new mult %s %.1f%s", s.dxcall, s.freq_khz, more)
+        if self.cfg.alert_popup:
+            self._show_alert(s, f"\u26a1 rare CQ + new mult: {s.dxcall}  {s.freq_khz:.1f}{more}"
+                                "\nclick = QSY and call")
+        if self.cfg.alert_sound:
+            alert_beep(self.root)
+
+    def _show_alert(self, spot, text: str) -> None:
+        pop = getattr(self, "_alert_pop", None)
+        if pop is None:
+            return
+        try:
+            self._alert_spot = spot
+            self._alert_label.configure(text=text)
+            pop.update_idletasks()
+            w, h = pop.winfo_reqwidth(), pop.winfo_reqheight()
+            if self.root.state() in ("iconic", "withdrawn"):
+                x, y = (self.root.winfo_screenwidth() - w) // 2, 40
+            else:
+                x = self.root.winfo_rootx() + (self.root.winfo_width() - w) // 2
+                y = self.root.winfo_rooty() + 8
+            x = max(0, min(x, self.root.winfo_screenwidth() - w))
+            pop.geometry(f"+{x}+{y}")
+            pop.attributes("-alpha", 0.96)
+            pop.lift()
+            self._alert_shown = True
+            if self._alert_after is not None:
+                self.root.after_cancel(self._alert_after)
+            self._alert_after = self.root.after(self.ALERT_MS, self._hide_alert)
+        except tk.TclError:
+            pass
+
+    def _hide_alert(self) -> None:
+        self._alert_after = None
+        self._alert_shown = False
+        if getattr(self, "_alert_pop", None) is not None:
+            try:
+                self._alert_pop.attributes("-alpha", 0.0)
+                self._alert_pop.geometry("+-3000+-3000")
+            except tk.TclError:
+                pass
+
+    def _on_alert_click(self) -> None:
+        s = self._alert_spot
+        self._hide_alert()
+        if s is not None:
+            self._act_on_spot(s)
 
     # ---- CW speed popup ---------------------------------------------------
 
@@ -2567,10 +2730,11 @@ class PouncerApp:
         here = self._current_band()
         key = (tuple(sorted((b, v.get("dx"), v.get("calls"), v.get("state"), v.get("mults"))
                             for b, v in data.items())),
-               here, self._view_band)
+               here, self._view_band, bool(self.compact_var.get()))
         if key == self._bands_last:
             return
         self._bands_last = key
+        self._update_compact_bands(data, here)
         if not self._band_lights:
             tk.Label(self.bands_frame, text="Band open (DX heard, 10 min; new mults spotted):",
                      bg=theme.BG,
@@ -2770,6 +2934,7 @@ class PouncerApp:
         self.displayed = items
         self._row_spots = items
         reselect = None
+        alert = []
         for idx, s in enumerate(items):
             mults = self._mults(s)
             worked = self.worked.is_worked(s.dxcall, s.freq_khz, s.mode)
@@ -2777,6 +2942,8 @@ class PouncerApp:
             rare = (run.get("run") is not None and run["run"] < RARE_RUN_PCT) or (
                 run.get("hours") is not None and run["hours"] < RARE_HOURS)
             busted = self.scp is not None and self.scp.busted(s.dxcall)
+            if rare and mults and not worked:
+                alert.append(s)
             # one text colour: worked (grey) > new mult (red, bold) > strong
             if worked:
                 tags: tuple = ("worked",)
@@ -2817,6 +2984,12 @@ class PouncerApp:
         if reselect is not None:
             self.tree.selection_set(reselect)
             self.tree.focus(reselect)
+        check = getattr(self, "_check_alerts", None)
+        if check is not None and getattr(self, "_alerts", None) is not None:
+            try:
+                check(alert)
+            except Exception as exc:  # noqa: BLE001 - an alert must never break the list
+                log.info("alert: %s", exc)
 
     def _apply_pin(self, items: list) -> list:
         """The clicked / tapped station stays on its row (``PIN_S``)."""

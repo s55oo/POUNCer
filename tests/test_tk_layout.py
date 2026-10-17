@@ -182,13 +182,14 @@ class TkSettingsWindowTests(unittest.TestCase):
             compact_var=tk.BooleanVar(value=False), topmost_var=tk.BooleanVar(value=False),
             updater=types.SimpleNamespace(exe="C:/x/POUNCer.exe"),
             _settings_win=types.SimpleNamespace(open=lambda: None),
-            cfg=types.SimpleNamespace(config_path="C:/x/config.ini"),
+            cfg=types.SimpleNamespace(config_path="C:/x/config.ini", alert_popup=True,
+                                      alert_sound=False),
             _start_autostart=lambda: None, _stop_waiting_n1mm=lambda: None, _save_diagnostics=lambda: None, _open_path=lambda p: None,
             _autostart_folder=lambda: "",
         )
         for name in ("_open_config_folder", "_reconnect_log", "_restart_now", "_shutdown_and_quit",
                      "_on_toggle_worked", "_clear_spots", "_open_browser", "_on_update_click",
-                     "_open_url", "_about", "_apply_compact", "_apply_topmost"):
+                     "_open_url", "_about", "_apply_compact", "_apply_topmost", "_set_alert"):
             setattr(f, name, lambda *a, **k: None)
         PouncerApp._build_menu(f)
         bar = f.menubar
@@ -206,6 +207,10 @@ class TkSettingsWindowTests(unittest.TestCase):
         self.assertIn("Start autostart programs now", flabels)
         self.assertIn("Open the autostart folder", flabels)
         self.assertIn("Always on top", vlabels)
+        self.assertIn("Alert pop-up (rare CQ + new mult)", vlabels)
+        self.assertIn("Alert sound", vlabels)
+        self.assertTrue(f.alert_popup_var.get())
+        self.assertFalse(f.alert_sound_var.get())
 
 
 @unittest.skipIf(tk is None, "tkinter not available")

@@ -170,6 +170,11 @@ is required.
   60 s.
 - Band menu / band chips: look at another band without moving the radio.
 - Minimum SNR, DX / MLT / ⚡ first, calm list, NEXT, CLR with undo.
+- **Alert** when a rare CQ (⚡) that is also a new mult appears: **pop-up**
+  and **sound** switched on their own (window: View menu; phone: band menu);
+  click the window's pop-up = QSY and call.
+- **Compact window** beside N1MM (Ctrl+M): A / B, frequencies, small band
+  chips, the list; ⤢ = back to the full window.
 
 **Keys** - F1 ... F7 (transmit), ENTER (log; hold 1.3 s = CW keyboard),
 **SPOTit** (N1MM Alt+P, spot to the cluster), WPM − / +, −/+ 25 Hz;
@@ -178,8 +183,10 @@ half-size keys on the phone (F1 + F3, F5 + F7, SPOTit). Order and sizes in
 
 **Pictures of the band**
 - Band chips: DX heard, DX share colour, **new mults waiting** per band.
-- **CQ zones** page: who hears you / what you hear, per band and zone 1-40.
-- **Band opening timeline**: spots per band in 10-minute boxes, 48 h.
+- **CQ zones**: who hears you / what you hear, per band and zone 1-40 - a
+  window of its own (View menu) or the phone / browser page.
+- **Band opening timeline**: spots per band in 10-minute boxes, 48 h - a
+  window or the page.
 - **Contest summary**: QSOs, from POUNCer, mults, rate, best 60 min.
 
 **Station** - SO2R / SO2V (radio A / B, per phone), team of POUNCers on the
@@ -229,9 +236,10 @@ F-keys stay as buttons - they're used all contest long):
   autostart programs now, Don't wait for N1MM (start the rest now), Open the
   autostart folder, Restart POUNCer, Exit.
 * **View** - *Also enter callsign in N1MM* and *Hide worked* (tick),
-  **Compact window (beside N1MM)** and **Always on top** (tick), Clear spots,
-  Contest summary, **CQ zones: who hears me**, **Band opening timeline**,
-  Phone page in the browser.
+  **Compact window (beside N1MM)** (tick, **Ctrl+M**) and **Always on top**
+  (tick), **Alert pop-up (rare CQ + new mult)** and **Alert sound** (tick),
+  Clear spots, Contest summary, **CQ zones: who hears me** and **Band opening
+  timeline** (each opens a window of its own), Phone page in the browser.
 * **Settings...** - the settings window (below).
 * **Help** - what every button does, check for a new version, POUNCer on
   GitHub, **Save diagnostics (zip)**, **Open the log file**, **Open the
@@ -243,12 +251,29 @@ The spot list: **new multiplier** rows in bold red, **worked** ones in grey
 **Arrow keys** move through the list, **Space** taps the selected spot (QSY
 and call, like a click); the selection stays put while the list updates.
 
-**Compact window** (View menu): a narrow window (330 × 430) that stays on
-top beside N1MM's Entry Windows - one line with the **Radio A / B** button
-and both radios' frequencies, then the spot list with just frequency, call
-(⚡ / ?) and mult. Clicks, arrow keys and Space work as always. Untick it
-and the full window comes back at its old size. The compact size and
-position are remembered separately; *Always on top* also works on its own.
+**Compact window** (View menu or **Ctrl+M**): a narrow window (330 × 430)
+that stays on top beside N1MM's Entry Windows - one line with the **Radio
+A / B** button and both radios' frequencies (and WPM), a row of **small band
+chips** (colour = band open like the big chips, `40·3` = 3 new mults spotted
+on 40 m, frame = the radio's band; click one = list that band, ▶ = shown),
+then the spot list with just frequency, call (⚡ / ?) and mult. Clicks, arrow
+keys and Space work as always. **⤢** (right of the frequencies), Ctrl+M or
+unticking it brings the full window back at its old size. The compact size
+and position are remembered separately; *Always on top* also works on its
+own. Want only what you still need? Tick *Hide worked* too.
+
+**Alert** (View menu, window): when a **rare CQ (⚡) that is also a new
+multiplier** appears in the list - once per station and band, not for what
+is listed in the first 30 s after the start:
+
+- **Alert pop-up** (on by default): a yellow pop-up at the top of the window
+  for 8 s, `⚡ rare CQ + new mult: 3B8X 7012.0`; **click it = QSY and call**,
+  like clicking the spot. It never takes the keyboard from N1MM.
+- **Alert sound** (off by default): two short beeps.
+
+Each on its own - the pop-up without the beep, or the beep only. Saved in
+`config.ini` (`[ui] alert_popup`, `alert_sound`). The phone page has its own
+two switches (band menu), so a phone can beep while the PC stays quiet.
 
 **Min SNR** (next to the sort buttons; on the phone **hold the SNR key 1.3 s** -
 a short tap still sorts by SNR; when on, the key shows a small ≥10):
@@ -437,8 +462,10 @@ worked from a spot. Taps are kept in `cache\taps.jsonl` for 14 days.
   alt="POUNCer CQ zones page: for each band a blue 'hears me' row and a green 'I hear' row across CQ zones 1 to 40, boxes showing the best SNR, own zone 15 framed in yellow (example data)"></p>
 <p align="center"><i>The CQ zones page (example data)</i></p>
 
-*View > CQ zones: who hears me* in the window, or **CQ zones** in the phone
-band menu, opens `/zones`: for every band **two rows of CQ zones 1-40**:
+*View > CQ zones: who hears me* opens it as a **window of POUNCer** (the
+same picture, refreshed every 15 s, click a box for the details, *Open in the
+browser* for the page); **CQ zones** in the phone band menu opens the page
+`/zones`. For every band **two rows of CQ zones 1-40**:
 
 - **hears me** (blue) = skimmers in that zone spotted **your call** - you need
   to be calling CQ (skimmers only spot CQ / TEST calls);
@@ -459,8 +486,10 @@ A team slave has no RBN feed of its own: open the page on the master.
   alt="POUNCer band opening timeline: six rows 160 to 10 m, 10-minute boxes over 24 hours, coloured orange to green by DX share and brighter with more spots (example data)"></p>
 <p align="center"><i>The band opening timeline, 24 h (example data)</i></p>
 
-*View > Band opening timeline* in the window, or **Band opening timeline** in
-the phone band menu, opens `/timeline`: **one row per band (160-10 m), time
+*View > Band opening timeline* opens it as a **window of POUNCer** (the same
+picture, refreshed every minute, click a box for its numbers, *Open in the
+browser* for the page); **Band opening timeline** in the phone band menu
+opens the page `/timeline`: **one row per band (160-10 m), time
 from left to right in 10-minute boxes**, every hour marked (UTC), now at the
 right (yellow frame). It counts what the skimmers on **your continent** heard
 - the same spots as the band chips. **Colour** = the DX share (orange = only
@@ -510,7 +539,8 @@ Give them all the same `[rbn] spotter` and modes.
 
 Pop-up messages **stack**: press several keys quickly and each one's
 message stays, newest at the bottom (up to 4). Only the rare-CQ + new-mult
-alert beeps - *Alerts* in the band menu turns it off.
+alert beeps. The band menu has two switches for it: **Alert pop-up** (its
+message) and **Alert sound** (beep + vibrate) - each on its own.
 
 All phone keys and marks: **[docs/SYMBOLS.md](docs/SYMBOLS.md#phone-page)**.
 
@@ -534,8 +564,8 @@ All phone keys and marks: **[docs/SYMBOLS.md](docs/SYMBOLS.md#phone-page)**.
 | cq3m | calling on this frequency for 3 minutes (from RBN) |
 
 A **faded** tile = not re-spotted for 5 min (probably gone). When a rare CQ
-(⚡) that is also a **new multiplier** appears, the phone beeps (alerts on/off
-in the band menu). If S53WW goes quiet for 5 min, other skimmers on your
+(⚡) that is also a **new multiplier** appears, the phone shows it and beeps
+(*Alert pop-up* / *Alert sound* in the band menu, each on its own). If S53WW goes quiet for 5 min, other skimmers on your
 continent are used ("⚠ backup skimmers") until it is back.
 
 Tap = QSY + call into N1MM (no TX; the callsign box is always emptied first); hold 2 s = remove from the list.
@@ -755,6 +785,8 @@ All options live in `config.ini` and are documented there, line by line:
 | `mark_tried`, `tried_minutes` | true, 30 | Mark stations you tapped (↻3m, ×2) for this many minutes. |
 | `check_line` | true | Pre-contest check line in the window; phone warns when something is wrong. |
 | `band_lights` | true | Band open lights (window row, phone band menu dots) from skimmers on your continent. |
+| `alert_popup` | true | Window: pop-up when a rare CQ that is a new mult appears (click = QSY and call). |
+| `alert_sound` | false | Window: two beeps for the same alert. |
 | `max_age_minutes`, `fade_minutes` | 10, 5 | Drop spots older than this; phone tiles fade when not re-spotted. |
 | `fkeys` | F1 F3 F2 F4 F5 F7 Enter SpotIt | TX/log buttons in the main window and phone page: `KEY[:label]` list (default `F1:QRL? F3:TU F2:RPRT F4:CALL F5:HisCALL F7:? Enter SpotIt:SPOTit`). Each F-key **transmits** its N1MM message; `Enter` logs the QSO; `SpotIt` = N1MM Alt+P (Spot It, no TX). Empty = no buttons. |
 | `fkeys_half` | F1 F3 F5 F7 SpotIt | Phone page: these keys are half as tall, so two share one key's place. Empty = all full size. |
