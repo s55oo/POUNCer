@@ -47,6 +47,7 @@ from .win32 import (
     decimal_separator, focus_snapshot, focused_edit_text, force_foreground, is_n1mm_running, restore_focus,
     send_cw_speed, set_focused_edit_text,
     send_enter, send_filter_toggle, window_pid, running_process_names,
+    send_alt_p,
     send_fkey,
     type_text,
     clear_focused_edit,
@@ -1769,6 +1770,8 @@ class PouncerApp:
     @staticmethod
     def _key_text(key: str, label: str, sep: str) -> str:
         """Button text: key name (F2 / ENTER) plus its label, e.g. "F2 RPRT"."""
+        if key == "SpotIt":
+            return label or "SPOTit"           # N1MM Spot It (Alt+P)
         big = key.upper()
         if label and label.upper() != big:
             return f"{big}{sep}{label}"
@@ -1825,6 +1828,8 @@ class PouncerApp:
             msg = "CW speed up (PgUp)"
         elif key == "PgDn":
             msg = "CW speed down (PgDn)"
+        elif key == "SpotIt":
+            msg = "Spot It (Alt+P) sent to N1MM - it spots the Entry Window call to the cluster"
         elif key != "Enter":
             msg += " (transmitting)"
         if self.cfg.focus_n1mm and hwnd and not focused:
@@ -1841,6 +1846,8 @@ class PouncerApp:
             return send_cw_speed(True)
         if key == "PgDn":
             return send_cw_speed(False)
+        if key == "SpotIt":
+            return send_alt_p()
         return False
 
     def _drain_status(self) -> None:

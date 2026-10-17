@@ -160,6 +160,7 @@ Marks in the call and Mult columns:
 | **⚡** | rare CQs on top; filled brown when on |
 | **↻ Log** | re-read which log N1MM has open |
 | **F-keys** (big name, label underneath) | send N1MM's function key: they **transmit** |
+| **SPOTit** (blue, half size, under ENTER) | N1MM's Spot It (Alt+P): spots the call in the Entry Window to the DX cluster - no TX |
 | **F3** + **F1**, **F5** + **F7**, half as tall | the same, two small keys in one key's place (`[ui] fkeys_half`) |
 | **ENTER** (green) | N1MM's Enter (log / send). **Hold it 1.3 s** for the CW keyboard; it fills up while you hold |
 | **WPM − / WPM +** | N1MM's CW speed down / up (PgDn / PgUp); the speed is shown between them |

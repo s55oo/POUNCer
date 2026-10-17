@@ -29,6 +29,7 @@ _KEYEVENTF_KEYUP = 0x0002
 _KEYEVENTF_UNICODE = 0x0004
 _VK_MENU = 0x12
 _VK_W = 0x57
+_VK_P = 0x50      # N1MM Alt+P: Spot It (send a spot of this QSO to the cluster)
 _VK_RETURN = 0x0D
 _VK_PRIOR = 0x21  # Page Up   - N1MM: CW speed up
 _VK_NEXT = 0x22   # Page Down - N1MM: CW speed down
@@ -582,6 +583,16 @@ _VK_K = 0x4B
 
 def foreground_window() -> int:
     return int(_user32.GetForegroundWindow() or 0) if _WIN else 0
+
+
+def send_alt_p() -> bool:
+    """Alt+P in N1MM's Entry Window: "Spot It" - N1MM sends a spot of the
+    call / frequency in the Entry Window to the DX cluster (no transmit)."""
+    if not _WIN:
+        return False
+    _send([_key(vk=_VK_MENU), _key(vk=_VK_P),
+           _key(vk=_VK_P, flags=_KEYEVENTF_KEYUP), _key(vk=_VK_MENU, flags=_KEYEVENTF_KEYUP)])
+    return True
 
 
 def send_ctrl_k() -> bool:
