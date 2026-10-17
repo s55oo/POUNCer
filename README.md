@@ -140,7 +140,7 @@ phone page, downloads) with their ports and message formats:
   usual. "15m list · on 20m ✕" in the small line (tap it to go back to the
   radio's band); once the radio changes band the list follows it again.
 * **TX / log buttons** - the main window and the phone page all
-  show buttons for `[ui] fkeys` (default `F2:RPRT F3:TU F1:QRL? F4:CALL F5:HisCALL F7:? Enter`; on the phone F3 + F1 and F5 + F7 are half as tall and share one key's place each, `[ui] fkeys_half`). An F-key
+  show buttons for `[ui] fkeys` (default `F2:RPRT F3:TU F1:QRL? F4:CALL F5:HisCALL F7:? Enter SpotIt:SPOTit`; on the phone F3 + F1 and F5 + F7 are half as tall and share one key's place each, SPOTit is half size under ENTER, `[ui] fkeys_half`; **SPOTit** = N1MM's Spot It, Alt+P: it spots the Entry Window call to the cluster, no TX). An F-key
   button presses that function key in the focused N1MM Entry Window, so N1MM
   sends its message - e.g. F4 normally sends `{MYCALL}`. Unlike tapping a spot,
   **F-keys transmit over the air**. The `Enter` button logs the current QSO in
@@ -706,8 +706,8 @@ All options live in `config.ini` and are documented there, line by line:
 | `check_line` | true | Pre-contest check line in the window; phone warns when something is wrong. |
 | `band_lights` | true | Band open lights (window row, phone band menu dots) from skimmers on your continent. |
 | `max_age_minutes`, `fade_minutes` | 10, 5 | Drop spots older than this; phone tiles fade when not re-spotted. |
-| `fkeys` | F2 F3 F1 F4 F5 F7 Enter | TX/log buttons in the main window and phone page: `KEY[:label]` list (default `F2:RPRT F3:TU F1:QRL? F4:CALL F5:HisCALL F7:? Enter`). Each F-key **transmits** its N1MM message; `Enter` logs the QSO. Empty = no buttons. |
-| `fkeys_half` | F1 F3 F5 F7 | Phone page: these keys are half as tall, so two share one key's place. Empty = all full size. |
+| `fkeys` | F2 F3 F1 F4 F5 F7 Enter SpotIt | TX/log buttons in the main window and phone page: `KEY[:label]` list (default `F2:RPRT F3:TU F1:QRL? F4:CALL F5:HisCALL F7:? Enter SpotIt:SPOTit`). Each F-key **transmits** its N1MM message; `Enter` logs the QSO; `SpotIt` = N1MM Alt+P (Spot It, no TX). Empty = no buttons. |
+| `fkeys_half` | F1 F3 F5 F7 SpotIt | Phone page: these keys are half as tall, so two share one key's place. Empty = all full size. |
 | `forward_fkeys` | true | F1-F12 pressed in POUNCer go to N1MM. |
 | `tune_step_hz` | 25 | Step of the −/+ Hz buttons. |
 | `filter_narrow_cat`, `filter_wide_cat` | – | CAT strings for the RX filter buttons (else N1MM's Alt+'). |

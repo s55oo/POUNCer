@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.7.77 — 2026-10-17 — SPOTit key (N1MM Alt+P)
+
+- New half-size **SPOTit** key under ENTER (phone; also in the window):
+  presses **Alt+P** in N1MM's Entry Window - N1MM's *Spot It*, which spots
+  the call there to the DX cluster (no transmission). Blue, not green.
+  `fkeys` default ends with `SpotIt:SPOTit`; half size via `fkeys_half`.
+
 ## v0.7.76 — 2026-10-17 — half-size F-keys on the phone
 
 - Phone page: **F3, F1, F5 and F7 are half as tall** (same width): F3 + a

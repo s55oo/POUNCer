@@ -40,7 +40,7 @@ ClearHandler = Callable[[bool], None]  # True = undo (bring the cleared spots ba
 
 
 def is_send_key(key: str) -> bool:
-    """True for keys the phone page may send: F1-F12, Enter, PgUp, PgDn."""
+    """True for keys the phone page may send: F1-F12, Enter, PgUp, PgDn, SpotIt."""
     return normalize_key(key) is not None
 
 
@@ -66,6 +66,8 @@ def normalize_key(key: str) -> str | None:
         return "PgUp"
     if low in ("pgdn", "pagedown", "next"):
         return "PgDn"
+    if low in ("spotit", "spot", "alt+p", "altp"):
+        return "SpotIt"
     return None
 
 
@@ -353,6 +355,8 @@ INDEX_HTML = """<!doctype html>
     white-space: nowrap; background: #2e7d32; color: #fff; border: 0; padding: 0 4px;
     border-radius: 12px; font: inherit; font-size: var(--kfont); font-weight: 700;
     cursor: pointer; transition: background .12s ease; }
+  /* Spot It (N1MM Alt+P): posts a spot to the cluster, no TX - blue, not green */
+  .fkeys button.spot { background: #1565c0; }
   /* half-height keys (F3 + F1 share one key's place): name and label side by side */
   .fkeys button.half { flex: 0 1 var(--row); min-height: 30px; flex-direction: row; gap: 6px;
     justify-content: center; }
@@ -773,13 +777,18 @@ INDEX_HTML = """<!doctype html>
       const b = document.createElement('button');
       // Big key name (F2 / ENTER) with the label underneath in small text,
       // unless the label is just the key name again.
-      const big = String(f.key).toUpperCase();
-      const small = (f.label && f.label.toUpperCase() !== big) ? f.label : '';
+      const spotKey_ = /^spotit$/i.test(f.key);
+      const big = spotKey_ ? (f.label || 'SPOTit') : String(f.key).toUpperCase();
+      const small = (!spotKey_ && f.label && f.label.toUpperCase() !== big) ? f.label : '';
       b.innerHTML = '<span class="fk">' + esc(big) + '</span>' +
         (small ? '<span class="fl">' + esc(small) + '</span>' : '');
       const isEnter = /^enter$/i.test(f.key);
       if (f.half) b.classList.add('half');    // half as tall ([web] fkeys_half, e.g. F1 + F3)
-      b.title = isEnter ? 'Enter - log the QSO' : f.key + ' (transmits)';
+      const isSpot = /^spotit$/i.test(f.key);
+      b.title = isEnter ? 'Enter - log the QSO'
+        : (isSpot ? 'Spot It (Alt+P in N1MM): spot the call in the Entry Window to the cluster - no TX'
+                  : f.key + ' (transmits)');
+      if (isSpot) b.classList.add('spot');
       if (isEnter) {
         b.classList.add('log');
         armHold(b);
@@ -866,7 +875,8 @@ INDEX_HTML = """<!doctype html>
     try {
       const r = await fetch('/api/key?' + rp({key: key}));
       const j = await r.json();
-      toast(j.ok ? (/^enter$/i.test(key) ? 'Logged' : ('TX ' + key))
+      toast(j.ok ? (/^enter$/i.test(key) ? 'Logged'
+                    : (/^spotit$/i.test(key) ? 'Spot It (Alt+P) - spotted to the cluster' : ('TX ' + key)))
                  : ('Failed: ' + (j.error || 'error')));
     } catch (e) {
       toast('Failed: ' + e);
@@ -1626,6 +1636,9 @@ page.</p>
   <dd>Pre-contest check: something POUNCer needs is not right (N1MM radio info, log,
   station call, RBN, country file, Super Check Partial, phone page, PC clock). Tap it for
   details. Nothing is shown while everything is fine; the POUNCer window has the full line.</dd>
+  <dt><span class="k" style="background:#1565c0">SPOTit</span></dt>
+  <dd>N1MM's <b>Spot It</b> (Alt+P): N1MM spots the call in the Entry Window to the DX cluster.
+    No transmission. Half size, under ENTER.</dd>
   <dt><span class="k green">ENTER</span></dt>
   <dd>Enter in N1MM: logs the QSO (no transmit).<br>
   <b>Hold it 1.3 s</b> (it fills up yellow): the <b>CW keyboard</b> opens at the top. What you

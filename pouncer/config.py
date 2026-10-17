@@ -38,6 +38,8 @@ def parse_fkeys(text: str) -> tuple[tuple[str, str], ...]:
             key = key.upper()
         elif key.lower() in ("enter", "return", "cr"):
             key = "Enter"
+        elif key.lower() in ("spotit", "spot", "alt+p", "altp"):
+            key = "SpotIt"                 # N1MM Alt+P: Spot It (no TX)
         else:
             continue
         label = label.strip() or key
@@ -99,10 +101,10 @@ class Config:
 
     fkeys: tuple[tuple[str, str], ...] = (
         ("F2", "RPRT"), ("F3", "TU"), ("F1", "QRL?"), ("F4", "CALL"), ("F5", "HisCALL"),
-        ("F7", "?"), ("Enter", "Enter"),
+        ("F7", "?"), ("Enter", "Enter"), ("SpotIt", "SPOTit"),
     )
     # phone page: these keys are half as tall (F3 + F1, F5 + F7 share one key's place)
-    fkeys_half: tuple[str, ...] = ("F1", "F3", "F5", "F7")
+    fkeys_half: tuple[str, ...] = ("F1", "F3", "F5", "F7", "SPOTIT")
 
     tune_step_hz: int = 25
     # RX filter width assumed at start (N1MM only toggles): narrow/wide/""

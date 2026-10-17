@@ -44,9 +44,9 @@ class LoadConfigTests(unittest.TestCase):
         self.assertFalse(cfg.touch_view)
         self.assertEqual(cfg.fkeys, (
             ("F2", "RPRT"), ("F3", "TU"), ("F1", "QRL?"), ("F4", "CALL"), ("F5", "HisCALL"),
-            ("F7", "?"), ("Enter", "Enter"),
+            ("F7", "?"), ("Enter", "Enter"), ("SpotIt", "SPOTit"),
         ))
-        self.assertEqual(cfg.fkeys_half, ("F1", "F3", "F5", "F7"))
+        self.assertEqual(cfg.fkeys_half, ("F1", "F3", "F5", "F7", "SPOTIT"))
         self.assertTrue(cfg.hide_beacons)
 
     def test_fkeys_from_legacy_web_section(self):
