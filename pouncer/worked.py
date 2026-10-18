@@ -595,6 +595,28 @@ class WorkedLog:
                 count += 1
         return count
 
+    def mult_detail(
+        self,
+        freq_khz: float,
+        country_prefix: str | None,
+        zone: int | None,
+        wpx: str | None,
+    ) -> list[dict]:
+        """Why ``new_mults`` says what it says (phone debug): per multiplier
+        type of the open contest its value for this station, where it counts
+        (the band, or the whole contest) and whether it is still new."""
+        band = band_from_khz(freq_khz)
+        values = {"CountryPrefix": country_prefix, "ZN": zone, "WPXPrefix": wpx}
+        out = []
+        for f in self.mult_types:
+            v = normalize_mult(f, values.get(f))
+            where = "contest" if f in PER_CONTEST_MULTS else (band or "?")
+            new = None if v is None or not band else (
+                v not in self._mult_worked.get(f, {}).get("*" if f in PER_CONTEST_MULTS else band,
+                                                           set()))
+            out.append({"type": f, "value": v, "where": where, "new": new})
+        return out
+
     def band_qsos(self) -> list[tuple[str, int]]:
         """QSOs in the open contest per band, in band-plan order (low to high).
 
