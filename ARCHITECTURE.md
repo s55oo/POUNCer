@@ -615,3 +615,12 @@ multiplier type with value / scope / new, worked, run fields, SCP, tried, all
 spots of it on the band, `raw` = `dataclasses.asdict(spot)` + `received_utc`)
 → `factsHtml`, then `rawTile(s)` = the tile's own JSON. The list stays still
 while `#dbgsheet` is open (like the remove box).
+
+## Phone ALL bands view (v0.7.83)
+
+Band menu `chooseBand('ALL')` → `views[radio] = {band: 'ALL'}` → `/api/spots?band=ALL`
+→ `_web_spots` accepts `ALL_BANDS` next to `CONTEST_BANDS` (built next tick like any
+viewed band) → `_build_web_payload(radio, "ALL")`: `_visible_spots(band="ALL")` keeps
+every contest band (one tile per call + band), sorted new mults first, then SNR,
+cut at `WEB_MAX_SPOTS_ALL` = 120. The page's "radio changed band → follow it"
+reset skips an ALL view, so it survives the QSY a tap makes.

@@ -301,6 +301,9 @@ INDEX_HTML = """<!doctype html>
   .viewtag { color: #4fc3f7; font-weight: 700; cursor: pointer; }
   #bandfor i { font-style: normal; color: #64b5f6; } #bandfor i.r2 { color: #ffb74d; }
   .bandgrid button:active { background: #c62828; }
+  /* band menu: compact keys (a third smaller), ALL = every band on one list */
+  #bandgrid button { font-size: 15px; padding: 10px 0; }
+  #bandgrid button.allb { grid-column: 1 / -1; letter-spacing: 1px; }
   .sheet-close { margin-top: 10px; width: 100%; background: #37474f; color: #fff;
     border: 0; border-radius: 10px; font: inherit; padding: 12px; cursor: pointer; }
   header .band .khz { font-size: 12px; font-weight: 400; opacity: .7; }
@@ -1007,13 +1010,15 @@ INDEX_HTML = """<!doctype html>
     if (vd >= 0) meta = '<span class="warn" title="' + esc(data.team) + '">\u26a0 ' + esc(data.team.slice(vd)) + '</span> &middot; ' + meta;
     {
       const v = views[String(cur)];
-      if (v && data.radio_band && (v.from !== data.radio_band || v.band === data.radio_band)) {
+      // ALL stays on when a tap moves the radio to another band (mult hunting)
+      if (v && v.band !== 'ALL' && data.radio_band &&
+          (v.from !== data.radio_band || v.band === data.radio_band)) {
         delete views[String(cur)];   // the radio changed band: follow it again
         saveViews();
       }
     }
     if (data.view) meta = '<span class="viewtag" id="viewtag" title="Tap: back to the band the radio is on">' +
-      esc(data.band) + ' list &middot; ' + (radioSw.hidden ? 'radio' : (cur === 2 ? 'B' : 'A')) +
+      esc(data.band === 'ALL' ? 'ALL bands' : data.band) + ' list &middot; ' + (radioSw.hidden ? 'radio' : (cur === 2 ? 'B' : 'A')) +
       ' on ' + esc(data.radio_band || '?') + ' \u2715</span> &middot; ' + meta;
     if (calm) meta = '<span class="calmtag" title="Calm list: tiles keep their place, re-sorted every 15 s">calm</span> &middot; ' + meta;
     const ck = data.checks;
@@ -1466,6 +1471,21 @@ INDEX_HTML = """<!doctype html>
       btn.onclick = () => chooseBand(b);
       bandGrid.appendChild(btn);
     });
+    // ALL: spots of every band on one list - for hunting new mults (MLT puts
+    // them on top); a tap QSYs the radio to that band and ALL stays on
+    const all = document.createElement('button');
+    all.textContent = 'ALL bands';
+    all.className = 'allb' + (shown === 'ALL' ? ' cur' : '');
+    const nm = bands.reduce((n, b) => n + (((lastData.bandopen || {})[b] || {}).mults || 0), 0);
+    if (nm) {
+      const m = document.createElement('span');
+      m.className = 'bmult';
+      m.textContent = nm + 'M';
+      m.title = nm + ' new multipliers spotted on all bands';
+      all.appendChild(m);
+    }
+    all.onclick = () => chooseBand('ALL');
+    bandGrid.appendChild(all);
     bandSheet.classList.add('show');
   }
   function closeBands() { bandSheet.classList.remove('show'); }
@@ -1476,7 +1496,10 @@ INDEX_HTML = """<!doctype html>
     const r = lastData.radio === 2 ? 2 : 1;      // the radio of the A / B key
     const real = (lastData.rbands || {})[String(r)] || lastData.radio_band || '';
     const tag = (lastData.radios || []).length > 1 ? (r === 2 ? 'B' : 'A') + ': ' : '';
-    if (b === real) {
+    if (b === 'ALL') {
+      views[String(r)] = {band: 'ALL', from: real};
+      toast(tag + 'ALL bands - MLT puts new mults on top; tap a station to QSY');
+    } else if (b === real) {
       delete views[String(r)];
       toast(tag + b + ' (the radio is there)');
     } else {
@@ -1658,7 +1681,11 @@ spots you still need there. Nothing here transmits except the F-keys.</p>
     <b>that band's spots</b> - the radio is not moved. Tap a station there to QSY to it.
     <span class="sky">15m list &middot; on 20m &#10005;</span> in the small line while you
     look at another band; tap it to go back. When the radio changes band (e.g. after
-    that tap) the list follows the radio again. No transmit.</dd>
+    that tap) the list follows the radio again. No transmit.
+    <b>ALL bands</b> (under the bands): every band on one list - for hunting new mults
+    (with <b>MLT</b> they are on top, the pink number = mults spotted on all bands). A tap
+    QSYs the radio to that station's band and ALL <b>stays on</b>; tap the
+    <span class="sky">ALL bands list</span> tag to go back.</dd>
   <dt><span class="k red">CLR</span></dt>
   <dd>Clear every spot (e.g. old spots from before the contest). New ones come in
     again from RBN. <b>Undo</b> in the pop-up for 5 s.</dd>

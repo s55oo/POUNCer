@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.83 — 2026-10-18 — phone: ALL bands, smaller band keys
+
+- Band menu (tap the frequency): band keys a third smaller, and a new wide
+  **ALL bands** key - every contest band on one list (up to 120 spots, new
+  mults first), for hunting new multipliers with **MLT**. A tap QSYs the
+  radio to that station's band and the list stays on ALL; the pink number
+  on the key = new mults spotted on all bands.
+
 ## v0.7.82 — 2026-10-18 — phone Debug for a spot
 
 - Hold a tile 2 s: next to **Remove** there is **Debug: why does it look like

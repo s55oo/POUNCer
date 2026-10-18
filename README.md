@@ -172,7 +172,8 @@ is required.
   phone then says what really happened (✓ radio on 7012.0 · call in / ⚠ N1MM
   didn't report it). The tapped station **keeps its place** until logged or
   60 s.
-- Band menu / band chips: look at another band without moving the radio.
+- Band menu / band chips: look at another band without moving the radio;
+  **ALL bands** on the phone = every band on one list (hunting new mults).
 - Minimum SNR, DX / MLT / ⚡ first, calm list, NEXT, CLR with undo.
 - **Alert** when a rare CQ (⚡) that is also a new mult appears: **pop-up**
   and **sound** switched on their own (window: View menu; phone: band menu);
@@ -382,6 +383,13 @@ opens one band menu (160-10 m) for the radio chosen with the **A / B** key:
 with A it shows that band's spots for radio A, with B for radio B (green =
 the band shown, blue ring = the band the radio is on). Tap a station there
 and that radio goes to it.
+
+**ALL bands** (the wide key under the bands): **every contest band on one
+list** - handy when hunting new multipliers: press **MLT** and the new mults
+of all bands are on top (up to 120 spots, new mults first). The pink number
+on the key = new mults spotted on all bands. Tap a station: the radio goes
+to it (and to its band) and the list **stays on ALL**; tap the *ALL bands
+list* tag in the small line to go back to the radio's band.
 
 ## Settings
 

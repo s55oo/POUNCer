@@ -411,6 +411,10 @@ class WebRadioTests(unittest.TestCase):
         self.assertTrue(app.PouncerApp._web_spots(f, 2, "15m")["view"])
         self.assertEqual(app.PouncerApp._web_spots(f, 2, "40m")["band"], "40m")   # its own band
         self.assertEqual(app.PouncerApp._web_spots(f, 2)["band"], "40m")
+        app.PouncerApp._web_spots(f, 2, "ALL")                   # band menu > ALL
+        self.assertIn((2, "ALL"), f._web_views)
+        app.PouncerApp._web_spots(f, 2, "6m")                    # not a contest band: ignored
+        self.assertNotIn((2, "6m"), f._web_views)
 
     def test_page_has_radio_switch(self) -> None:
         from pouncer.web import INDEX_HTML, HELP_HTML
