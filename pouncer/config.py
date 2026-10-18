@@ -29,6 +29,8 @@ OLD_DEFAULT_FKEYS = (
      ("Enter", "Enter"), ("SpotIt", "SPOTit")),
     (("F1", "QRL?"), ("F3", "TU"), ("F2", "RPRT"), ("F4", "CALL"), ("F5", "HisCALL"), ("F7", "?"),
      ("Enter", "Enter"), ("SpotIt", "SPOTit")),
+    (("F1", "QRL?"), ("F3", "TU"), ("F2", "RPRT"), ("F4", "CALL"), ("F5", "HisCALL"), ("F7", "?"),
+     ("F11", "F11"), ("Enter", "Enter"), ("SpotIt", "SPOTit")),
 )
 # half-size key lists older POUNCers wrote as their default (upper-case)
 OLD_DEFAULT_FKEYS_HALF = (
@@ -116,8 +118,8 @@ class Config:
     worked_refresh_seconds: int = 10
 
     fkeys: tuple[tuple[str, str], ...] = (
-        ("F1", "QRL?"), ("F3", "TU"), ("F2", "RPRT"), ("F4", "CALL"), ("F5", "HisCALL"),
-        ("F7", "?"), ("F11", "F11"), ("Enter", "Enter"), ("SpotIt", "SPOTit"),
+        ("F1", "CQ"), ("F2", "RPRT"), ("F3", "TU"), ("F4", "CALL"), ("F5", "HisCALL"),
+        ("F7", "?"), ("F11", ".."), ("Enter", "Enter"), ("SpotIt", "SPOTit"),
     )
     fkeys_text: str = ""                 # the [ui] fkeys line as written (Settings)
     fkeys_half_text: str = ""
