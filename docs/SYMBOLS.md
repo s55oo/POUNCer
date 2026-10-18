@@ -200,7 +200,9 @@ Messages stack: press two or three keys and each one shows (newest at the bottom
 | --- | --- |
 | **QSY OK1BB ...** | the tap reached POUNCer |
 | **✓ OK1BB: radio on 7012.0 · call in** | N1MM moved the radio there and the call is in the Entry Window |
-| **⚠ OK1BB: N1MM didn't report 7012.0** | N1MM didn't confirm the new frequency - look at the radio |
+| **⏳ OK1BB: waiting for N1MM to report 7012.0…** | N1MM is slow to confirm the new frequency; POUNCer sent the QSY again and keeps the call in the box - keeps watching 8 s |
+| **✓ OK1BB: radio on 7012.0 (N1MM reported it late, 3.1 s)** | it got there; the call was put back if N1MM's late QSY wiped it |
+| **⚠ OK1BB: N1MM never reported 7012.0 - check the radio** | no confirmation even after 10 s - look at the radio |
 | **⚠ ... no answer from POUNCer** | POUNCer didn't answer in 8 s - is it running? |
 
 ### CW keyboard (hold ENTER 1.3 s)

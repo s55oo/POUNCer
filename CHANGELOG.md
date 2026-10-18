@@ -1,5 +1,20 @@
 # POUNCer — Changelog
 
+## v0.7.87 — 2026-10-18 — slow N1MM: no false warning, no lost call
+
+- A tap when N1MM is slow to report the new frequency (the radio moved, but
+  the report came after 1.5 s) no longer says "didn't report - check the
+  radio", and the call is no longer lost when N1MM's late QSY wipes it:
+  - wait up to **2.5 s** (`qsy_wait_ms`; an unchanged 1500 is read as 2500);
+  - no report → the QSY is **sent once more** (UDP, not the typed radio B QSY);
+  - the call is **kept in the box** 1 s longer and put back if wiped - radio
+    A too now (was radio B only);
+  - a report that comes later still is watched for 8 s: the phone shows
+    **⏳ waiting**, then **✓ reported it late (3.1 s)** and the call is put
+    back into the box if N1MM wiped it (only an empty box - never over your
+    typing); only then **⚠ never reported - check the radio**.
+- The log says for every tap how long N1MM took to report.
+
 ## v0.7.86 — 2026-10-18 — new default keys
 
 - Default keys: `F1:CQ F2:RPRT F3:TU F4:CALL F5:HisCALL F7:? F11:.. Enter

@@ -628,3 +628,15 @@ reset skips an ALL view, so it survives the QSY a tap makes.
 Key list upgrades: `OLD_DEFAULT_FKEYS` / `OLD_DEFAULT_FKEYS_HALF` hold the defaults
 older versions wrote; an ini line equal to one of them is read as today's default
 (v0.7.85: F11 after F7, half size), a line you changed stays.
+
+## Slow N1MM after a tap (v0.7.87)
+
+`_act_on_spot`: `_wait_for_qsy` (`qsy_wait_ms`, default 2500; an ini 1500 = the old
+default is read as 2500). No report → `_qsy` once more (UDP only, never the typed
+radio B QSY) and wait again. After the call is typed, still no report → `_guard_call`
+for every radio (1 s: the box is refilled if N1MM wipes it). Still none → `_late_qsy`
+= {spot, nr, t0, typed, hwnd}, `_last_tap.wait` = True ("⏳ waiting", the phone keeps
+listening); `_check_late_qsy` in `_tick`: the report comes → `_note_tap` ok ("reported
+it late, n s") + `_restore_call` at 0.3 / 0.8 / 1.5 s (fills the callsign box only if it
+is empty); `LATE_QSY_S` = 8 s more without → "never reported - check the radio". Every
+tap's log line says how long N1MM took.
