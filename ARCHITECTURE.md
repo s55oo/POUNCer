@@ -603,3 +603,15 @@ unit-tested (verified manually / by smoke runs).
   list → `describe()` in the info line, *Open in the browser* →
   `_open_browser(page)`. Choices (minutes, hours, box size) live in the
   object until POUNCer closes.
+
+## Phone debug sheet (v0.7.82)
+
+Hold a tile → `askRemove` box has `#rmdbg` → `showDebug(s)`: `tileLook(s, lastData)`
+re-derives each class of the tile in words (strong, stale, dx, m1/m2, onfreq,
+sel, rare, busted, tried) from the same inputs `render` uses, then
+`GET /api/explain?call&freq` → `PouncerApp._explain_spot` (newest spot of that
+call on that band from `self.spots`: entity, `worked.mult_detail` per
+multiplier type with value / scope / new, worked, run fields, SCP, tried, all
+spots of it on the band, `raw` = `dataclasses.asdict(spot)` + `received_utc`)
+→ `factsHtml`, then `rawTile(s)` = the tile's own JSON. The list stays still
+while `#dbgsheet` is open (like the remove box).

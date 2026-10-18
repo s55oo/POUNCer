@@ -259,9 +259,22 @@ INDEX_HTML = """<!doctype html>
   /* pre-contest check: shown only when something is wrong (tap = details) */
   .chktag { font-weight: 700; cursor: pointer; }
   .chktag.warn { color: #ffd54f; } .chktag.bad { color: #ff8a80; }
-  #bandsheet, #rmsheet, #snrsheet { display: none; position: fixed; inset: 0; z-index: 20;
+  #bandsheet, #rmsheet, #snrsheet, #dbgsheet { display: none; position: fixed; inset: 0; z-index: 20;
     background: rgba(0,0,0,.55); align-items: flex-start; justify-content: center; }
-  #bandsheet.show, #rmsheet.show, #snrsheet.show { display: flex; }
+  #bandsheet.show, #rmsheet.show, #snrsheet.show, #dbgsheet.show { display: flex; }
+  /* Debug (hold a tile > Debug): why this tile looks as it does */
+  #dbgsheet .sheet { margin-top: 24px; width: min(560px, calc(100% - 16px));
+    max-height: calc(100vh - 48px); overflow-y: auto; background: #1a2127;
+    border-radius: 14px; padding: 14px; font-size: 14px; }
+  #dbgsheet h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .6px;
+    color: #90a4ae; margin: 14px 0 6px; }
+  #dbgsheet table { border-collapse: collapse; width: 100%; }
+  #dbgsheet td { padding: 4px 6px; vertical-align: top; border-top: 1px solid #263238; }
+  #dbgsheet td:first-child { white-space: nowrap; font-weight: 700; width: 1%; }
+  #dbgsheet .yes { color: #81c784; } #dbgsheet .no { color: #90a4ae; }
+  #dbgsheet .why { color: #b0bec5; font-size: 13px; }
+  #dbgsheet .warn { color: #ffb74d; }
+  #rmsheet .dbg { background: #455a64; font-size: 17px; padding: 12px 0; }
   #bandsheet .sheet, #rmsheet .sheet, #snrsheet .sheet { margin-top: 64px; width: min(420px, calc(100% - 24px));
     background: #1a2127; border-radius: 14px; padding: 14px; }
   .sheet-title { font-weight: 700; margin-bottom: 10px; }
@@ -471,8 +484,14 @@ INDEX_HTML = """<!doctype html>
   <div class="sheet-title" id="rmtitle">Remove from the list?</div>
   <div class="bandgrid" style="grid-template-columns: 1fr">
     <button class="rm" id="rmyes">Remove</button>
+    <button class="dbg" id="rmdbg">Debug: why does it look like this?</button>
   </div>
   <button class="sheet-close" id="rmno">Cancel</button>
+</div></div>
+<div id="dbgsheet" class="sheetwrap"><div class="sheet">
+  <div class="sheet-title" id="dbgtitle">Debug</div>
+  <div id="dbgbody"></div>
+  <button class="sheet-close" id="dbgclose">Close</button>
 </div></div>
 <div id="bandsheet"><div class="sheet">
   <div class="sheet-title">Band<span id="bandfor"></span> <span>(shows its spots - tap a station to QSY)</span></div>
@@ -1243,6 +1262,105 @@ INDEX_HTML = """<!doctype html>
   };
   document.getElementById('rmno').onclick = () => rmSheet.classList.remove('show');
   rmSheet.onclick = (e) => { if (e.target === rmSheet) rmSheet.classList.remove('show'); };
+  // Debug: what the tile shows and why - first what this page decided from
+  // the list data (colours, marks), then POUNCer's own facts (/api/explain:
+  // country, zone, every mult type, worked, run history, skimmers).
+  const dbgSheet = document.getElementById('dbgsheet');
+  const yn = (v, yes, no) => '<span class="' + (v ? 'yes">\u2714 ' + yes : 'no">\u2013 ' + no) + '</span>';
+  const row = (k, v, why) => '<tr><td>' + k + '</td><td>' + v + (why ? '<div class="why">' + why + '</div>' : '') + '</td></tr>';
+  const ago = sec => sec == null ? '?' : (sec < 90 ? sec + ' s' : Math.round(sec / 60) + ' min') + ' ago';
+  function tileLook(s, d) {
+    let tuned = null, best = 0.5 + 1e-9;
+    if (typeof d.freq === 'number' && d.freq > 0) shown.forEach(x => {
+      const k = Math.abs(x.freq - d.freq); if (k <= best) { best = k; tuned = x; } });
+    const snr = snrVal(s), stale = s.age != null && d.fade_s && s.age >= d.fade_s;
+    const rare = isRare(s);
+    let h = '<h3>Colours and marks on the tile</h3><table>';
+    h += row('Green tile', yn(snr >= 20, 'yes', 'no (grey)'),
+      'SNR ' + (s.snr == null ? 'unknown' : s.snr + ' dB') + ' - green from 20 dB up');
+    h += row('Darker tile', yn(stale, 'yes: probably gone', 'no: fresh'),
+      'last spot ' + ago(s.age) + '; darker after ' + Math.round((d.fade_s || 0) / 60) + ' min without a new spot');
+    h += row('Yellow call', yn(s.dx, 'DX', 'own continent (white)'),
+      (s.cont || '?') + ' vs your continent ' + (d.home_cont || '?'));
+    h += row('Pink bar', yn(s.mult, s.mult >= 2 ? 'thick: double new mult' : 'thin: one new mult', 'no: not a new mult'),
+      'see "Multipliers" below for each type');
+    h += row('Blue outline', yn(s === tuned, 'radio is on it', 'no'),
+      'radio ' + (d.freq ? d.freq.toFixed(1) : '?') + ', spot ' + s.freq.toFixed(1) + ' (within 0.5 kHz = on it)');
+    h += row('Yellow ring', yn(spotKey(s) === selKey, 'the station you tapped last', 'no'), '');
+    h += row('\u26a1', yn(rare, 'rare CQ', 'no'),
+      'run ' + (s.run == null ? '?' : s.run + '%') + ' (rare under ' + (d.rare_run || 30) + '%), on air ' +
+      (s.hours == null ? '?' : '~' + s.hours + ' h') + ' (rare under ' + (d.rare_hours || 6) + ' h)');
+    h += row('?', yn(s.busted, 'not in Super Check Partial', 'no: known call'), 'maybe a skimmer error when shown');
+    h += row('\u21bb', yn(s.tried != null, 'tapped ' + (s.tries || 1) + '\u00d7, last ' + s.tried + ' min ago', 'not tapped lately'), '');
+    h += '</table><h3>Numbers on the tile</h3><table>';
+    h += row(s.freq.toFixed(1), 'spot frequency (kHz)', s.mode && s.mode !== 'CW' ? 'mode ' + esc(s.mode) : '');
+    if (s.run != null) h += row('R' + s.run + '%' + (s.rec ? '*' : ''), 'share of its QSOs made running in past logs' +
+      (s.run_band ? ' (on ' + esc(s.run_band) + ')' : ''), s.rec ? '* = log reconstructed from others: a minimum' : '');
+    if (s.hours != null) h += row('~' + Math.round(s.hours) + 'h', 'hours on the air in past logs of this contest', '');
+    h += row(esc(s.first || s.time || '--'), 'first spotted on this frequency (UTC)', s.time ? 'last spot ' + esc(s.time) : '');
+    h += row(s.snr == null ? '--' : s.snr + 'dB', 'skimmer SNR (newest spot)', '');
+    if (s.cq_min != null) h += row('cq' + cqText(s.cq_min), 'calling on this frequency for ' + cqText(s.cq_min), '');
+    return h + '</table>';
+  }
+  function factsHtml(f) {
+    if (!f || f.ok === false) return '<p class="warn">' + esc((f && f.error) || 'POUNCer has no details') + '</p>';
+    const e = f.entity;
+    let h = '<h3>Station (from cty.dat)</h3><table>';
+    h += row('Country', e ? esc(e.country) + ' (' + esc(e.prefix) + ')' : '<span class="warn">not found</span>', '');
+    h += row('Continent', e ? esc(e.cont) : '?', 'yours: ' + esc(f.home_cont || '?') + ' \u2192 ' + (f.dx ? 'DX' : 'not DX'));
+    h += row('Zones', e ? 'CQ ' + (e.cq ?? '?') + ', ITU ' + (e.itu ?? '?') : '?', 'this contest counts ' + esc(f.zone_kind) + ' zones');
+    h += row('WPX prefix', esc(f.wpx || '?'), '');
+    h += '</table><h3>Log and multipliers (' + esc(f.contest || 'no contest open') + ')</h3><table>';
+    h += row('Worked', yn(f.worked, 'yes, on ' + esc(f.band) + ' ' + esc(f.mode) + ' (grey in the window)', 'not yet on ' + esc(f.band) + ' ' + esc(f.mode)),
+      f.log_open ? '' : '<span class="warn">N1MM log not open: nothing counts as worked</span>');
+    if (!(f.mults || []).length) h += row('Mults', '<span class="warn">no multiplier types known</span>', 'POUNCer reads them from the open N1MM contest');
+    (f.mults || []).forEach(m => {
+      const name = {CountryPrefix: 'Country', ZN: f.zone_kind + ' zone', WPXPrefix: 'WPX prefix'}[m.type] || m.type;
+      h += row(name, m.value == null ? '<span class="warn">unknown</span>' : esc(String(m.value)) + ' - ' +
+        (m.new ? '<span class="yes">NEW</span>' : '<span class="no">already worked</span>'),
+        'counts per ' + (m.where === 'contest' ? 'whole contest' : 'band (' + esc(m.where) + ')'));
+    });
+    h += row('Result', f.mult ? f.mult + ' new mult' + (f.mult > 1 ? 's' : '') : 'no new mult', '');
+    const r = f.run || {};
+    h += '</table><h3>Run history (past logs)</h3><table>';
+    h += row('Run', r.run == null ? 'unknown' : r.run + '%' + (r.band ? ' on ' + esc(r.band) : ''), 'rare when under ' + f.rare_run + '%');
+    h += row('On air', r.hours == null ? 'unknown' : '~' + r.hours + ' h', 'rare when under ' + f.rare_hours + ' h');
+    h += row('Log', r.rec ? 'reconstructed from other logs' : (r.run == null && r.hours == null ? 'no log found' : 'its own log'), '');
+    h += '</table><h3>Spot</h3><table>';
+    h += row('Type / WPM', esc(f.type || '?') + (f.wpm ? ', ' + f.wpm + ' WPM' : ''), '');
+    h += row('Newest spot', esc(f.spotter || '?') + ', ' + ago(f.age_s), 'gone from the list after ' + Math.round(f.max_age_s / 60) + ' min without a spot');
+    h += row('SCP', f.scp == null ? 'off' : yn(f.scp, 'in Super Check Partial', 'NOT in Super Check Partial'), '');
+    h += row('Tapped', f.tried ? f.tried.times + '\u00d7, last ' + f.tried.minutes + ' min ago' : 'not in the last ' + f.tried_window_min + ' min', '');
+    h += row('Min SNR', f.min_snr ? f.min_snr + ' dB' : 'off', '');
+    h += '</table><h3>Skimmers (' + (f.skimmers || []).length + ' spots on ' + esc(f.band) + ')</h3><table>';
+    (f.skimmers || []).forEach(k => {
+      h += row(esc(k.spotter), k.freq.toFixed(1) + ' kHz, ' + (k.snr == null ? '--' : k.snr + ' dB') + ', ' + ago(k.age_s), '');
+    });
+    h += '</table><h3>Exact spot (as received from RBN)</h3><table>';
+    Object.entries(f.raw || {}).forEach(([k, v]) => { h += row(esc(k), esc(v == null ? '-' : String(v)), ''); });
+    return h + '</table>';
+  }
+  function rawTile(s) {          // what this page got for the tile, field by field
+    let h = '<h3>Tile data (what the phone received)</h3><table>';
+    Object.entries(s).forEach(([k, v]) => { h += row(esc(k), esc(v == null ? '-' : String(v)), ''); });
+    return h + '</table>';
+  }
+  async function showDebug(s) {
+    rmSheet.classList.remove('show');
+    document.getElementById('dbgtitle').textContent = 'Debug: ' + s.call + ' ' + s.freq.toFixed(1);
+    const body = document.getElementById('dbgbody');
+    body.innerHTML = tileLook(s, lastData || {}) + '<p class="why">Asking POUNCer\u2026</p>';
+    dbgSheet.classList.add('show');
+    let f = null;
+    try {
+      const r = await fetch('/api/explain?' + new URLSearchParams({call: s.call, freq: s.freq}), {cache: 'no-store'});
+      f = await r.json();
+    } catch (e) { f = {ok: false, error: 'POUNCer not reachable: ' + e}; }
+    body.innerHTML = tileLook(s, lastData || {}) + factsHtml(f) + rawTile(s);
+  }
+  document.getElementById('rmdbg').onclick = () => { if (rmSpot) showDebug(rmSpot); };
+  document.getElementById('dbgclose').onclick = () => dbgSheet.classList.remove('show');
+  dbgSheet.onclick = (e) => { if (e.target === dbgSheet) dbgSheet.classList.remove('show'); };
   // Selected (last tapped) station, kept across the 1 s redraws.
   let selKey = '';
   const spotKey = s => s.call + '|' + Number(s.freq).toFixed(1);
@@ -1451,6 +1569,7 @@ INDEX_HTML = """<!doctype html>
       // Holding a tile / remove box open: keep the list still (the redraw
       // would cancel the hold); show the fresh data afterwards.
       if (pressing || document.getElementById('rmsheet').classList.contains('show') ||
+          document.getElementById('dbgsheet').classList.contains('show') ||
           (calm && Date.now() - lastTouch < CALM_HOLD_MS)) {
         lastData = data;
         return;
@@ -1584,7 +1703,11 @@ then - after switching contests the counts can belong to the old one until N1MM 
     call in</b>, or <b>&#9888; ... N1MM didn't report 7012.0</b> when the radio didn't move
     (no answer at all = POUNCer not running?).</dd>
   <dt>Hold 2 s</dt>
-  <dd>Remove that call from the list (on this band), with Undo.</dd>
+  <dd>A box with <b>Remove</b> (that call off the list on this band, with Undo) and
+    <b>Debug</b>: everything about that exact spot - why the tile has its colour and marks
+    (SNR, age, DX, mult, tuned, rare, SCP, tapped), what each number means, POUNCer's facts
+    (country, zones, every multiplier type new or worked, worked on this band, run history,
+    all skimmers that spotted it) and the raw spot as received. To check it all works.</dd>
   <dt><span class="yel">YELLOW</span> call</dt>
   <dd>DX - outside your continent. White = your own continent.</dd>
   <dt>Green tile</dt>
@@ -2771,6 +2894,21 @@ class _Handler(BaseHTTPRequestHandler):
             page = ZONES_HTML.replace("__VERSION__", __version__)
             self._send(200, page.encode("utf-8"), "text/html; charset=utf-8")
             return
+        if parsed.path == "/api/explain":  # phone debug: why a tile looks as it does
+            getter = getattr(self.server, "get_explain", None)
+            q = parse_qs(parsed.query)
+            if getter is None:
+                self._send_json({"ok": False, "error": "not available"})
+                return
+            try:
+                call = (q.get("call") or [""])[0]
+                freq = float((q.get("freq") or ["0"])[0])
+                self._send_json(getter(call, freq))
+            except ValueError:
+                self._send_json({"ok": False, "error": "bad call / freq"}, 400)
+            except Exception as exc:
+                self._send_json({"ok": False, "error": str(exc)}, 500)
+            return
         if parsed.path == "/api/zones":
             getter = getattr(self.server, "get_zones", None)
             if getter is None:
@@ -2882,6 +3020,10 @@ class WebServer:
     def set_timeline_provider(self, getter) -> None:
         """Spots per band and 10 minutes, for /api/timeline."""
         self._httpd.get_timeline = getter
+
+    def set_explain_provider(self, getter) -> None:
+        """Phone debug: (call, freq) -> what POUNCer knows about that spot."""
+        self._httpd.get_explain = getter
 
     def set_zones_provider(self, getter) -> None:
         """Who hears me / what I hear per band and CQ zone, for /api/zones."""

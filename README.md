@@ -93,8 +93,8 @@ phone page, downloads) with their ports and message formats:
   browser); the **DX** button next to them puts DX spots on top, still in that
   order, and **MLT** puts new multipliers on top (double, then single; magenta
   bar on the tile - thick = double). The station your radio is tuned to
-  (within 0.5 kHz) has a light-blue outline. **Hold a tile for 2 s** to remove
-  that call from the list (with Undo); the station you tapped keeps a yellow
+  (within 0.5 kHz) has a light-blue outline. **Hold a tile for 2 s** for a box with
+  **Remove** (that call off the list, with Undo) and **Debug** (below); the station you tapped keeps a yellow
   border until you tap another. The **footer** has **WPM − / WPM +** on the
   left (N1MM PgDn / PgUp = CW speed) and **−25 Hz / +25 Hz** in the middle
   (move the VFO via N1MM; step = `[ui] tune_step_hz`), and **NEXT ▶** on
@@ -572,7 +572,23 @@ A **darker** tile (text still white) = not re-spotted for 5 min (probably gone).
 (*Alert pop-up* / *Alert sound* in the band menu, each on its own). If S53WW goes quiet for 5 min, other skimmers on your
 continent are used ("⚠ backup skimmers") until it is back.
 
-Tap = QSY + call into N1MM (no TX; the callsign box is always emptied first); hold 2 s = remove from the list.
+Tap = QSY + call into N1MM (no TX; the callsign box is always emptied first); hold 2 s = **Remove** or **Debug**.
+
+**Debug** (hold a tile 2 s > *Debug: why does it look like this?*) shows
+everything about that exact spot, to check POUNCer works right:
+
+- **Colours and marks** - each one ✔ / – with the reason: green (SNR ≥ 20 dB),
+  darker (last spot older than 5 min), yellow call (its continent vs yours),
+  pink bar (new mult), blue outline (radio within 0.5 kHz), yellow ring, ⚡
+  (run % / hours against the limits), ?, ↻.
+- **Numbers on the tile** - what each one means for this station.
+- **From POUNCer** - country and prefix, continent, CQ / ITU zone, WPX
+  prefix; the open contest; worked on this band + mode; **every multiplier
+  type** with its value, new or already worked, per band or per contest; run
+  history (run %, hours, own or reconstructed log); spot type, WPM, newest
+  skimmer, SCP, tapped; **all skimmers** that spotted it on this band.
+- **Exact spot** - every field of the newest RBN spot as received (with its
+  UTC time), and the tile data the phone got.
 The station you tapped (or clicked in the window) **keeps its place in the
 list** until you log it or for 60 s, while the others re-sort around it. The
 **?** after the status line opens the same explanation on the phone.

@@ -334,6 +334,15 @@ class MultiplierTests(unittest.TestCase):
         # QSOs of another contest in the same file don't count
         self.assertEqual(wl.new_mults(14010, "JA", 25, "JA1"), 2)
 
+    def test_mult_detail_explains_each_type(self) -> None:
+        wl = self._open("CQWWCW")
+        d = wl.mult_detail(14010, "OH", 15, "OH2")
+        self.assertEqual([(m["type"], m["value"], m["where"], m["new"]) for m in d],
+                         [("ZN", 15, "20m", False), ("CountryPrefix", "OH", "20m", True)])
+        self.assertIsNone(wl.mult_detail(14010, None, 15, "X")[1]["new"])   # country unknown
+        wpx = self._open("CQWPXCW").mult_detail(7010, "S5", 15, "S51")
+        self.assertEqual((wpx[0]["where"], wpx[0]["new"]), ("contest", False))
+
     def test_wpx_counts_once_per_contest(self) -> None:
         wl = self._open("CQWPXCW")
         self.assertEqual(wl.mult_types, ("WPXPrefix",))

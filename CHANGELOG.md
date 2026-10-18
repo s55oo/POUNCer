@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## v0.7.82 — 2026-10-18 — phone Debug for a spot
+
+- Hold a tile 2 s: next to **Remove** there is **Debug: why does it look like
+  this?** It shows, for that exact spot, every colour and mark with its
+  reason, what each number means, POUNCer's facts (country, zones, every
+  multiplier type new / worked, worked on this band, run history, all
+  skimmers that spotted it) and the raw RBN spot as received - to verify
+  everything works right. New `/api/explain`.
+
 ## v0.7.81 — 2026-10-18 — old tiles readable
 
 - Phone: a tile not re-spotted for 5 minutes is no longer greyed out as a

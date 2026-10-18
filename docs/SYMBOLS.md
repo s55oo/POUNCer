@@ -146,7 +146,7 @@ Marks in the call and Mult columns:
 | **yellow ring** | the tile you tapped last - it keeps its place until you log it, or for 60 s |
 | **darker** tile (text still white / yellow) | not re-spotted for 5 minutes - probably gone |
 | **yellow flash** | calm list only: a new station just added at the end |
-| tile goes **dark** while held | hold on: after 2 s it is removed from the list |
+| tile goes **dark** while held | hold on: after 2 s a box offers **Remove** (off the list) and **Debug** (why the tile looks like this, every fact about the spot) |
 | **⚡** after the call | rare CQ (see above) |
 | orange **?** after the call | not in Super Check Partial: maybe a busted call |
 | blue **↻3m** | you tapped it 3 minutes ago |

@@ -1750,6 +1750,55 @@ class PouncerApp:
             ],
         }
 
+    def _explain_spot(self, call: str, freq: float) -> dict:
+        """Phone debug (hold a tile > Debug): everything POUNCer knows about
+        this station on this band and why the tile looks as it does - the
+        facts behind the colours and numbers, to check they are right."""
+        call = (call or "").strip().upper()
+        band = band_from_khz(freq)
+        same = [s for s in list(self.spots.values())
+                if s.dxcall.upper() == call and band_from_khz(s.freq_khz) == band]
+        if not same:
+            return {"ok": False, "error": f"{call} is no longer in the spot list"}
+        now = time.time()
+        s = max(same, key=lambda x: x.received)
+        ent = self._entity(s.dxcall)
+        zone = (ent.itu if self.worked.zone_is_itu else ent.cq) if ent else None
+        run = self._run_fields(s)
+        tried = self._tried(s)
+        radio_khz = self._radio_khz()
+        out = {
+            "ok": True, "call": s.dxcall, "band": band, "freq": s.freq_khz, "mode": s.mode,
+            "type": s.spot_type, "snr": s.snr, "wpm": s.wpm, "spotter": s.spotter,
+            "time": s.time_utc, "age_s": int(now - s.received),
+            "fade_s": self.cfg.fade_minutes * 60, "max_age_s": self.cfg.max_age_minutes * 60,
+            "first": self._first_heard_utc(s), "cq_min": self._cq_minutes(s),
+            "entity": ({"country": ent.name, "prefix": ent.prefix, "cont": ent.continent,
+                        "cq": ent.cq, "itu": ent.itu} if ent else None),
+            "home_cont": self.home_cont, "dx": self._is_dx(s.dxcall),
+            "wpx": wpx_prefix(s.dxcall),
+            "contest": self.worked.contest_name, "log_open": self.worked.log_open,
+            "worked": self.worked.is_worked(s.dxcall, s.freq_khz, s.mode),
+            "zone_kind": "ITU" if self.worked.zone_is_itu else "CQ",
+            "mults": self.worked.mult_detail(s.freq_khz, ent.prefix if ent else None, zone,
+                                             wpx_prefix(s.dxcall)),
+            "mult": self._mults(s),
+            "run": run, "rare_run": RARE_RUN_PCT, "rare_hours": RARE_HOURS,
+            "scp": None if self.scp is None else not self.scp.busted(s.dxcall),
+            "tried": {"times": tried[0], "minutes": tried[1]} if tried else None,
+            "tried_window_min": self.cfg.tried_minutes,
+            "radio_khz": radio_khz,
+            "min_snr": self.cfg.min_snr,
+            # the exact spot, every field as received (newest on this band)
+            "raw": dict(dataclasses.asdict(s), received_utc=time.strftime(
+                "%Y-%m-%d %H:%M:%SZ", time.gmtime(s.received))),
+            "skimmers": sorted(
+                ({"spotter": x.spotter, "freq": x.freq_khz, "snr": x.snr,
+                  "age_s": int(now - x.received)} for x in same),
+                key=lambda d: d["age_s"])[:12],
+        }
+        return out
+
     def _web_spots(self, radio: int | None = None, band: str | None = None) -> dict:
         """Phone list: the radio's band, or ``band`` from the band menu (the
         radio isn't moved - tapping a station there QSYs it)."""
@@ -3127,6 +3176,7 @@ class PouncerApp:
             )
             self.web.set_summary_provider(self._summary)
             self.web.set_zones_provider(self._zones)
+            self.web.set_explain_provider(self._explain_spot)
             self.web.set_timeline_provider(self._timeline)
             if self.cfg.web_cw_keyboard:
                 self.web.set_cw_handler(self._web_cw)
