@@ -264,7 +264,7 @@ INDEX_HTML = """<!doctype html>
     font-size: 10px; line-height: 10px; white-space: nowrap; padding: 0 2px; opacity: 1 !important;
     margin: 0 !important; }
   .ping:empty { display: none; }
-  .ping small { font-size: 9px; font-weight: 600; opacity: .8; margin-left: 1px; }
+  .ping small { font-size: 9px; font-weight: 600; opacity: .8; }
   .ping.ok { color: #81c784; } .ping.slow { color: #ffd54f; } .ping.bad { color: #ff8a80; }
   /* already tried (tapped): small blue mark after the call */
   button.tile .call .tried { font-size: 13px; font-weight: 700; color: #90caf9;
@@ -740,7 +740,7 @@ INDEX_HTML = """<!doctype html>
     if (ping.hist.length > 10) ping.hist.shift();
     const el = document.getElementById('pingtag');
     el.className = 'ping ' + (ping.lost ? 'bad' : (ping.last < 150 ? 'ok' : (ping.last < 500 ? 'slow' : 'bad')));
-    el.innerHTML = ping.lost ? '\u2715<small>ping</small>' : ping.last + '<small>ms</small>';
+    el.innerHTML = '<small>ping</small> ' + (ping.lost ? '\u2715' : ping.last + '<small>ms</small>');
   }
   function pingInfo() {
     const ok = ping.hist.filter(v => v != null);
@@ -1974,14 +1974,10 @@ phone (each phone its own).</p>
   });
 </script>
 
-<p><b>Ping</b>: the small line starts with the round trip from this phone to the POUNCer PC,
-measured every minute (<span style="color:#81c784">green</span> under 150 ms,
-<span style="color:#ffd54f">amber</span> under 500, <span style="color:#ff8a80">red</span> slower,
-<b>ping &#10005;</b> = no answer in 5 s). Tap it: min / avg / max of the last 10 minutes.</p>
 <p><b>Ping</b>: the small number above <b>CLR</b> is the round trip from this phone to the
 POUNCer PC, measured every minute (<span style="color:#81c784">green</span> under 150 ms,
 <span style="color:#ffd54f">amber</span> under 500, <span style="color:#ff8a80">red</span> slower,
-<b>&#10005;ping</b> = no answer in 5 s). Tap it: min / avg / max of the last 10 minutes.</p>
+<b>ping &#10005;</b> = no answer in 5 s). Tap it: min / avg / max of the last 10 minutes.</p>
 <div class="note">Messages (e.g. "Cleared 12 spots", "CW faster") pop up level with the
 ENTER key for 5 s - press two or three keys and they <b>stack</b> (newest at the bottom, up to
 4), so you see each one; tap one to close it. Only the rare-CQ + new-mult alert beeps:

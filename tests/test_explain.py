@@ -102,21 +102,4 @@ class PingTests(unittest.TestCase):
             web.stop()
         self.assertIn("/api/ping", INDEX_HTML)
         self.assertIn("PING_MS = 60000", INDEX_HTML)       # once a minute
-
-
-class PingTests(unittest.TestCase):
-    def test_ping_answers_at_once(self) -> None:
-        from pouncer.web import WebServer, INDEX_HTML
-        web = WebServer("127.0.0.1", 0, lambda **k: {}, lambda *a, **k: None, lambda *a, **k: None,
-                        lambda: None, lambda *a, **k: None, lambda *a: None, lambda *a, **k: None,
-                        lambda *a: None, lambda *a: None)
-        web.start()
-        try:
-            d = json.loads(urllib.request.urlopen(f"http://127.0.0.1:{web.port}/api/ping",
-                                                  timeout=5).read())
-            self.assertTrue(d["ok"])
-        finally:
-            web.stop()
-        self.assertIn("/api/ping", INDEX_HTML)
-        self.assertIn("PING_MS = 60000", INDEX_HTML)       # once a minute
         self.assertIn('id="pingtag"', INDEX_HTML)

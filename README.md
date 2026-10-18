@@ -553,14 +553,9 @@ Give them all the same `[rbn] spotter` and modes.
 
 ## Reading a tile (phone view)
 
-**Ping**: the small line under the header starts with the round trip from
-the phone to the POUNCer PC (**23 ms**, measured every minute; green under
-150 ms, amber under 500, red slower, **ping ✕** = no answer). Tap it for
-min / avg / max of the last 10 minutes - handy over Wi-Fi or ZeroTier.
-
 **Ping**: a small label above **CLR** shows the round trip from the phone
-to the POUNCer PC (**23ms**, measured every minute; green under 150 ms,
-amber under 500, red slower, **✕ping** = no answer in 5 s). Tap it for
+to the POUNCer PC (**ping 23ms**, measured every minute; green under 150 ms,
+amber under 500, red slower, **ping ✕** = no answer in 5 s). Tap it for
 min / avg / max of the last 10 minutes - handy over Wi-Fi or ZeroTier.
 
 Pop-up messages **stack**: press several keys quickly and each one's
