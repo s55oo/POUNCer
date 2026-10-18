@@ -171,7 +171,11 @@ INDEX_HTML = """<!doctype html>
   .call .rare { font-size: .8em; margin-left: 4px; }
   .call .busted { color: #ffb74d; margin-left: 3px; font-weight: 700; }
   .detail .fq { font-weight: 800; color: #fff; }  /* spot frequency stands out */
-  button.tile.stale { opacity: .42; }  /* not re-spotted lately: probably gone */
+  /* not re-spotted lately (probably gone): a darker tile, the text stays
+     white / yellow and readable - only the background says "old" */
+  button.tile.stale { background: #192125; }
+  button.tile.stale.strong { background: #183a1c; }
+  button.tile.stale .detail { opacity: .7; }
   .meta .warn { color: #ffb74d; font-weight: 700; }
   button.tile.tight .call { font-size: 18px; }
   button.tile.tight .call.long, button.tile.tight .call.xlong { font-size: 15px; }
@@ -1619,7 +1623,7 @@ then - after switching contests the counts can belong to the old one until N1MM 
   <dt>cq3m</dt>
   <dd>Calling on this frequency for 3 minutes (learned live from the RBN spots).</dd>
 </dl>
-<p>A <b>faded</b> tile has not been re-spotted for 5 minutes - the station has probably
+<p>A <b>darker</b> tile (the text stays white) has not been re-spotted for 5 minutes - the station has probably
 stopped calling there. Not shown: stations you already worked on this band and mode,
 your own call, and beacons. One tile per station and band (the newest spot).</p>
 <p><b>Alert</b>: when a rare CQ (&#9889;) that is also a new multiplier appears on your

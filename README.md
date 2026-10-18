@@ -25,7 +25,7 @@ menu), CLR / Time / Freq / SNR / DX / MLT / ⚡ sorting, needed spots and QSOs
 per band under it. Tiles: green = strong (20 dB+), ⚡ = rare CQ, run % and
 hours from past logs (R52% ~12h), first heard, SNR and how long it has been
 calling (cq5m), pink stripe = new multiplier, ↻11m = you tapped it 11
-minutes ago, faded = not re-spotted for 5 minutes. On the right F1 CQ, F2 RPRT, F3 TU, F4 CALL, F5 HisCALL, F7 ?, ENTER
+minutes ago, darker tile = not re-spotted for 5 minutes. On the right F1 CQ, F2 RPRT, F3 TU, F4 CALL, F5 HisCALL, F7 ?, ENTER
 and SPOTit (half-size keys for F1 / F3 / F5 / F7 / SPOTit); WPM / ±25 Hz /
 NEXT at the bottom.*
 
@@ -567,7 +567,7 @@ All phone keys and marks: **[docs/SYMBOLS.md](docs/SYMBOLS.md#phone-page)**.
 | 22dB | skimmer SNR |
 | cq3m | calling on this frequency for 3 minutes (from RBN) |
 
-A **faded** tile = not re-spotted for 5 min (probably gone). When a rare CQ
+A **darker** tile (text still white) = not re-spotted for 5 min (probably gone). When a rare CQ
 (⚡) that is also a **new multiplier** appears, the phone shows it and beeps
 (*Alert pop-up* / *Alert sound* in the band menu, each on its own). If S53WW goes quiet for 5 min, other skimmers on your
 continent are used ("⚠ backup skimmers") until it is back.

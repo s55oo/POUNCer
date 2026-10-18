@@ -1,5 +1,11 @@
 # POUNCer — Changelog
 
+## v0.7.81 — 2026-10-18 — old tiles readable
+
+- Phone: a tile not re-spotted for 5 minutes is no longer greyed out as a
+  whole - only its background gets darker, the call stays white (yellow for
+  DX) and easy to read, so old and new spots still look different.
+
 ## Docs — 2026-10-17 — one-page overview
 
 - New **docs/OVERVIEW.md**: POUNCer on one page (what it is, how it works,
