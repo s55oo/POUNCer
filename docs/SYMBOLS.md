@@ -181,6 +181,8 @@ Marks in the call and Mult columns:
 
 | What you see | Meaning |
 | --- | --- |
+| **23 ms** (first, green / amber / red) | ping: round trip phone → POUNCer PC → phone, measured every minute; green under 150 ms, amber under 500, red slower; **ping ✕** = no answer in 5 s. Tap it: min / avg / max of the last 10 minutes |
+| small **23ms** above CLR (green / amber / red) | ping: round trip phone → POUNCer PC → phone, every minute; green under 150 ms, amber under 500, red slower; **✕ping** = no answer in 5 s. Tap it: min / avg / max of the last 10 minutes |
 | **(+12 weak)** | 12 spots are hidden by the minimum SNR (hold SNR to change it) |
 | **calm** | calm list: tiles keep their place and are re-sorted every 15 s |
 | **⚠ cty** (or another check) | the pre-contest check found something; tap it for the details |

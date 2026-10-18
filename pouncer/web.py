@@ -253,6 +253,19 @@ INDEX_HTML = """<!doctype html>
     font: inherit; font-size: 22px; font-weight: 800; padding: 10px 0; cursor: pointer; }
   #snrsheet .snrval { text-align: center; font-size: 24px; font-weight: 800; color: #80cbc4; }
   .weaktag { color: #80cbc4; }
+  /* ping to the POUNCer PC (every minute): green < 150 ms, amber < 500, red */
+  /* in the header, just left of CLR: small, two lines ("23" over "ms") */
+  /* between the frequency and CLR, right next to CLR; it gives way first
+     (shrinks, then is cut) so the frequency never is */
+  /* a small label just above the first button (CLR): takes no width in the
+     row, so the frequency never gets less room */
+  .sorts { position: relative; }
+  .ping { position: absolute; left: 1px; top: -10px; font-weight: 700; cursor: pointer;
+    font-size: 10px; line-height: 10px; white-space: nowrap; padding: 0 2px; opacity: 1 !important;
+    margin: 0 !important; }
+  .ping:empty { display: none; }
+  .ping small { font-size: 9px; font-weight: 600; opacity: .8; margin-left: 1px; }
+  .ping.ok { color: #81c784; } .ping.slow { color: #ffd54f; } .ping.bad { color: #ff8a80; }
   /* already tried (tapped): small blue mark after the call */
   button.tile .call .tried { font-size: 13px; font-weight: 700; color: #90caf9;
     margin-left: 5px; vertical-align: middle; }
@@ -311,7 +324,7 @@ INDEX_HTML = """<!doctype html>
   header .meta .cur { color: #ffeb3b; font-weight: 700; }
   header .meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 4px; }
   @media (max-width: 480px) {
-    .sorts > span, .sorts .lbl, .band .app, .band .khz, .band .modes, .meta .cnr { display: none; }
+    .sorts > span:not(.ping), .sorts .lbl, .band .app, .band .khz, .band .modes, .meta .cnr { display: none; }
     header .sorts { gap: 3px; flex-wrap: nowrap; }
     header .sorts button { padding: 7px 6px; font-size: 14px; }
     header .sorts button.reconnect { margin-left: 2px; padding: 7px 9px; }
@@ -427,6 +440,7 @@ INDEX_HTML = """<!doctype html>
   <div class="top">
   <button class="title band" id="band" title="Change band">POUNCer</button>
   <div class="sorts">
+    <span class="ping" id="pingtag" title="Round trip to the POUNCer PC (every minute) - tap for the last 10"></span>
     <span>Sort:</span>
     <button class="radiosw" id="radiosw" hidden title="SO2R: radio A or B - taps, keys and the band list go to this radio (N1MM Entry Window A / B)">A</button>
     <button class="clr" id="clr" title="Clear all spots (e.g. old spots before the contest). Undo for 5 s">CLR</button>
@@ -702,6 +716,45 @@ INDEX_HTML = """<!doctype html>
     const s = fresh[0];
     if (alertPop) toast('\u26a1 rare CQ + new mult: ' + s.call + ' ' + s.freq.toFixed(1));
   }
+  // Ping: the round trip phone -> POUNCer PC -> phone, once a minute (a tiny
+  // request POUNCer answers at once; a browser can't send a real ICMP ping).
+  // Shown first in the small line; tap it for the last 10.
+  const PING_MS = 60000;
+  const ping = {last: null, hist: [], lost: false, at: 0};
+  async function doPing() {
+    const t0 = performance.now();
+    try {
+      const ctl = new AbortController();
+      const to = setTimeout(() => ctl.abort(), 5000);
+      const r = await fetch('/api/ping?_=' + Date.now(), {cache: 'no-store', signal: ctl.signal});
+      clearTimeout(to);
+      await r.json();
+      ping.last = Math.round(performance.now() - t0);
+      ping.lost = false;
+    } catch (e) {
+      ping.last = null;
+      ping.lost = true;
+    }
+    ping.at = Date.now();
+    ping.hist.push(ping.lost ? null : ping.last);
+    if (ping.hist.length > 10) ping.hist.shift();
+    const el = document.getElementById('pingtag');
+    el.className = 'ping ' + (ping.lost ? 'bad' : (ping.last < 150 ? 'ok' : (ping.last < 500 ? 'slow' : 'bad')));
+    el.innerHTML = ping.lost ? '\u2715<small>ping</small>' : ping.last + '<small>ms</small>';
+  }
+  function pingInfo() {
+    const ok = ping.hist.filter(v => v != null);
+    const lost = ping.hist.length - ok.length;
+    const txt = ok.length
+      ? 'Ping to the POUNCer PC: last ' + (ping.last == null ? 'lost' : ping.last + ' ms') +
+        ', min ' + Math.min(...ok) + ' / avg ' + Math.round(ok.reduce((a, b) => a + b, 0) / ok.length) +
+        ' / max ' + Math.max(...ok) + ' ms over ' + ping.hist.length + ' min' + (lost ? ', ' + lost + ' lost' : '')
+      : 'Ping to the POUNCer PC: no answer';
+    toast(txt, null, 6000);
+  }
+  document.getElementById('pingtag').onclick = pingInfo;
+  setTimeout(doPing, 1500);
+  setInterval(doPing, PING_MS);
   function bandOf(khz) { return Math.round(khz / 1000); }
   function cqText(m) {
     return m < 60 ? m + 'm' : Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0');
@@ -1921,6 +1974,14 @@ phone (each phone its own).</p>
   });
 </script>
 
+<p><b>Ping</b>: the small line starts with the round trip from this phone to the POUNCer PC,
+measured every minute (<span style="color:#81c784">green</span> under 150 ms,
+<span style="color:#ffd54f">amber</span> under 500, <span style="color:#ff8a80">red</span> slower,
+<b>ping &#10005;</b> = no answer in 5 s). Tap it: min / avg / max of the last 10 minutes.</p>
+<p><b>Ping</b>: the small number above <b>CLR</b> is the round trip from this phone to the
+POUNCer PC, measured every minute (<span style="color:#81c784">green</span> under 150 ms,
+<span style="color:#ffd54f">amber</span> under 500, <span style="color:#ff8a80">red</span> slower,
+<b>&#10005;ping</b> = no answer in 5 s). Tap it: min / avg / max of the last 10 minutes.</p>
 <div class="note">Messages (e.g. "Cleared 12 spots", "CW faster") pop up level with the
 ENTER key for 5 s - press two or three keys and they <b>stack</b> (newest at the bottom, up to
 4), so you see each one; tap one to close it. Only the rare-CQ + new-mult alert beeps:
@@ -2748,6 +2809,9 @@ class _Handler(BaseHTTPRequestHandler):
         if parsed.path in ("/", "/index.html"):
             page = INDEX_HTML.replace("__VERSION__", __version__)
             self._send(200, page.encode("utf-8"), "text/html; charset=utf-8")
+            return
+        if parsed.path == "/api/ping":    # phone: round trip to this PC (no work done)
+            self._send_json({"ok": True, "t": time.time()})
             return
         if parsed.path == "/api/spots":
             band = (parse_qs(parsed.query).get("band") or [""])[0].strip()
