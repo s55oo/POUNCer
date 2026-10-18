@@ -1788,7 +1788,7 @@ page. The Windows window has its own two (View menu).</p>
   <dt><span class="k green">F1</span> &hellip; <span class="k green">F7</span></dt>
   <dd>Press that function key in N1MM - it <b>transmits</b> N1MM's message (F1 QRL?,
     F2 report, F3 TU, F4 your call, F5 his call, F7 ?). The label on the key says which.
-    <b>Half-size</b> keys share one key's place: F1 + F3 at the top, F5 + F7 under F4
+    <b>Half-size</b> keys share one key's place: F1 + F3 at the top, F5, F7 and F11 under F4
     (the order and which are half size: <i>Settings &gt; Program</i>, or
     <code>[ui] fkeys</code> / <code>fkeys_half</code>).</dd>
   <dt><span class="k">SNR</span> held 1.3 s</dt>

@@ -1,5 +1,11 @@
 # POUNCer — Changelog
 
+## v0.7.85 — 2026-10-18 — F11 key
+
+- New **F11** key after F7, half size like F5 / F7 (window and phone). A key
+  list or half-size list an older POUNCer wrote unchanged gets it by itself;
+  a list you changed yourself stays (add `F11` in *Settings > Program*).
+
 ## v0.7.84 — 2026-10-18 — phone: shorter full keys
 
 - Phone key column: the full-size keys (F2, F4, ENTER ...) are a third

@@ -27,6 +27,12 @@ OLD_DEFAULT_FKEYS = (
      ("Enter", "Enter")),
     (("F2", "RPRT"), ("F3", "TU"), ("F1", "QRL?"), ("F4", "CALL"), ("F5", "HisCALL"), ("F7", "?"),
      ("Enter", "Enter"), ("SpotIt", "SPOTit")),
+    (("F1", "QRL?"), ("F3", "TU"), ("F2", "RPRT"), ("F4", "CALL"), ("F5", "HisCALL"), ("F7", "?"),
+     ("Enter", "Enter"), ("SpotIt", "SPOTit")),
+)
+# half-size key lists older POUNCers wrote as their default (upper-case)
+OLD_DEFAULT_FKEYS_HALF = (
+    ("F1", "F3", "F5", "F7", "SPOTIT"),
 )
 
 
@@ -111,12 +117,12 @@ class Config:
 
     fkeys: tuple[tuple[str, str], ...] = (
         ("F1", "QRL?"), ("F3", "TU"), ("F2", "RPRT"), ("F4", "CALL"), ("F5", "HisCALL"),
-        ("F7", "?"), ("Enter", "Enter"), ("SpotIt", "SPOTit"),
+        ("F7", "?"), ("F11", "F11"), ("Enter", "Enter"), ("SpotIt", "SPOTit"),
     )
     fkeys_text: str = ""                 # the [ui] fkeys line as written (Settings)
     fkeys_half_text: str = ""
     # phone page: these keys are half as tall (F3 + F1, F5 + F7 share one key's place)
-    fkeys_half: tuple[str, ...] = ("F1", "F3", "F5", "F7", "SPOTIT")
+    fkeys_half: tuple[str, ...] = ("F1", "F3", "F5", "F7", "F11", "SPOTIT")
 
     tune_step_hz: int = 25
     # RX filter width assumed at start (N1MM only toggles): narrow/wide/""
@@ -338,8 +344,11 @@ def load_config(path: str) -> Config:
     if cfg.fkeys in OLD_DEFAULT_FKEYS:
         cfg.fkeys = default_keys
     cfg.fkeys_text = " ".join(k if v == k else f"{k}:{v}" for k, v in cfg.fkeys)
+    default_half = cfg.fkeys_half
     half = s("ui", "fkeys_half", s("web", "fkeys_half", " ".join(cfg.fkeys_half)))
     cfg.fkeys_half = tuple(k.upper() for k in re.split(r"[,;\s]+", half) if k.strip())
+    if cfg.fkeys_half in OLD_DEFAULT_FKEYS_HALF:      # unchanged old default: new keys too
+        cfg.fkeys_half = default_half
     cfg.fkeys_half_text = " ".join(cfg.fkeys_half)
 
     sm = s("ssb", "mode", cfg.ssb_mode).strip().lower()
