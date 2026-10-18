@@ -1,18 +1,17 @@
 # POUNCer — Changelog
 
+## v0.7.89 — 2026-10-18 — "ping 6ms"
+
+- The phone's ping label reads **ping 6ms** (no answer: **ping ✕**).
+- Docs: removed a duplicate, outdated ping paragraph that v0.7.88 left in
+  the README, help page, SYMBOLS, NETWORK and changelog.
+
 ## v0.7.88 — 2026-10-18 — phone ping
 
 - Phone: a small **ping** label above CLR - the round trip of a tiny request
   to the POUNCer PC, every minute: green < 150 ms, amber < 500 ms, red
   slower, **✕ping** = no answer in 5 s. Tap it for min / avg / max of the
   last 10 minutes. It takes no room in the header row. New `/api/ping`.
-
-## v0.7.88 — 2026-10-18 — phone ping
-
-- Phone: the small line starts with the **ping** to the POUNCer PC (round
-  trip of a tiny request, every minute): green < 150 ms, amber < 500 ms,
-  red slower, **ping ✕** = no answer in 5 s. Tap it for min / avg / max of
-  the last 10 minutes. New `/api/ping`.
 
 ## v0.7.87 — 2026-10-18 — slow N1MM: no false warning, no lost call
 
