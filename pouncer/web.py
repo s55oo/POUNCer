@@ -1377,8 +1377,12 @@ INDEX_HTML = """<!doctype html>
     if (!pendingTap) return;
     const t = data.tap;
     if (t && t.n > pendingTap.since && String(t.call).toUpperCase() === pendingTap.call) {
-      retoast(pendingTap.el, (t.ok ? '\u2713 ' : '\u26a0 ') + t.call + ': ' + t.text, t.ok ? 4000 : 8000);
-      pendingTap = null;
+      // "waiting for N1MM ..." (it is often just slow): keep listening for
+      // the late report (\u2713) or the final warning
+      retoast(pendingTap.el, (t.ok ? '\u2713 ' : (t.wait ? '\u23f3 ' : '\u26a0 ')) + t.call + ': ' + t.text,
+              t.ok ? 4000 : (t.wait ? 12000 : 8000));
+      if (t.wait) { pendingTap.since = t.n; pendingTap.at = Date.now() + 10000; }
+      else pendingTap = null;
     } else if (Date.now() - pendingTap.at > 8000) {
       retoast(pendingTap.el, '\u26a0 ' + pendingTap.call + ': no answer from POUNCer - is it still running?', 8000);
       pendingTap = null;
@@ -1728,8 +1732,10 @@ then - after switching contests the counts can belong to the old one until N1MM 
     (no transmit). The tile you tapped keeps a <span class="yel">yellow ring</span> and
     <b>stays in its place</b> until you log it (or 60 s) - the others re-sort around it.
     The message then says what really happened: <b>&#10003; OK1BB: radio on 7012.0 &middot;
-    call in</b>, or <b>&#9888; ... N1MM didn't report 7012.0</b> when the radio didn't move
-    (no answer at all = POUNCer not running?).</dd>
+    call in</b>. N1MM slow to report the new frequency: <b>&#9203; waiting for N1MM</b>, then
+    <b>&#10003; ... (N1MM reported it late, 3.1 s)</b> - POUNCer sent the QSY again and put the
+    call back if N1MM's late QSY wiped it - or <b>&#9888; N1MM never reported 7012.0 - check the
+    radio</b> (no answer at all = POUNCer not running?).</dd>
   <dt>Hold 2 s</dt>
   <dd>A box with <b>Remove</b> (that call off the list on this band, with Undo) and
     <b>Debug</b>: everything about that exact spot - why the tile has its colour and marks

@@ -170,9 +170,12 @@ is required.
 - Marks: new multiplier (single / double), worked, ⚡ rare CQ (from 5 years
   of logs), ? busted call (Super Check Partial), ↻ already tried, strong.
 - **Tap** (phone) or **click** (window) = QSY + call into N1MM, no TX. The
-  phone then says what really happened (✓ radio on 7012.0 · call in / ⚠ N1MM
-  didn't report it). The tapped station **keeps its place** until logged or
-  60 s.
+  phone then says what really happened (✓ radio on 7012.0 · call in; ⏳
+  waiting for N1MM when its report is slow, then ✓ "reported it late" or ⚠
+  "never reported - check the radio"). A slow N1MM is handled: no report in
+  2.5 s → the QSY is sent once more; the call is kept in the box and put
+  back if N1MM's late QSY wipes it (only into an empty box, never over your
+  typing). The tapped station **keeps its place** until logged or 60 s.
 - Band menu / band chips: look at another band without moving the radio;
   **ALL bands** on the phone = every band on one list (hunting new mults).
 - Minimum SNR, DX / MLT / ⚡ first, calm list, NEXT, CLR with undo.
@@ -797,7 +800,7 @@ All options live in `config.ini` and are documented there, line by line:
 | `freq_decimal` | auto | Decimal sign of a typed frequency (`auto` = Windows setting, `.` or `,`). |
 | `set_callsign`, `wipe_before_call`, `focus_n1mm` | true | Put the call in, wipe first, bring N1MM to the front. |
 | `type_mode` | settext | `settext` = call in one go (checked), `keys` = typed key by key. |
-| `qsy_wait_ms`, `qsy_settle_ms` | 1500, 250 | Wait for N1MM's new frequency, then this long before the call. |
+| `qsy_wait_ms`, `qsy_settle_ms` | 2500, 250 | Wait (at most) for N1MM's new frequency, then this long before the call. A later report is still watched for 8 s ("reported it late"); 1500, the old default, is read as 2500. |
 | `return_focus` | true | After a tap for the other radio: cursor back where it was. |
 | `focus_back_to_a` | false | After every radio B tap: cursor to Entry Window A. |
 | `cw_speed` | true | Read N1MM's CW speed (WPM) from the Entry Windows' speed box and show it. |

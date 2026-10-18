@@ -1481,6 +1481,21 @@ class PouncerApp:
             time.sleep(0.05)
         return landed_at is not None
 
+    def _restore_call(self, hwnd, call: str) -> bool:
+        """After a late N1MM QSY: the callsign box empty (N1MM wiped it)?
+        Put the call in again. Anything else in the box is left alone."""
+        if not hwnd or not self._settext():
+            return False
+        try:
+            got = focused_edit_text(hwnd)
+        except Exception:  # noqa: BLE001 - window gone
+            return False
+        if got is None or got.strip():
+            return False
+        set_focused_edit_text(hwnd, call)
+        log.info("tap %s: call put in again (N1MM wiped it with its late QSY)", call)
+        return True
+
     def _snapshot_focus(self):
         """SO2R: where the cursor is before we go to the other radio's window."""
         if not getattr(self.cfg, "return_focus", False) or not self._so2r():
@@ -1539,6 +1554,7 @@ class PouncerApp:
                 time.sleep(0.15)
 
         t0 = time.time()
+        self._late_qsy = None             # a new tap: stop watching the last one
         # the clicked station keeps its row in the window list until it is
         # logged (leaves the list) or PIN_S passed
         key = (spot.dxcall.upper(), band_from_khz(spot.freq_khz))
@@ -1552,9 +1568,24 @@ class PouncerApp:
         self.taps.record(spot.dxcall, spot.freq_khz)   # for the contest summary
         # wait until N1MM reports the radio on the new frequency (it wipes
         # the callsign when the radio moves), radio B too
+        t_wait = time.time()
         landed = self._wait_for_qsy(nr, spot.freq_khz)
+        msg_retry = ""
+        if not landed and not self._types_qsy(nr) and self.cfg.qsy_wait_ms:
+            # N1MM didn't report the new frequency: send the QSY once more and
+            # wait again (only the UDP command - typing the frequency again
+            # would go into the callsign box)
+            log.info("tap %s: no report of %.1f after %.1f s - QSY sent again", spot.dxcall,
+                     spot.freq_khz, time.time() - t_wait)
+            if self._qsy(nr, spot.freq_khz, hwnd, focused):
+                landed = self._wait_for_qsy(nr, spot.freq_khz)
+                if landed:
+                    msg_retry = " [QSY sent again]"
+        reported = f"N1MM reported it after {time.time() - t_wait:.1f} s" if landed else \
+            f"N1MM didn't report it within {self.cfg.qsy_wait_ms / 1000:.1f} s"
 
         msg = f"QSY {self._radio_tag(nr)}{spot.freq_khz:.1f} kHz -> {spot.dxcall}"
+        msg += msg_retry
         if self.set_call_var.get():
             can_type = focused or not self.cfg.focus_n1mm
             if can_type:
@@ -1574,7 +1605,9 @@ class PouncerApp:
                 how = self._enter_text(hwnd, spot.dxcall)
                 msg += " (call typed, no TX)" + ("" if how else " [box not cleared]")
                 msg += self._check_call(hwnd, spot.dxcall)
-                if not landed and nr == 2 and self._so2r():
+                if not landed:
+                    # N1MM's QSY (and its wipe of the callsign) may still come:
+                    # keep the call in the box a little longer - every radio
                     landed = self._guard_call(hwnd, spot.dxcall, nr, spot.freq_khz)
                 if not landed:
                     msg += " [N1MM didn't report the new frequency]"
@@ -1583,18 +1616,56 @@ class PouncerApp:
         if self.cfg.focus_n1mm:
             msg += " [N1MM focused]" if focused else " [N1MM focus failed]"
         msg += self._after_radio(nr, snap, hwnd)
-        msg += f" ({time.time() - t0:.1f} s)"
+        msg += f" ({time.time() - t0:.1f} s; {reported})"
         self.status_label.configure(text=msg)
         log.info("tap %s: %s", spot.dxcall, msg)
         if landed:
             short = f"radio {self._radio_tag(nr)}on {spot.freq_khz:.1f}"
         else:
-            short = f"N1MM didn't report {spot.freq_khz:.1f} - check the radio"
+            # not yet: N1MM is often just slow to report - watched a while
+            # longer in _tick (_check_late_qsy), the phone then gets the result
+            short = f"waiting for N1MM to report {spot.freq_khz:.1f}\u2026"
+            self._late_qsy = {"spot": spot, "nr": nr, "t0": t_wait, "typed": "call typed" in msg,
+                              "hwnd": hwnd}
         if "call typed" in msg:
             short += " \u00b7 call in"
         elif "call skipped" in msg:
             short += " \u00b7 call NOT typed (N1MM not focused)"
         _note_tap(self, spot, nr, bool(landed), short, msg)
+        if not landed:
+            self._last_tap["wait"] = True          # the phone keeps listening
+
+    LATE_QSY_S = 8.0     # after the wait: keep watching for N1MM's report this long
+
+    def _check_late_qsy(self) -> None:
+        """A tap whose new frequency N1MM hadn't reported in time: did the
+        report come after all? Then say so (the phone turns its message into
+        ✓); after LATE_QSY_S the warning stands."""
+        w = getattr(self, "_late_qsy", None)
+        if not w:
+            return
+        spot, nr = w["spot"], w["nr"]
+        snap = self.state.snapshot(nr)
+        f = snap.get("freq_khz") if snap else None
+        took = time.time() - w["t0"]
+        tail = " \u00b7 call in" if w["typed"] else ""
+        if f is not None and abs(f - spot.freq_khz) <= 0.15:
+            self._late_qsy = None
+            log.info("tap %s: N1MM reported %.1f late, after %.1f s", spot.dxcall,
+                     spot.freq_khz, took)
+            if w["typed"] and w.get("hwnd"):
+                # N1MM wipes the callsign when its (late) QSY lands: put the
+                # call back - only into an empty box, never over your typing
+                for ms in (300, 800, 1500):
+                    self.root.after(ms, lambda h=w["hwnd"], c=spot.dxcall: self._restore_call(h, c))
+            _note_tap(self, spot, nr, True, f"radio {self._radio_tag(nr)}on {spot.freq_khz:.1f} "
+                      f"(N1MM reported it late, {took:.1f} s){tail}")
+        elif took > self.cfg.qsy_wait_ms / 1000 + self.LATE_QSY_S:
+            self._late_qsy = None
+            log.info("tap %s: N1MM never reported %.1f (radio %s at %s)", spot.dxcall,
+                     spot.freq_khz, self._radio_tag(nr).strip() or "A", f)
+            _note_tap(self, spot, nr, False, f"N1MM never reported {spot.freq_khz:.1f} - "
+                      f"check the radio{tail}")
 
     def _tick(self) -> None:
         """The refresh tick, timed for the perf log (a slow tick = a slow window)."""
@@ -1628,6 +1699,7 @@ class PouncerApp:
     def _tick_body(self) -> None:
         self.updater.maybe_check()
         self._drain_status()
+        self._check_late_qsy()
         self._drain_spots()
         self._drain_wpm()
         self._ensure_rbn_clients()

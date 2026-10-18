@@ -43,7 +43,8 @@ SETTINGS: list[dict] = [
      "live": True, "group": "Tap -> N1MM",
      "label": "Wait for N1MM's new frequency (ms)",
      "help": "After a QSY, wait (at most) this long until N1MM reports the radio on the "
-             "new frequency before the call is put in."},
+             "new frequency before the call is put in (default 2500). No report: the QSY is "
+             "sent once more, the call kept in the box and put back if N1MM wipes it."},
     {"key": "n1mm.qsy_settle_ms", "attr": "qsy_settle_ms", "kind": "int", "min": 0, "max": 5000,
      "live": True, "group": "Tap -> N1MM",
      "label": "Then wait (ms)",
