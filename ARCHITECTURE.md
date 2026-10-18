@@ -348,7 +348,7 @@ serves the same needed spots as tap tiles. Page layout, top to bottom:
 The page sorts client-side (instant, works while polling). The server feed is
 capped at `WEB_MAX_SPOTS` (60) strongest-SNR spots.
 
-**TX / log buttons:** `[ui] fkeys` (default `F2:RPRT F3:TU F4:CALL F5:HisCALL F7:? Enter`) renders the
+**TX / log buttons:** `[ui] fkeys` (default `F1:QRL? F3:TU F2:RPRT F4:CALL F5:HisCALL F7:? F11 Enter SpotIt:SPOTit`) renders the
 same key bar in the main window and the phone page. Tapping one
 fetches `/api/key`, the request is pushed onto `_web_queue` as `("key", key)` and
 drained on the Tk tick like a QSY: `_press_key` focuses the Entry Window and
@@ -415,7 +415,7 @@ LAN/VPN-only and unauthenticated.
 | `max_age_minutes` | `10` | Drop spots older than this. |
 | `trigger` | `single` | `single` or `double` click to act. |
 | `touch_view` | `false` | Open the phone page in the default browser at startup. |
-| `fkeys` | `F2:RPRT F3:TU F4:CALL F5:HisCALL F7:? Enter` | TX/log buttons (main/phone): `KEY[:label]` list, keys `F1`-`F12` (transmit) or `Enter` (logs); empty = no buttons. |
+| `fkeys` | `F1:QRL? F3:TU F2:RPRT F4:CALL F5:HisCALL F7:? F11 Enter SpotIt:SPOTit` | TX/log buttons (main/phone): `KEY[:label]` list, keys `F1`-`F12` (transmit) or `Enter` (logs); empty = no buttons. |
 
 ### `[web]`
 
@@ -624,3 +624,7 @@ viewed band) → `_build_web_payload(radio, "ALL")`: `_visible_spots(band="ALL")
 every contest band (one tile per call + band), sorted new mults first, then SNR,
 cut at `WEB_MAX_SPOTS_ALL` = 120. The page's "radio changed band → follow it"
 reset skips an ALL view, so it survives the QSY a tap makes.
+
+Key list upgrades: `OLD_DEFAULT_FKEYS` / `OLD_DEFAULT_FKEYS_HALF` hold the defaults
+older versions wrote; an ini line equal to one of them is read as today's default
+(v0.7.85: F11 after F7, half size), a line you changed stays.

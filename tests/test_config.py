@@ -44,9 +44,9 @@ class LoadConfigTests(unittest.TestCase):
         self.assertFalse(cfg.touch_view)
         self.assertEqual(cfg.fkeys, (
             ("F1", "QRL?"), ("F3", "TU"), ("F2", "RPRT"), ("F4", "CALL"), ("F5", "HisCALL"),
-            ("F7", "?"), ("Enter", "Enter"), ("SpotIt", "SPOTit"),
+            ("F7", "?"), ("F11", "F11"), ("Enter", "Enter"), ("SpotIt", "SPOTit"),
         ))
-        self.assertEqual(cfg.fkeys_half, ("F1", "F3", "F5", "F7", "SPOTIT"))
+        self.assertEqual(cfg.fkeys_half, ("F1", "F3", "F5", "F7", "F11", "SPOTIT"))
         self.assertTrue(cfg.hide_beacons)
 
     def test_fkeys_from_legacy_web_section(self):
@@ -143,6 +143,22 @@ class FkeysUpgradeTests(unittest.TestCase):
             self.assertEqual(cfg.fkeys, (("F4", "CALL"), ("Enter", "Enter")))
             self.assertEqual(cfg.fkeys_half, ())
             self.assertEqual(cfg.fkeys_text, "F4:CALL Enter")
+
+    def test_v084_default_lines_get_f11(self) -> None:
+        import os
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "config.ini")
+            with open(p, "w", encoding="utf-8") as fh:
+                fh.write("[ui]\nfkeys = F1:QRL? F3:TU F2:RPRT F4:CALL F5:HisCALL F7:? Enter "
+                         "SpotIt:SPOTit\nfkeys_half = F1 F3 F5 F7 SpotIt\n")
+            cfg = load_config(p)
+            keys = [k for k, _ in cfg.fkeys]
+            self.assertEqual(keys.index("F11"), keys.index("F7") + 1)      # right after F7
+            self.assertIn("F11", cfg.fkeys_half)                          # same size as F7
+            with open(p, "w", encoding="utf-8") as fh:
+                fh.write("[ui]\nfkeys_half = F1 F3\n")
+            self.assertEqual(load_config(p).fkeys_half, ("F1", "F3"))     # yours: kept
 
 
 if __name__ == "__main__":
