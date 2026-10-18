@@ -63,6 +63,8 @@ GITHUB_URL = "https://github.com/s55oo/POUNCer"
 REFRESH_MS = 500
 CW_PUMP_MS = 80   # phone CW keyboard: typed text handled this often
 WEB_MAX_SPOTS = 60
+WEB_MAX_SPOTS_ALL = 120  # phone band menu > ALL: every band, new mults first
+ALL_BANDS = "ALL"
 WEB_VIEW_S = 10  # keep building a band a phone looks at this long after its last ask
 RADIO_ALIVE_SECONDS = 30
 GUARD_CALL_S = 1.0  # radio B: after the call, keep it in the box this long if N1MM's QSY came late
@@ -1662,11 +1664,19 @@ class PouncerApp:
         radio = radio or self.radio
         self._last_weak = 0
         real_band = self._current_band(radio)
-        spots = sorted(
-            self._visible_spots(radio, view_band),
-            key=lambda s: s.snr if s.snr is not None else -999,
-            reverse=True,
-        )[:WEB_MAX_SPOTS]
+        if view_band == ALL_BANDS:
+            # all bands (hunting mults): new mults first so none is cut off
+            spots = sorted(
+                self._visible_spots(radio, view_band),
+                key=lambda s: (self._mults(s), s.snr if s.snr is not None else -999),
+                reverse=True,
+            )[:WEB_MAX_SPOTS_ALL]
+        else:
+            spots = sorted(
+                self._visible_spots(radio, view_band),
+                key=lambda s: s.snr if s.snr is not None else -999,
+                reverse=True,
+            )[:WEB_MAX_SPOTS]
         return {
             # band of the list: the radio's, or the one picked in the band menu
             "band": view_band or real_band,
@@ -1804,7 +1814,8 @@ class PouncerApp:
         radio isn't moved - tapping a station there QSYs it)."""
         cache = self._web_cache
         base = cache.get(radio or self.radio) or cache.get(self.radio) or cache.get(1) or {}
-        if not band or band not in CONTEST_BANDS or band == base.get("band"):
+        if not band or (band not in CONTEST_BANDS and band != ALL_BANDS) \
+                or band == base.get("band"):
             return base
         key = (base.get("radio") or radio or self.radio, band)
         self._web_views[key] = time.time()        # the next tick builds it
@@ -2901,9 +2912,11 @@ class PouncerApp:
             self._last_band = band
         modes = {m.upper() for m in self._effective_modes(radio)}
         own = self.own_call()
+        every = band == ALL_BANDS          # phone band menu > ALL: every contest band
         items = [
             s for s in self.spots.values()
-            if (band is None or band_from_khz(s.freq_khz) == band)
+            if (band is None or band_from_khz(s.freq_khz) == band
+                or (every and band_from_khz(s.freq_khz) in CONTEST_BANDS))
             and s.mode.upper() in modes
             and not (self.cfg.hide_beacons and is_beacon(s))
             and (s.dxcall.upper(), band_from_khz(s.freq_khz)) not in self._removed

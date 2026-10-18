@@ -119,3 +119,23 @@ class ApiTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AllBandsTests(unittest.TestCase):
+    """Phone band menu > ALL: every contest band on one list."""
+
+    def test_all_bands_listed(self) -> None:
+        app = _app()
+        f = FilterTests._fake(self, 0)
+        for call, khz in (("JA1AA", 7012.0), ("ZS6AA", 21030.0), ("BEACON", 50100.0)):
+            s = spot(app, call, 15, freq=khz)
+            f.spots[s.key] = s
+        self.assertNotIn("JA1AA", self.calls_band(f, None))              # radio's band only
+        got = self.calls_band(f, app.ALL_BANDS)
+        self.assertIn("JA1AA", got)
+        self.assertIn("ZS6AA", got)
+        self.assertIn("K1ABC", got)
+        self.assertNotIn("BEACON", got)                                   # 6 m: not a contest band
+
+    def calls_band(self, f, band):
+        return sorted(s.dxcall for s in f._visible_spots(None, band))
