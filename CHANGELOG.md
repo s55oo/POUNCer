@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.7.86 — 2026-10-18 — new default keys
+
+- Default keys: `F1:CQ F2:RPRT F3:TU F4:CALL F5:HisCALL F7:? F11:.. Enter
+  SpotIt:SPOTit`, half size `F1 F3 F5 F7 F11 SpotIt`. A list an older
+  POUNCer wrote unchanged gets them by itself; a list you changed stays.
+- Docs: new phone page picture (40 m, the new keys).
+
 ## v0.7.85 — 2026-10-18 — F11 key
 
 - New **F11** key after F7, half size like F5 / F7 (window and phone). A key

@@ -43,8 +43,8 @@ class LoadConfigTests(unittest.TestCase):
         self.assertEqual(cfg.rbn_ft8_port, 7001)
         self.assertFalse(cfg.touch_view)
         self.assertEqual(cfg.fkeys, (
-            ("F1", "QRL?"), ("F3", "TU"), ("F2", "RPRT"), ("F4", "CALL"), ("F5", "HisCALL"),
-            ("F7", "?"), ("F11", "F11"), ("Enter", "Enter"), ("SpotIt", "SPOTit"),
+            ("F1", "CQ"), ("F2", "RPRT"), ("F3", "TU"), ("F4", "CALL"), ("F5", "HisCALL"),
+            ("F7", "?"), ("F11", ".."), ("Enter", "Enter"), ("SpotIt", "SPOTit"),
         ))
         self.assertEqual(cfg.fkeys_half, ("F1", "F3", "F5", "F7", "F11", "SPOTIT"))
         self.assertTrue(cfg.hide_beacons)
@@ -135,7 +135,7 @@ class FkeysUpgradeTests(unittest.TestCase):
             with open(p, "w", encoding="utf-8") as fh:
                 fh.write("[ui]\nfkeys = F2:RPRT F3:TU F4:CALL F5:HisCALL F7:? Enter\n")
             cfg = load_config(p)
-            self.assertEqual(cfg.fkeys[0], ("F1", "QRL?"))
+            self.assertEqual(cfg.fkeys[0], ("F1", "CQ"))
             self.assertIn(("SpotIt", "SPOTit"), cfg.fkeys)
             with open(p, "w", encoding="utf-8") as fh:
                 fh.write("[ui]\nfkeys = F4:CALL Enter\nfkeys_half =\n")
@@ -156,6 +156,11 @@ class FkeysUpgradeTests(unittest.TestCase):
             keys = [k for k, _ in cfg.fkeys]
             self.assertEqual(keys.index("F11"), keys.index("F7") + 1)      # right after F7
             self.assertIn("F11", cfg.fkeys_half)                          # same size as F7
+            self.assertEqual(cfg.fkeys[:3], (("F1", "CQ"), ("F2", "RPRT"), ("F3", "TU")))
+            with open(p, "w", encoding="utf-8") as fh:                     # v0.7.85's default
+                fh.write("[ui]\nfkeys = F1:QRL? F3:TU F2:RPRT F4:CALL F5:HisCALL F7:? F11 Enter "
+                         "SpotIt:SPOTit\n")
+            self.assertIn(("F11", ".."), load_config(p).fkeys)
             with open(p, "w", encoding="utf-8") as fh:
                 fh.write("[ui]\nfkeys_half = F1 F3\n")
             self.assertEqual(load_config(p).fkeys_half, ("F1", "F3"))     # yours: kept
