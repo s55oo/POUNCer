@@ -1,5 +1,11 @@
 # POUNCer — Changelog
 
+## v0.7.84 — 2026-10-18 — phone: shorter full keys
+
+- Phone key column: the full-size keys (F2, F4, ENTER ...) are a third
+  shorter, so more keys fit (add them in *Settings > Program* / `[ui] fkeys`).
+  Half-size keys stay as they were.
+
 ## v0.7.83 — 2026-10-18 — phone: ALL bands, smaller band keys
 
 - Band menu (tap the frequency): band keys a third smaller, and a new wide

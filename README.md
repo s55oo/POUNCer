@@ -137,7 +137,7 @@ phone page, downloads) with their ports and message formats:
   the top, just under the header, for 5 s (tap to close). On a phone the tiles are compact one-line rows (callsign left,
   details right) so about 10 fit on screen; wider screens get two columns of
   big tiles. The TX/log key buttons sit in a column on the right of the list
-  (F2 at the top, each key two rows tall); they are green and turn red when
+  (full keys such as F2, F4 and ENTER are about 1.3 spot rows tall - room for more keys - half keys one row); they are green and turn red when
   pressed.
   The header shows the radio frequency; **tap it to pick a band** (160, 80,
   40, 20, 15, 10 m): the list then shows **that band's spots** - the radio
@@ -183,7 +183,7 @@ is required.
 
 **Keys** - F1 ... F7 (transmit), ENTER (log; hold 1.3 s = CW keyboard),
 **SPOTit** (N1MM Alt+P, spot to the cluster), WPM − / +, −/+ 25 Hz;
-half-size keys on the phone (F1 + F3, F5 + F7, SPOTit). Order and sizes in
+half-size keys on the phone (F1 + F3, F5 + F7, SPOTit); full keys are compact too, so more keys fit. Order and sizes in
 *Settings > Program*.
 
 **Pictures of the band**

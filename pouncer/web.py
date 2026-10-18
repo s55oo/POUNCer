@@ -370,8 +370,9 @@ INDEX_HTML = """<!doctype html>
     max-height: calc(100vh - var(--hdr, 0px) - var(--ftr, 0px));
     max-height: calc(100dvh - var(--hdr, 0px) - var(--ftr, 0px)); }
   .fkeys:empty { display: none; }
-  /* two spot rows tall; shrinks only if the window is too short for all keys */
-  .fkeys button { flex: 0 1 calc(2 * var(--row) + var(--gap)); min-height: 44px; width: 100%;
+  /* full keys (F2, F4, ENTER ...): two thirds of two spot rows - room for
+     more keys; shrinks only if the window is too short for all keys */
+  .fkeys button { flex: 0 1 calc((2 * var(--row) + var(--gap)) * 2 / 3); min-height: 40px; width: 100%;
     white-space: nowrap; background: #2e7d32; color: #fff; border: 0; padding: 0 4px;
     border-radius: 12px; font: inherit; font-size: var(--kfont); font-weight: 700;
     cursor: pointer; transition: background .12s ease; }
