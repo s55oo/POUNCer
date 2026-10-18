@@ -144,7 +144,7 @@ Marks in the call and Mult columns:
 | **pink stripe** on the left | a new multiplier on this band: thin = single, thick = double |
 | **light blue outline** | your radio is on this frequency (within 0.5 kHz) |
 | **yellow ring** | the tile you tapped last - it keeps its place until you log it, or for 60 s |
-| **faded** tile | not re-spotted for 5 minutes - probably gone |
+| **darker** tile (text still white / yellow) | not re-spotted for 5 minutes - probably gone |
 | **yellow flash** | calm list only: a new station just added at the end |
 | tile goes **dark** while held | hold on: after 2 s it is removed from the list |
 | **⚡** after the call | rare CQ (see above) |
