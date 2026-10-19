@@ -16,6 +16,8 @@ queue as the telnet ones.
 
 from __future__ import annotations
 
+from . import traffic
+
 import json
 import logging
 import queue
@@ -103,6 +105,9 @@ class RBNHttpFeed(threading.Thread):
     def poll_once(self) -> bool:
         """One request; True if more pages are waiting (ask again at once)."""
         doc = json.loads(self._fetch(self._request_url()).decode("utf-8"))
+        if traffic._sink is not None:
+            for raw in doc.get("spots") or ():
+                traffic.emit("HTTP", traffic.squeeze(json.dumps(raw), 300))
         if doc.get("cursor"):
             self.cursor = str(doc["cursor"])
         for raw in doc.get("spots") or ():

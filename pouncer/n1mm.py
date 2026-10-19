@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from . import traffic
+
 import logging
 import socket
 import threading
@@ -234,6 +236,8 @@ class RadioListener(threading.Thread):
                 continue
             except OSError:
                 break
+            if traffic._sink is not None:            # console open: the packet, squeezed
+                traffic.emit(f"N1MM {_addr[0]}", traffic.squeeze(data.decode("utf-8", "replace")))
             info = parse_radio_info(data)
             if info is None:
                 app = parse_app_info(data)
@@ -290,6 +294,8 @@ class N1MMController:
 
     def _send(self, payload: str) -> None:
         self._sock.sendto(payload.encode("utf-8"), self.addr)
+        if traffic._sink is not None:
+            traffic.emit("N1MM >", traffic.squeeze(payload))
 
     def send_radio_command(
         self, command: str, radio_nr: int | None = None, focus_hwnd: int | None = None

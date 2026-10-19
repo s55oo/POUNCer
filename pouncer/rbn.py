@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from . import traffic
+
 import logging
 import calendar
 import queue
@@ -491,6 +493,8 @@ class RBNClient(threading.Thread):
         buf += text
         while "\n" in buf:
             line, buf = buf.split("\n", 1)
+            if traffic._sink is not None:            # console open: show the raw line
+                traffic.emit(self.name or self.kind, line.rstrip("\r"))
             at = line.find("DX de ")
             if at > 0:            # a prompt without a newline in front of it
                 line = line[at:]
@@ -540,6 +544,7 @@ class RBNClient(threading.Thread):
             cmd = f"sh/dx/{self.history}"
         try:
             sock.sendall((cmd + "\r\n").encode("ascii", "ignore"))
+            traffic.emit(f"{self.name or self.kind} >", cmd)
             log.info("RBN: %s", cmd)
         except OSError as exc:
             log.warning("RBN %s failed: %s", cmd, exc)
@@ -551,6 +556,7 @@ class RBNClient(threading.Thread):
             return
         try:
             sock.sendall((self.callsign + "\r\n").encode("ascii", "ignore"))
+            traffic.emit(f"{self.name or self.kind} >", self.callsign)
             self._status(f"logged in as {self.callsign}" +
                          (f" (backup {self.backup[0]})" if self.on_backup and self.backup else ""))
         except OSError as exc:

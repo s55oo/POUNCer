@@ -118,7 +118,7 @@ Marks in the call and Mult columns:
 | **M** in the Mult column | one new multiplier |
 | **MM** in the Mult column | a double multiplier (for example a new country and a new zone) |
 
-### Tiles (View > Spot list as tiles, Ctrl+T)
+### Tiles (View > Spot list as tiles, Ctrl+T; off by default - the table is the default)
 
 | What you see | Meaning |
 | --- | --- |

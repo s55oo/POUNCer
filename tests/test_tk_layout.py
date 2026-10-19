@@ -183,6 +183,7 @@ class TkSettingsWindowTests(unittest.TestCase):
             tiles_var=tk.BooleanVar(value=True),
             updater=types.SimpleNamespace(exe="C:/x/POUNCer.exe"),
             _settings_win=types.SimpleNamespace(open=lambda: None),
+            _console=types.SimpleNamespace(open=lambda: None),
             cfg=types.SimpleNamespace(config_path="C:/x/config.ini", alert_popup=True,
                                       alert_sound=False, look="dark"),
             _start_autostart=lambda: None, _stop_waiting_n1mm=lambda: None, _save_diagnostics=lambda: None, _open_path=lambda p: None,

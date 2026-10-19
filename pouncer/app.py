@@ -34,6 +34,7 @@ from .timeline import Timeline
 from .perf import PerfMonitor
 from .alerts import AlertWatch, beep as alert_beep
 from .panels import TimelineWindow, ZonesWindow
+from .console import TrafficConsole
 from .tiles import TileList
 from . import theme
 from . import autostart as autostartmod
@@ -308,6 +309,10 @@ class PouncerApp:
                                       browser=lambda: self._open_browser("zones"))
         self._timeline_win = TimelineWindow(self.root, self._timeline,
                                             browser=lambda: self._open_browser("timeline"))
+        # View > Traffic console: the taps only work while it is open
+        self._console = TrafficConsole(self.root)
+        self.root.bind_all("<Control-Shift-D>", lambda _e: self._console.open())
+        self.root.bind_all("<Control-Shift-d>", lambda _e: self._console.open())
 
         header = ttk.Frame(self.root, padding=0)
         header.pack(fill="x")
@@ -470,7 +475,8 @@ class PouncerApp:
         self.tree.tag_configure("strong", foreground=theme.T_STRONG)
         self.tree.tag_configure("dx", background=theme.T_DX)
         self.tree.tag_configure("onfreq", background=theme.T_ONFREQ)  # tuned to it
-        self.tree.tag_configure("mult", foreground=theme.T_MULT, font=(theme.FONT, 10, "bold"))
+        self.tree.tag_configure("mult", foreground=theme.T_MULT,
+                                font=(theme.FONT, 9 if theme.MODERN else 10, "bold"))
         self.tree.tag_configure("worked", foreground=theme.T_WORKED)
         self._row_spots: list = []
         # keyboard: arrows move (Treeview), Space taps the selected spot
@@ -544,6 +550,8 @@ class PouncerApp:
         view.add_command(label="Band opening timeline", command=lambda: self._timeline_win.open())
         view.add_command(label="Phone page in the browser", command=self._open_browser)
         view.add_command(label="Phone page as an app window", command=self._open_app_window)
+        view.add_command(label="Traffic console (raw data in / out)", accelerator="Ctrl+Shift+D",
+                         command=lambda: self._console.open())
         view.add_separator()
         looks = tk.Menu(view, tearoff=False)
         self.look_var = tk.StringVar(value=getattr(self.cfg, "look", "classic"))
@@ -1114,6 +1122,8 @@ class PouncerApp:
     def _on_close(self) -> None:
         """Window closed (X / File > Exit): remember it, then quit."""
         self._save_window()
+        if getattr(self, "_console", None) is not None:
+            self._console.close()
         try:
             self.root.destroy()
         except tk.TclError:
@@ -3254,7 +3264,7 @@ class PouncerApp:
             self.tiles_var.set(not self.tiles_var.get())
         self._show_tiles()
         try:
-            self._save_setting("ui.tiles", "true" if self.tiles_var.get() else "false")
+            self._save_setting("ui.spot_tiles", "true" if self.tiles_var.get() else "false")
         except Exception as exc:  # noqa: BLE001
             log.info("tiles setting not saved: %s", exc)
         return "break"
