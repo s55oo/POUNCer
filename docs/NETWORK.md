@@ -273,6 +273,7 @@ query parameters (`radio=A|B` = which radio the phone works).
 | `/`, `/help`, `/summary`, `/zones`, `/timeline`, `/settings` | pages: spot tiles, help, contest summary, CQ zones (who hears me / what I hear), band opening timeline, settings |
 | `/api/spots?band=&radio=` | the list for a radio / band (JSON: radios, log, mults, spots with run %, hours, `busted`…) |
 | `/api/timeline?hours=12` | spots / stations / DX stations per band and 10 minutes, heard by skimmers on your continent, up to 48 h back (kept in `cache/timeline.json`) |
+| `/api/spots?since=<tag>` | the list again only if it changed: `{same: true}` (a few bytes) when its tag (a fingerprint without the spots' ages) is the phone's; the phone asks once a second, never two at once, not while hidden |
 | `/api/ping` | phone ping (every minute): answers at once, the page times the round trip |
 | `/api/explain?call=3B8X&freq=14025.1` | phone Debug (hold a tile): everything POUNCer knows about that spot - entity, zones, each multiplier type new / worked, worked, run history, SCP, tapped, all skimmers that spotted it, the raw spot - read-only, local data |
 | `/api/zones?min=15` | per band and CQ zone 1-40: `hears_me` (skimmers that spotted your call) and `i_hear` (stations heard by skimmers on your continent), best SNR, count, calls, minutes ago - from the RBN / cluster feed POUNCer already has, nothing new on the network |

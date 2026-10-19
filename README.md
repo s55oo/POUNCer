@@ -558,6 +558,12 @@ to the POUNCer PC (**ping 23ms**, measured every minute; green under 150 ms,
 amber under 500, red slower, **ping ✕** = no answer in 5 s). Tap it for
 min / avg / max of the last 10 minutes - handy over Wi-Fi or ZeroTier.
 
+**Light on the network**: the page asks every second, but when nothing
+changed POUNCer answers "same" in a few bytes and the page keeps its tiles
+(the spots' ages count on by themselves); a slow answer is never piled up
+with a second request; with the screen off or the page in the background it
+doesn't ask at all and catches up at once when you come back.
+
 Pop-up messages **stack**: press several keys quickly and each one's
 message stays, newest at the bottom (up to 4). Only the rare-CQ + new-mult
 alert beeps. The band menu has two switches for it: **Alert pop-up** (its

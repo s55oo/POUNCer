@@ -54,6 +54,19 @@ def clean_cw_text(text: str) -> str:
     return _CW_CHARS.sub("", (text or "").upper())[:200]
 
 
+def payload_tag(data: dict) -> str:
+    """A short fingerprint of a spot list for the phone, without the spots'
+    ages (they only grow while nothing changes - the page counts them on
+    itself). Same tag = nothing to send again."""
+    import hashlib
+    spots = data.get("spots")
+    if isinstance(spots, list):
+        data = dict(data, spots=[{k: v for k, v in sp.items() if k != "age"} if isinstance(sp, dict)
+                                 else sp for sp in spots])
+    raw = json.dumps(data, sort_keys=True, default=str).encode("utf-8")
+    return hashlib.sha1(raw).hexdigest()[:16]
+
+
 def normalize_key(key: str) -> str | None:
     """Canonical key name (F4 / Enter / PgUp / PgDn) or None if not allowed."""
     key = (key or "").strip()
@@ -722,6 +735,7 @@ INDEX_HTML = """<!doctype html>
   const PING_MS = 60000;
   const ping = {last: null, hist: [], lost: false, at: 0};
   async function doPing() {
+    if (document.hidden) return;        // screen off / in the background: no ping
     const t0 = performance.now();
     try {
       const ctl = new AbortController();
@@ -1635,13 +1649,44 @@ INDEX_HTML = """<!doctype html>
           (myRadio === 2 ? 'B' : 'A'));
     refresh();
   };
+  // Refresh: once a second, but
+  //  - not while the page is hidden (phone screen off, other tab / app):
+  //    on coming back it refreshes at once;
+  //  - not a second request while one is still on its way (slow Wi-Fi);
+  //  - "since" = the tag of the list we have: POUNCer answers {same} when
+  //    nothing changed, and the page only counts the spots' ages on.
+  let inFlight = false, lastTag = '', lastQuery = '', recvAt = 0;
   async function refresh() {
+    if (document.hidden || inFlight) return;
+    inFlight = true;
     try {
       const q = rp();
       const vr = String(myRadio || lastData.radio || 1);
       if (views[vr] && views[vr].band) q.set('band', views[vr].band);
+      const key = q.toString();
+      if (lastTag && key === lastQuery) q.set('since', lastTag);
       const r = await fetch('/api/spots?' + q, {cache: 'no-store'});
-      const data = await r.json();
+      let data = await r.json();
+      if (data.same && key === lastQuery && lastData && lastData.spots) {
+        const el = (Date.now() - recvAt) / 1000;
+        const fade = lastData.fade_s || 0;
+        let flips = false;
+        lastData.spots.forEach(s => {
+          if (s._age0 == null) return;
+          const a = Math.round(s._age0 + el);
+          if (fade && (s.age >= fade) !== (a >= fade)) flips = true;   // darker now
+          s.age = a;
+        });
+        if (data.version) lastData.version = data.version;
+        tapResult(lastData);              // the "no answer" timeout still runs
+        if (!flips) return;               // nothing to redraw
+        data = lastData;
+      } else {
+        lastTag = data.tag || '';
+        lastQuery = key;
+        recvAt = Date.now();
+        (data.spots || []).forEach(s => { s._age0 = s.age; });
+      }
       if (data.pending) {            // POUNCer builds that band's list next tick
         metaEl.textContent = 'loading ' + data.pending + ' spots...';
         setTimeout(refresh, 300);
@@ -1658,8 +1703,12 @@ INDEX_HTML = """<!doctype html>
       render(data);
     } catch (e) {
       metaEl.textContent = 'connection lost - retrying...';
+      lastTag = '';                       // ask for the whole list next time
+    } finally {
+      inFlight = false;
     }
   }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
   document.querySelectorAll('.sorts button[data-sort]').forEach(b => {
     b.onclick = () => {
       if (b.dataset.held === '1') { b.dataset.held = ''; return; }   // SNR held: sheet, no sort
@@ -1981,7 +2030,7 @@ POUNCer PC, measured every minute (<span style="color:#81c784">green</span> unde
 <div class="note">Messages (e.g. "Cleared 12 spots", "CW faster") pop up level with the
 ENTER key for 5 s - press two or three keys and they <b>stack</b> (newest at the bottom, up to
 4), so you see each one; tap one to close it. Only the rare-CQ + new-mult alert beeps:
-<b>Alert sound</b> in the band menu turns the beep off (<b>Alert pop-up</b> its message). The page refreshes every second; while you touch a
+<b>Alert sound</b> in the band menu turns the beep off (<b>Alert pop-up</b> its message). The page refreshes every second (only what changed comes over the network; nothing while the screen is off or the page is in the background - it catches up at once when you come back); while you touch a
 tile the list holds still, and the tile you tapped keeps its place until you log it (or 60 s).</div>
 
 <h2 id="reset">Reset this page</h2>
@@ -2819,8 +2868,18 @@ class _Handler(BaseHTTPRequestHandler):
                 data = self.server.get_spots(**kw)
             else:
                 data = self._call(self.server.get_spots, parsed)
+            if not isinstance(data, dict):
+                self._send_json(data)
+                return
+            # nothing changed since the phone's last copy (same tag): a few
+            # bytes instead of the whole list - the page keeps its tiles
+            tag = payload_tag(data)
+            since = (parse_qs(parsed.query).get("since") or [""])[0]
+            if since and since == tag and not data.get("pending"):
+                self._send_json({"same": True, "tag": tag, "version": __version__})
+                return
             # the page reloads itself when POUNCer was updated under it
-            self._send_json({**data, "version": __version__} if isinstance(data, dict) else data)
+            self._send_json({**data, "tag": tag, "version": __version__})
             return
         if parsed.path == "/api/qsy":
             q = parse_qs(parsed.query)
