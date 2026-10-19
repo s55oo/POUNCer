@@ -640,3 +640,13 @@ listening); `_check_late_qsy` in `_tick`: the report comes → `_note_tap` ok ("
 it late, n s") + `_restore_call` at 0.3 / 0.8 / 1.5 s (fills the callsign box only if it
 is empty); `LATE_QSY_S` = 8 s more without → "never reported - check the radio". Every
 tap's log line says how long N1MM took.
+
+## Phone refresh: same list, hidden page (v0.7.90)
+
+`/api/spots` adds `tag` = `payload_tag(data)` (sha1 of the payload without the
+spots' `age`). The page sends `since=<tag>` when it asks the same band / radio
+again; an equal tag → `{same: true, tag, version}`. The page then counts each
+spot's age on from `_age0` + the time since the last full list and redraws only
+when a tile crosses `fade_s` (darker); `tapResult` still runs. `refresh` returns at
+once while `document.hidden` or a request is in flight (`inFlight`), and runs on
+`visibilitychange` back to visible; the ping is skipped while hidden too.

@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## v0.7.90 — 2026-10-19 — phone: lighter refresh
+
+- When nothing changed since the last second, POUNCer answers the phone
+  with **"same"** (about 60 bytes instead of the whole list, ~15-20 KB) and
+  the page doesn't redraw; the spots' ages count on by themselves, so a tile
+  still turns darker on time.
+- The page **pauses** while the phone screen is off or it is in the
+  background (no list, no ping) and refreshes at once when you come back.
+- A slow answer is no longer piled up with the next request.
+
 ## v0.7.89 — 2026-10-18 — "ping 6ms"
 
 - The phone's ping label reads **ping 6ms** (no answer: **ping ✕**).
