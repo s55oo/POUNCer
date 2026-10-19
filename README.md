@@ -447,6 +447,12 @@ so SO2R with one radio on CW and one on SSB works. The cluster is connected
 only while needed (light "SSB cluster"). `[ssb]` in config.ini or the
 Settings page.
 
+The other way round: while **every radio is on SSB / AM / FM** for a minute,
+POUNCer **closes the RBN connection** (light "RBN paused", grey; the check
+line says "paused - radio on SSB"). It reconnects at once when a radio goes
+to CW. Not while other team POUNCers use this one's feed. `[rbn]
+pause_on_phone = false` keeps it always connected.
+
 ## Backup when RBN is down
 
 If RBN's telnet fails twice in a row or sends nothing for 2 minutes,
