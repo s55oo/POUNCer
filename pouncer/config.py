@@ -152,6 +152,8 @@ class Config:
     band_lights: bool = True     # band open lights (skimmers on our continent, 10 min)
     # window alert when a rare CQ (⚡) that is also a new multiplier shows up
     # on the band: a pop-up (click it = QSY) and / or a beep, each on its own
+    look: str = "dark"            # window look: dark / light (Windows 11 style) / classic
+    tiles: bool = True            # window spot list as tiles (like the phone); False = table
     alert_popup: bool = True
     alert_sound: bool = False
     # [autostart]: your other programs, started with POUNCer (see autostart.py)
@@ -304,6 +306,9 @@ def load_config(path: str) -> Config:
     cfg.tried_minutes = max(1, min(720, i("ui", "tried_minutes", cfg.tried_minutes)))
     cfg.check_line = b("ui", "check_line", cfg.check_line)
     cfg.band_lights = b("ui", "band_lights", cfg.band_lights)
+    lk = s("ui", "look", cfg.look).strip().lower()
+    cfg.look = lk if lk in ("dark", "light", "classic") else "dark"
+    cfg.tiles = b("ui", "tiles", cfg.tiles)
     cfg.alert_popup = b("ui", "alert_popup", cfg.alert_popup)
     cfg.alert_sound = b("ui", "alert_sound", cfg.alert_sound)
     cfg.autostart = b("autostart", "enabled", cfg.autostart)

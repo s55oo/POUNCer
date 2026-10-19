@@ -118,6 +118,19 @@ Marks in the call and Mult columns:
 | **M** in the Mult column | one new multiplier |
 | **MM** in the Mult column | a double multiplier (for example a new country and a new zone) |
 
+### Tiles (View > Spot list as tiles, Ctrl+T)
+
+| What you see | Meaning |
+| --- | --- |
+| **green** card | strong: 20 dB or more |
+| **darker** card | not re-spotted lately - probably gone |
+| **yellow** call | DX (outside your continent); **grey** = worked on this band and mode |
+| **pink bar** on the left | new multiplier: thin = single, thick = double |
+| **blue frame** | the radio is on this frequency |
+| **yellow frame** | selected (arrow keys); Space or a click = QSY and call |
+| ⚡ ? ↻3m | rare CQ, not in Super Check Partial, tapped 3 min ago |
+| **14025.1 R12% ~3h** / **1200Z 22dB cq3m** | frequency, run history; first heard, SNR, calling time |
+
 ### Buttons and popups
 
 | What you see | Meaning |

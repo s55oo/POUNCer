@@ -1,5 +1,23 @@
 # POUNCer — Changelog
 
+## v0.7.93 — 2026-10-19 — modern look
+
+- **Sharp text** at 125 / 150 % Windows display scaling: POUNCer is now DPI
+  aware (it was stretched by Windows and looked blurry); sizes scale with
+  the screen, a saved window size is converted once.
+- **Look** (View > Look, `[ui] look`, from the next start): **Dark** (new
+  default) - Windows 11 style (the Sun Valley ttk theme, MIT, built in) in
+  the phone page's colours with a dark title bar and flat coloured keys like
+  the phone; **Light** - the same, light; **Classic** - the look so far.
+  Segoe UI Variable font where Windows 11 has it.
+- **Spot list as tiles** (View menu / **Ctrl+T**, `[ui] tiles`, on): cards
+  like the phone - call big, green = strong, pink bar = new mult, blue frame
+  = tuned, darker = old; click / arrows / Space work as in the table.
+- **Phone page as an app window** (View menu): the phone page in its own
+  Edge / Chrome app window.
+- Tests: a racy check in the warm-up test (it sometimes failed the Windows
+  build) now checks only what it means to.
+
 ## v0.7.92 — 2026-10-19 — multipliers of any contest
 
 - **Multipliers learnt from N1MM itself.** N1MM's built-in rules are compiled

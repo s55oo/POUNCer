@@ -254,7 +254,25 @@ F-keys stay as buttons - they're used all contest long):
   GitHub, **Save diagnostics (zip)**, **Open the log file**, **Open the
   performance log**, About.
 
-The spot list: **new multiplier** rows in bold red, **worked** ones in grey
+**Look** (View > Look, from the next start; `[ui] look`): **Dark** (the
+default: Windows 11 style in the phone page's colours, dark title bar, flat
+green F-keys / ENTER and a blue SPOTit like the phone), **Light** (the same
+Windows 11 style, light) or **Classic** (the look up to v0.7.92). POUNCer
+draws **sharp at 125 / 150 % display scaling** (it tells Windows it handles
+the scaling; the saved window size is converted once).
+
+**Spot list as tiles** (View menu or **Ctrl+T**, `[ui] tiles`, on by
+default): the spots as cards like the phone - the call big (yellow = DX,
+grey = worked, ⚡ rare CQ, ? not in SCP, ↻ tapped), frequency / run history
+over first heard / SNR / calling time; green = strong, darker = not
+re-spotted lately, pink bar = new mult (thick = double), blue frame = the
+radio is on it, yellow frame = selected. Click = QSY and call; arrow keys
+move, Space taps. Off = the table with columns (sorting by a column heading).
+
+**Phone page as an app window** (View menu): the phone page on the PC in a
+window of its own - Edge or Chrome "app" mode, no tabs, no address bar.
+
+The spot list (table): **new multiplier** rows in bold red, **worked** ones in grey
 (when *Hide worked* is off), **⚡** before the call = rare CQ, **?** after it
 = not in Super Check Partial; tuned to it = blue, DX = orange background.
 **Arrow keys** move through the list, **Space** taps the selected spot (QSY
@@ -903,6 +921,9 @@ python -m unittest discover -s tests -v
 ```
 
 ## Thanks
+
+The dark and light looks use the **Sun Valley ttk theme** by rdbende
+([MIT](pouncer/sunvalley/LICENSE), github.com/rdbende/Sun-Valley-ttk-theme).
 
 POUNCer is built on **S53ZO's** work: his public
 [contest-log archive](https://github.com/s53zo/Hamradio-Contest-logs-Archives)

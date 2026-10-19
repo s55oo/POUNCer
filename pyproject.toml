@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pouncer"
-version = "0.7.92"
+version = "0.7.93"
 description = "Follows your N1MM Logger+ frequency and shows S53WW RBN spots for that band"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -15,3 +15,6 @@ pouncer = "pouncer.__main__:main"
 
 [tool.setuptools]
 packages = ["pouncer"]
+
+[tool.setuptools.package-data]
+pouncer = ["sunvalley/*.tcl", "sunvalley/LICENSE", "sunvalley/README.txt", "sunvalley/theme/*"]

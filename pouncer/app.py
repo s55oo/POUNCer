@@ -34,6 +34,7 @@ from .timeline import Timeline
 from .perf import PerfMonitor
 from .alerts import AlertWatch, beep as alert_beep
 from .panels import TimelineWindow, ZonesWindow
+from .tiles import TileList
 from . import theme
 from . import autostart as autostartmod
 from . import diag as diagmod
@@ -282,12 +283,13 @@ class PouncerApp:
     def _build_ui(self) -> None:
         self.root = tk.Tk()
         self.root.title(f"POUNCer {__version__} - RBN band follower for N1MM")
-        self.root.geometry("940x520")
+        theme.apply(self.root, getattr(self.cfg, "look", "classic"))   # first: SCALE, colours
+        self.root.geometry(f"{theme.px(940)}x{theme.px(520)}")
         # Narrow windows are fine: text lines wrap and the buttons flow onto
         # more rows instead of being cut off at the right edge.
-        self.root.minsize(420, 300)
-        theme.apply(self.root)
+        self.root.minsize(theme.px(420), theme.px(300))
         self.compact_var = tk.BooleanVar(value=False)
+        self.tiles_var = tk.BooleanVar(value=bool(getattr(self.cfg, "tiles", False)))
         self.topmost_var = tk.BooleanVar(value=False)
         self._normal_geom = ""
         self._compact_geom = ""
@@ -423,11 +425,18 @@ class PouncerApp:
             self.fkey_row = row
             for i, (key, label) in enumerate(self.cfg.fkeys):
                 row.columnconfigure(i, weight=1, uniform="fkey")
-                ttk.Button(
-                    row, text=self._key_text(key, label, " "), width=1,
-                    style="Log.TButton" if key.lower() == "enter" else "FKey.TButton",
-                    command=lambda k=key: self._press_key(k),
-                ).grid(row=0, column=i, sticky="ew", padx=2)
+                if theme.MODERN:      # flat coloured keys, like the phone
+                    kind = ("log" if key.lower() == "enter" else
+                            "spot" if key.lower() == "spotit" else "fkey")
+                    theme.key_button(row, self._key_text(key, label, " "), kind,
+                                     lambda k=key: self._press_key(k)).grid(
+                        row=0, column=i, sticky="ew", padx=2)
+                else:
+                    ttk.Button(
+                        row, text=self._key_text(key, label, " "), width=1,
+                        style="Log.TButton" if key.lower() == "enter" else "FKey.TButton",
+                        command=lambda k=key: self._press_key(k),
+                    ).grid(row=0, column=i, sticky="ew", padx=2)
 
         widths = {
             "time": 70, "freq": 90, "snr": 70, "wpm": 60,
@@ -444,18 +453,25 @@ class PouncerApp:
             anchor = ("e" if col in ("freq", "snr", "wpm")
                       else "center" if col in ("cont", "mult", "mode", "type") else "w")
             self.tree.heading(col, text=self.headings[col], command=lambda c=col: self._on_sort(c))
-            self.tree.column(col, width=widths[col], anchor=anchor, stretch=(col == "call"))
+            self.tree.column(col, width=theme.px(widths[col]), anchor=anchor,
+                             stretch=(col == "call"))
         self._update_headings()
         scroll = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
+        self._tree_scroll = scroll
         self.tree.configure(yscrollcommand=scroll.set)
         self.tree.pack(side="left", fill="both", expand=True)
         scroll.pack(side="right", fill="y")
+        # the same list as tiles, like the phone (View > Spot list as tiles)
+        self.tiles = TileList(tree_frame, on_tap=self._tile_tap)
+        self.root.bind_all("<Control-t>", lambda _e: self._toggle_tiles(flip=True))
+        self.root.bind_all("<Control-T>", lambda _e: self._toggle_tiles(flip=True))
+        self._show_tiles()
         self.tree.tag_configure("stripe", background=theme.STRIPE)   # every other row
-        self.tree.tag_configure("strong", foreground="#1b5e20")
-        self.tree.tag_configure("dx", background="#fff4e5")
-        self.tree.tag_configure("onfreq", background="#d4ebff")  # tuned to it
-        self.tree.tag_configure("mult", foreground="#b71c1c", font=(theme.FONT, 10, "bold"))
-        self.tree.tag_configure("worked", foreground="#9aa5b1")
+        self.tree.tag_configure("strong", foreground=theme.T_STRONG)
+        self.tree.tag_configure("dx", background=theme.T_DX)
+        self.tree.tag_configure("onfreq", background=theme.T_ONFREQ)  # tuned to it
+        self.tree.tag_configure("mult", foreground=theme.T_MULT, font=(theme.FONT, 10, "bold"))
+        self.tree.tag_configure("worked", foreground=theme.T_WORKED)
         self._row_spots: list = []
         # keyboard: arrows move (Treeview), Space taps the selected spot
         self.tree.bind("<space>", self._on_tree_key)
@@ -509,6 +525,9 @@ class PouncerApp:
                              command=self._apply_compact, accelerator="Ctrl+M")
         view.add_checkbutton(label="Always on top", variable=self.topmost_var,
                              command=self._apply_topmost)
+        view.add_checkbutton(label="Spot list as tiles (like the phone)",
+                             variable=self.tiles_var, accelerator="Ctrl+T",
+                             command=lambda: self._toggle_tiles(flip=False))
         view.add_separator()
         # rare CQ + new mult alert: pop-up and sound, each on its own
         self.alert_popup_var = tk.BooleanVar(value=bool(self.cfg.alert_popup))
@@ -524,6 +543,15 @@ class PouncerApp:
         view.add_command(label="CQ zones: who hears me", command=lambda: self._zones_win.open())
         view.add_command(label="Band opening timeline", command=lambda: self._timeline_win.open())
         view.add_command(label="Phone page in the browser", command=self._open_browser)
+        view.add_command(label="Phone page as an app window", command=self._open_app_window)
+        view.add_separator()
+        looks = tk.Menu(view, tearoff=False)
+        self.look_var = tk.StringVar(value=getattr(self.cfg, "look", "classic"))
+        for value, text in (("dark", "Dark (Windows 11 style)"), ("light", "Light (Windows 11 style)"),
+                            ("classic", "Classic")):
+            looks.add_radiobutton(label=text, value=value, variable=self.look_var,
+                                  command=self._set_look)
+        view.add_cascade(label="Look (from the next start)", menu=looks)
         bar.add_cascade(label="View", menu=view)
         bar.add_command(label="Settings...", command=self._settings_win.open)
         helpm = tk.Menu(bar, tearoff=False)
@@ -563,8 +591,9 @@ class PouncerApp:
                 bands.pack(fill="x", before=self._tree_frame)
                 self._bands_last = None
             self.tree.configure(displaycolumns=self.COMPACT_COLUMNS)
-            self.root.minsize(240, 200)
-            geom = self._compact_geom or self.COMPACT_GEOMETRY
+            self.root.minsize(theme.px(240), theme.px(200))
+            cw, ch = (int(v) for v in self.COMPACT_GEOMETRY.split("x"))
+            geom = self._compact_geom or f"{theme.px(cw)}x{theme.px(ch)}"
             x, y = self.root.winfo_x(), self.root.winfo_y()
             self.root.geometry(geom if "+" in geom else f"{geom}+{x}+{y}")
             if not self.topmost_var.get():          # beside N1MM: stay visible
@@ -582,7 +611,7 @@ class PouncerApp:
             self._tree_frame.pack(fill="both", expand=True)
             self._bottom.pack(fill="x")
             self.tree.configure(displaycolumns="#all")
-            self.root.minsize(420, 300)
+            self.root.minsize(theme.px(420), theme.px(300))
             if self._normal_geom:
                 self.root.geometry(self._normal_geom)
                 self._normal_geom = ""
@@ -1019,6 +1048,14 @@ class PouncerApp:
         if not data:
             return
         try:
+            # saved at another display scaling (or before POUNCer was DPI aware)
+            factor = theme.SCALE / float(data.get("scale") or 1.0)
+            for k in ("geometry", "compact_geometry"):
+                if data.get(k):
+                    data[k] = winstate.scale_geometry(data[k], factor)
+            if abs(factor - 1.0) >= 0.05 and isinstance(data.get("columns"), dict):
+                data["columns"] = {c: round(w * factor) for c, w in data["columns"].items()
+                                   if isinstance(w, (int, float))}
             geom = winstate.fit_geometry(data.get("geometry", ""),
                                          self.root.winfo_screenwidth(),
                                          self.root.winfo_screenheight())
@@ -1064,6 +1101,7 @@ class PouncerApp:
                 "zoomed": zoomed,
                 "columns": {c: int(self.tree.column(c, "width")) for c in self.columns},
                 "sort": self.sort_col, "reverse": bool(self.sort_reverse),
+                "scale": round(theme.SCALE, 3),
             }
         except (tk.TclError, AttributeError):
             return                  # window already gone: keep the last save
@@ -2715,8 +2753,7 @@ class PouncerApp:
                 lbl.pack(fill="x", after=self._top)
             else:
                 lbl.pack_forget()
-        bg, fg = {"ok": ("#e8f5e9", "#1b5e20"), "warn": ("#fff8e1", "#8d6e00"),
-                  "bad": ("#ffebee", "#b71c1c")}[state]
+        bg, fg = theme.CHECK[state]
         text = checksmod.line(self._checks)
         if lbl.cget("text") != text or lbl.cget("bg") != bg:
             lbl.configure(text=text, bg=bg, fg=fg)
@@ -3075,6 +3112,10 @@ class PouncerApp:
         self._row_spots = items
         reselect = None
         alert = []
+        tile_items = []
+        want_tiles = getattr(self, "tiles_var", None) is not None and self.tiles_var.get()
+        fade_s = getattr(self.cfg, "fade_minutes", 5) * 60 if hasattr(self, "cfg") else 300
+        now = time.time()
         for idx, s in enumerate(items):
             mults = self._mults(s)
             worked = self.worked.is_worked(s.dxcall, s.freq_khz, s.mode)
@@ -3106,6 +3147,9 @@ class PouncerApp:
             tried = self._tried(s)
             if tried:
                 call_text += f"   \u21bb{tried[1]}m" + (f"\u00d7{tried[0]}" if tried[0] > 1 else "")
+            if want_tiles:
+                tile_items.append(self._tile_item(s, s is tuned, mults, worked, run, rare, busted,
+                                                  tried, now - s.received >= fade_s))
             self.tree.insert(
                 "", "end", iid=str(idx), tags=tags,
                 values=(
@@ -3124,12 +3168,65 @@ class PouncerApp:
         if reselect is not None:
             self.tree.selection_set(reselect)
             self.tree.focus(reselect)
+        if getattr(self, "tiles_var", None) is not None and self.tiles_var.get():
+            self.tiles.set_items(tile_items, int(reselect) if reselect is not None else None)
         check = getattr(self, "_check_alerts", None)
         if check is not None and getattr(self, "_alerts", None) is not None:
             try:
                 check(alert)
             except Exception as exc:  # noqa: BLE001 - an alert must never break the list
                 log.info("alert: %s", exc)
+
+    def _tile_item(self, s, onfreq, mults, worked, run, rare, busted, tried, stale) -> dict:
+        """What one tile shows (tiles.TileList), like the phone's tile."""
+        line1 = f"{s.freq_khz:.1f}" + (f" {s.mode}" if s.mode and s.mode.upper() != "CW" else "")
+        if run.get("run") is not None:
+            line1 += f"  R{run['run']}%" + ("*" if run.get("rec") else "")
+        if run.get("hours") is not None:
+            line1 += f"  ~{round(run['hours'])}h"
+        cq = self._cq_minutes(s) if hasattr(self, "_on_freq") else None
+        line2 = (self._first_heard_utc(s) if hasattr(self, "_on_freq") else s.time_utc or "")
+        line2 += "  " + ("--" if s.snr is None else f"{s.snr}dB")
+        if cq is not None:
+            line2 += f"  cq{cq}m"
+        return {"call": s.dxcall, "line1": line1, "line2": line2,
+                "strong": s.snr is not None and s.snr >= 20, "dx": bool(self._is_dx(s.dxcall)),
+                "mult": int(mults or 0), "worked": bool(worked), "rare": bool(rare),
+                "busted": bool(busted), "onfreq": bool(onfreq), "stale": bool(stale),
+                "tried": (f"\u21bb{tried[1]}m" + (f"\u00d7{tried[0]}" if tried[0] > 1 else ""))
+                if tried else ""}
+
+    def _tile_tap(self, i: int) -> None:
+        """A tile clicked (or Space on the selected one): like clicking the row."""
+        try:
+            spot = self._row_spots[i]
+        except (IndexError, AttributeError):
+            return
+        self._act_on_spot(spot)
+
+    def _show_tiles(self) -> None:
+        """Show the tiles or the table in the list's place."""
+        on = bool(self.tiles_var.get())
+        if on:
+            self.tree.pack_forget()
+            self._tree_scroll.pack_forget()
+            self.tiles.pack(fill="both", expand=True)
+        else:
+            self.tiles.pack_forget()
+            self.tree.pack(side="left", fill="both", expand=True)
+            self._tree_scroll.pack(side="right", fill="y")
+        self._dirty = True
+
+    def _toggle_tiles(self, flip: bool) -> str:
+        """View > Spot list as tiles / Ctrl+T: saved in config.ini."""
+        if flip:
+            self.tiles_var.set(not self.tiles_var.get())
+        self._show_tiles()
+        try:
+            self._save_setting("ui.tiles", "true" if self.tiles_var.get() else "false")
+        except Exception as exc:  # noqa: BLE001
+            log.info("tiles setting not saved: %s", exc)
+        return "break"
 
     def _apply_pin(self, items: list) -> list:
         """The clicked / tapped station stays on its row (``PIN_S``)."""
@@ -3197,6 +3294,65 @@ class PouncerApp:
         out.update(log=w.db_name, contest=w.contest_name,
                    station=w.station_call or self.own_call())
         return out
+
+    def _set_look(self) -> None:
+        """View > Look: saved in config.ini, used from the next start (the
+        whole window is built in it) - offer the restart now."""
+        look = self.look_var.get()
+        try:
+            self._save_setting("ui.look", look)
+        except Exception as exc:  # noqa: BLE001
+            log.info("look not saved: %s", exc)
+        from tkinter import messagebox
+        if self.updater.exe and messagebox.askyesno(
+                "POUNCer", f"Look: {look}. Restart POUNCer now to use it?", parent=self.root):
+            self._restart_now()
+        else:
+            self.status_label.configure(text=f"Look {look}: used from the next start")
+
+    @staticmethod
+    def _app_browser() -> list[str] | None:
+        """Edge or Chrome, to open a page as an app window (no tabs / bars)."""
+        import shutil
+        if sys.platform == "win32":
+            pf = [os.environ.get(k, "") for k in ("ProgramFiles(x86)", "ProgramFiles", "LOCALAPPDATA")]
+            for base in pf:
+                for rel in (r"Microsoft\Edge\Application\msedge.exe",
+                            r"Google\Chrome\Application\chrome.exe"):
+                    p = os.path.join(base, rel)
+                    if base and os.path.exists(p):
+                        return [p]
+            return None
+        if sys.platform == "darwin":
+            for app in ("/Applications/Google Chrome.app", "/Applications/Microsoft Edge.app"):
+                if os.path.exists(app):
+                    return ["open", "-na", app, "--args"]
+            return None
+        for name in ("google-chrome", "chromium", "chromium-browser", "microsoft-edge"):
+            p = shutil.which(name)
+            if p:
+                return [p]
+        return None
+
+    def _open_app_window(self) -> None:
+        """View > Phone page as an app window: the phone page on the PC in
+        its own window (Edge / Chrome app mode: no tabs, no address bar)."""
+        url = self._local_web_url()
+        if not url:
+            self.status_label.configure(
+                text="The app window needs the phone view: [web] enabled = true")
+            return
+        cmd = self._app_browser()
+        if not cmd:
+            self._open_browser()          # no Edge / Chrome: the normal browser
+            return
+        import subprocess
+        try:
+            subprocess.Popen(cmd + [f"--app={url}", "--window-size=480,900"])
+            self.status_label.configure(text=f"Opened the phone page as an app window ({url})")
+        except OSError as exc:
+            log.info("app window: %s", exc)
+            self._open_browser()
 
     def _open_browser(self, page: str = "") -> None:
         """Touch / big-button view = the phone page in the default browser."""

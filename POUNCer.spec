@@ -8,11 +8,12 @@
 
 import sys
 
-datas = []
+# the Sun Valley ttk theme (dark / light looks): Tcl files + sprites
+datas = [('pouncer/sunvalley', 'pouncer/sunvalley')]
 runtime_hooks = []
 if sys.platform == 'darwin':
     import certifi
-    datas = [(certifi.where(), 'certificates')]
+    datas += [(certifi.where(), 'certificates')]
     runtime_hooks = ['packaging/macos_certificates.py']
 
 a = Analysis(

@@ -160,6 +160,14 @@ SETTINGS: list[dict] = [
      "help": "Per band, what skimmers on your continent hear (10 min): '20m: 34 DX 85%'; "
              "the colour goes from orange (only your continent) to green (all DX) "
              "with the DX share; grey = nothing."},
+    {"key": "ui.look", "attr": "look", "kind": "choice", "choices": ["dark", "light", "classic"],
+     "live": False, "group": "Program", "label": "Window look",
+     "help": "dark / light = Windows 11 style (dark like the phone page); classic = the "
+             "look up to v0.7.92. From the next start (View > Look)."},
+    {"key": "ui.tiles", "attr": "tiles", "kind": "bool", "live": True, "group": "Program",
+     "label": "Spot list as tiles",
+     "help": "The window's spot list as tiles like the phone page (call big, green = "
+             "strong, pink bar = new mult); off = the table with columns. View menu / Ctrl+T."},
     {"key": "ui.alert_popup", "attr": "alert_popup", "kind": "bool",
      "live": True, "group": "Program", "label": "Alert pop-up (rare CQ + new mult)",
      "help": "Window: a yellow pop-up when a rare CQ (⚡) that is also a new multiplier "

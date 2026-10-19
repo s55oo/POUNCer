@@ -106,6 +106,11 @@ class _Panel:
         win.geometry(f"{min(w, sw)}x{h}")
         win.configure(bg=BG)
         win.protocol("WM_DELETE_WINDOW", self.close)
+        try:
+            from . import theme
+            win.after(10, lambda w=win: theme.title_bar(w, True))   # these windows are dark
+        except Exception:  # noqa: BLE001
+            pass
         self.win = win
         bar = tk.Frame(win, bg=BG, padx=8, pady=6)
         bar.pack(fill="x")

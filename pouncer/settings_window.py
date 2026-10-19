@@ -12,6 +12,8 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk
 
+from . import theme
+
 OK_COLOR, ERR_COLOR, LATER_COLOR = "#2e7d32", "#c62828", "#ef6c00"
 
 
@@ -54,12 +56,13 @@ class SettingsWindow:
 
     def _build(self) -> None:
         win = tk.Toplevel(self.root)
+        win.after(10, lambda w=win: theme.title_bar(w))      # dark title bar in the dark look
         self.win = win
         win.title("POUNCer settings")
         # as tall as the screen allows (up to 760 px): more rows without scrolling
-        h = max(420, min(760, win.winfo_screenheight() - 120))
-        win.geometry(f"720x{h}")
-        win.minsize(460, 320)
+        h = max(theme.px(420), min(theme.px(760), win.winfo_screenheight() - 120))
+        win.geometry(f"{theme.px(720)}x{h}")
+        win.minsize(theme.px(460), theme.px(320))
         top = ttk.Frame(win, padding=(10, 8, 10, 4))
         top.pack(fill="x")
         lead = ttk.Label(top, justify="left", wraplength=660, text=(
@@ -152,7 +155,7 @@ class SettingsWindow:
         widget = self._widget(box, it)
         widget.grid(row=0, column=1, sticky="e", padx=(8, 0))
         if it.get("help"):
-            hl = ttk.Label(box, text=it["help"], foreground="#555555", justify="left")
+            hl = ttk.Label(box, text=it["help"], foreground=theme.HELP_TEXT, justify="left")
             hl.grid(row=1, column=0, columnspan=2, sticky="w")
             hl.bind("<Configure>", lambda e, w=hl: w.configure(wraplength=max(e.width - 4, 200)))
         st = ttk.Label(box, text="")
