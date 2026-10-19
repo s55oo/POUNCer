@@ -1,5 +1,24 @@
 # POUNCer — Changelog
 
+## v0.7.92 — 2026-10-19 — multipliers of any contest
+
+- **Multipliers learnt from N1MM itself.** N1MM's built-in rules are compiled
+  in; every log has the `Contest` table (multiplier names of all 262
+  contests) and the `IsMultiplier1/2/3` flags N1MM sets on every QSO.
+  POUNCer now uses any multiplier column (country, zone, WPX prefix,
+  section, exchange, misc, grid, continent ...), learns from the flags
+  whether it counts per band, per band and mode or once per contest,
+  learns slots the table doesn't name (SPDX: SP provinces) and stops using
+  a name the flags contradict (CQMM's "WPXPrefix"). Was: country, zone and
+  WPX prefix only.
+- **Exchange multipliers** (section, DOK, province ...): a spot has no
+  exchange, so the value comes from your log (the station worked on another
+  band) or **N1MM's call history** (`CallHist` in `N1MM Admin.s3db`).
+- The window's log line shows the open contest's multipliers
+  (`mults: CQ zone per band + country per band`); the phone's Debug lists
+  each multiplier with its value, where it counts, where the value came
+  from and how well the rule matches N1MM.
+
 ## v0.7.91 — 2026-10-19 — far fewer disk writes
 
 - The run history file (`cache\runhist5.json`, several MB) was rewritten

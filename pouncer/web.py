@@ -1387,11 +1387,18 @@ INDEX_HTML = """<!doctype html>
     h += row('Worked', yn(f.worked, 'yes, on ' + esc(f.band) + ' ' + esc(f.mode) + ' (grey in the window)', 'not yet on ' + esc(f.band) + ' ' + esc(f.mode)),
       f.log_open ? '' : '<span class="warn">N1MM log not open: nothing counts as worked</span>');
     if (!(f.mults || []).length) h += row('Mults', '<span class="warn">no multiplier types known</span>', 'POUNCer reads them from the open N1MM contest');
+    if (f.mult_rules) h += row('This contest', esc(f.mult_rules), 'from N1MM\'s contest table; "learnt" = from the IsMultiplier flags N1MM set on your QSOs');
+    const NAMES = {CountryPrefix: 'Country', ZN: f.zone_kind + ' zone', WPXPrefix: 'WPX prefix', Sect: 'Section',
+      Exchange1: 'Exchange', MiscText: 'Misc text', GridSquare: 'Grid', Continent: 'Continent', CK: 'Check', Prec: 'Precedence'};
+    const SRC = {'cty.dat': 'from cty.dat / the call', log: 'from your log (worked on another band)',
+      'call history': 'from N1MM call history', unknown: 'not known for this station (a spot has no exchange)'};
     (f.mults || []).forEach(m => {
-      const name = {CountryPrefix: 'Country', ZN: f.zone_kind + ' zone', WPXPrefix: 'WPX prefix'}[m.type] || m.type;
+      const name = (NAMES[m.type] || m.type) + ' (mult ' + (m.n || '?') + ')';
       h += row(name, m.value == null ? '<span class="warn">unknown</span>' : esc(String(m.value)) + ' - ' +
         (m.new ? '<span class="yes">NEW</span>' : '<span class="no">already worked</span>'),
-        'counts per ' + (m.where === 'contest' ? 'whole contest' : 'band (' + esc(m.where) + ')'));
+        'counts ' + (m.where === 'contest' ? 'once per contest' : 'per ' + (m.scope === 'bandmode' ? 'band and mode (' : 'band (') + esc(m.where) + ')') +
+        ' &middot; value ' + (SRC[m.source] || esc(m.source || '?')) +
+        ' &middot; rule: ' + esc(m.how || '?') + (m.agree != null ? ' (' + Math.round(m.agree * 100) + '% match with N1MM)' : ''));
     });
     h += row('Result', f.mult ? f.mult + ' new mult' + (f.mult > 1 ? 's' : '') : 'no new mult', '');
     const r = f.run || {};

@@ -21,6 +21,7 @@ import sqlite3
 import time
 from typing import Callable, Iterable
 
+from . import mults as multsmod
 from .bands import BANDS, band_from_khz
 
 log = logging.getLogger(__name__)
@@ -201,10 +202,9 @@ def find_active_db(ini_path: str | None = None) -> str | None:
     return None
 
 
-# Multiplier types POUNCer understands, as N1MM names them in
-# Contest.Multiplier1Name / 2 / 3 and as DXLOG columns. Country and zone count
-# once per band; a WPX prefix once per contest.
-MULT_FIELDS = ("CountryPrefix", "ZN", "WPXPrefix")
+# Multiplier types (see mults.py: DXLOG columns, slots from N1MM's Contest
+# table, learnt from the IsMultiplier flags). Kept for older callers.
+MULT_FIELDS = multsmod.CANDIDATES
 PER_CONTEST_MULTS = {"WPXPrefix"}
 
 # Log states reported to the UI (``WorkedLog.log_state``).
@@ -266,6 +266,13 @@ class WorkedLog:
         # {field: {band or "*": set(values)}}
         self.mult_types: tuple[str, ...] = ()
         self._mult_worked: dict[str, dict[str, set]] = {}
+        # the slots (mults.resolve_slots) and what the log / call history know
+        # about a station's exchange (section, DOK, province ...)
+        self.mult_slots: list[dict] = []
+        self._call_vals: dict[str, dict[str, object]] = {}
+        self._callhist: dict[str, dict[str, object]] = {}
+        self._callhist_sig = None
+        self._slot_cache: tuple | None = None
         self.log_open = False
         self.log_state = LOG_UNKNOWN
         self.log_message = "Looking for the N1MM log..."
@@ -324,6 +331,8 @@ class WorkedLog:
         self._band_qsos = {}
         self.mult_types = ()
         self._mult_worked = {}
+        self.mult_slots = []
+        self._call_vals = {}
         self.db_name = ""
         self.station_call = ""
         self.log_open = False
@@ -455,6 +464,8 @@ class WorkedLog:
         band_qsos: dict[str, int] = {}
         total = 0
         mult_worked: dict[str, dict[str, set]] = {}
+        slots: list[dict] = []
+        call_vals: dict[str, dict] = {}
         station = ""
         try:
             con = self._connect(path)
@@ -478,17 +489,22 @@ class WorkedLog:
                     # the database - take the one with the newest QSO
                     contest_nr = newest_nr
                     source = "latest QSO"
-                mult_types = tuple(
-                    f for f in self._read_mult_types(con, contest_name) if f in cols
-                )
-                mult_worked = {f: {} for f in mult_types}
-                sql = "SELECT Call, Band, Mode" + "".join(f", {f}" for f in mult_types)
+                names = self._read_mult_names(con, contest_name)
+                lower = {c.lower(): c for c in cols}
+                cand = [f for f in multsmod.CANDIDATES if f in cols]
+                flag_cols = [lower.get(f"ismultiplier{i}") for i in (1, 2, 3)]
+                sql = "SELECT Call, Band, Mode" + "".join(f", {f}" for f in cand)
+                sql += "".join(f", {f}" if f else ", 0" for f in flag_cols)
                 sql += " FROM DXLOG"
                 params: tuple = ()
                 if contest_nr is not None:
                     sql += " WHERE ContestNR = ?"
                     params = (contest_nr,)
-                for row in con.execute(sql, params):
+                if "TS" in cols:
+                    sql += " ORDER BY TS"
+                rows = []
+                call_vals: dict[str, dict] = {}
+                for row in con.execute(sql, params).fetchall():
                     call, band, mode = row[0], row[1], row[2]
                     if not call:
                         continue
@@ -498,13 +514,34 @@ class WorkedLog:
                         continue
                     band_qsos[label] = band_qsos.get(label, 0) + 1
                     c = str(call).strip().upper()
-                    keys.add((c, label, normalize_mode(mode)))
+                    m = normalize_mode(mode)
+                    keys.add((c, label, m))
                     calls.add(c)
-                    for f, value in zip(mult_types, row[3:]):
-                        v = normalize_mult(f, value)
+                    values = {f: multsmod.normalize(f, v)
+                              for f, v in zip(cand, row[3:3 + len(cand)])}
+                    flags = tuple(bool(x) for x in row[3 + len(cand):])
+                    rows.append({"call": c, "band": label, "mode": m, "values": values,
+                                 "flags": flags})
+                    known = call_vals.setdefault(c, {})
+                    for f, v in values.items():
+                        if v is not None:
+                            known[f] = v           # the newest QSO's value wins
+                # slots: re-learnt when the contest changes or every 25 QSOs
+                ck = (path, contest_nr, contest_name, tuple(names), len(rows) // 25)
+                if self._slot_cache and self._slot_cache[0] == ck:
+                    slots = self._slot_cache[1]
+                else:
+                    slots = multsmod.resolve_slots(names, set(cand), rows)
+                    self._slot_cache = (ck, slots)
+                mult_types = tuple(s["field"] for s in slots if s["field"])
+                mult_worked = {f: {} for f in mult_types}
+                for r in rows:
+                    for sl in slots:
+                        f = sl["field"]
+                        v = r["values"].get(f) if f else None
                         if v is None:
                             continue
-                        where = "*" if f in PER_CONTEST_MULTS else label
+                        where = multsmod.scope_key(sl["scope"], r["band"], r["mode"])
                         mult_worked[f].setdefault(where, set()).add(v)
             finally:
                 con.close()
@@ -516,6 +553,10 @@ class WorkedLog:
         self.station_call = station
         self.mult_types = tuple(mult_worked)
         self._mult_worked = mult_worked
+        self.mult_slots = slots
+        self._call_vals = call_vals
+        if any(s["field"] and s["field"] not in multsmod.FROM_CALL for s in slots):
+            self._load_callhist(path)
         self.call_count = len(calls)
         self.qso_count = total
         self._band_qsos = band_qsos
@@ -548,6 +589,60 @@ class WorkedLog:
         )
 
     @staticmethod
+    def _read_mult_names(con: sqlite3.Connection, contest_name: str) -> list:
+        """Multiplier1Name..3 of the open contest in N1MM's Contest table
+        (["ZN", "CountryPrefix", "N/A"] for CQWWCW); [] if unknown."""
+        if not contest_name:
+            return []
+        try:
+            row = con.execute(
+                "SELECT Multiplier1Name, Multiplier2Name, Multiplier3Name "
+                "FROM Contest WHERE Name = ?", (contest_name,),
+            ).fetchone()
+        except sqlite3.Error:
+            return []
+        return list(row) if row else []
+
+    def _load_callhist(self, log_path: str) -> None:
+        """N1MM's call history (Databases\\N1MM Admin.s3db, table CallHist):
+        section, exchange, grid ... of stations not worked yet. Re-read when
+        the file changes."""
+        path = os.path.join(os.path.dirname(log_path), "N1MM Admin.s3db")
+        try:
+            st = os.stat(path)
+        except OSError:
+            self._callhist, self._callhist_sig = {}, None
+            return
+        sig = (path, st.st_mtime_ns, st.st_size)
+        if sig == self._callhist_sig:
+            return
+        out: dict[str, dict] = {}
+        try:
+            con = self._connect(path)
+            try:
+                cols = {r[1] for r in con.execute("PRAGMA table_info(CallHist)")}
+                use = [c for c in multsmod.CALLHIST if c in cols]
+                if "Call" in cols and use:
+                    for row in con.execute(
+                            "SELECT Call" + "".join(f", {c}" for c in use) + " FROM CallHist"):
+                        if not row[0]:
+                            continue
+                        vals = {}
+                        for c, v in zip(use, row[1:]):
+                            f = multsmod.CALLHIST[c]
+                            nv = multsmod.normalize(f, v)
+                            if nv is not None:
+                                vals[f] = nv
+                        if vals:
+                            out[str(row[0]).strip().upper()] = vals
+            finally:
+                con.close()
+        except (sqlite3.Error, OSError) as exc:
+            log.info("call history not read: %s", exc)
+        self._callhist, self._callhist_sig = out, sig
+        log.info("call history: %d calls with exchange data", len(out))
+
+    @staticmethod
     def _read_mult_types(con: sqlite3.Connection, contest_name: str) -> tuple[str, ...]:
         """The open contest's multiplier fields (N1MM Contest table), e.g.
         CQWWCW -> ("ZN", "CountryPrefix"). Unknown kinds are skipped."""
@@ -572,28 +667,65 @@ class WorkedLog:
         """IARU HF counts ITU zones; CQ contests count CQ zones."""
         return self.contest_name.upper().startswith("IARU")
 
+    def station_value(self, field: str, call: str | None, from_call: dict) -> tuple:
+        """(value, source) of one multiplier field for a spotted station:
+        country / zone / prefix / continent from cty.dat and the call (a zone
+        the log has for this call wins); exchange fields (section, DOK ...)
+        from the log - the station worked on another band - else N1MM's call
+        history; else (None, "unknown")."""
+        c = (call or "").strip().upper()
+        logged = self._call_vals.get(c, {}).get(field) if c else None
+        if field == "ZN" and logged is not None:      # the zone logged for this call wins
+            return logged, "log"
+        if field in multsmod.FROM_CALL:
+            v = multsmod.normalize(field, from_call.get(field))
+            return v, ("cty.dat" if v is not None else "unknown")
+        if logged is not None:
+            return logged, "log"
+        hist = self._callhist.get(c, {}).get(field) if c else None
+        if hist is not None:
+            return hist, "call history"
+        return None, "unknown"
+
+    def _spot_mults(self, freq_khz, country_prefix, zone, wpx, call, continent, mode):
+        band = band_from_khz(freq_khz)
+        base = {"CountryPrefix": country_prefix, "ZN": zone, "WPXPrefix": wpx,
+                "Continent": continent}
+        m = normalize_mode(mode) if mode else None
+        out = []
+        for sl in self.mult_slots:
+            f = sl["field"]
+            if f is None:
+                out.append((sl, None, "unknown", None, None))
+                continue
+            v, src = self.station_value(f, call, base)
+            scope = sl["scope"]
+            if scope == "bandmode" and not m:
+                scope = "band"
+            key = multsmod.scope_key(scope, band, m)
+            new = None if v is None or not band else \
+                v not in self._mult_worked.get(f, {}).get(key, set())
+            out.append((sl, v, src, new, scope))
+        return out
+
     def new_mults(
         self,
         freq_khz: float,
         country_prefix: str | None,
         zone: int | None,
         wpx: str | None,
+        call: str | None = None,
+        continent: str | None = None,
+        mode: str | None = None,
     ) -> int:
-        """How many multipliers a station would be on this band (0, 1 or 2 -
-        e.g. new zone + new country = a double mult in CQWW)."""
-        band = band_from_khz(freq_khz)
-        if not band or not self.mult_types:
+        """How many multipliers a station would be (0, 1, 2 ... - e.g. new
+        zone + new country = a double mult in CQWW). Exchange multipliers
+        (section, DOK ...) count when the log or the call history knows the
+        station's value."""
+        if not band_from_khz(freq_khz) or not self.mult_slots:
             return 0
-        values = {"CountryPrefix": country_prefix, "ZN": zone, "WPXPrefix": wpx}
-        count = 0
-        for f in self.mult_types:
-            v = normalize_mult(f, values[f])
-            if v is None:
-                continue
-            where = "*" if f in PER_CONTEST_MULTS else band
-            if v not in self._mult_worked.get(f, {}).get(where, set()):
-                count += 1
-        return count
+        return sum(1 for _sl, _v, _src, new, _sc in self._spot_mults(
+            freq_khz, country_prefix, zone, wpx, call, continent, mode) if new)
 
     def mult_detail(
         self,
@@ -601,21 +733,30 @@ class WorkedLog:
         country_prefix: str | None,
         zone: int | None,
         wpx: str | None,
+        call: str | None = None,
+        continent: str | None = None,
+        mode: str | None = None,
     ) -> list[dict]:
         """Why ``new_mults`` says what it says (phone debug): per multiplier
-        type of the open contest its value for this station, where it counts
-        (the band, or the whole contest) and whether it is still new."""
+        slot its column, the station's value and where it came from, where it
+        counts (band / band and mode / whole contest), how POUNCer knows the
+        rule (N1MM's contest table or learnt from the log) and whether new."""
         band = band_from_khz(freq_khz)
-        values = {"CountryPrefix": country_prefix, "ZN": zone, "WPXPrefix": wpx}
         out = []
-        for f in self.mult_types:
-            v = normalize_mult(f, values.get(f))
-            where = "contest" if f in PER_CONTEST_MULTS else (band or "?")
-            new = None if v is None or not band else (
-                v not in self._mult_worked.get(f, {}).get("*" if f in PER_CONTEST_MULTS else band,
-                                                           set()))
-            out.append({"type": f, "value": v, "where": where, "new": new})
+        for sl, v, src, new, scope in self._spot_mults(
+                freq_khz, country_prefix, zone, wpx, call, continent, mode):
+            sc = scope or sl["scope"]
+            where = "contest" if sc == "contest" else (
+                f"{band or '?'} {normalize_mode(mode)}" if sc == "bandmode" and mode else (band or "?"))
+            out.append({"type": sl["field"] or (sl.get("name") or "?"), "n": sl["n"],
+                        "value": v, "where": where, "new": new, "source": src,
+                        "how": sl["how"], "agree": sl.get("agree"),
+                        "flagged": sl.get("flagged"), "scope": sc})
         return out
+
+    def mult_summary(self) -> str:
+        """'CQ zone per band + country per band' (window, phone, debug)."""
+        return multsmod.describe(self.mult_slots, "ITU" if self.zone_is_itu else "CQ")
 
     def band_qsos(self) -> list[tuple[str, int]]:
         """QSOs in the open contest per band, in band-plan order (low to high).

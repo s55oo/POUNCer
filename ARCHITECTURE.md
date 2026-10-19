@@ -657,3 +657,22 @@ once while `document.hidden` or a request is in flight (`inFlight`), and runs on
 `SAVE_EVERY_S` (30 s) old, else one `threading.Timer` for the rest of that time;
 `flush()` writes (timer cancelled) and runs from the app's `_shutdown`. Before, each
 learnt call rewrote the whole `runhist5.json` (6 MB on a contest PC).
+
+## Contest multipliers (v0.7.92)
+
+`pouncer/mults.py`: `resolve_slots(names, cols, rows)` - slots from
+`Contest.Multiplier1Name..3` (case-insensitive DXLOG column, one of `CANDIDATES`);
+`rows` = the contest's QSOs in time order with their candidate values and
+`IsMultiplier1..3` flags. `agreement(rows, field, flag, scope)` replays the log
+("value not yet seen in this scope" vs the flag) for scopes band / contest /
+bandmode. A named slot keeps `default_scope` unless another scope matches the flags
+2 % better (≥ `MIN_ROWS` rows, ≥ `MIN_FLAGS` flags); a named slot matching worse
+than `DISTRUST` (0.6) is dropped and learnt like an unnamed one: the best
+candidate column + scope ≥ `MIN_AGREE` (0.9), else the slot is "not known" (never
+counts). `WorkedLog._load` reads all candidate columns + flags (re-learns every 25
+QSOs), fills `_mult_worked[field][scope key]` and `_call_vals[call][field]` (newest
+value), and reads N1MM's `CallHist` (`N1MM Admin.s3db` next to the log) when a slot
+needs an exchange field. `station_value(field, call, from_call)`: cty fields from the
+call (a logged zone wins), exchange fields log → call history → unknown.
+`new_mults` / `mult_detail(..., call, continent, mode)`; `mult_summary()` for the
+window line and `/api/explain` (`mult_rules`); `summary.build` takes the slots.

@@ -23,7 +23,8 @@ import threading
 import time
 
 from .bands import band_from_khz
-from .worked import PER_CONTEST_MULTS, band_label, normalize_mult
+from . import mults as multsmod
+from .worked import PER_CONTEST_MULTS, band_label, normalize_mode, normalize_mult
 
 log = logging.getLogger(__name__)
 
@@ -32,7 +33,9 @@ EARLY_S = 60               # QSO logged a bit "before" the tap (clock rounding)
 KEEP_DAYS = 14             # taps older than this are dropped
 BREAK_S = 30 * 60          # a gap this long between QSOs = off time
 
-MULT_NAMES = {"ZN": "Zone", "CountryPrefix": "Country", "WPXPrefix": "Prefix"}
+MULT_NAMES = {"ZN": "Zone", "CountryPrefix": "Country", "WPXPrefix": "Prefix",
+              "Sect": "Section", "Exchange1": "Exchange", "MiscText": "Misc",
+              "GridSquare": "Grid", "Continent": "Continent", "CK": "Check", "Prec": "Prec"}
 
 
 def _core(call: str) -> str:
@@ -131,8 +134,9 @@ def read_qsos(path: str, contest_nr, mult_types) -> list[dict]:
         con = sqlite3.connect(path, timeout=2.0)
     try:
         cols = {r[1] for r in con.execute("PRAGMA table_info(DXLOG)")}
-        fields = [f for f in mult_types if f in cols]
-        sql = "SELECT TS, Call, Band" + "".join(f", {f}" for f in fields) + " FROM DXLOG"
+        names = [m["field"] if isinstance(m, dict) else m for m in mult_types]
+        fields = [f for f in dict.fromkeys(names) if f and f in cols]
+        sql = "SELECT TS, Call, Band, Mode" + "".join(f", {f}" for f in fields) + " FROM DXLOG"
         params: tuple = ()
         if contest_nr is not None:
             sql += " WHERE ContestNR = ?"
@@ -144,7 +148,7 @@ def read_qsos(path: str, contest_nr, mult_types) -> list[dict]:
             if t is None or not row[1] or not band:
                 continue
             out.append({"t": t, "call": str(row[1]).strip().upper(), "band": band,
-                        "mults": dict(zip(fields, row[3:]))})
+                        "mode": row[3], "mults": dict(zip(fields, row[4:]))})
         return out
     finally:
         con.close()
@@ -172,7 +176,12 @@ def build(qsos: list[dict], taps: list[tuple[float, str, str]], mult_types=()) -
 
     bands: dict[str, dict] = {}
     hours: dict[str, dict] = {}
-    seen: dict[str, dict[str, set]] = {f: {} for f in mult_types}
+    # slots (worked.mult_slots: field + scope) or plain field names (old callers)
+    slots = [m if isinstance(m, dict) else
+             {"field": m, "scope": "contest" if m in PER_CONTEST_MULTS else "band"}
+             for m in mult_types]
+    slots = [sl for sl in slots if sl.get("field")]
+    seen: dict[str, dict[str, set]] = {sl["field"]: {} for sl in slots}
     mults_from_spots, total_mults = [], 0
     pouncer = 0
     for q in qsos:
@@ -187,11 +196,12 @@ def build(qsos: list[dict], taps: list[tuple[float, str, str]], mult_types=()) -
         hr = hours.setdefault(h, {"hour": h, "qsos": 0, "pouncer": 0})
         hr["qsos"] += 1
         hr["pouncer"] += via
-        for f in mult_types:
+        for sl in slots:
+            f = sl["field"]
             v = normalize_mult(f, q["mults"].get(f))
             if v is None:
                 continue
-            where = "*" if f in PER_CONTEST_MULTS else q["band"]
+            where = multsmod.scope_key(sl["scope"], q["band"], normalize_mode(q.get("mode")))
             got = seen[f].setdefault(where, set())
             if v in got:
                 continue

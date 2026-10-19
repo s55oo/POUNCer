@@ -28,7 +28,8 @@ class ExplainTests(unittest.TestCase):
         worked = types.SimpleNamespace(
             zone_is_itu=False, contest_name="CQWWCW", log_open=True,
             is_worked=lambda c, f, m: False,
-            mult_detail=lambda f, p, z, w: [{"type": "ZN", "value": z, "where": "20m", "new": True},
+            mult_summary=lambda: "CQ zone per band + country per band",
+            mult_detail=lambda f, p, z, w, **kw: [{"type": "ZN", "value": z, "where": "20m", "new": True},
                                             {"type": "CountryPrefix", "value": p, "where": "20m",
                                              "new": False}])
         f = types.SimpleNamespace(

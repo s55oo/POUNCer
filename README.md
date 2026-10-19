@@ -462,6 +462,36 @@ Right after logging in to RBN POUNCer asks for the **last spots**
 (`sh/dx/100 spotter=S53WW-#`, or `sh/dx/30` if that gives nothing), so the
 list has stations to click straight away. `[rbn] history = 30` (0 = off).
 
+## Multipliers: how POUNCer knows them
+
+N1MM's built-in contest rules are compiled into N1MM - no file describes
+them (user-defined contests have `.udc` files). But every N1MM log database
+carries what POUNCer needs:
+
+- the **`Contest` table** - all 262 built-in contests (and the user-defined
+  ones you opened) with `Multiplier1Name` / `2` / `3`: the log column each
+  multiplier is counted from (CQWW: `ZN` + `CountryPrefix`; WPX: `WPXPrefix`;
+  ARRL DX from outside W/VE: `Sect` = state / province; KING of Spain: `Sect`
+  = EA province + country; HA DX / YU DX: country + `Exchange1` ...);
+- on **every logged QSO** `IsMultiplier1` / `2` / `3` = 1 when N1MM counted
+  it as a new multiplier - N1MM's own decision for your location.
+
+POUNCer takes the slots from the table and, as QSOs come in, checks them
+against those flags: it learns whether a multiplier counts **per band**,
+**per band and mode** or **once per contest**, learns the column of a slot
+the table doesn't name (SPDX from outside SP: SP provinces), and stops using
+a name the flags clearly contradict. The window's log line shows the result
+(`mults: CQ zone per band + country per band`; "(learnt)" = from the log);
+the phone's *Debug* lists every multiplier with its value, where it counts,
+where the value came from and how well the rule matches N1MM's flags.
+
+Values: country, zone, WPX prefix and continent come from the call
+(cty.dat; a zone your log has for that call wins). **Exchange multipliers**
+(section, DOK, province, `Exchange1` ...) are not in an RBN spot - POUNCer
+knows them when the station is **in your log on another band**, or from
+**N1MM's call history** (load a call-history file in N1MM; POUNCer reads its
+`CallHist` table in `N1MM Admin.s3db`). Unknown = not marked as a mult.
+
 ## Contest summary
 
 **Σ** on the phone page (next to **?**, also in the band menu) or the
