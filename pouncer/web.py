@@ -1387,7 +1387,7 @@ INDEX_HTML = """<!doctype html>
     h += row('Worked', yn(f.worked, 'yes, on ' + esc(f.band) + ' ' + esc(f.mode) + ' (grey in the window)', 'not yet on ' + esc(f.band) + ' ' + esc(f.mode)),
       f.log_open ? '' : '<span class="warn">N1MM log not open: nothing counts as worked</span>');
     if (!(f.mults || []).length) h += row('Mults', '<span class="warn">no multiplier types known</span>', 'POUNCer reads them from the open N1MM contest');
-    if (f.mult_rules) h += row('This contest', esc(f.mult_rules), 'from N1MM\'s contest table; "learnt" = from the IsMultiplier flags N1MM set on your QSOs');
+    if (f.mult_rules) h += row('This contest', esc(f.mult_rules), 'from the contest table of N1MM; "learnt" = from the IsMultiplier flags N1MM set on your QSOs');
     const NAMES = {CountryPrefix: 'Country', ZN: f.zone_kind + ' zone', WPXPrefix: 'WPX prefix', Sect: 'Section',
       Exchange1: 'Exchange', MiscText: 'Misc text', GridSquare: 'Grid', Continent: 'Continent', CK: 'Check', Prec: 'Precedence'};
     const SRC = {'cty.dat': 'from cty.dat / the call', log: 'from your log (worked on another band)',

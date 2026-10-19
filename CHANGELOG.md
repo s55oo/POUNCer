@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.7.94 — 2026-10-19 — phone page fixed
+
+- **Fix:** the phone / browser page stayed at "connecting..." since v0.7.92:
+  an apostrophe in a text of the Debug sheet ended a JavaScript string, so
+  the whole page script stopped. A new test checks every page's script with
+  Node (`node --check`) so this can't ship again.
+
 ## v0.7.93 — 2026-10-19 — modern look
 
 - **Sharp text** at 125 / 150 % Windows display scaling: POUNCer is now DPI
