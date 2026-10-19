@@ -402,3 +402,31 @@ class RunHistoryTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SaveThrottleTests(unittest.TestCase):
+    """The run history file (MBs) is written at most every SAVE_EVERY_S - the
+    contest start learns dozens of calls a minute (100+ MB written before)."""
+
+    def test_many_learnt_calls_one_write_then_flush(self) -> None:
+        import json as _json
+        import tempfile
+        from unittest import mock
+        from pouncer import runhist as rhmod
+        with tempfile.TemporaryDirectory() as d:
+            rh = rhmod.RunHistory(os.path.join(d, "cache"), fetch=lambda u: b"", base_url="X/")
+            rh.SAVE_EVERY_S = 3600
+            writes = []
+            real = rhmod.os.replace
+            with mock.patch.object(rhmod.os, "replace",
+                                   side_effect=lambda a, b: (writes.append(b), real(a, b))):
+                for i in range(50):
+                    with rh._lock:
+                        rh._results[f"K{i}AA|CQWWCW|CW"] = {"run": i}
+                    rh._save()
+                self.assertEqual(len(writes), 1)          # the first one; the rest wait
+                rh.flush()                                # exit: the rest goes in
+                self.assertEqual(len(writes), 2)
+            with open(rh._file, encoding="utf-8") as fh:
+                self.assertEqual(len(_json.load(fh)), 50)
+            self.assertIsNone(rh._save_timer)

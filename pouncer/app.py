@@ -3306,6 +3306,12 @@ class PouncerApp:
     def _shutdown(self) -> None:
         if getattr(self, "perf", None) is not None:
             self.perf.stop()
+        rh = getattr(self, "runhist", None)
+        if rh is not None and hasattr(rh, "flush"):
+            try:
+                rh.flush()               # the last learnt run histories (saved every 30 s)
+            except Exception as exc:  # noqa: BLE001
+                log.info("run history not saved: %s", exc)
         if getattr(self, "timeline", None) is not None:
             self.timeline.save()
         if self.team is not None:
