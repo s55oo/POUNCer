@@ -650,3 +650,10 @@ spot's age on from `_age0` + the time since the last full list and redraws only
 when a tile crosses `fade_s` (darker); `tapResult` still runs. `refresh` returns at
 once while `document.hidden` or a request is in flight (`inFlight`), and runs on
 `visibilitychange` back to visible; the ping is skipped while hidden too.
+
+## Run history saves (v0.7.91)
+
+`RunHistory._save()` only asks for a save: at once when the last write is
+`SAVE_EVERY_S` (30 s) old, else one `threading.Timer` for the rest of that time;
+`flush()` writes (timer cancelled) and runs from the app's `_shutdown`. Before, each
+learnt call rewrote the whole `runhist5.json` (6 MB on a contest PC).

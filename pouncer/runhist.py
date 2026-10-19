@@ -251,6 +251,11 @@ class RunHistory:
         self.warm_status = ""  # e.g. "23456 stations known in advance"
         self._lists: dict[tuple, threading.Event] = {}
         self._save_lock = threading.Lock()
+        # saving: the whole file (MBs) is rewritten, so at most every
+        # SAVE_EVERY_S - not once per learnt call (the contest start learns
+        # dozens a minute: 100+ MB written a minute before)
+        self._saved_at = float("-inf")     # never saved yet: the first save goes at once
+        self._save_timer: threading.Timer | None = None
         self._fetch_slots = threading.BoundedSemaphore(FETCH_PARALLEL)
         self._shard_locks: dict[str, threading.Lock] = {}
         if run_list:
@@ -481,8 +486,29 @@ class RunHistory:
                 except Exception:
                     pass
 
+    SAVE_EVERY_S = 30.0
+
     def _save(self) -> None:
+        """Ask for a save: now if the last one is old enough, else once
+        later (one timer) - many lookups in a row give one write."""
         with self._save_lock:
+            wait = self.SAVE_EVERY_S - (time.monotonic() - self._saved_at)
+            if wait > 0:
+                if self._save_timer is None:
+                    t = threading.Timer(wait, self.flush)
+                    t.daemon = True
+                    self._save_timer = t
+                    t.start()
+                return
+        self.flush()
+
+    def flush(self) -> None:
+        """Write the file now (also at exit)."""
+        with self._save_lock:
+            if self._save_timer is not None:
+                self._save_timer.cancel()
+                self._save_timer = None
+            self._saved_at = time.monotonic()
             with self._lock:
                 data = dict(self._results)
             try:

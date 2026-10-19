@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.91 — 2026-10-19 — far fewer disk writes
+
+- The run history file (`cache\runhist5.json`, several MB) was rewritten
+  in full **for every call** whose run history POUNCer learnt - at a contest
+  start dozens a minute: the WAG perf log showed up to **185 MB written a
+  minute**. It is now saved at most every 30 s (one write for many calls)
+  and once more at exit.
+
 ## v0.7.90 — 2026-10-19 — phone: lighter refresh
 
 - When nothing changed since the last second, POUNCer answers the phone
