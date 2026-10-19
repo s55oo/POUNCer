@@ -17,6 +17,8 @@ and port.
 
 from __future__ import annotations
 
+from . import traffic
+
 import json
 import logging
 import socket
@@ -193,6 +195,8 @@ class Team:
     def _send(self, msg: dict, broadcast: bool = True) -> None:
         msg["id"] = self.id
         data = json.dumps(msg, separators=(",", ":")).encode()
+        if traffic._sink is not None:
+            traffic.emit("TEAM >", traffic.squeeze(data.decode(), 300))
         if len(data) > MAX_DATAGRAM:
             return
 
@@ -266,6 +270,8 @@ class Team:
                 continue
             if not isinstance(msg, dict) or msg.get("id") in (None, self.id):
                 continue
+            if traffic._sink is not None:
+                traffic.emit(f"TEAM {ip}", traffic.squeeze(data.decode("utf-8", "replace"), 300))
             self.handle(msg, ip)
 
     def handle(self, msg: dict, ip: str) -> None:

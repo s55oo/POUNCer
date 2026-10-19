@@ -1,0 +1,101 @@
+"""Traffic tap + console: silent while closed, lines shown / filtered when open."""
+
+import unittest
+
+from pouncer import traffic
+
+try:
+    import tkinter as tk
+    from pouncer import console
+    _root = tk.Tk()
+    _root.withdraw()
+except Exception:          # no display
+    _root = None
+
+
+class TapTests(unittest.TestCase):
+    def tearDown(self) -> None:
+        traffic.stop()
+
+    def test_closed_keeps_nothing(self) -> None:
+        traffic.stop()
+        traffic.emit("rbn", "DX de X")
+        self.assertFalse(traffic.active())
+        self.assertEqual(traffic.drain(), [])
+
+    def test_open_collects_and_drains(self) -> None:
+        traffic.start(maxlen=3)
+        for i in range(5):
+            traffic.emit("rbn", f"line {i}")
+        traffic.emit("N1MM >", b"<xml/>")
+        got = traffic.drain()
+        self.assertEqual([t for _, _, t in got], ["line 3", "line 4", "<xml/>"])
+        self.assertEqual(traffic.drain(), [])
+
+    def test_squeeze(self) -> None:
+        self.assertEqual(traffic.squeeze("<a>\n  <b>1</b>\n</a>"), "<a> <b>1</b> </a>")
+        self.assertTrue(traffic.squeeze("x" * 500, 10).endswith(" ..."))
+
+    def test_groups(self) -> None:
+        self.assertEqual(traffic.group_of("ssb"), "SSB")
+        self.assertEqual(traffic.group_of("ssb >"), "SSB")
+        self.assertEqual(traffic.group_of("rbn"), "RBN")
+        self.assertEqual(traffic.group_of("N1MM 127.0.0.1"), "N1MM")
+        self.assertEqual(traffic.group_of("TEAM >"), "TEAM")
+        self.assertEqual(traffic.group_of("WEB 10.0.0.2"), "WEB")
+        self.assertEqual(traffic.group_of("HTTP"), "HTTP")
+
+
+@unittest.skipIf(_root is None, "no display")
+class ConsoleTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.c = console.TrafficConsole(_root)
+        self.c.open()
+
+    def tearDown(self) -> None:
+        self.c.close()
+
+    def body(self) -> str:
+        return self.c.text.get("1.0", "end")
+
+    def test_open_starts_close_stops(self) -> None:
+        self.assertTrue(traffic.active())
+        self.c.close()
+        self.assertFalse(traffic.active())
+        self.assertFalse(self.c.is_open())
+
+    def test_shows_filters_and_hides_groups(self) -> None:
+        traffic.emit("rbn", "DX de OH8X-#: 14025.0 S55OO CW 20 dB")
+        traffic.emit("N1MM 127.0.0.1", "<RadioInfo>")
+        traffic.emit("WEB 10.0.0.2", "/api/spots")       # WEB off by default
+        self.c.add(traffic.drain())
+        self.assertIn("S55OO", self.body())
+        self.assertIn("RadioInfo", self.body())
+        self.assertNotIn("/api/spots", self.body())
+        self.c.filter.set("radioinfo")
+        traffic.emit("rbn", "DX de K1TTT-#: 7010.0 W1AW CW")
+        traffic.emit("N1MM 127.0.0.1", "<RadioInfo> again")
+        self.c.add(traffic.drain())
+        self.assertNotIn("W1AW", self.body())
+        self.assertIn("again", self.body())
+        self.assertEqual(self.c.counts["RBN"], 2)
+
+    def test_pause_and_keep(self) -> None:
+        self.c._toggle_pause()
+        traffic.emit("rbn", "hidden while paused")
+        self.c.add(traffic.drain())
+        self.assertNotIn("hidden", self.body())
+        self.c._toggle_pause()
+        old = console.KEEP
+        console.KEEP = 50
+        try:
+            self.c.add([(0.0, "rbn", f"n{i}") for i in range(200)])
+        finally:
+            console.KEEP = old
+        lines = self.body().strip().splitlines()
+        self.assertLessEqual(len(lines), 50)
+        self.assertTrue(lines[-1].endswith("n199"))
+
+
+if __name__ == "__main__":
+    unittest.main()

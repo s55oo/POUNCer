@@ -10,6 +10,8 @@ thread safe, so callbacks are expected to marshal work onto the Tk thread
 
 from __future__ import annotations
 
+from . import traffic
+
 import json
 import logging
 import re
@@ -2841,6 +2843,8 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
+        if traffic._sink is not None:            # console open: who asked for what
+            traffic.emit(f"WEB {self.client_address[0]}", self.path)
         try:   # load counters for the perf log (requests / min, phones open)
             srv = self.server
             srv.req_count = getattr(srv, "req_count", 0) + 1

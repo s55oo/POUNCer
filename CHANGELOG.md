@@ -1,5 +1,16 @@
 # POUNCer — Changelog
 
+## v0.7.96 — 2026-10-19 — table back, traffic console
+
+- The window's spot list is the **table in small fonts** again (as up to
+  v0.7.92) - clickable rows, columns, sorting. Tiles stay in View > Spot
+  list as tiles (Ctrl+T, `[ui] spot_tiles`, now off; the old `tiles = true`
+  is not read). The phone page is unchanged.
+- **Traffic console** (View > Traffic console, Ctrl+Shift+D): raw lines of
+  every source - RBN, SSB cluster, HTTP feed, N1MM UDP in / out, team, phone
+  page requests - with source switches, a filter word, Pause and Clear. Only
+  works while open; closed it costs no CPU.
+
 ## v0.7.95 — 2026-10-19 — RBN paused on SSB
 
 - While **every radio is on SSB / AM / FM** for a minute, the RBN

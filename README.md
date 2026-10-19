@@ -261,7 +261,10 @@ Windows 11 style, light) or **Classic** (the look up to v0.7.92). POUNCer
 draws **sharp at 125 / 150 % display scaling** (it tells Windows it handles
 the scaling; the saved window size is converted once).
 
-**Spot list as tiles** (View menu or **Ctrl+T**, `[ui] tiles`, on by
+The window's spot list is the **table in small fonts** (default, as up to
+v0.7.92); the phone page keeps its tiles.
+
+**Spot list as tiles** (View menu or **Ctrl+T**, `[ui] spot_tiles`, off by
 default): the spots as cards like the phone - the call big (yellow = DX,
 grey = worked, ⚡ rare CQ, ? not in SCP, ↻ tapped), frequency / run history
 over first heard / SNR / calling time; green = strong, darker = not
@@ -271,6 +274,14 @@ move, Space taps. Off = the table with columns (sorting by a column heading).
 
 **Phone page as an app window** (View menu): the phone page on the PC in a
 window of its own - Edge or Chrome "app" mode, no tabs, no address bar.
+
+**Traffic console** (View menu or **Ctrl+Shift+D**): the raw data of every
+source as it arrives or goes out - RBN and SSB cluster lines (and the
+commands sent), N1MM UDP packets in and QSY / call commands out, the HTTP
+backup feed, the team, the phone page's requests (WEB, off at first). Tick
+sources on / off, type a filter word (a call, `DX de`, `RadioInfo` ...),
+Pause, Clear; outgoing lines are yellow (`>`). The taps only work while the
+console is open - closed, it costs nothing.
 
 The spot list (table): **new multiplier** rows in bold red, **worked** ones in grey
 (when *Hide worked* is off), **⚡** before the call = rare CQ, **?** after it

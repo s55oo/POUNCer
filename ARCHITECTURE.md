@@ -696,6 +696,22 @@ the Treeview; `_rebuild` builds `_tile_item(...)` per row while `tiles_var` is o
 and hands them over with the selected index; `_tile_tap(i)` → `_act_on_spot`.
 `_open_app_window`: `msedge` / `chrome --app=<phone url>` (fallback: browser).
 
+## Table again, traffic console (v0.7.96)
+
+The window's list is the Treeview again by default (`Config.tiles` False, ini key
+`[ui] spot_tiles` - the old `tiles = true` from v0.7.93 is not read); the modern
+Treeview is compact (`rowheight=px(22)`, 9 pt, headings 8 pt bold). `pouncer/traffic.py`
+is the tap: `_sink` None while closed (each hook checks `traffic._sink is not None`
+before formatting anything), `start()` = a `deque(maxlen=5000)`, `emit(source, text)`
+(thread-safe append), `drain()`, `squeeze()` (one line, cut at 400 chars),
+`group_of(source)` → RBN / SSB / HTTP / N1MM / TEAM / WEB. Hooks: `rbn._consume` (each
+line, source = client name; commands as `name >`), `n1mm` listener (`N1MM <ip>`) and
+`_send` (`N1MM >`), `rbnhttp` (`HTTP`), `team` (`TEAM <ip>` / `TEAM >`), `web.do_GET`
+(`WEB <ip>`, path). `console.TrafficConsole(root)`: `open()` → `traffic.start()` and a
+Toplevel with group checkboxes, filter, Pause, Clear and a Text; `_tick` every 250 ms
+drains → `add()` (counts per group, filters, keeps `KEEP` 3000 lines, follows the end
+when scrolled there); `close()` (window X, app exit) → `traffic.stop()`.
+
 ## RBN paused on SSB (v0.7.95)
 
 `_rbn_paused()` (each `_ensure_rbn_clients` tick): `cfg.rbn_pause_on_phone`, N1MM reports

@@ -169,10 +169,11 @@ SETTINGS: list[dict] = [
      "live": False, "group": "Program", "label": "Window look",
      "help": "dark / light = Windows 11 style (dark like the phone page); classic = the "
              "look up to v0.7.92. From the next start (View > Look)."},
-    {"key": "ui.tiles", "attr": "tiles", "kind": "bool", "live": True, "group": "Program",
+    {"key": "ui.spot_tiles", "attr": "tiles", "kind": "bool", "live": True, "group": "Program",
      "label": "Spot list as tiles",
      "help": "The window's spot list as tiles like the phone page (call big, green = "
-             "strong, pink bar = new mult); off = the table with columns. View menu / Ctrl+T."},
+             "strong, pink bar = new mult); off (default) = the table with columns in small "
+             "fonts. View menu / Ctrl+T."},
     {"key": "ui.alert_popup", "attr": "alert_popup", "kind": "bool",
      "live": True, "group": "Program", "label": "Alert pop-up (rare CQ + new mult)",
      "help": "Window: a yellow pop-up when a rare CQ (⚡) that is also a new multiplier "

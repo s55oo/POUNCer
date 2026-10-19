@@ -188,9 +188,9 @@ def _modern_styles(style: ttk.Style) -> None:
     for name in ("FKey.TButton", "Log.TButton"):
         style.configure(name, font=(FONT, 10, "bold"), padding=(px(6), px(4)))
     style.configure("Treeview", background=PANEL, fieldbackground=PANEL, foreground=TEXT,
-                    rowheight=px(28), font=(FONT, 10))
+                    rowheight=px(22), font=(FONT, 9))   # small, like the old table
     style.map("Treeview", background=[("selected", SELECT)], foreground=[("selected", TEXT)])
-    style.configure("Treeview.Heading", font=(FONT, 9, "bold"), foreground=MUTED)
+    style.configure("Treeview.Heading", font=(FONT, 8, "bold"), foreground=MUTED)
 
 
 def _classic_styles(style: ttk.Style) -> None:
