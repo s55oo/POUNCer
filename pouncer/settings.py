@@ -110,6 +110,11 @@ SETTINGS: list[dict] = [
     {"key": "rbn.backup_commands", "attr": "rbn_backup_commands", "kind": "text",
      "live": False, "group": "RBN", "label": "Backup commands after login",
      "help": "Comma separated, e.g. set/skimmer."},
+    {"key": "rbn.pause_on_phone", "attr": "rbn_pause_on_phone", "kind": "bool", "live": True,
+     "group": "RBN", "label": "Pause RBN while the radio is on SSB",
+     "help": "Every radio on SSB / AM / FM for a minute: the RBN connection is closed (SSB "
+             "spots come from the DX cluster); back at once when a radio goes to CW. Not "
+             "while other team POUNCers use this one's feed."},
     {"key": "rbn.http_backup", "attr": "rbn_http_backup", "kind": "text", "live": True,
      "group": "RBN", "label": "HTTP backup (URL)",
      "help": "RBN over HTTP (S53ZO's Azure feed, no login) while the telnet feed is down or "

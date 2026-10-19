@@ -79,6 +79,9 @@ class Config:
     rbn_backup_commands: tuple = ()     # at start ask RBN for the last spots (SH/DX); 0 = off
     # RBN over HTTP (S53ZO's Azure feed) while the telnet feed is down / silent
     rbn_http_backup: str = "https://azure.s53m.com/cors/rbn/live"
+    # close the RBN connection while every radio is on SSB / AM / FM (phone
+    # spots come from the DX cluster); back at once when a radio is on CW
+    rbn_pause_on_phone: bool = True
     # Super Check Partial: "?" on spotted calls not in MASTER.SCP; kept fresh
     scp_enabled: bool = True
     scp_url: str = "https://www.supercheckpartial.com/MASTER.SCP"
@@ -255,6 +258,7 @@ def load_config(path: str) -> Config:
     cfg.rbn_backup_commands = tuple(
         c.strip() for c in s("rbn", "backup_commands", "").split(",") if c.strip())
     cfg.rbn_http_backup = s("rbn", "http_backup", cfg.rbn_http_backup).strip()
+    cfg.rbn_pause_on_phone = b("rbn", "pause_on_phone", cfg.rbn_pause_on_phone)
     cfg.scp_enabled = b("scp", "enabled", cfg.scp_enabled)
     cfg.scp_url = s("scp", "url", cfg.scp_url).strip()
     cfg.scp_refresh_days = max(1, i("scp", "refresh_days", cfg.scp_refresh_days))

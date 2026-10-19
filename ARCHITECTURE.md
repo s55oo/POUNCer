@@ -695,3 +695,12 @@ look change is saved (`ui.look`) and needs a restart. `title_bar(win)` =
 the Treeview; `_rebuild` builds `_tile_item(...)` per row while `tiles_var` is on
 and hands them over with the selected index; `_tile_tap(i)` → `_act_on_spot`.
 `_open_app_window`: `msedge` / `chrome --app=<phone url>` (fallback: browser).
+
+## RBN paused on SSB (v0.7.95)
+
+`_rbn_paused()` (each `_ensure_rbn_clients` tick): `cfg.rbn_pause_on_phone`, N1MM reports
+radios and all are `_phone_radio` (USB / LSB / SSB / AM / FM) for `RBN_PAUSE_S` (60 s,
+`_phone_since`), and no `team.alive_peers()` → desired RBN ports = none (clients stopped;
+the HTTP backup stops with them). `_rbn_pause_on` flips the log line, `rbn_status`, the RBN
+light (`lights.rbn_light("paused")` → OFF "RBN paused"), the window's RBN line and the
+check (`rbn = "paused"` → ok). Any radio back on CW → not paused at once, clients restart.

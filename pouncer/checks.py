@@ -64,8 +64,9 @@ def build(f: dict) -> list[dict]:
     add("Call", "ok", f["call"]) if f.get("call") else add("Call", "bad", "no station call")
 
     rbn = f.get("rbn")            # "ok" / "http" / "team" / text of the problem
-    if rbn in ("ok", "http", "team"):
-        add("RBN", "ok", {"ok": "", "http": "via HTTP backup", "team": "via team master"}[rbn])
+    if rbn in ("ok", "http", "team", "paused"):
+        add("RBN", "ok", {"ok": "", "http": "via HTTP backup", "team": "via team master",
+                          "paused": "paused - radio on SSB"}[rbn])
     else:
         add("RBN", "bad", rbn or "no spots")
 

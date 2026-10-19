@@ -1396,9 +1396,37 @@ class PouncerApp:
             self._http_feed.stop()
             self._http_feed = None
 
+    RBN_PAUSE_S = 60   # every radio on SSB this long before the RBN connection closes
+
+    def _rbn_paused(self) -> bool:
+        """Every radio N1MM reports is on SSB / AM / FM (for RBN_PAUSE_S) and no
+        other team POUNCer uses our feed: RBN isn't needed - phone spots come
+        from the DX cluster. Any radio back on CW (or N1MM gone) = not paused."""
+        if not getattr(self.cfg, "rbn_pause_on_phone", False):
+            self._phone_since = None
+            return False
+        nrs = self.state.radio_numbers()
+        if not nrs or not all(self._phone_radio(nr) for nr in nrs):
+            self._phone_since = None
+            return False
+        if self.team is not None and self.team.alive_peers():
+            return False                  # the others may be on CW: keep feeding them
+        now = time.time()
+        if getattr(self, "_phone_since", None) is None:
+            self._phone_since = now
+        return now - self._phone_since >= self.RBN_PAUSE_S
+
     def _ensure_rbn_clients(self) -> None:
         self._ensure_ssb_client()
         desired = self._desired_rbn_ports()
+        paused = self._rbn_paused()
+        if paused != getattr(self, "_rbn_pause_on", False):
+            self._rbn_pause_on = paused
+            log.info("RBN %s", "paused: every radio on SSB (spots from the DX cluster)"
+                     if paused else "resumed: a radio is on CW")
+            self.rbn_status = "paused: radio on SSB" if paused else "starting"
+        if paused:
+            desired = set()
         if self.team is not None:
             # Team: only the master talks to RBN; give discovery 3 s at start
             # so a later POUNCer doesn't log in just to hand over at once.
@@ -2663,7 +2691,7 @@ class PouncerApp:
             worked = f"LOG: **{self.worked.log_message}**"
         self.rbn_label.configure(
             text=(
-                f"RBN: **{self.rbn_status if not (self.team and self.team.role() == 'slave') else 'via team master'}**"
+                f"RBN: **{('paused - radio on SSB' if getattr(self, '_rbn_pause_on', False) else self.rbn_status) if not (self.team and self.team.role() == 'slave') else 'via team master'}**"
                 f"   {self._bold_team(self._team_text())}   spotter=**{self.cfg.rbn_spotter or 'ALL'}**"
                 f"{'   BACKUP: **' + self._backup_text() + '**' if self._backup_text() else ''}"
                 f"   mode=**{','.join(self.cfg.follow_modes)}**"
@@ -2688,6 +2716,8 @@ class PouncerApp:
         role = self.team.role() if self.team is not None else "off"
         if role == "slave":
             rbn = "team"
+        elif getattr(self, "_rbn_pause_on", False):
+            rbn = "paused"
         elif self._rbn_healthy():
             rbn = "ok"
         elif self._http_feed is not None and self._http_feed.spots_in:
@@ -2935,7 +2965,8 @@ class PouncerApp:
         n = len(self.team.alive_peers()) + 1 if self.team is not None else 1
         spot_age = time.time() - self._last_own_spot if self._last_own_spot else None
         return [
-            lights.rbn_light(self.rbn_status, spot_age, role,
+            lights.rbn_light("paused" if getattr(self, "_rbn_pause_on", False) else self.rbn_status,
+                             spot_age, role,
                              http=self._http_feed is not None and bool(self._http_feed.spots_in)),
             lights.n1mm_light(snap["age"] if snap and snap.get("freq_khz") else None),
             lights.log_light(self.worked.log_open, self.worked.log_state),

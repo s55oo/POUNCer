@@ -48,7 +48,7 @@ One coloured dot per connection, under the top bar:
 | 🟢 green | connected and working |
 | 🟡 amber | waiting, connecting, or only partly working |
 | 🔴 red | not working |
-| ⚪ grey | switched off |
+| ⚪ grey | switched off; **RBN paused** = every radio on SSB, RBN closed until a radio is on CW |
 | 🔵 blue | Update only: a new version is downloaded - click it (or **Restart**) |
 
 The lights are RBN, N1MM, Log, Team, Phone, SSB (the DX cluster for SSB

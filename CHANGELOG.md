@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.95 — 2026-10-19 — RBN paused on SSB
+
+- While **every radio is on SSB / AM / FM** for a minute, the RBN
+  connection is closed (SSB spots come from the DX cluster); it comes back
+  **at once** when a radio goes to CW. Light "RBN paused" (grey), check line
+  "paused - radio on SSB". Not while other team POUNCers use this one's feed.
+  `[rbn] pause_on_phone` (on) / Settings > RBN.
+
 ## v0.7.94 — 2026-10-19 — phone page fixed
 
 - **Fix:** the phone / browser page stayed at "connecting..." since v0.7.92:

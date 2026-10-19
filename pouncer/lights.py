@@ -23,6 +23,8 @@ def rbn_light(status: str, last_spot_age: float | None, role: str,
     if http and last_spot_age is not None and last_spot_age < RBN_SPOT_S:
         return OK, "RBN via HTTP"       # telnet down, the HTTP backup delivers
     s = (status or "").lower()
+    if s.startswith("paused"):
+        return OFF, "RBN paused"         # every radio on SSB: not needed
     name = "RBN via backup" if "backup" in s and "trying rbn" not in s else "RBN"
     if last_spot_age is not None and last_spot_age < RBN_SPOT_S:
         return OK, name
