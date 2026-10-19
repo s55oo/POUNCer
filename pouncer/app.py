@@ -1863,7 +1863,10 @@ class PouncerApp:
             "worked": self.worked.is_worked(s.dxcall, s.freq_khz, s.mode),
             "zone_kind": "ITU" if self.worked.zone_is_itu else "CQ",
             "mults": self.worked.mult_detail(s.freq_khz, ent.prefix if ent else None, zone,
-                                             wpx_prefix(s.dxcall)),
+                                             wpx_prefix(s.dxcall), call=s.dxcall,
+                                             continent=ent.continent if ent else None,
+                                             mode=s.mode),
+            "mult_rules": self.worked.mult_summary(),
             "mult": self._mults(s),
             "run": run, "rare_run": RARE_RUN_PCT, "rare_hours": RARE_HOURS,
             "scp": None if self.scp is None else not self.scp.busted(s.dxcall),
@@ -2374,6 +2377,7 @@ class PouncerApp:
             zone = ent.itu if self.worked.zone_is_itu else ent.cq
         return self.worked.new_mults(
             s.freq_khz, ent.prefix if ent else None, zone, wpx_prefix(s.dxcall),
+            call=s.dxcall, continent=ent.continent if ent else None, mode=s.mode,
         )
 
     def _run_fields(self, s: Spot) -> dict:
@@ -2615,6 +2619,8 @@ class PouncerApp:
             if self.worked.log_open:
                 per_band = " ".join(f"{b} **{n}**" for b, n in self.worked.band_qsos())
                 worked += f"   QSOs: {per_band or '-'} (total **{self.worked.qso_count}**)"
+                rules = self.worked.mult_summary()
+                worked += f"   mults: **{rules or 'none known'}**"
         else:
             worked = f"LOG: **{self.worked.log_message}**"
         self.rbn_label.configure(
@@ -3184,10 +3190,10 @@ class PouncerApp:
         if not w.log_open or not path:
             return {"ok": False, "error": w.log_message or "No log open in N1MM"}
         try:
-            qsos = summarymod.read_qsos(path, w.contest_nr, w.mult_types)
+            qsos = summarymod.read_qsos(path, w.contest_nr, w.mult_slots or w.mult_types)
         except Exception as exc:   # locked / gone
             return {"ok": False, "error": f"Could not read the log: {exc}"}
-        out = summarymod.build(qsos, self.taps.snapshot(), w.mult_types)
+        out = summarymod.build(qsos, self.taps.snapshot(), w.mult_slots or w.mult_types)
         out.update(log=w.db_name, contest=w.contest_name,
                    station=w.station_call or self.own_call())
         return out
