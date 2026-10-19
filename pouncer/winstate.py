@@ -45,6 +45,16 @@ def _offset(text: str) -> int:
     return sign * int(text[1:])
 
 
+def scale_geometry(geom: str, factor: float) -> str:
+    """"WxH+X+Y" with the size times ``factor`` (saved at another display
+    scaling, e.g. before POUNCer drew sharp at 150 %). Position kept."""
+    m = _GEOM.match(str(geom or "").strip())
+    if not m or abs(factor - 1.0) < 0.05:
+        return geom
+    w, h = round(int(m.group(1)) * factor), round(int(m.group(2)) * factor)
+    return f"{w}x{h}{m.group(3)}{m.group(4)}"
+
+
 def fit_geometry(geom: str, screen_w: int, screen_h: int) -> str | None:
     """A saved "WxH+X+Y" that still fits this screen (a second monitor may
     be gone): size limited to the screen, window moved back onto it so at

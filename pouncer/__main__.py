@@ -48,6 +48,8 @@ def main(argv: list[str] | None = None) -> int:
     from . import __version__
     logging.getLogger("pouncer").info("POUNCer %s start, config %s, log %s",
                                       __version__, os.path.abspath(args.config), path)
+    from . import theme
+    theme.dpi_aware()          # sharp at 125 / 150 % display scaling (before Tk starts)
     app = PouncerApp(config)
     app.run()
     return 0

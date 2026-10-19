@@ -676,3 +676,22 @@ needs an exchange field. `station_value(field, call, from_call)`: cty fields fro
 call (a logged zone wins), exchange fields log → call history → unknown.
 `new_mults` / `mult_detail(..., call, continent, mode)`; `mult_summary()` for the
 window line and `/api/explain` (`mult_rules`); `summary.build` takes the slots.
+
+## Looks, DPI, tiles (v0.7.93)
+
+`theme.dpi_aware()` (`__main__`, before Tk: `SetProcessDpiAwareness(1)`, else
+`SetProcessDPIAware`). `theme.apply(root, look)` first in `_build_ui`: `SCALE` =
+`winfo_fpixels("1i")/96`, `px(n)` for pixel sizes (window, minsize, columns, row
+height, compact size, settings window); `window.json` stores `scale` and a saved
+geometry / column widths are rescaled by `SCALE / scale`. Looks: `dark` / `light`
+source the vendored `pouncer/sunvalley/sv.tcl` (MIT, unchanged; bundled by
+`POUNCer.spec` datas and package-data) and use `sun-valley-dark|light`; `SortOn.TButton`
+copies `Accent.TButton`'s layout; `MODERN` → the F-key row uses `theme.key_button`
+(flat tk.Button: green / blue, red pressed) instead of image-drawn ttk buttons. The
+palette (`BG`, `T_STRONG` ... `CHECK`, `HELP_TEXT`) is set before widgets are made; a
+look change is saved (`ui.look`) and needs a restart. `title_bar(win)` =
+`DwmSetWindowAttribute(20|19)` for the dark title bar (main, settings, panels).
+`tiles.TileList` (canvas cards, `CARD_W` 330 px per column) shares `tree_frame` with
+the Treeview; `_rebuild` builds `_tile_item(...)` per row while `tiles_var` is on
+and hands them over with the selected index; `_tile_tap(i)` → `_act_on_spot`.
+`_open_app_window`: `msedge` / `chrome --app=<phone url>` (fallback: browser).
