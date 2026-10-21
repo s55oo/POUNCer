@@ -77,6 +77,7 @@ class TrafficConsole:
         self.pause_btn = ttk.Button(bar, text="Pause", command=self._toggle_pause)
         self.pause_btn.pack(side="left", padx=2)
         ttk.Button(bar, text="Clear", command=self._clear).pack(side="left", padx=2)
+        ttk.Button(bar, text="Reset counters", command=self.reset_counts).pack(side="left", padx=2)
         # one chip per source: coloured dot (green = lines now, amber = quiet,
         # red = quiet long, grey = quiet for a known reason) + count / why
         self.info = ttk.Frame(win, padding=(8, 0, 8, 4))
@@ -153,6 +154,17 @@ class TrafficConsole:
     def _clear(self) -> None:
         self.text.delete("1.0", "end")
         self._follow()
+
+    def reset_counts(self) -> None:
+        """Counters back to 0 (the view stays); "quiet" counts from now."""
+        self.counts = {g: 0 for g in GROUPS}
+        self.last = {}
+        self.opened = time.time()
+        self.text.insert("end", time.strftime("%H:%M:%S ", time.gmtime())
+                         + "--- counters reset ---\n", "mark")
+        if self._at_end():
+            self.text.see("end")
+        self._draw_chips()
 
     def _at_end(self) -> bool:
         if not self.text.winfo_ismapped():     # not drawn yet: nothing is "below"

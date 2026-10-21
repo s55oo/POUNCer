@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.103 — 2026-10-21 — skimmer offline warning, reset counters
+
+- Check line **Skimmer** (amber, ⚠ on the phone): a skimmer listed in
+  `spotter` (S53WW, TK0C) has sent nothing for 3 min while RBN works -
+  "TK0C sends nothing (4 min) - skimmer offline or its connection down".
+  `[rbn] skimmer_quiet_minutes` (Settings > RBN).
+- Traffic console: **Reset counters** button.
+
 ## v0.7.102 — 2026-10-21 — no RBN for an SSB team
 
 - **SSB contest** open in N1MM (CQWWSSB, CQWPXSSB, ARRLDXSSB ...): RBN is

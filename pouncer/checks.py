@@ -70,6 +70,13 @@ def build(f: dict) -> list[dict]:
     else:
         add("RBN", "bad", rbn or "no spots")
 
+    sk = f.get("skimmers")        # None = not watched; {"names", "quiet": "" or text}
+    if sk:
+        if sk.get("quiet"):
+            add("Skimmer", "warn", sk["quiet"] + " - skimmer offline or its connection down")
+        else:
+            add("Skimmer", "ok", sk.get("names", ""))
+
     if not f.get("cty_loaded"):
         add("cty", "bad", "no country file - mults / DX unknown")
     else:
