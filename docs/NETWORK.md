@@ -61,7 +61,7 @@ contest, so only that contest is counted (the ini can be out of date):
 ```
 
 **Spots** (tick *Spots*, same address): every spot of N1MM's Telnet window.
-While they come (a minute, then at most 20 s apart) POUNCer uses the SSB
+While they come (from the first one, then at most 20 s apart) POUNCer uses the SSB
 ones and closes its own DX cluster connection (`[ssb] use_n1mm_spots`):
 
 ```xml

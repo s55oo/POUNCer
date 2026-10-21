@@ -1,5 +1,11 @@
 # POUNCer — Changelog
 
+## v0.7.107 — 2026-10-21 — N1MM takes over at its first spot
+
+- POUNCer's own SSB cluster closes as soon as **the first spot from N1MM**
+  arrives (was: after a minute with 3 spots). After a fallback (N1MM quiet
+  20 s) the own cluster stays at least a minute (was 5), then N1MM again.
+
 ## v0.7.106 — 2026-10-21 — time on every spot
 
 - **Fix:** spots from N1MM (SSB via N1MM) and cluster spots without a time

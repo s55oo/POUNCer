@@ -481,13 +481,12 @@ pause_on_phone = false` keeps it always connected.
 
 **SSB spots from N1MM** (no second cluster connection): when N1MM sends its
 spots (Broadcast Data > **Spots**, `127.0.0.1:12060` - every spot of its
-Telnet window), POUNCer takes the SSB spots from there after a minute and
-closes its own cluster connection (light "SSB via N1MM"). When N1MM stops
+Telnet window), POUNCer takes the SSB spots from there from N1MM's **first
+spot** and closes its own cluster connection at once (light "SSB via N1MM"). When N1MM stops
 sending (its telnet dropped, Spots unticked, N1MM closed) POUNCer's own
 cluster is back after **20 seconds** without a spot from N1MM (on a slow
 band, where N1MM's spots are usually more than 5 s apart: 4 x the usual
-gap), and stays for at least 5 minutes before N1MM takes over again. N1MM
-takes over after a minute with at least 3 of its spots, pauses allowed. You then see what N1MM's cluster and filters
+gap), and stays for at least a minute before N1MM takes over again. You then see what N1MM's cluster and filters
 pass. CW keeps the RBN feed (a cluster doesn't pass every skimmer spot).
 `[ssb] use_n1mm_spots = off` (Settings > SSB) always uses POUNCer's own.
 

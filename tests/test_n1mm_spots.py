@@ -69,14 +69,10 @@ class SwitchTests(unittest.TestCase):
 
     def test_stream_replaces_cluster_and_quiet_brings_it_back(self) -> None:
         f, stopped = self._fake()
-        for _ in range(3):
-            f._on_n1mm_spot(parse_spot_packet(PKT))
+        self.assertTrue(f.spot_queue.empty())
+        f._on_n1mm_spot(parse_spot_packet(PKT))           # the first N1MM spot ...
         f._ensure_ssb_client()
-        self.assertFalse(f._ssb_via_n1mm)                  # a minute first
-        self.assertTrue(f.spot_queue.empty())              # (own cluster still feeds the list)
-        f._n1mm_spot_first -= 61
-        f._ensure_ssb_client()
-        self.assertTrue(f._ssb_via_n1mm)
+        self.assertTrue(f._ssb_via_n1mm)                   # ... hands over at once
         self.assertEqual(stopped, [1])
         self.assertIsNone(f._ssb_client)
         self.assertEqual(f.ssb_status, "via N1MM")
@@ -110,12 +106,12 @@ class SwitchTests(unittest.TestCase):
             t[0] += 21                                    # N1MM stopped sending
             f._ensure_ssb_client()
             self.assertFalse(f._ssb_via_n1mm)             # own cluster again
-            for _ in range(30):                           # N1MM back at once ...
+            for _ in range(5):                            # N1MM back at once ...
                 f._on_n1mm_spot(parse_spot_packet(PKT))
                 t[0] += 3
             f._ensure_ssb_client()
-            self.assertFalse(f._ssb_via_n1mm)             # ... but own cluster kept 5 min
-            for _ in range(80):
+            self.assertFalse(f._ssb_via_n1mm)             # ... but own cluster kept a minute
+            for _ in range(20):
                 f._on_n1mm_spot(parse_spot_packet(PKT))
                 t[0] += 3
             f._ensure_ssb_client()
