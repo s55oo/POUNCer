@@ -53,7 +53,9 @@ class SwitchTests(unittest.TestCase):
         f = types.SimpleNamespace(
             cfg=types.SimpleNamespace(ssb_use_n1mm=use, ssb_spotters="ALL"),
             N1MM_SPOT_START_S=P.N1MM_SPOT_START_S, N1MM_SPOT_QUIET_S=P.N1MM_SPOT_QUIET_S,
-            N1MM_SPOT_HOLD_S=P.N1MM_SPOT_HOLD_S, _ssb_back_at=0.0,
+            N1MM_SPOT_HOLD_S=P.N1MM_SPOT_HOLD_S, _ssb_back_at=0.0, N1MM_SPOT_START_N=P.N1MM_SPOT_START_N,
+            N1MM_SPOT_BREAK_S=P.N1MM_SPOT_BREAK_S, N1MM_SPOT_QUIET_X=P.N1MM_SPOT_QUIET_X,
+            _n1mm_gap=None, _n1mm_streak=0,
             _n1mm_spot_first=None, _n1mm_spot_last=0.0, _n1mm_spots=0, _ssb_via_n1mm=False,
             _n1mm_filter=None, spot_queue=queue.Queue(), ssb_status="off",
             _ssb_client=types.SimpleNamespace(stop=lambda: stopped.append(1)),
@@ -66,7 +68,8 @@ class SwitchTests(unittest.TestCase):
 
     def test_stream_replaces_cluster_and_quiet_brings_it_back(self) -> None:
         f, stopped = self._fake()
-        f._on_n1mm_spot(parse_spot_packet(PKT))
+        for _ in range(3):
+            f._on_n1mm_spot(parse_spot_packet(PKT))
         f._ensure_ssb_client()
         self.assertFalse(f._ssb_via_n1mm)                  # a minute first
         self.assertTrue(f.spot_queue.empty())              # (own cluster still feeds the list)
@@ -118,6 +121,28 @@ class SwitchTests(unittest.TestCase):
             self.assertTrue(f._ssb_via_n1mm)              # then N1MM again
         finally:
             appmod.time.time, appmod.RBNClient = real, real_client
+
+    def test_slow_band_still_hands_over_and_doesnt_flip(self) -> None:
+        f, _ = self._fake()
+        import pouncer.app as appmod
+        real = appmod.time.time
+        t = [10000.0]
+        appmod.time.time = lambda: t[0]
+        try:
+            for gap in (30, 25, 40, 30):               # a quiet evening: gaps over 20 s
+                f._on_n1mm_spot(parse_spot_packet(PKT))
+                t[0] += gap
+            f._on_n1mm_spot(parse_spot_packet(PKT))
+            self.assertTrue(f._n1mm_spots_ok())          # handed over anyway
+            f._ensure_ssb_client()
+            self.assertTrue(f._ssb_via_n1mm)
+            self.assertGreater(f._n1mm_quiet_limit(), 100)   # 4 x ~31 s
+            t[0] += 60                                   # a normal pause there: stays
+            self.assertTrue(f._n1mm_spots_ok())
+            t[0] += 200
+            self.assertFalse(f._n1mm_spots_ok())         # really stopped
+        finally:
+            appmod.time.time = real
 
     def test_off_or_not_wanted(self) -> None:
         f, _ = self._fake(use="off")

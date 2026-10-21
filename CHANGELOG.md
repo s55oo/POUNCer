@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## v0.7.105 — 2026-10-21 — N1MM hand-over on a quiet band
+
+- **Fix:** on a quiet band (N1MM's spots often more than 20 s apart) POUNCer
+  kept its own SSB cluster although N1MM was sending: every 20 s pause
+  restarted the minute it waits before handing over. Now N1MM takes over
+  after a minute with at least 3 of its spots, pauses allowed.
+- Falling back stays at 20 s without an N1MM spot; on a slow band (usual
+  gap over 5 s) 4 x the usual gap, so a quiet evening doesn't switch back
+  and forth. The log line says how long N1MM was silent.
+
 ## v0.7.104 — 2026-10-21 — own SSB cluster back sooner
 
 - When N1MM stops sending spots, POUNCer's own SSB cluster comes back after

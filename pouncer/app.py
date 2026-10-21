@@ -258,6 +258,8 @@ class PouncerApp:
         self._n1mm_spot_first: float | None = None   # start of the current stream
         self._n1mm_spot_last = 0.0
         self._ssb_back_at = 0.0                      # N1MM went quiet: own cluster since
+        self._n1mm_gap: float | None = None          # usual seconds between N1MM spots
+        self._n1mm_streak = 0                        # spots in the current stream
         self._n1mm_spots = 0
         self._ssb_via_n1mm = False
         self._n1mm_filter = None
@@ -1382,22 +1384,35 @@ class PouncerApp:
         # keep it a while after the radio went back to CW
         return time.time() - getattr(self, "_ssb_last_needed", 0) < 15 * 60
 
-    N1MM_SPOT_START_S = 60     # N1MM spots this long before our cluster closes
-    N1MM_SPOT_QUIET_S = 20     # no N1MM spot this long = N1MM stopped: our own cluster again
+    N1MM_SPOT_START_S = 60     # N1MM spots this long (and N1MM_SPOT_START_N of them) ...
+    N1MM_SPOT_START_N = 3      # ... before our cluster closes
+    N1MM_SPOT_BREAK_S = 300    # a gap this long ends N1MM's stream (start counting again)
+    N1MM_SPOT_QUIET_S = 20     # no N1MM spot this long = N1MM stopped: our own cluster again ...
+    N1MM_SPOT_QUIET_X = 4      # ... or 4 x its usual gap on a slow band (at most BREAK_S)
     N1MM_SPOT_HOLD_S = 300     # then our own cluster at least this long (no flip-flop)
 
     def _n1mm_quiet_limit(self) -> float:
-        return self.N1MM_SPOT_QUIET_S
+        """20 s without an N1MM spot = stopped; on a slow band (usual gap over
+        5 s) 4 x the usual gap, so a quiet evening doesn't switch back and forth."""
+        gap = getattr(self, "_n1mm_gap", None) or 0.0
+        return min(self.N1MM_SPOT_BREAK_S, max(self.N1MM_SPOT_QUIET_S, self.N1MM_SPOT_QUIET_X * gap))
 
     def _on_n1mm_spot(self, pkt: dict) -> None:
         """A <spot> packet from N1MM (listener thread). Any spot shows N1MM's
         telnet is alive; SSB ones go to the list while N1MM is the SSB source."""
         now = time.time()
-        if self._n1mm_spot_first is None or now - self._n1mm_spot_last > self._n1mm_quiet_limit():
+        if self._n1mm_spot_first is None or now - self._n1mm_spot_last > self.N1MM_SPOT_BREAK_S:
             self._n1mm_spot_first = now
-            log.debug("N1MM sends its spots (Broadcast Data > Spots)")
+            self._n1mm_streak = 0
+            self._n1mm_gap = None
+            log.info("N1MM sends its spots (Broadcast Data > Spots)")
+        else:     # the usual gap between its spots (smoothed)
+            g = now - self._n1mm_spot_last
+            old = getattr(self, "_n1mm_gap", None)
+            self._n1mm_gap = g if old is None else 0.8 * old + 0.2 * g
         self._n1mm_spot_last = now
         self._n1mm_spots += 1
+        self._n1mm_streak = getattr(self, "_n1mm_streak", 0) + 1
         if not self._ssb_via_n1mm or pkt.get("action") not in ("", "add"):
             return
         spot = spot_from_n1mm(pkt, now)
@@ -1431,7 +1446,8 @@ class PouncerApp:
             return True
         if now - getattr(self, "_ssb_back_at", 0.0) < self.N1MM_SPOT_HOLD_S:
             return False
-        return now - first >= self.N1MM_SPOT_START_S
+        return (now - first >= self.N1MM_SPOT_START_S
+                and getattr(self, "_n1mm_streak", 0) >= self.N1MM_SPOT_START_N)
 
     def _ensure_ssb_client(self) -> None:
         want = self._ssb_wanted()
@@ -1441,7 +1457,9 @@ class PouncerApp:
                 self._ssb_back_at = time.time()    # N1MM quiet: own cluster for a while
             self._ssb_via_n1mm = via
             log.info("SSB spots %s", "from N1MM (own cluster connection closed)" if via
-                     else "from our own cluster (N1MM sends no spots)" if want else "off")
+                     else (f"from our own cluster (no spot from N1MM for "
+                           f"{time.time() - getattr(self, '_n1mm_spot_last', 0.0):.0f} s)")
+                     if want else "off")
         client = getattr(self, "_ssb_client", None)
         if client is not None and (not want or via):
             client.stop()
