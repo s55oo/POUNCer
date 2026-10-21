@@ -18,6 +18,9 @@ RBN_SPOT_S = 120     # a spot this recently = RBN works whatever the status says
 
 def rbn_light(status: str, last_spot_age: float | None, role: str,
               http: bool = False) -> tuple[str, str]:
+    s0 = (status or "").lower()
+    if s0.startswith("paused"):
+        return OFF, "RBN paused"         # SSB contest / every radio on SSB: not needed
     if role == "slave":
         return OK, "RBN via master"
     if http and last_spot_age is not None and last_spot_age < RBN_SPOT_S:

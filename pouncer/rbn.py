@@ -212,6 +212,17 @@ _MODE_WORDS = {"SSB": "SSB", "USB": "SSB", "LSB": "SSB", "PH": "SSB", "PHONE": "
                "CW": "CW", "RTTY": "RTTY", "FT8": "FT8", "FT4": "FT4"}
 
 
+_PHONE_CONTEST = re.compile(r"SSB|PHONE|(?:^|[^A-Z])PH(?:$|[^A-Z])")
+_OTHER_MODES = re.compile(r"CW|RTTY|DIGI|FT8|FT4|MIX|PSK")
+
+
+def is_phone_contest(name: str) -> bool:
+    """N1MM contest name of an SSB-only contest (CQWWSSB, CQWPXSSB, ARRLDXSSB,
+    NAQPSSB ...): no RBN needed. Mixed / CW / digital ones are not."""
+    n = (name or "").upper()
+    return bool(_PHONE_CONTEST.search(n)) and not _OTHER_MODES.search(n)
+
+
 def is_phone_freq(khz: float) -> bool:
     return any(lo <= khz <= hi for lo, hi in SSB_SEGMENTS)
 

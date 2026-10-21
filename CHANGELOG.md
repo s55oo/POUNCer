@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## v0.7.102 — 2026-10-21 — no RBN for an SSB team
+
+- **SSB contest** open in N1MM (CQWWSSB, CQWPXSSB, ARRLDXSSB ...): RBN is
+  not started at all (before: after a minute on SSB).
+- **Team**: each POUNCer tells the others whether it needs RBN (a radio on
+  CW, not an SSB contest). The master connects only while one does - the
+  whole team on SSB = no RBN on any PC; one goes to CW = back at once. The
+  slaves' light shows "RBN paused" too. (A paused master stays master.)
+
 ## v0.7.101 — 2026-10-21 — traffic console: dots, new lines below
 
 - A **coloured dot per source**: green = lines now, amber = quiet 5 s,

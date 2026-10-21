@@ -255,7 +255,7 @@ random id of that POUNCer) and `t` (type):
 
 | `t` | When | Content | Sent to |
 |---|---|---|---|
-| `hi` | every 2 s | `started` (time), `web` (its web port), `healthy` (RBN works), `ver` (version) | broadcast `255.255.255.255:12079` out of **every** network adapter (LAN, ZeroTier…) + directly to each known POUNCer and each `[team] peers` IP |
+| `hi` | every 2 s | `started` (time), `web` (its web port), `healthy` (RBN works or closed on purpose), `ver` (version), `cw` (this POUNCer needs RBN: a radio on CW, not an SSB contest), `paused` (master: RBN closed, nobody needs it) | broadcast `255.255.255.255:12079` out of **every** network adapter (LAN, ZeroTier…) + directly to each known POUNCer and each `[team] peers` IP |
 | `spot` | master, per spot | `s`: `{dxcall, freq_khz, mode, snr, wpm, spot_type, spotter, time_utc}` | directly to each POUNCer |
 | `rh` | when a call's run history is learned | `d`: `{"CALL\|CONTEST\|MODE": {run, hours, rec, bands…}}` | directly to each POUNCer |
 

@@ -468,10 +468,14 @@ so SO2R with one radio on CW and one on SSB works. The cluster is connected
 only while needed (light "SSB cluster"). `[ssb]` in config.ini or the
 Settings page.
 
-The other way round: while **every radio is on SSB / AM / FM** for a minute,
-POUNCer **closes the RBN connection** (light "RBN paused", grey; the check
-line says "paused - radio on SSB"). It reconnects at once when a radio goes
-to CW. Not while other team POUNCers use this one's feed. `[rbn]
+The other way round: RBN isn't needed in an **SSB contest** open in N1MM
+(CQWWSSB, CQWPXSSB, ARRLDXSSB ... - RBN isn't even started) or while **every
+radio is on SSB / AM / FM** for a minute: POUNCer **closes the RBN
+connection** (light "RBN paused", grey; the check line says "paused - SSB,
+not needed"). It reconnects at once when a radio goes to CW. **In a team**
+each POUNCer tells the others whether it needs RBN (a radio on CW, not an SSB
+contest); the master connects only while at least one does - all on SSB =
+no RBN anywhere (the slaves' light says "RBN paused" too). `[rbn]
 pause_on_phone = false` keeps it always connected.
 
 **SSB spots from N1MM** (no second cluster connection): when N1MM sends its
