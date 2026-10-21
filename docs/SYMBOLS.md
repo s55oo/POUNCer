@@ -24,14 +24,16 @@ them in the window (or long-press on the phone) for a short explanation.
 | team badge **orange** | a team POUNCer runs a different version (the tooltip says which IP and version) |
 
 Click the READY badge for the list of checks. Each one is shown with
-**✓** (good), **⚠** (look at it) or **✗** (not working):
+**✓** (good), **⚠** (look at it) or **✗** (not working), each in its own
+colour - green, amber, red - so one red item doesn't colour the whole line:
 
 | Check | ✓ when | ⚠ / ✗ when |
 | --- | --- | --- |
 | N1MM | radio info arrives | ✗ no radio info for 30 s (N1MM: Config > Broadcast Data > Radio) |
 | Log | a contest log is open | ⚠ N1MM's ini names another contest than today's QSOs · ✗ no log open |
 | Call | your station call is known | ✗ no station call |
-| RBN | spots arrive (directly, through the HTTP backup or from the team master) | ✗ no spots |
+| RBN | spots arrive (directly, through the HTTP backup or from the team master), or "paused - SSB, not needed" | ✗ no spots |
+| Skimmer | your listed skimmers (S53WW, TK0C) send spots | ⚠ one sent nothing for 3 min while RBN works - offline or its connection down |
 | cty | country file loaded, 60 days old or less | ⚠ older · ✗ not loaded (no mults / DX) |
 | SCP | Super Check Partial loaded, 30 days old or less | ⚠ older or not loaded (no **?** marks) |
 | Phone | the phone page runs | ✗ it could not start (port in use) |
@@ -83,6 +85,14 @@ the radio, to follow the radio again.
 | **A 14025.0   B 7012.0   28 WPM   (12 spots)** | both radios' frequencies, the CW speed, how many spots are listed |
 | **⤢** (right) | back to the full window (also Ctrl+M) |
 | small chips **160 80 40·3 20 15 10** | the band chips, small: same colours, **·3** = 3 new mults spotted there, thin frame = radio's band, **▶** + thick frame = the band listed (click a chip) |
+
+### Rate line (under the lights)
+
+**Rate 96/h (10 min) · 84 last hour · 1312 QSOs 318 mults (+9 this hour) | 20m
+471 Q 97 M (+5) ...** - from the open N1MM log, every 30 s: the rate of the
+last 10 minutes as QSOs per hour, QSOs in the last hour, totals, then QSOs (Q)
+and multipliers (M) per band; **(+n)** = new multipliers in the last hour.
+*View > Rate / QSOs / mults per band line* on / off.
 
 ### Info lines (grey area)
 
@@ -144,7 +154,21 @@ Marks in the call and Mult columns:
 | **Radio A / Radio B** | which radio POUNCer follows. Shown only when N1MM reports two radios / VFOs |
 | **CW 30 WPM ▲** / **▼** popup | the CW speed was changed in N1MM: up or down |
 | yellow **⚡ rare CQ + new mult: 3B8X 7012.0** pop-up | a rare CQ that is also a new multiplier just appeared (once per station and band); **click it = QSY and call**; gone after 8 s. *View > Alert pop-up* on / off, *Alert sound* = two beeps (each on its own) |
+| yellow **SPOTTED: S55OO by DL1ABC on 14025.0 2147Z** pop-up | a person (not a skimmer) spotted your call on a DX cluster; **(self-spot)** = you spotted yourself. Once per spotter and frequency in 15 min; the alert sound if on |
+| **Station test** window (View menu) | per radio: ✓ QSY up / back and how long N1MM took, ✓ test call in the box and cleared; ✗ = that step failed; - = not tested (box not empty, radio B typed) |
 | **min SNR** box | spots weaker than this are not listed (0 = all) |
+
+### Traffic console (View menu, Ctrl+Shift+D)
+
+| What you see | Meaning |
+| --- | --- |
+| green dot | lines from this source now |
+| amber dot | quiet for 5 s or more |
+| red dot | quiet for 30 s or more, no known reason |
+| grey dot | quiet for a known reason (RBN on hold on SSB, SSB from N1MM, backup not needed) |
+| **(hidden)** | switched off - still counted |
+| yellow source, `>` | sent by POUNCer (commands, QSY, login) |
+| blue bar **n new lines below** | you scrolled up; click it to follow the newest lines |
 
 ## Phone page
 

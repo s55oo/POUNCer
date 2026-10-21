@@ -26,7 +26,7 @@ in the examples are private example addresses.
 | 6 | **out** | TCP (telnet) | 8000 | azure.s53m.com | RBN backup when RBN's telnet is down | `[rbn] backup_host`, `backup_port` |
 | 7 | **out** | HTTPS | 443 | azure.s53m.com `/cors/rbn/live` | RBN over HTTP, second backup | `[rbn] http_backup` |
 | 8 | **out** | TCP (telnet) | 8000 | azure.s53m.com | DX cluster: SSB spots | `[ssb] host`, `port` |
-| 9 | **in** + out | UDP broadcast | 12079 | other POUNCers on the network | team: who is master, spots, run history; the master's band-open counts | `[team] port`, `peers` |
+| 9 | **in** + out | UDP broadcast | 12079 | other POUNCers on the network | team: who is master, who needs RBN, spots, run history; the master's band-open counts | `[team] port`, `peers` |
 | 10 | **in** | HTTP (TCP) | 8080 | phones, tablets, browsers on the LAN; other POUNCers | phone page, its API, settings, team sync | `[web] host`, `port` |
 | 11 | **out** | HTTPS | 443 | api.github.com, github.com | update check and download (SHA-256 checked); clock check fallback: `HEAD api.github.com` (`Date` + `Age`) only if no NTP server answers | `[ui] auto_update`; clock: `[ui] check_line` |
 | 12 | **out** | HTTPS | 443 | github.com (release `warmup`) | warm-up lists (CW, SSB) | `[ui] warmup` |
@@ -203,6 +203,9 @@ DX de S53WW-#:     14014.0  K1ABC          CW    13 dB  25 WPM  CQ      1135Z
 - Reconnects with growing pauses (2 → 60 s). If no line arrives for 120 s,
   or it fails twice in a row, it switches to the backup (section 6) and
   tries RBN again every 10 minutes.
+- **Not connected at all** while RBN isn't needed: an SSB contest is open in
+  N1MM, or every radio is on SSB / AM / FM for a minute - in a team only
+  while no POUNCer says `cw` in its hello (section 9). Light "RBN on hold".
 
 ## 6. Telnet backup (TCP 8000, out)
 
@@ -247,6 +250,12 @@ DX de S50A:      14250.0  K1ABC        59 SSB                    1200Z
 POUNCer keeps spotters from your continent (`[ssb] spotters`), guesses the
 mode from the comment (SSB / USB / LSB / CW / FT8…) or else the band plan,
 and shows them as SSB spots.
+
+**Not connected while N1MM sends its spots** (section 1, `[ssb]
+use_n1mm_spots = auto`): from N1MM's first spot this connection is closed
+(light "SSB cluster on hold"); after 20 s without an N1MM spot (slow band: 4 x
+its usual gap) it is opened again, for at least a minute. A spot of your own
+call by a person on either source brings the SPOTTED pop-up.
 
 ## 9. Team (UDP 12079, in and out)
 
