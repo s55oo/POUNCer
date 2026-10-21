@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## v0.7.100 — 2026-10-21 — traffic console tells why a source is quiet
+
+- A line under the source switches: lines per source, **hidden**, **quiet
+  for** how long and **why** - "RBN paused - every radio on SSB", "SSB spots
+  come from N1MM", "via the team master", "backup off - RBN telnet works".
+  On SSB RBN sends nothing (paused since v0.7.95), which looked like the
+  console stopped after switching RBN off and on.
+- Switching a source off / on leaves a marker line in the view.
+
 ## v0.7.99 — 2026-10-21 — several skimmers, whole CQ zones
 
 - `[rbn] spotter` takes a **list**, all used together: callsigns (prefix:

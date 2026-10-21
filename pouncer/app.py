@@ -319,7 +319,7 @@ class PouncerApp:
         self._timeline_win = TimelineWindow(self.root, self._timeline,
                                             browser=lambda: self._open_browser("timeline"))
         # View > Traffic console: the taps only work while it is open
-        self._console = TrafficConsole(self.root)
+        self._console = TrafficConsole(self.root, notes=self._console_notes)
         self.root.bind_all("<Control-Shift-D>", lambda _e: self._console.open())
         self.root.bind_all("<Control-Shift-d>", lambda _e: self._console.open())
 
@@ -1132,6 +1132,28 @@ class PouncerApp:
             if old:
                 data["geometry"] = old
         winstate.save(self._window_file(), data)
+
+    def _console_notes(self) -> dict:
+        """Why a source may be quiet, for the traffic console's top bar."""
+        notes = {}
+        role = self.team.role() if self.team is not None else "off"
+        if role == "slave":
+            notes["RBN"] = notes["SSB"] = "via the team master"
+        elif getattr(self, "_rbn_pause_on", False):
+            notes["RBN"] = "paused - every radio on SSB"
+        elif not self._rbn_clients:
+            notes["RBN"] = "not connected"
+        if role != "slave":
+            ssb = (self.ssb_status or "").lower()
+            if ssb.startswith("via n1mm"):
+                notes["SSB"] = "spots come from N1MM"
+            elif ssb in ("", "off"):
+                notes["SSB"] = "cluster off - no radio on SSB"
+        if self._http_feed is None:
+            notes["HTTP"] = "backup off - RBN telnet works"
+        if not self.cfg.web_enabled:
+            notes["WEB"] = "phone page off"
+        return notes
 
     def _on_close(self) -> None:
         """Window closed (X / File > Exit): remember it, then quit."""

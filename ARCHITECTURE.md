@@ -710,7 +710,10 @@ line, source = client name; commands as `name >`), `n1mm` listener (`N1MM <ip>`)
 (`WEB <ip>`, path). `console.TrafficConsole(root)`: `open()` → `traffic.start()` and a
 Toplevel with group checkboxes, filter, Pause, Clear and a Text; `_tick` every 250 ms
 drains → `add()` (counts per group, filters, keeps `KEEP` 3000 lines, follows the end
-when scrolled there); `close()` (window X, app exit) → `traffic.stop()`.
+when scrolled there); `close()` (window X, app exit) → `traffic.stop()`. `notes=` (app
+`_console_notes`: RBN paused / via master / not connected, SSB via N1MM / off, HTTP off,
+WEB off) and `last` per group feed `summary()` (the line under the switches: count,
+hidden, quiet n s / m, note); `_switched(g)` writes a marker line.
 
 ## Several skimmers, whole zones (v0.7.99)
 

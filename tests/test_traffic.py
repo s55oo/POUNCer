@@ -49,8 +49,36 @@ class TapTests(unittest.TestCase):
 @unittest.skipIf(_root is None, "no display")
 class ConsoleTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.c = console.TrafficConsole(_root)
+        self.c = console.TrafficConsole(_root, notes=lambda: {"RBN": "paused - every radio on SSB"})
         self.c.open()
+
+    def test_untick_retick_says_so_and_shows_again(self) -> None:
+        traffic.emit("rbn", "first X1")
+        self.c.add(traffic.drain())
+        self.c.show["RBN"].set(False)
+        self.c._switched("RBN")
+        traffic.emit("rbn", "while hidden X2")
+        self.c.add(traffic.drain())
+        self.c.show["RBN"].set(True)
+        self.c._switched("RBN")
+        traffic.emit("rbn", "again X3")
+        self.c.add(traffic.drain())
+        body = self.body()
+        self.assertIn("X1", body)
+        self.assertNotIn("X2", body)
+        self.assertIn("X3", body)
+        self.assertIn("RBN hidden", body)
+        self.assertIn("RBN shown again (paused - every radio on SSB)", body)
+        self.assertEqual(self.c.counts["RBN"], 3)
+
+    def test_summary_tells_quiet_and_why(self) -> None:
+        self.c.opened = 1000.0
+        self.c.last = {"N1MM": 1095.0}
+        self.c.counts.update({"RBN": 0, "N1MM": 12})
+        text = self.c.summary(now=1100.0)
+        self.assertIn("RBN 0 (quiet 1m, paused - every radio on SSB)", text)
+        self.assertIn("N1MM 12   ", text)
+        self.assertIn("WEB 0 (hidden, quiet 1m)", text)
 
     def tearDown(self) -> None:
         self.c.close()

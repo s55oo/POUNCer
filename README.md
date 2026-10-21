@@ -280,8 +280,12 @@ source as it arrives or goes out - RBN and SSB cluster lines (and the
 commands sent), N1MM UDP packets in and QSY / call commands out, the HTTP
 backup feed, the team, the phone page's requests (WEB, off at first). Tick
 sources on / off, type a filter word (a call, `DX de`, `RadioInfo` ...),
-Pause, Clear; outgoing lines are yellow (`>`). The taps only work while the
-console is open - closed, it costs nothing.
+Pause, Clear; outgoing lines are yellow (`>`). The line under the switches
+shows per source how many lines came, "hidden", how long it has been quiet
+and why (RBN paused - every radio on SSB, SSB spots come from N1MM, via the
+team master ...), so a quiet source doesn't look like a stuck console;
+switching a source off / on leaves a marker line in the view. The taps only
+work while the console is open - closed, it costs nothing.
 
 The spot list (table): **new multiplier** rows in bold red, **worked** ones in grey
 (when *Hide worked* is off), **⚡** before the call = rare CQ, **?** after it
