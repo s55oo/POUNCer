@@ -97,6 +97,10 @@ SETTINGS: list[dict] = [
     {"key": "n1mm.default_radio", "attr": "default_radio", "kind": "choice",
      "choices": ["A", "B"], "live": False, "group": "SO2R / SO2V",
      "label": "Radio at start", "help": "Which radio the main window works at start."},
+    {"key": "rbn.skimmer_quiet_minutes", "attr": "skimmer_quiet_minutes", "kind": "int",
+     "min": 1, "max": 60, "live": False, "group": "RBN", "label": "Skimmer quiet warning (min)",
+     "help": "Check line warns when a listed skimmer (S53WW, TK0C) has sent nothing this "
+             "long while RBN works: offline or its connection down."},
     {"key": "rbn.spotter", "attr": "rbn_spotter", "kind": "text", "live": False,
      "group": "RBN", "label": "Skimmers",
      "help": "Only spots of these, all together, comma separated: calls (prefix: TK0C = "

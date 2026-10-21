@@ -718,6 +718,15 @@ WEB off) and `last` per group feed `states()` → {group: (live | quiet | dead |
 → `below` bar (`_show_below`, click = `_follow`); `_tick` catches errors, writes them
 into the view and always reschedules (restarting the tap if it was stopped).
 
+## Skimmer offline warning (v0.7.103)
+
+`skimwatch.SkimmerWatch(spotter_filter.calls, quiet_s)`: `seen(spotter)` from
+`_on_raw_spot` and `_team_spot` (prefix match: TK0C-1 / -2 count for TK0C), `quiet(feed_alive)`
+→ [(call, s)] past `quiet_s` (from start if never seen). App `_skimmers_quiet(role)`: feed
+alive = `_rbn_healthy()` / HTTP delivering (slave: a team spot < 120 s, master not
+paused); not while paused; logs changes. Fact `skimmers` {names, quiet} → checks item
+`Skimmer` ok / warn. Console `reset_counts()` (Reset counters button).
+
 ## No RBN for an SSB team (v0.7.102)
 
 `rbn.is_phone_contest(name)` (SSB / PHONE / PH, no CW / RTTY / DIGI / FT / MIX / PSK).

@@ -285,7 +285,8 @@ source has a **dot**: green = lines now, amber = quiet 5 s+, red = quiet
 30 s+, grey = quiet for a known reason; next to it how many lines came,
 "hidden", how long it has been quiet and why (RBN paused - every radio on SSB, SSB spots come from N1MM, via the
 team master ...), so a quiet source doesn't look like a stuck console;
-switching a source off / on leaves a marker line in the view. Scrolled up,
+switching a source off / on leaves a marker line in the view; **Reset
+counters** sets the counts to 0. Scrolled up,
 a blue bar says how many **new lines are below** - click it to follow
 again. An error while showing a line is written into the view and the
 console goes on. The taps only
@@ -515,6 +516,12 @@ N1MM's `SupportFiles` (N1MM reads it at its next start). `[scp] enabled =
 false` = no marks.
 
 ## Spots at start
+
+**Skimmer offline warning.** When a skimmer listed in `spotter` (S53WW, TK0C)
+has sent nothing for 3 minutes while RBN itself works, the check line shows
+an amber **Skimmer** item "TK0C sends nothing (4 min) - skimmer offline or
+its connection down" (⚠ on the phone too) - a crashed SDR / CW Skimmer at
+night shows at once. `[rbn] skimmer_quiet_minutes` (Settings > RBN).
 
 **Several skimmers / whole zones.** `[rbn] spotter` takes a list, all used
 together: callsigns (prefix match - `TK0C` also takes TK0C-1, TK0C-2) and

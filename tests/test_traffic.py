@@ -102,6 +102,15 @@ class ConsoleTests(unittest.TestCase):
                          ("live", "quiet", "why", "dead"))
         self.assertIn("quiet 3m", self.c.summary(now=1200.0))
 
+    def test_reset_counters(self) -> None:
+        traffic.emit("rbn", "a")
+        traffic.emit("N1MM 127.0.0.1", "b")
+        self.c.add(traffic.drain())
+        self.c.reset_counts()
+        self.assertEqual(set(self.c.counts.values()), {0})
+        self.assertIn("counters reset", self.body())
+        self.assertIn("a", self.body())                  # the view stays
+
     def test_new_lines_below_bar(self) -> None:
         _root.update()
         self.c.add([(0.0, "rbn", f"line {i}") for i in range(200)])

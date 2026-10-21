@@ -36,6 +36,7 @@ from .perf import PerfMonitor
 from .alerts import AlertWatch, beep as alert_beep
 from .panels import TimelineWindow, ZonesWindow
 from .console import TrafficConsole
+from .skimwatch import SkimmerWatch
 from .tiles import TileList
 from . import theme
 from . import autostart as autostartmod
@@ -222,6 +223,11 @@ class PouncerApp:
             quiet_s=config.backup_after_minutes * 60,
             zone_of=lambda call: getattr(self._entity(call), "cq", None),
         )
+        # our own skimmer(s) still spotting? (S53WW, TK0C-1 / -2 ...)
+        self.skimwatch = SkimmerWatch(self.spotter_filter.calls,
+                                      quiet_s=config.skimmer_quiet_minutes * 60)
+        self._skim_quiet_text = ""
+        self._last_team_spot = 0.0
         self._cty_cache: dict[str, Entity | None] = {}
         self.controller = N1MMController(
             config.n1mm_control_ip,
@@ -2402,6 +2408,10 @@ class PouncerApp:
             spot.dxcall = str(spot.dxcall)
         except (TypeError, ValueError):
             return
+        self._last_team_spot = time.time()
+        sw = getattr(self, "skimwatch", None)
+        if sw is not None:
+            sw.seen(spot.spotter)
         self._team_queue.put(spot)
 
     def _rbn_ok(self) -> bool:
@@ -2835,6 +2845,27 @@ class PouncerApp:
 
     # ---- pre-contest check ------------------------------------------------
 
+    def _skimmers_quiet(self, role: str) -> str:
+        """'' or 'TK0C sends nothing (4 min)': listed skimmers that stopped while
+        the feed itself works (paused / feed down = not checked here)."""
+        sw = getattr(self, "skimwatch", None)
+        if sw is None or not sw.calls or getattr(self, "_rbn_pause_on", False):
+            return ""
+        if role == "slave":
+            alive = (not self.team.master_paused()
+                     and time.time() - getattr(self, "_last_team_spot", 0.0) < 120)
+        else:
+            alive = self._rbn_healthy() or (self._http_feed is not None
+                                            and bool(self._http_feed.spots_in))
+        text = sw.text(sw.quiet(alive))
+        if text != getattr(self, "_skim_quiet_text", ""):
+            if text:
+                log.warning("own skimmer: %s", text)
+            elif self._skim_quiet_text:
+                log.info("own skimmer spotting again")
+            self._skim_quiet_text = text
+        return text
+
     def _check_facts(self) -> dict:
         snap = self.state.snapshot(self.radio)
         role = self.team.role() if self.team is not None else "off"
@@ -2870,6 +2901,10 @@ class PouncerApp:
             "log_msg": self.worked.log_message,
             "call": self.own_call(),
             "rbn": rbn,
+            "skimmers": (None if not getattr(getattr(self, "skimwatch", None), "calls", ())
+                         or rbn == "paused" else
+                         {"names": ", ".join(self.skimwatch.calls),
+                          "quiet": self._skimmers_quiet(role)}),
             "cty_loaded": bool(self.cty), "cty_days": cty_days,
             "scp_enabled": self.scp is not None,
             "scp_loaded": bool(self.scp is not None and self.scp.loaded), "scp_days": scp_days,
@@ -2953,6 +2988,9 @@ class PouncerApp:
         p = getattr(self, "_perf", None)
         if p is not None:
             p["raw"] += 1
+        sw = getattr(self, "skimwatch", None)
+        if sw is not None:
+            sw.seen(spot.spotter)
         self.bandact.add(spot)
         zm = getattr(self, "zonemap", None)
         if zm is not None:

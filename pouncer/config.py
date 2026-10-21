@@ -91,6 +91,7 @@ class Config:
     # all skimmers on our continent; after this many minutes of silence
     backup_spotters: tuple[str, ...] = ()
     backup_after_minutes: int = 5
+    skimmer_quiet_minutes: int = 3   # own skimmer silent this long = warning
     cty_file: str = ""
     hide_beacons: bool = True
     follow_modes: tuple[str, ...] = ("CW",)
@@ -268,6 +269,7 @@ def load_config(path: str) -> Config:
         b for b in s("rbn", "backup_spotters", "").replace(";", ",").replace(" ", ",").split(",") if b
     )
     cfg.backup_after_minutes = max(1, i("rbn", "backup_after_minutes", cfg.backup_after_minutes))
+    cfg.skimmer_quiet_minutes = max(1, i("rbn", "skimmer_quiet_minutes", cfg.skimmer_quiet_minutes))
     cfg.cty_file = s("rbn", "cty", cfg.cty_file).strip()
     cfg.hide_beacons = b("rbn", "hide_beacons", cfg.hide_beacons)
     cfg.follow_modes = parse_modes(
