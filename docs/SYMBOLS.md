@@ -45,14 +45,15 @@ One coloured dot per connection, under the top bar:
 
 | Colour | Meaning |
 | --- | --- |
-| 🟢 green | connected and working |
-| 🟡 amber | waiting, connecting, or only partly working |
-| 🔴 red | not working |
-| ⚪ grey | switched off; **RBN paused** = every radio on SSB, RBN closed until a radio is on CW |
+| 🟢 green | connected and working - this stream delivers |
+| 🟡 yellow | **on hold**: ready, not needed now - RBN in an SSB contest / every radio on SSB, the SSB cluster while N1MM's spots are used, the HTTP backup while RBN telnet works |
+| 🟠 amber | waiting, connecting, or only partly working |
+| 🔴 red | not working - connection problem (N1MM spots stopped, HTTP backup started but nothing comes ...) |
+| ⚪ grey | switched off / not needed |
 | 🔵 blue | Update only: a new version is downloaded - click it (or **Restart**) |
 
-The lights are RBN, N1MM, Log, Team, Phone, SSB (the DX cluster for SSB
-spots), Warm-up and Update. What each colour means per light is in the
+The lights are RBN, N1MM, Log, Team, Phone, SSB cluster (the DX cluster
+for SSB spots), HTTP backup, N1MM spots, Warm-up and Update. What each colour means per light is in the
 [README](../README.md#connection-lights-windows-window). Click the
 **Update** light to check for a new version now.
 

@@ -1,16 +1,19 @@
 """Connection lights for the main window: one coloured dot per connection.
 
-green = connected / working, amber = waiting or only partly there,
-red = not working, grey = switched off. Pure logic (no tkinter), so it is
+green = working (this stream delivers), yellow = on hold (ready, not
+needed now: RBN on SSB, the SSB cluster while N1MM sends, the HTTP backup
+while telnet works), amber = connecting / partly there, red = not working
+(connection problem), grey = switched off. Pure logic (no tkinter), so it is
 testable anywhere; ``app.py`` draws the dots.
 """
 
 from __future__ import annotations
 
-OK, WAIT, BAD, OFF, NEW = "ok", "wait", "bad", "off", "new"
+OK, WAIT, BAD, OFF, NEW, HOLD = "ok", "wait", "bad", "off", "new", "hold"
 
-COLORS = {OK: "#2e7d32", WAIT: "#f9a825", BAD: "#c62828", OFF: "#9e9e9e",
-          NEW: "#1565c0"}  # NEW (blue) = an update is ready
+COLORS = {OK: "#2e7d32", WAIT: "#fb8c00", BAD: "#c62828", OFF: "#9e9e9e",
+          NEW: "#1565c0",   # NEW (blue) = an update is ready
+          HOLD: "#fdd835"}  # on hold: ready, not needed now
 
 N1MM_QUIET_S = 120   # no radio info this long = N1MM probably closed
 RBN_SPOT_S = 120     # a spot this recently = RBN works whatever the status says
@@ -20,14 +23,12 @@ def rbn_light(status: str, last_spot_age: float | None, role: str,
               http: bool = False) -> tuple[str, str]:
     s0 = (status or "").lower()
     if s0.startswith("paused"):
-        return OFF, "RBN paused"         # SSB contest / every radio on SSB: not needed
+        return HOLD, "RBN on hold (SSB)"  # SSB contest / every radio on SSB: not needed
     if role == "slave":
         return OK, "RBN via master"
     if http and last_spot_age is not None and last_spot_age < RBN_SPOT_S:
         return OK, "RBN via HTTP"       # telnet down, the HTTP backup delivers
     s = (status or "").lower()
-    if s.startswith("paused"):
-        return OFF, "RBN paused"         # every radio on SSB: not needed
     name = "RBN via backup" if "backup" in s and "trying rbn" not in s else "RBN"
     if last_spot_age is not None and last_spot_age < RBN_SPOT_S:
         return OK, name
@@ -72,12 +73,33 @@ def ssb_light(status: str, role: str = "solo") -> tuple[str, str]:
     if s in ("", "off"):
         return OFF, "SSB off"
     if s.startswith("via n1mm"):
-        return OK, "SSB via N1MM"
+        return HOLD, "SSB cluster on hold (N1MM)"   # N1MM's spots instead
     if s.startswith("logged in"):
         return OK, "SSB cluster"
     if s.startswith(("connecting", "starting")):
         return WAIT, "SSB cluster"
     return BAD, "SSB cluster"
+
+
+def http_light(configured: bool, active: bool, delivering: bool) -> tuple[str, str]:
+    """RBN over HTTP backup: on hold while telnet works, green while it
+    delivers, red when started but nothing comes."""
+    if not configured:
+        return OFF, "HTTP backup off"
+    if not active:
+        return HOLD, "HTTP backup on hold"
+    return (OK, "HTTP backup") if delivering else (BAD, "HTTP backup")
+
+
+def n1mm_spots_light(use: bool, seen: bool, via: bool, quiet_s: float | None,
+                     limit_s: float) -> tuple[str, str]:
+    """N1MM's spot packets (Broadcast Data > Spots): green while they replace
+    our SSB cluster, yellow = sending but not used now, red = stopped."""
+    if not use or not seen:
+        return OFF, "N1MM spots off"
+    if quiet_s is not None and quiet_s > limit_s:
+        return BAD, "N1MM spots stopped"
+    return (OK, "N1MM spots") if via else (HOLD, "N1MM spots on hold")
 
 
 def web_light(enabled: bool, running: bool) -> tuple[str, str]:

@@ -378,9 +378,18 @@ in **[docs/SYMBOLS.md](docs/SYMBOLS.md)**.
 Under the MASTER / SLAVE bar a row of lights shows at a glance that
 everything is connected:
 
+Green = this stream works, **yellow = on hold** (ready, just not needed
+now), amber = connecting, red = connection problem, grey = off.
+
+| Light | Green | Yellow (on hold) | Amber | Red | Grey |
+|---|---|---|---|---|---|
+| RBN | logged in / spots coming (slave: via master) | SSB contest / every radio on SSB | connecting | disconnected | - |
+| SSB cluster | logged in, its spots used | N1MM's spots used instead | connecting | disconnected | not needed (no radio on SSB) |
+| HTTP backup | delivers while RBN telnet is down | RBN telnet works | - | started, nothing comes | no URL / team slave |
+| N1MM spots | used for SSB (own cluster closed) | N1MM sends, own cluster still kept (a minute after a fallback) | - | stopped (20 s+) | Broadcast Data > Spots not ticked / off |
+
 | Light | Green | Amber | Red | Grey |
 |---|---|---|---|---|
-| RBN | logged in / spots coming (slave: via master) | connecting | disconnected | - |
 | N1MM | radio info coming in | none for 2 min | never received | - |
 | Log | contest log open | checking | no log / N1MM not running | - |
 | Team | master or slave (count) | alone on the network, or a team POUNCer runs another version (says which IP / version) | - | team off |
@@ -472,17 +481,18 @@ Settings page.
 The other way round: RBN isn't needed in an **SSB contest** open in N1MM
 (CQWWSSB, CQWPXSSB, ARRLDXSSB ... - RBN isn't even started) or while **every
 radio is on SSB / AM / FM** for a minute: POUNCer **closes the RBN
-connection** (light "RBN paused", grey; the check line says "paused - SSB,
+connection** (light "RBN on hold (SSB)", yellow; the check line says "paused - SSB,
 not needed"). It reconnects at once when a radio goes to CW. **In a team**
 each POUNCer tells the others whether it needs RBN (a radio on CW, not an SSB
 contest); the master connects only while at least one does - all on SSB =
-no RBN anywhere (the slaves' light says "RBN paused" too). `[rbn]
+no RBN anywhere (the slaves' light says "RBN on hold" too). `[rbn]
 pause_on_phone = false` keeps it always connected.
 
 **SSB spots from N1MM** (no second cluster connection): when N1MM sends its
 spots (Broadcast Data > **Spots**, `127.0.0.1:12060` - every spot of its
 Telnet window), POUNCer takes the SSB spots from there from N1MM's **first
-spot** and closes its own cluster connection at once (light "SSB via N1MM"). When N1MM stops
+spot** and closes its own cluster connection at once (lights: "N1MM spots"
+green, "SSB cluster on hold (N1MM)" yellow). When N1MM stops
 sending (its telnet dropped, Spots unticked, N1MM closed) POUNCer's own
 cluster is back after **20 seconds** without a spot from N1MM (on a slow
 band, where N1MM's spots are usually more than 5 s apart: 4 x the usual

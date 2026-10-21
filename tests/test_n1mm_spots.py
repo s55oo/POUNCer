@@ -43,7 +43,16 @@ class ParseTests(unittest.TestCase):
         self.assertEqual((s.mode, s.snr, s.wpm, s.spot_type), ("CW", 22, 28, "CQ"))
 
     def test_light(self) -> None:
-        self.assertEqual(lights.ssb_light("via N1MM"), (lights.OK, "SSB via N1MM"))
+        self.assertEqual(lights.ssb_light("via N1MM"), (lights.HOLD, "SSB cluster on hold (N1MM)"))
+        L = lights
+        self.assertEqual(L.n1mm_spots_light(True, True, True, 3, 20), (L.OK, "N1MM spots"))
+        self.assertEqual(L.n1mm_spots_light(True, True, False, 3, 20)[0], L.HOLD)
+        self.assertEqual(L.n1mm_spots_light(True, True, False, 30, 20), (L.BAD, "N1MM spots stopped"))
+        self.assertEqual(L.n1mm_spots_light(True, False, False, None, 20)[0], L.OFF)
+        self.assertEqual(L.http_light(True, False, False), (L.HOLD, "HTTP backup on hold"))
+        self.assertEqual(L.http_light(True, True, True)[0], L.OK)
+        self.assertEqual(L.http_light(True, True, False)[0], L.BAD)
+        self.assertEqual(L.http_light(False, False, False)[0], L.OFF)
 
 
 class SwitchTests(unittest.TestCase):

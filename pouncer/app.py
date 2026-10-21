@@ -3191,13 +3191,23 @@ class PouncerApp:
             lights.team_light(role, n, self.team.version_mismatch() if self.team else None),
             lights.web_light(self.cfg.web_enabled, self.web is not None),
             lights.ssb_light(self.ssb_status, role),
+            lights.http_light(bool(getattr(self.cfg, "rbn_http_backup", "")) and role != "slave",
+                              self._http_feed is not None,
+                              self._http_feed is not None and bool(self._http_feed.spots_in)),
+            lights.n1mm_spots_light(
+                getattr(self.cfg, "ssb_use_n1mm", "auto") != "off",
+                getattr(self, "_n1mm_spot_first", None) is not None,
+                getattr(self, "_ssb_via_n1mm", False),
+                (time.time() - self._n1mm_spot_last) if getattr(self, "_n1mm_spot_last", 0) else None,
+                self._n1mm_quiet_limit()),
             lights.warm_light(self.runhist is not None and self.cfg.warmup,
                               self.runhist.warm_status if self.runhist else ""),
             lights.update_light(self.updater.state, self.updater.text()),
         ]
 
     def _update_lights(self, snap) -> None:
-        """Coloured dot per connection (RBN, N1MM, log, team, phone, warm-up)."""
+        """Coloured dot per connection / stream: green working, yellow on hold,
+        amber connecting, red not working, grey off."""
         states = self._light_states(snap)
         if states == self._lights_last:
             return
