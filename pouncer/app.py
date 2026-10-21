@@ -2391,6 +2391,8 @@ class PouncerApp:
                 spot = self.spot_queue.get_nowait()
             except queue.Empty:
                 break
+            if not spot.time_utc:     # N1MM / some cluster spots carry no time
+                spot.time_utc = time.strftime("%H%MZ", time.gmtime(spot.received))
             self.spots[spot.key] = spot
             self._track_on_freq(spot)
             got += 1
@@ -2404,6 +2406,8 @@ class PouncerApp:
                 spot = self._team_queue.get_nowait()
             except queue.Empty:
                 break
+            if not spot.time_utc:
+                spot.time_utc = time.strftime("%H%MZ", time.gmtime(spot.received))
             self.spots[spot.key] = spot
             self._track_on_freq(spot)
             got += 1

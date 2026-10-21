@@ -1,5 +1,11 @@
 # POUNCer — Changelog
 
+## v0.7.106 — 2026-10-21 — time on every spot
+
+- **Fix:** spots from N1MM (SSB via N1MM) and cluster spots without a time
+  had an empty **Time** column (and sorted last by time). They now show the
+  UTC time POUNCer received them.
+
 ## v0.7.105 — 2026-10-21 — N1MM hand-over on a quiet band
 
 - **Fix:** on a quiet band (N1MM's spots often more than 20 s apart) POUNCer
