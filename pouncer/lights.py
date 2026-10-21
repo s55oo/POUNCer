@@ -68,6 +68,8 @@ def ssb_light(status: str, role: str = "solo") -> tuple[str, str]:
     s = (status or "").lower()
     if s in ("", "off"):
         return OFF, "SSB off"
+    if s.startswith("via n1mm"):
+        return OK, "SSB via N1MM"
     if s.startswith("logged in"):
         return OK, "SSB cluster"
     if s.startswith(("connecting", "starting")):

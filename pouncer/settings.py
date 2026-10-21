@@ -133,6 +133,11 @@ SETTINGS: list[dict] = [
     {"key": "ssb.mode", "attr": "ssb_mode", "kind": "choice", "choices": ["auto", "always", "off"],
      "live": True, "group": "SSB", "label": "DX cluster for SSB",
      "help": "auto = connect while a radio is on SSB (and on a team master)."},
+    {"key": "ssb.use_n1mm_spots", "attr": "ssb_use_n1mm", "kind": "choice",
+     "choices": ["auto", "off"], "live": True, "group": "SSB",
+     "label": "SSB spots from N1MM",
+     "help": "auto = while N1MM sends its spots (Config > Broadcast Data > Spots) they "
+             "replace POUNCer's own cluster connection; 5 min without = own cluster again."},
     {"key": "ssb.spotters", "attr": "ssb_spotters", "kind": "text", "live": False,
      "group": "SSB", "label": "Spotters from", "help": "EU, NA, AS, ... or ALL."},
     {"key": "ssb.host", "attr": "ssb_host", "kind": "text", "live": False,

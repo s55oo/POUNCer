@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.98 — 2026-10-21 — SSB spots from N1MM
+
+- When N1MM sends its spots (Broadcast Data > **Spots**, 127.0.0.1:12060),
+  POUNCer takes the **SSB spots from N1MM** after a minute and closes its own
+  DX cluster connection - no second telnet for the same spots. Light "SSB
+  via N1MM". 5 minutes without a spot from N1MM = its own cluster again.
+  CW keeps the RBN feed. `[ssb] use_n1mm_spots = auto` / `off` (Settings > SSB).
+
 ## v0.7.97 — 2026-10-21 — check line: a colour per item
 
 - The window's check line colours **each item on its own**: red = not

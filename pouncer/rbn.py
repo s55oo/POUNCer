@@ -208,6 +208,7 @@ SSB_SEGMENTS = (
     (18110, 18168), (21150, 21450), (24930, 24990), (28300, 29000), (50100, 50500),
 )
 _MODE_WORDS = {"SSB": "SSB", "USB": "SSB", "LSB": "SSB", "PH": "SSB", "PHONE": "SSB",
+               "AM": "SSB", "FM": "SSB",
                "CW": "CW", "RTTY": "RTTY", "FT8": "FT8", "FT4": "FT4"}
 
 
@@ -255,6 +256,25 @@ def parse_cluster_spot(line: str) -> Spot | None:
     return Spot(dxcall=dxcall, freq_khz=freq, mode=guess_mode(freq, text), snr=None,
                 wpm=None, spot_type="", spotter=spotter, time_utc=time_utc,
                 received=time.time())
+
+
+def spot_from_n1mm(pkt: dict, now: float | None = None) -> Spot:
+    """A Spot from n1mm.parse_spot_packet: N1MM's mode (USB / LSB = SSB), else
+    a mode word in the comment / the band plan; dB / WPM / CQ from a
+    skimmer's comment ("CW 22 dB 28 WPM CQ")."""
+    rest = pkt.get("comment", "").split()
+    snr = wpm = None
+    for idx, tok in enumerate(rest):
+        if tok == "dB" and idx:
+            snr = _to_int(rest[idx - 1])
+        elif tok == "WPM" and idx:
+            wpm = _to_int(rest[idx - 1])
+    m = _MODE_WORDS.get((pkt.get("mode") or "").upper(), "")
+    mode = m or guess_mode(pkt["freq_khz"], pkt.get("comment", ""))
+    spot_type = next((k for k in ("CQ", "NCDXF", "BEACON") if k in rest), "")
+    return Spot(dxcall=pkt["call"], freq_khz=float(pkt["freq_khz"]), mode=mode, snr=snr,
+                wpm=wpm, spot_type=spot_type, spotter=pkt.get("spotter", ""), time_utc="",
+                received=time.time() if now is None else now)
 
 
 class ContinentFilter:
