@@ -1,5 +1,11 @@
 # POUNCer — Changelog
 
+## v0.7.97 — 2026-10-21 — check line: a colour per item
+
+- The window's check line colours **each item on its own**: red = not
+  working, amber = check, green = OK. With N1MM closed only N1MM (and the
+  NOT READY word) is red; RBN, SCP, cty ... stay green. (It was all red.)
+
 ## v0.7.96 — 2026-10-19 — table back, traffic console
 
 - The window's spot list is the **table in small fonts** again (as up to

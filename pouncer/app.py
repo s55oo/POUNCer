@@ -361,10 +361,15 @@ class PouncerApp:
         self.ready_badge.bind("<Button-1>", lambda e: self._toggle_check_details())
         self._check_details = False
         # ... and its items, shown when something is wrong (or clicked)
-        self.check_label = tk.Label(header, text="", anchor="w", justify="left",
-                                    font=(theme.FONT, 9, "bold"), padx=12, pady=3)
-        self.check_label.bind("<Configure>", lambda e: self.check_label.configure(
-            wraplength=max(200, e.width - 24)))
+        # one colour per item: red = not ok, amber = check, green = ok
+        self.check_label = tk.Text(header, height=1, wrap="word", bd=0, highlightthickness=0,
+                                   font=(theme.FONT, 9, "bold"), padx=12, pady=3,
+                                   bg=theme.PANEL, cursor="arrow", takefocus=0)
+        for st, (_bg, fg) in theme.CHECK.items():
+            self.check_label.tag_configure(st, foreground=fg)
+        self.check_label.configure(state="disabled")
+        self.check_label.bind("<Configure>", lambda e: self._fit_check_line())
+        self._check_segs = None
         # Status chips: connection lights, then band open (one flowing row)
         self.lights_frame = FlowFrame(header, padx=12, pady=2)
         self.lights_frame.pack(fill="x", padx=12, pady=(6, 2))
@@ -2793,10 +2798,31 @@ class PouncerApp:
                 lbl.pack(fill="x", after=self._top)
             else:
                 lbl.pack_forget()
-        bg, fg = theme.CHECK[state]
-        text = checksmod.line(self._checks)
-        if lbl.cget("text") != text or lbl.cget("bg") != bg:
-            lbl.configure(text=text, bg=bg, fg=fg)
+        segs = checksmod.segments(self._checks)
+        if segs != getattr(self, "_check_segs", None):
+            self._check_segs = segs
+            lbl.configure(state="normal")
+            lbl.delete("1.0", "end")
+            for n, (text, st) in enumerate(segs):
+                if n:
+                    lbl.insert("end", "   ")
+                lbl.insert("end", text, st)
+            lbl.configure(state="disabled")
+            self._fit_check_line()
+
+    def _fit_check_line(self) -> None:
+        """Check line height = its wrapped rows."""
+        lbl = getattr(self, "check_label", None)
+        if lbl is None:
+            return
+        try:
+            rows = lbl.count("1.0", "end", "displaylines")
+            rows = rows[0] if isinstance(rows, tuple) else rows
+        except tk.TclError:
+            rows = 1
+        rows = max(1, min(4, int(rows or 1)))
+        if int(lbl.cget("height")) != rows:
+            lbl.configure(height=rows)
 
     # ---- band open lights ---------------------------------------------------
 

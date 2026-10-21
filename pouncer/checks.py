@@ -108,16 +108,26 @@ def build(f: dict) -> list[dict]:
     return out
 
 
-def line(items: list[dict]) -> str:
-    """'READY  ✓ N1MM 14025.0  ✓ Log ...' / 'CHECK  ⚠ cty 75 days old ...'."""
-    head = {"ok": "READY", "warn": "CHECK", "bad": "NOT READY"}[worst(items)]
-    marks = {"ok": "✓", "warn": "⚠", "bad": "✗"}
-    parts = []
+HEADS = {"ok": "READY", "warn": "CHECK", "bad": "NOT READY"}
+MARKS = {"ok": "✓", "warn": "⚠", "bad": "✗"}
+
+
+def segments(items: list[dict]) -> list[tuple[str, str]]:
+    """The check line as (text, state) pieces, each in its own colour in the
+    window: the head in the worst state, then every item in its own state
+    (N1MM red while RBN and SCP stay green)."""
+    out = [(HEADS[worst(items)], worst(items))]
     for i in items:
         if i["state"] == "off":
             continue
-        parts.append(f"{marks[i['state']]} {i['name']}" + (f" {i['text']}" if i["text"] else ""))
-    return head + "   " + "   ".join(parts)
+        out.append((f"{MARKS[i['state']]} {i['name']}" + (f" {i['text']}" if i["text"] else ""),
+                    i["state"]))
+    return out
+
+
+def line(items: list[dict]) -> str:
+    """'READY  ✓ N1MM 14025.0  ✓ Log ...' / 'CHECK  ⚠ cty 75 days old ...'."""
+    return "   ".join(t for t, _ in segments(items))
 
 
 NTP_SERVERS = ("pool.ntp.org", "time.windows.com")

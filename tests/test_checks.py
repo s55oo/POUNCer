@@ -27,6 +27,15 @@ class BuildTests(unittest.TestCase):
                      "✓ cty 12 d", "✓ SCP 3 d", "✓ Phone", "✓ Clock"):
             self.assertIn(part, text)
 
+    def test_segments_colour_each_item(self) -> None:
+        # N1MM not alive: N1MM red, the head red, RBN / SCP still green
+        segs = checks.segments(checks.build(dict(GOOD, n1mm_age=None)))
+        states = {t.split(" ")[1] if t[0] in "✓⚠✗" else t: st for t, st in segs}
+        self.assertEqual(segs[0], ("NOT READY", "bad"))
+        self.assertEqual(states["N1MM"], "bad")
+        self.assertEqual(states["RBN"], "ok")
+        self.assertEqual(states["SCP"], "ok")
+
     def test_old_files_and_clock_warn(self) -> None:
         items = by_name(checks.build(dict(GOOD, cty_days=75, scp_days=40, clock_offset=-12,
                                           clock_source="NTP pool.ntp.org")))
