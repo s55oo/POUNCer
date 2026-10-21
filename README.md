@@ -504,8 +504,18 @@ false` = no marks.
 
 ## Spots at start
 
+**Several skimmers / whole zones.** `[rbn] spotter` takes a list, all used
+together: callsigns (prefix match - `TK0C` also takes TK0C-1, TK0C-2) and
+whole CQ zones (`ZONE14` = every skimmer in zone 14, from the country file).
+E.g. your own skimmer plus the ones near you, who keep hearing the band
+while your own receivers are deaf from your transmitter:
+`spotter = TK0C, IT9ABC, ZONE15`. A station heard by several is one row
+(the best SNR). The backup skimmers start only when every chosen one has
+been quiet for 5 minutes.
+
 Right after logging in to RBN POUNCer asks for the **last spots**
-(`sh/dx/100 spotter=S53WW-#`, or `sh/dx/30` if that gives nothing), so the
+(`sh/dx/100 spotter=S53WW-#` - plain `sh/dx/100` with several skimmers - or
+`sh/dx/30` if that gives nothing), so the
 list has stations to click straight away. `[rbn] history = 30` (0 = off).
 
 ## Multipliers: how POUNCer knows them
@@ -873,7 +883,7 @@ All options live in `config.ini` and are documented there, line by line:
 | **[rbn]** | | |
 | `callsign` | N1MM's station call | Your call, the RBN / cluster login (nothing else is sent). |
 | `host`, `port`, `ft8_port` | telnet.reversebeacon.net, 7000, 7001 | RBN telnet (CW/RTTY; FT8/FT4 on `ft8_port`). |
-| `spotter` | S53WW | Only spots of this skimmer (prefix match); empty = all. |
+| `spotter` | S53WW | Only spots of these skimmers: calls (prefix match) and `ZONE14` = all in a CQ zone, comma separated; empty = all. |
 | `backup_spotters`, `backup_after_minutes` | (our continent), 5 | Skimmers used while `spotter` is quiet this long. |
 | `history` | 30 | Last spots asked at login (SH/DX); 0 = off. |
 | `backup_host`, `backup_port`, `backup_commands` | azure.s53m.com, 8000, – | Telnet backup when RBN's telnet is down; commands sent after login. |

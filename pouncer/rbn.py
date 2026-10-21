@@ -296,30 +296,82 @@ class ContinentFilter:
         return self.continent_of(base) == want
 
 
+_ZONE_RE = re.compile(r"^(?:NEAR)?(?:ZONE|CQZ|CQZONE)(\d{1,2})$")
+
+
+def parse_spotters(text: str) -> tuple[tuple[str, ...], frozenset[int]]:
+    """``"TK0C, IT9ABC, ZONE14, ZONE15"`` -> (call prefixes, CQ zones).
+    A zone entry (ZONE14, CQZ14, NEARZONE14) = every skimmer in that zone."""
+    calls, zones = [], set()
+    for tok in (text or "").upper().replace(";", ",").replace(" ", ",").split(","):
+        tok = tok.strip()
+        if not tok:
+            continue
+        m = _ZONE_RE.match(tok)
+        if m and 1 <= int(m.group(1)) <= 40:
+            zones.add(int(m.group(1)))
+        elif tok not in calls:
+            calls.append(tok)
+    return tuple(calls), frozenset(zones)
+
+
 class SpotterFilter:
-    """Which skimmers' spots to keep: the chosen one (S53WW) and, while it has
-    been quiet for ``quiet_s`` (offline?), backup skimmers - the listed
-    ``backups`` (call prefixes) or, if none are listed, every skimmer on our
-    own continent. Switches back as soon as the chosen one spots again."""
+    """Which skimmers' spots to keep: the chosen ones - ``primary`` is a list
+    ("TK0C, IT9ABC, ZONE15": call prefixes and whole CQ zones, all used
+    together) - and, while every one of them has been quiet for ``quiet_s``
+    (offline?), backup skimmers: the listed ``backups`` (call prefixes) or,
+    if none are listed, every skimmer on our own continent. Switches back as
+    soon as a chosen one spots again."""
 
     def __init__(self, primary: str, backups=(), continent_of=None, home_cont=None,
-                 quiet_s: float = 300, clock=time.time) -> None:
-        self.primary = (primary or "").upper()
+                 quiet_s: float = 300, clock=time.time, zone_of=None) -> None:
+        self.calls, self.zones = parse_spotters(primary)
+        # the first call: SH/DX spotter= at start (one skimmer only), the label
+        self.primary = self.calls[0] if self.calls else ""
+        self.multi = len(self.calls) + len(self.zones) > 1
         self.backups = tuple(b.strip().upper() for b in backups if b.strip())
         self.continent_of = continent_of
+        self.zone_of = zone_of           # call -> CQ zone (cty) or None
         self.home_cont = home_cont or (lambda: "EU")
         self.quiet_s = quiet_s
         self.clock = clock
-        self.last_primary = clock()  # start: give the chosen one time to speak
+        self.last_primary = clock()  # start: give the chosen ones time to speak
+        self._zcache: dict[str, int | None] = {}
+
+    def label(self) -> str:
+        return ", ".join(list(self.calls) + [f"zone {z}" for z in sorted(self.zones)])
+
+    def active(self) -> bool:
+        return bool(self.calls or self.zones)
 
     def backup_active(self) -> bool:
-        return bool(self.primary) and self.clock() - self.last_primary > self.quiet_s
+        return self.active() and self.clock() - self.last_primary > self.quiet_s
+
+    def _zone(self, base: str) -> int | None:
+        if self.zone_of is None:
+            return None
+        if base not in self._zcache:
+            if len(self._zcache) > 5000:
+                self._zcache.clear()
+            try:
+                z = self.zone_of(base)
+            except Exception:  # noqa: BLE001
+                z = None
+            self._zcache[base] = int(z) if z else None
+        return self._zcache[base]
+
+    def chosen(self, spotter: str) -> bool:
+        """One of the chosen skimmers (a listed call, or in a listed zone)."""
+        sp = (spotter or "").upper()
+        if any(sp.startswith(c) for c in self.calls):
+            return True
+        return bool(self.zones) and self._zone(sp.split("-")[0]) in self.zones
 
     def accept(self, spotter: str) -> bool:
         sp = (spotter or "").upper()
-        if not self.primary:
+        if not self.active():
             return True
-        if sp.startswith(self.primary):
+        if self.chosen(sp):
             self.last_primary = self.clock()
             return True
         if not self.backup_active():
@@ -550,7 +602,11 @@ class RBNClient(threading.Thread):
         return buf
 
     def _primary(self) -> str:
+        """The skimmer for SH/DX spotter= - none (plain SH/DX, filtered here)
+        when several skimmers / zones are chosen."""
         f = self.spotter_filter
+        if getattr(f, "multi", False):
+            return ""
         return (getattr(f, "primary", f) or "").upper()
 
     def _ask_history(self, sock: socket.socket, filtered: bool) -> None:

@@ -220,6 +220,7 @@ class PouncerApp:
             continent_of=lambda call: self._continent(call),
             home_cont=lambda: self.home_cont,
             quiet_s=config.backup_after_minutes * 60,
+            zone_of=lambda call: getattr(self._entity(call), "cq", None),
         )
         self._cty_cache: dict[str, Entity | None] = {}
         self.controller = N1MMController(
@@ -2437,7 +2438,7 @@ class PouncerApp:
         if not f.backup_active():
             return ""
         which = ", ".join(f.backups) if f.backups else f"skimmers in {self.home_cont}"
-        return f"{f.primary} quiet - using {which}"
+        return f"{f.label()} quiet - using {which}"
 
     def _version_note(self) -> str:
         """'' when the whole team runs this version; else who differs."""

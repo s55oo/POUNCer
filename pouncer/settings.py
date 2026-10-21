@@ -98,7 +98,10 @@ SETTINGS: list[dict] = [
      "choices": ["A", "B"], "live": False, "group": "SO2R / SO2V",
      "label": "Radio at start", "help": "Which radio the main window works at start."},
     {"key": "rbn.spotter", "attr": "rbn_spotter", "kind": "text", "live": False,
-     "group": "RBN", "label": "Skimmer", "help": "Only spots of this skimmer (e.g. S53WW)."},
+     "group": "RBN", "label": "Skimmers",
+     "help": "Only spots of these, all together, comma separated: calls (prefix: TK0C = "
+             "TK0C-1, TK0C-2 ...) and whole CQ zones (ZONE14). E.g. TK0C, IT9ABC, ZONE15. "
+             "Empty = all."},
     {"key": "rbn.history", "attr": "rbn_history", "kind": "int", "min": 0, "max": 500,
      "live": False, "group": "RBN", "label": "Last spots at start (SH/DX)",
      "help": "0 = off."},
