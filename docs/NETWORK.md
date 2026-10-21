@@ -18,7 +18,7 @@ in the examples are private example addresses.
 
 | # | Direction | Transport | Port | Other end | What for | config.ini |
 |---|---|---|---|---|---|---|
-| 1 | **in** | UDP | 12060 | N1MM Logger+ (same PC) | radio frequency, mode, Entry Window (RadioInfo XML); the open log + contest (AppInfo XML; contest number also from contactinfo / lookupinfo) | `[n1mm] listen_ip`, `listen_port` |
+| 1 | **in** | UDP | 12060 | N1MM Logger+ (same PC) | radio frequency, mode, Entry Window (RadioInfo XML); the open log + contest (AppInfo XML; contest number also from contactinfo / lookupinfo); N1MM's cluster spots (spot XML, SSB) | `[n1mm] listen_ip`, `listen_port` |
 | 2 | **out** | UDP | 13064 | N1MM Logger+ (127.0.0.1) | QSY, wipe, CAT strings (XML commands) | `[n1mm] control_ip`, `control_port` |
 | 3 | local | files | – | N1MM's log `.s3db` + `-wal`, `N1MM Logger.ini`, `wl_cty.dat`, `MASTER.SCP` | worked stations, mults, contest, callsign, countries | `[n1mm] ini`, `[worked] db` |
 | 4 | local | Windows messages | – | N1MM Entry Windows | bring to front, put the call in, read it back, keys; read the CW speed box (WPM); Ctrl+K + typed text for the phone CW keyboard | `[n1mm] type_mode`, `cw_speed`; `[web] cw_keyboard` |
@@ -58,6 +58,16 @@ contest, so only that contest is counted (the ini can be out of date):
 ```xml
 <AppInfo><app>N1MM</app><dbname>S55OO.s3db</dbname><contestnr>8</contestnr>
   <contestname>CQWWCW</contestname><StationName>PC</StationName><mycall>S55OO</mycall></AppInfo>
+```
+
+**Spots** (tick *Spots*, same address): every spot of N1MM's Telnet window.
+While they come (a minute, then at most 5 minutes apart) POUNCer uses the SSB
+ones and closes its own DX cluster connection (`[ssb] use_n1mm_spots`):
+
+```xml
+<spot><app>N1MM</app><dxcall>K1ABC</dxcall><frequency>14205.0</frequency>
+  <spottercall>S50XYZ</spottercall><comment>59 cq</comment><action>add</action>
+  <mode>USB</mode><timestamp>2026-10-24 12:00:00</timestamp></spot>
 ```
 
 ```xml

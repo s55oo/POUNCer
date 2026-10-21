@@ -466,6 +466,15 @@ line says "paused - radio on SSB"). It reconnects at once when a radio goes
 to CW. Not while other team POUNCers use this one's feed. `[rbn]
 pause_on_phone = false` keeps it always connected.
 
+**SSB spots from N1MM** (no second cluster connection): when N1MM sends its
+spots (Broadcast Data > **Spots**, `127.0.0.1:12060` - every spot of its
+Telnet window), POUNCer takes the SSB spots from there after a minute and
+closes its own cluster connection (light "SSB via N1MM"). Five minutes
+without a spot from N1MM (its telnet dropped, N1MM restarted) = POUNCer's
+own cluster again, at once. You then see what N1MM's cluster and filters
+pass. CW keeps the RBN feed (a cluster doesn't pass every skimmer spot).
+`[ssb] use_n1mm_spots = off` (Settings > SSB) always uses POUNCer's own.
+
 ## Backup when RBN is down
 
 If RBN's telnet fails twice in a row or sends nothing for 2 minutes,
@@ -837,7 +846,9 @@ app4_delay = 5
    start and when a contest is opened, so a POUNCer started later reads the
    ini until then - that's fine.) (Ticking **Contacts**
    helps too: every logged QSO carries the contest number.)
-6. Click OK. N1MM now broadcasts radio info every ~10 s and on every change.
+6. For SSB contests tick **Spots** too (same address): POUNCer then uses
+   N1MM's cluster spots instead of a second cluster connection of its own.
+7. Click OK. N1MM now broadcasts radio info every ~10 s and on every change.
 
 No setting is needed for the control direction (port 13064 is always listened
 to by N1MM).

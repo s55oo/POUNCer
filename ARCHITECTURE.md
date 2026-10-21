@@ -712,6 +712,20 @@ Toplevel with group checkboxes, filter, Pause, Clear and a Text; `_tick` every 2
 drains → `add()` (counts per group, filters, keeps `KEEP` 3000 lines, follows the end
 when scrolled there); `close()` (window X, app exit) → `traffic.stop()`.
 
+## SSB spots from N1MM (v0.7.98)
+
+`n1mm.parse_spot_packet` (tag `spot`, lower-cased children: dxcall, frequency kHz -
+> 500000 = 10 Hz units, spottercall, comment, mode, action) → `RadioListener(on_spot=)`
+→ `app._on_n1mm_spot` (listener thread): `_n1mm_spot_first` / `_last` (a stream =
+spots at most `N1MM_SPOT_QUIET_S` 300 s apart, any mode counts as alive). While
+`_ssb_via_n1mm`, `add` packets → `rbn.spot_from_n1mm` (N1MM mode via `_MODE_WORDS`, else
+`guess_mode`; dB / WPM / CQ from the comment) → SSB only → `_on_raw_spot` → own
+`ContinentFilter` (`[ssb] spotters`) → `spot_queue`. `_n1mm_spots_ok()` = not `off`,
+not quiet, and `N1MM_SPOT_START_S` 60 s into the stream (or already switched);
+`_ensure_ssb_client`: `via = _ssb_wanted() and _n1mm_spots_ok()` → stop the cluster
+client, `ssb_status = "via N1MM"` (statuses of the stopped client are ignored) →
+`lights.ssb_light` "SSB via N1MM". Delete packets are ignored (spots age out).
+
 ## RBN paused on SSB (v0.7.95)
 
 `_rbn_paused()` (each `_ensure_rbn_clients` tick): `cfg.rbn_pause_on_phone`, N1MM reports

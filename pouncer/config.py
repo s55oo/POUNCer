@@ -204,6 +204,7 @@ class Config:
     ssb_history: int = 30
     ssb_login: str = ""          # empty = the RBN callsign
     ssb_commands: tuple = ()
+    ssb_use_n1mm: str = "auto"   # auto = N1MM's spot packets replace our cluster while they come; off
     follow_radio_mode: bool = True   # radio on USB/LSB -> SSB spots, CW -> CW
     web_enabled: bool = True
     web_remote_settings: bool = False  # settings page: change from other devices too
@@ -375,6 +376,8 @@ def load_config(path: str) -> Config:
     cfg.ssb_login = s("ssb", "login", "").strip()
     cfg.ssb_commands = tuple(c.strip() for c in s("ssb", "commands", "").split(",") if c.strip())
     cfg.follow_radio_mode = b("ssb", "follow_radio_mode", cfg.follow_radio_mode)
+    un = s("ssb", "use_n1mm_spots", cfg.ssb_use_n1mm).strip().lower()
+    cfg.ssb_use_n1mm = "off" if un in ("off", "false", "no", "0") else "auto"
     cfg.web_enabled = b("web", "enabled", cfg.web_enabled)
     cfg.web_remote_settings = b("web", "remote_settings", cfg.web_remote_settings)
     cfg.web_cw_keyboard = b("web", "cw_keyboard", cfg.web_cw_keyboard)

@@ -22,6 +22,7 @@ from .n1mm import (
 )
 from .rbn import (
     ContinentFilter, OnFreqTracker, RBNClient, Spot, SpotterFilter, is_beacon, ports_for_modes,
+    spot_from_n1mm,
 )
 from .runhist import RARE_HOURS, RARE_RUN_PCT, RunHistory
 from .rbnhttp import RBNHttpFeed
@@ -245,6 +246,13 @@ class PouncerApp:
         self._ssb_status_q: "queue.Queue[str]" = queue.Queue()
         self._ssb_client = None
         self._ssb_last_needed = 0.0
+        # N1MM's own spots (<spot> packets on the RadioInfo port): while they
+        # come they replace our SSB cluster connection (same spots, one telnet)
+        self._n1mm_spot_first: float | None = None   # start of the current stream
+        self._n1mm_spot_last = 0.0
+        self._n1mm_spots = 0
+        self._ssb_via_n1mm = False
+        self._n1mm_filter = None
         self.team: Team | None = None  # other POUNCers on the network
         self._team_queue: "queue.Queue[Spot]" = queue.Queue(maxsize=5000)
         self._last_own_spot = 0.0
@@ -1341,12 +1349,63 @@ class PouncerApp:
         # keep it a while after the radio went back to CW
         return time.time() - getattr(self, "_ssb_last_needed", 0) < 15 * 60
 
+    N1MM_SPOT_START_S = 60     # N1MM spots this long before our cluster closes
+    N1MM_SPOT_QUIET_S = 300    # no N1MM spot this long = our own cluster again
+
+    def _on_n1mm_spot(self, pkt: dict) -> None:
+        """A <spot> packet from N1MM (listener thread). Any spot shows N1MM's
+        telnet is alive; SSB ones go to the list while N1MM is the SSB source."""
+        now = time.time()
+        if self._n1mm_spot_first is None or now - self._n1mm_spot_last > self.N1MM_SPOT_QUIET_S:
+            self._n1mm_spot_first = now
+            log.info("N1MM sends its spots (Broadcast Data > Spots)")
+        self._n1mm_spot_last = now
+        self._n1mm_spots += 1
+        if not self._ssb_via_n1mm or pkt.get("action") not in ("", "add"):
+            return
+        spot = spot_from_n1mm(pkt, now)
+        if spot.mode != "SSB":
+            return                       # CW: our RBN feed has every skimmer
+        if self._n1mm_filter is None:
+            self._n1mm_filter = ContinentFilter(lambda call: self._continent(call),
+                                                lambda: self.home_cont, self.cfg.ssb_spotters)
+        try:
+            self._on_raw_spot(spot)
+        except Exception:  # noqa: BLE001
+            pass
+        if not self._n1mm_filter.accept(spot.spotter):
+            return
+        try:
+            self.spot_queue.put_nowait(spot)
+        except queue.Full:
+            pass
+
+    def _n1mm_spots_ok(self) -> bool:
+        """N1MM has been sending spots for a minute and not gone quiet."""
+        if getattr(self.cfg, "ssb_use_n1mm", "auto") == "off":
+            return False
+        first = getattr(self, "_n1mm_spot_first", None)
+        now = time.time()
+        if first is None or now - getattr(self, "_n1mm_spot_last", 0.0) > self.N1MM_SPOT_QUIET_S:
+            return False
+        # once switched, stay until it goes quiet; before, wait for a steady stream
+        return getattr(self, "_ssb_via_n1mm", False) or now - first >= self.N1MM_SPOT_START_S
+
     def _ensure_ssb_client(self) -> None:
         want = self._ssb_wanted()
+        via = want and self._n1mm_spots_ok()
+        if via != getattr(self, "_ssb_via_n1mm", False):
+            self._ssb_via_n1mm = via
+            log.info("SSB spots %s", "from N1MM (own cluster connection closed)" if via
+                     else "from our own cluster (N1MM sends no spots)" if want else "off")
         client = getattr(self, "_ssb_client", None)
-        if client is not None and not want:
+        if client is not None and (not want or via):
             client.stop()
             self._ssb_client = None
+        if via:
+            self.ssb_status = "via N1MM"
+            return
+        if not want:
             self.ssb_status = "off"
             return
         if client is None and want:
@@ -2241,7 +2300,8 @@ class PouncerApp:
                 status = self._ssb_status_q.get_nowait()
             except queue.Empty:
                 break
-            self.ssb_status = status
+            if not getattr(self, "_ssb_via_n1mm", False):   # a stopped client's last words
+                self.ssb_status = status
 
     def _drain_spots(self) -> None:
         got = 0
@@ -3439,7 +3499,8 @@ class PouncerApp:
 
     def run(self) -> None:
         self._listener = RadioListener(
-            self.cfg.n1mm_listen_ip, self.cfg.n1mm_listen_port, self.state
+            self.cfg.n1mm_listen_ip, self.cfg.n1mm_listen_port, self.state,
+            on_spot=self._on_n1mm_spot,
         )
         self._listener.start()
         # your other programs (Settings > Autostart) - not again after a restart.

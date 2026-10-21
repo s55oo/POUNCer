@@ -89,6 +89,30 @@ def parse_app_info(data: bytes) -> dict | None:
     return out
 
 
+def parse_spot_packet(data: bytes) -> dict | None:
+    """N1MM's <spot> packet (Config > Broadcast Data > Spots): every spot of
+    its Telnet window, e.g. ``<spot><dxcall>K1ABC</dxcall><frequency>14205.0
+    </frequency><spottercall>S50XYZ</spottercall><comment>59 cq</comment>
+    <action>add</action><mode>USB</mode>...</spot>``.
+    {call, freq_khz, spotter, comment, mode, action}; None for other packets."""
+    try:
+        root = ET.fromstring(data)
+    except ET.ParseError:
+        return None
+    if root.tag.lower() != "spot":
+        return None
+    vals = {(el.tag or "").lower(): (el.text or "").strip() for el in root}
+    call = vals.get("dxcall", "").upper()
+    freq = _to_float(vals.get("frequency"))
+    if not call or not freq:
+        return None
+    if freq > 500000:              # in 10 Hz units (like RadioInfo), not kHz
+        freq = tens_of_hz_to_khz(freq)
+    return {"call": call, "freq_khz": freq, "spotter": vals.get("spottercall", "").upper(),
+            "comment": vals.get("comment", ""), "mode": vals.get("mode", "").upper(),
+            "action": (vals.get("action") or "add").lower()}
+
+
 def next_tune_khz(
     reported_khz: float | None,
     last_target_khz: float | None,
@@ -197,12 +221,14 @@ class RadioState:
 class RadioListener(threading.Thread):
     """Listens for N1MM RadioInfo UDP broadcasts."""
 
-    def __init__(self, ip: str, port: int, state: RadioState, on_update=None) -> None:
+    def __init__(self, ip: str, port: int, state: RadioState, on_update=None,
+                 on_spot=None) -> None:
         super().__init__(daemon=True, name="n1mm-rx")
         self.ip = ip
         self.port = port
         self.state = state
         self.on_update = on_update
+        self.on_spot = on_spot          # (parse_spot_packet dict) - N1MM's cluster spots
         self._stop = threading.Event()
         self._sock: socket.socket | None = None
 
@@ -245,6 +271,13 @@ class RadioListener(threading.Thread):
                     self.state.set_app(app)
                     log.info("N1MM: open contest #%s %s %s", app.get("contest_nr"),
                              app.get("contest_name", ""), app.get("dbname", ""))
+                elif self.on_spot is not None and b"<spot" in data[:200].lower():
+                    pkt = parse_spot_packet(data)
+                    if pkt is not None:
+                        try:
+                            self.on_spot(pkt)
+                        except Exception:
+                            log.exception("N1MM spot callback failed")
                 continue
             self.state.update(info)
             if self.on_update is not None:
