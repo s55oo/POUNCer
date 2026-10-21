@@ -56,6 +56,22 @@ class BuildTests(unittest.TestCase):
         self.assertEqual(d["tapped_worked"], 2)
         self.assertEqual(d["on_hours"], 0.3)           # 06:00-06:20; 50 min gap = off
 
+    def test_rate_line(self) -> None:
+        now = 1_800_000_000.0
+        qsos = [{"t": now - 60 * i, "call": f"K{i}AA", "band": "20m", "mode": "CW",
+                 "mults": {"CountryPrefix": f"P{i % 3}"}} for i in range(12)]
+        qsos.append({"t": now - 7200, "call": "DL1AA", "band": "40m", "mode": "CW",
+                     "mults": {"CountryPrefix": "DL"}})
+        s = build(qsos, [], ["CountryPrefix"], now=now)
+        self.assertEqual((s["q10"], s["q60"], s["m60"]), (10, 12, 3))
+        text = summary.rate_line(s)
+        self.assertIn("Rate 60/h (10 min)", text)
+        self.assertIn("12 last hour", text)
+        self.assertIn("13 QSOs 4 mults (+3 this hour)", text)
+        self.assertIn("40m 1 Q 1 M", text)
+        self.assertIn("20m 12 Q 3 M (+3)", text)
+        self.assertIn("no QSOs", summary.rate_line({"ok": True, "qsos": 0}))
+
     def test_empty_log(self) -> None:
         d = build([], [], ("ZN",))
         self.assertTrue(d["ok"])

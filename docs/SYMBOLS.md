@@ -118,6 +118,7 @@ Marks in the call and Mult columns:
 | **↻3m** after the call | you clicked this station 3 minutes ago; **↻3m×2** = clicked twice, the last time 3 minutes ago |
 | **M** in the Mult column | one new multiplier |
 | **MM** in the Mult column | a double multiplier (for example a new country and a new zone) |
+| **★ TK0C-1** in the Spotter column | your own skimmer (the first one in `[rbn] spotter`) heard this station in the last 10 minutes - only shown when other skimmers / zones are listed too (or the backup is on) |
 
 ### Tiles (View > Spot list as tiles, Ctrl+T; off by default - the table is the default)
 

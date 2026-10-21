@@ -151,6 +151,7 @@ class TileList(ttk.Frame):
             t = c.create_text(tx, (y0 + y1) / 2, text=it["call"], anchor="w", fill=color, font=big)
             bx = c.bbox(t)[2] + theme.px(4) if c.bbox(t) else tx
             for mark, col in ((it.get("busted") and "?", p["busted"]),
+                              (it.get("own") and "\u2605", p["tried"]),
                               (it.get("rare") and "⚡", p["rare"]),
                               (it.get("tried"), p["tried"])):
                 if mark:
