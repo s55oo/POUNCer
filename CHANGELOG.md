@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## v0.7.101 — 2026-10-21 — traffic console: dots, new lines below
+
+- A **coloured dot per source**: green = lines now, amber = quiet 5 s,
+  red = quiet 30 s, grey = quiet for a known reason (RBN paused on SSB, SSB
+  from N1MM ...). "quiet" shows after 5 s (was 30 s), in seconds up to 2 min.
+- Scrolled up: a blue bar "**n new lines below - click to follow**".
+- Safety net: an error while showing a line is written into the view and
+  the console keeps running (before, its refresh could stop for good).
+
 ## v0.7.100 — 2026-10-21 — traffic console tells why a source is quiet
 
 - A line under the source switches: lines per source, **hidden**, **quiet

@@ -712,8 +712,11 @@ Toplevel with group checkboxes, filter, Pause, Clear and a Text; `_tick` every 2
 drains → `add()` (counts per group, filters, keeps `KEEP` 3000 lines, follows the end
 when scrolled there); `close()` (window X, app exit) → `traffic.stop()`. `notes=` (app
 `_console_notes`: RBN paused / via master / not connected, SSB via N1MM / off, HTTP off,
-WEB off) and `last` per group feed `summary()` (the line under the switches: count,
-hidden, quiet n s / m, note); `_switched(g)` writes a marker line.
+WEB off) and `last` per group feed `states()` → {group: (live | quiet | dead | why, text)} (`QUIET_S` 5, `DEAD_S`
+30; `why` = a note explains it) drawn as canvas dots + labels in a 3-column grid
+(`summary()` = the texts joined); `_switched(g)` writes a marker line; not at the end
+→ `below` bar (`_show_below`, click = `_follow`); `_tick` catches errors, writes them
+into the view and always reschedules (restarting the tap if it was stopped).
 
 ## Several skimmers, whole zones (v0.7.99)
 

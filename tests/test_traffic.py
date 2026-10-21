@@ -71,14 +71,47 @@ class ConsoleTests(unittest.TestCase):
         self.assertIn("RBN shown again (paused - every radio on SSB)", body)
         self.assertEqual(self.c.counts["RBN"], 3)
 
+    def test_a_failing_line_does_not_stop_it(self) -> None:
+        calls = []
+        real = self.c.add
+
+        def boom(lines):
+            calls.append(1)
+            if len(calls) == 1:
+                raise ValueError("bad line")
+            real(lines)
+        self.c.add = boom
+        self.c._tick()                                  # fails, but is scheduled again
+        self.assertIsNotNone(self.c._after)
+        self.assertIn("console error: bad line", self.body())
+        traffic.stop()                                  # tap stopped behind its back
+        self.c._tick()
+        self.assertTrue(traffic.active())
+
     def test_summary_tells_quiet_and_why(self) -> None:
         self.c.opened = 1000.0
-        self.c.last = {"N1MM": 1095.0}
-        self.c.counts.update({"RBN": 0, "N1MM": 12})
+        self.c.last = {"N1MM": 1098.0, "SSB": 1090.0}
+        self.c.counts.update({"RBN": 0, "N1MM": 12, "SSB": 3})
         text = self.c.summary(now=1100.0)
-        self.assertIn("RBN 0 (quiet 1m, paused - every radio on SSB)", text)
+        self.assertIn("RBN 0 (quiet 100s, paused - every radio on SSB)", text)
         self.assertIn("N1MM 12   ", text)
-        self.assertIn("WEB 0 (hidden, quiet 1m)", text)
+        self.assertIn("SSB 3 (quiet 10s)", text)
+        self.assertIn("WEB 0 (hidden, quiet 100s)", text)
+        st = {g: v[0] for g, v in self.c.states(now=1100.0).items()}
+        self.assertEqual((st["N1MM"], st["SSB"], st["RBN"], st["TEAM"]),
+                         ("live", "quiet", "why", "dead"))
+        self.assertIn("quiet 3m", self.c.summary(now=1200.0))
+
+    def test_new_lines_below_bar(self) -> None:
+        _root.update()
+        self.c.add([(0.0, "rbn", f"line {i}") for i in range(200)])
+        _root.update()
+        self.c.text.yview_moveto(0.0)                    # scrolled up by hand
+        self.c.add([(0.0, "rbn", "newer")])
+        self.assertTrue(self.c.below.winfo_manager())
+        self.assertIn("1 new line below", self.c.below.cget("text"))
+        self.c._follow()
+        self.assertFalse(self.c.below.winfo_manager())
 
     def tearDown(self) -> None:
         self.c.close()
