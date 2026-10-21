@@ -27,6 +27,7 @@ class ParseTests(unittest.TestCase):
                          ("K1ABC", 14205.0, "S50XYZ", "USB", "add"))
         s = spot_from_n1mm(p, now=100.0)
         self.assertEqual((s.dxcall, s.mode, s.spotter, s.received), ("K1ABC", "SSB", "S50XYZ", 100.0))
+        self.assertEqual(s.time_utc, "0001Z")            # received time (N1MM sends none)
 
     def test_other_packets_and_units(self) -> None:
         self.assertIsNone(parse_spot_packet(b"<RadioInfo><Freq>1420500</Freq></RadioInfo>"))
