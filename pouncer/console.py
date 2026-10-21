@@ -15,14 +15,20 @@ via the team master ...). At most ``KEEP`` lines are kept in the window.
 
 from __future__ import annotations
 
+import logging
 import time
 import tkinter as tk
 from tkinter import ttk
 
 from . import theme, traffic
 
+log = logging.getLogger(__name__)
+
 KEEP = 3000
 EVERY_MS = 250
+QUIET_S = 5          # no line this long = "quiet" (amber dot)
+DEAD_S = 30          # this long = red dot (unless the app says why: grey)
+DOT = {"live": "#43a047", "quiet": "#f9a825", "dead": "#e53935", "why": "#78909c"}
 GROUPS = traffic.GROUPS
 group_of = traffic.group_of
 COLORS = {"RBN": "#81c784", "SSB": "#ffb74d", "HTTP": "#4fc3f7", "N1MM": "#ce93d8",
@@ -71,9 +77,34 @@ class TrafficConsole:
         self.pause_btn = ttk.Button(bar, text="Pause", command=self._toggle_pause)
         self.pause_btn.pack(side="left", padx=2)
         ttk.Button(bar, text="Clear", command=self._clear).pack(side="left", padx=2)
-        self.info = ttk.Label(win, text="", padding=(8, 0, 8, 4), font=(theme.FONT, 9))
+        # one chip per source: coloured dot (green = lines now, amber = quiet,
+        # red = quiet long, grey = quiet for a known reason) + count / why
+        self.info = ttk.Frame(win, padding=(8, 0, 8, 4))
         self.info.pack(fill="x")
+        self.chips = {}
+        d = theme.px(10)
+        for n, g in enumerate(GROUPS):
+            box = ttk.Frame(self.info)
+            box.grid(row=n // 3, column=n % 3, sticky="w", padx=(0, 18))
+            dot = tk.Canvas(box, width=d + 2, height=d + 2, highlightthickness=0, bd=0,
+                            bg=theme.BG or "#1c1c1c")
+            dot.create_oval(1, 1, d, d, fill=DOT["why"], outline="", tags="dot")
+            dot.pack(side="left", padx=(0, 4))
+            dot.state = "why"
+            lbl = ttk.Label(box, text=g, font=(theme.FONT, 9))
+            lbl.pack(side="left")
+            self.chips[g] = (dot, lbl)
+        for col in range(3):
+            self.info.columnconfigure(col, weight=1)
+        self.paused_lbl = ttk.Label(self.info, text="", font=(theme.FONT, 9, "bold"))
+        self.paused_lbl.grid(row=0, column=3, sticky="e")
+        # shown when the view is scrolled up and new lines came in below it
+        self.below = tk.Label(win, text="", bg="#1565c0", fg="#ffffff", cursor="hand2",
+                              font=(theme.FONT, 9, "bold"), pady=2)
+        self.below.bind("<Button-1>", lambda e: self._follow())
+        self._below_n = 0
         frame = tk.Frame(win, bg="#101418")
+        self._frame = frame
         frame.pack(fill="both", expand=True)
         self.text = tk.Text(frame, bg="#101418", fg="#cfd8dc", insertbackground="#cfd8dc",
                             font=("Consolas", 9), wrap="none", bd=0, padx=6, pady=4)
@@ -96,8 +127,9 @@ class TrafficConsole:
         self.text.insert("end", time.strftime("%H:%M:%S ", time.gmtime())
                          + (f"--- {g} shown again" + (f" ({note})" if note else "") if on
                             else f"--- {g} hidden (still counted above)") + " ---\n", "mark")
-        if self.text.yview()[1] >= 0.98:
+        if self._at_end():
             self.text.see("end")
+        self._draw_chips()
 
     def close(self) -> None:
         traffic.stop()                     # the taps go quiet again
@@ -120,19 +152,51 @@ class TrafficConsole:
 
     def _clear(self) -> None:
         self.text.delete("1.0", "end")
+        self._follow()
+
+    def _at_end(self) -> bool:
+        if not self.text.winfo_ismapped():     # not drawn yet: nothing is "below"
+            return True
+        return self.text.yview()[1] >= 0.999
+
+    def _follow(self) -> None:
+        """Back to the newest lines (the blue bar, or Clear)."""
+        self.text.see("end")
+        self._below_n = 0
+        if self.below.winfo_manager():
+            self.below.pack_forget()
+
+    def _show_below(self, n: int) -> None:
+        self._below_n += n
+        self.below.configure(text=f"{self._below_n} new line"
+                             f"{'' if self._below_n == 1 else 's'} below - click to follow")
+        if not self.below.winfo_manager():
+            self.below.pack(fill="x", side="bottom", before=self._frame)
 
     def _tick(self) -> None:
         self._after = None
         if not self.is_open():
             return
-        lines = traffic.drain()
-        self.add(lines)
-        self._after = self.root.after(EVERY_MS, self._tick)
+        if not traffic.active():           # someone stopped the tap: start it again
+            traffic.start()
+        try:
+            self.add(traffic.drain())
+        except Exception as exc:  # noqa: BLE001 - one bad line must not stop the console
+            log.exception("traffic console")
+            try:
+                self.text.insert("end", f"--- console error: {exc} (it goes on) ---\n", "mark")
+            except tk.TclError:
+                pass
+        finally:
+            if self.is_open():
+                self._after = self.root.after(EVERY_MS, self._tick)
 
     def add(self, lines: list) -> None:
         """Show drained (time, source, text) lines - filtered, at the end."""
         want = self.filter.get().strip().upper()
-        at_end = self.text.yview()[1] >= 0.999
+        at_end = self._at_end()
+        if at_end and self._below_n:          # scrolled down by hand: following again
+            self._follow()
         shown = 0
         for t, src, txt in lines:
             g = group_of(src)
@@ -154,11 +218,12 @@ class TrafficConsole:
                 self.text.delete("1.0", f"{n - KEEP}.0")
             if at_end:
                 self.text.see("end")
-        self.info.configure(text=self.summary() + ("   PAUSED" if self.paused else ""))
+            else:
+                self._show_below(shown)
+        self._draw_chips()
 
-    def summary(self, now: float | None = None) -> str:
-        """'RBN 120   SSB 0 (via N1MM)   N1MM 45 ...': lines per source, hidden,
-        quiet for how long, and the app's note on why."""
+    def states(self, now: float | None = None) -> dict:
+        """{group: (dot state, text)}: live / quiet / dead / why."""
         now = time.time() if now is None else now
         notes = {}
         if self.notes is not None:
@@ -166,17 +231,37 @@ class TrafficConsole:
                 notes = self.notes() or {}
             except Exception:  # noqa: BLE001
                 notes = {}
-        parts = []
+        out = {}
         for g in GROUPS:
-            s = f"{g} {self.counts.get(g, 0)}"
             extra = []
             var = getattr(self, "show", {}).get(g)
             if var is not None and not var.get():
                 extra.append("hidden")
             quiet = now - self.last.get(g, self.opened)
-            if quiet >= 30:
-                extra.append(f"quiet {int(quiet // 60)}m" if quiet >= 60 else f"quiet {int(quiet)}s")
+            if quiet >= QUIET_S:
+                extra.append(f"quiet {int(quiet // 60)}m" if quiet >= 120 else f"quiet {int(quiet)}s")
             if notes.get(g):
                 extra.append(notes[g])
-            parts.append(s + (f" ({', '.join(extra)})" if extra else ""))
-        return "   ".join(parts)
+            if quiet < QUIET_S:
+                st = "live"
+            elif notes.get(g):
+                st = "why"
+            else:
+                st = "quiet" if quiet < DEAD_S else "dead"
+            text = f"{g} {self.counts.get(g, 0)}" + (f" ({', '.join(extra)})" if extra else "")
+            out[g] = (st, text)
+        return out
+
+    def _draw_chips(self) -> None:
+        for g, (st, text) in self.states().items():
+            dot, lbl = self.chips[g]
+            if dot.state != st:
+                dot.state = st
+                dot.itemconfigure("dot", fill=DOT[st])
+            if lbl.cget("text") != text:
+                lbl.configure(text=text)
+        self.paused_lbl.configure(text="PAUSED" if self.paused else "")
+
+    def summary(self, now: float | None = None) -> str:
+        """'RBN 120   SSB 0 (quiet 40s, spots come from N1MM) ...' (as the chips)."""
+        return "   ".join(t for _, t in self.states(now).values())
