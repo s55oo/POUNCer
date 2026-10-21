@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## v0.7.108 — 2026-10-21 — stream lights: green / yellow on hold / red
+
+- Lights: **green** = this stream works, **yellow** = on hold (ready, not
+  needed now), amber = connecting, **red** = connection problem. RBN on SSB
+  and the SSB cluster while N1MM's spots are used are yellow now (were grey /
+  green). New lights **HTTP backup** (yellow while RBN telnet works, green
+  when it delivers, red when nothing comes) and **N1MM spots** (green = used
+  for SSB, yellow = sending but not used, red = stopped).
+- Amber (connecting) is more orange now, so it can't be mistaken for yellow.
+
 ## v0.7.107 — 2026-10-21 — N1MM takes over at its first spot
 
 - POUNCer's own SSB cluster closes as soon as **the first spot from N1MM**

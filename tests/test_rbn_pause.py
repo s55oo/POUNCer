@@ -101,8 +101,8 @@ class PauseTests(unittest.TestCase):
         self.assertFalse(f._rbn_paused())
 
     def test_light_and_check(self) -> None:
-        self.assertEqual(lights.rbn_light("paused", None, "solo"), (lights.OFF, "RBN paused"))
-        self.assertEqual(lights.rbn_light("paused", None, "slave"), (lights.OFF, "RBN paused"))
+        self.assertEqual(lights.rbn_light("paused", None, "solo"), (lights.HOLD, "RBN on hold (SSB)"))
+        self.assertEqual(lights.rbn_light("paused", None, "slave"), (lights.HOLD, "RBN on hold (SSB)"))
         from tests.test_checks import GOOD
         rbn = [i for i in checks.build(dict(GOOD, rbn="paused")) if i["name"] == "RBN"][0]
         self.assertEqual((rbn["state"], rbn["text"]), ("ok", "paused - SSB, not needed"))
