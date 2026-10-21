@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## v0.7.110 — 2026-10-22 — docs brought up to date
+
+- README (at a glance, View menu, team, configuration table with the new
+  keys), OVERVIEW (v0.7.109), SYMBOLS (check items in their own colours,
+  Skimmer check, rate line, SPOTTED pop-up, station test, traffic console),
+  NETWORK (RBN not connected on SSB / team, SSB cluster on hold while N1MM
+  sends, team `cw`), ARCHITECTURE (new modules) and the phone's help page
+  (SSB from N1MM, no RBN in an SSB contest, the Skimmer warning).
+
 ## v0.7.109 — 2026-10-21 — station test, ★ own skimmer, rate line, SPOTTED pop-up
 
 - **Station test** (View menu): per radio QSY 0.1 kHz up and back (no TX)

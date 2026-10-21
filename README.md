@@ -165,10 +165,17 @@ is required.
 ## Everything at a glance
 
 **Spots and tapping**
-- RBN skimmer spots (CW, default S53WW, backup skimmers / RBN over HTTP when
-  quiet) and DX-cluster spots (SSB) for the band your radio is on.
+- RBN skimmer spots (CW; default S53WW, or **several skimmers and whole CQ
+  zones** together, `TK0C, IT9ABC, ZONE15`; backup skimmers / RBN over HTTP
+  when quiet) and SSB spots - **from N1MM's own cluster spots** (Broadcast
+  Data > Spots), POUNCer's own DX-cluster connection only as a backup - for
+  the band your radio is on.
+- No RBN when it isn't needed: an **SSB contest** open in N1MM, or every
+  radio on SSB - also for the **whole team** (each POUNCer says whether it
+  needs RBN).
 - Marks: new multiplier (single / double), worked, ⚡ rare CQ (from 5 years
-  of logs), ? busted call (Super Check Partial), ↻ already tried, strong.
+  of logs), ? busted call (Super Check Partial), ↻ already tried, strong,
+  ★ heard by your own skimmer (with several listed).
 - **Tap** (phone) or **click** (window) = QSY + call into N1MM, no TX. The
   phone then says what really happened (✓ radio on 7012.0 · call in; ⏳
   waiting for N1MM when its report is slow, then ✓ "reported it late" or ⚠
@@ -182,6 +189,11 @@ is required.
 - **Alert** when a rare CQ (⚡) that is also a new mult appears: **pop-up**
   and **sound** switched on their own (window: View menu; phone: band menu);
   click the window's pop-up = QSY and call.
+- **SPOTTED pop-up**: someone spotted your call on a DX cluster ("SPOTTED:
+  S55OO by DL1ABC on 14025.0"; skimmers don't count, a self-spot shows marked).
+- Window list: the **table in small fonts** (default) or tiles like the phone
+  (Ctrl+T); looks Dark / Light (Windows 11 style) / Classic, sharp at 125 /
+  150 % scaling.
 - **Compact window** beside N1MM (Ctrl+M): A / B, frequencies, small band
   chips, the list; ⤢ = back to the full window.
 
@@ -197,16 +209,21 @@ half-size keys on the phone (F1 + F3, F5, F7, F11, SPOTit); full keys are compac
 - **Band opening timeline**: spots per band in 10-minute boxes, 48 h - a
   window or the page.
 - **Contest summary**: QSOs, from POUNCer, mults, rate, best 60 min.
+- **Rate line** in the window: rate (10 min / hour), QSOs and mults per band.
 
 **Station** - SO2R / SO2V (radio A / B, per phone), team of POUNCers on the
-LAN (one RBN feed for all), pre-contest check (READY / CHECK), connection
-lights, CW speed popup, autostart of your other programs (**N1MM first**,
+LAN (one RBN feed for all), pre-contest check (READY / CHECK, each item in
+its own colour; **skimmer offline** warning), stream lights (green working,
+yellow on hold, red problem), **station test** (QSY + callsign per radio),
+CW speed popup, autostart of your other programs (**N1MM first**,
 then the rest when N1MM is up; 8 programs, each optionally "only when N1MM is
 up"), auto-update from GitHub.
 
 **When something is wrong** - `cache\pouncer.log`, *Help > Save
 diagnostics* (zip, no passwords), `cache\perf.csv` (CPU / memory / disk of
-POUNCer, N1MM and Windows, a row a minute), phone *Reset this page*.
+POUNCer, N1MM and Windows, a row a minute), **traffic console** (View menu,
+Ctrl+Shift+D: the raw data of every source, only while open), phone *Reset
+this page*.
 
 Every symbol and colour: [docs/SYMBOLS.md](docs/SYMBOLS.md) · network
 connections: [docs/NETWORK.md](docs/NETWORK.md) · code:
@@ -248,8 +265,11 @@ F-keys stay as buttons - they're used all contest long):
 * **View** - *Also enter callsign in N1MM* and *Hide worked* (tick),
   **Compact window (beside N1MM)** (tick, **Ctrl+M**) and **Always on top**
   (tick), **Alert pop-up (rare CQ + new mult)** and **Alert sound** (tick),
-  Clear spots, Contest summary, **CQ zones: who hears me** and **Band opening
-  timeline** (each opens a window of its own), Phone page in the browser.
+  **Rate / QSOs / mults per band line** and **Spot list as tiles** (Ctrl+T)
+  (tick), Clear spots, Contest summary, **CQ zones: who hears me** and **Band
+  opening timeline** (each opens a window of its own), Phone page in the
+  browser / as an app window, **Traffic console** (Ctrl+Shift+D), **Station
+  test**, Look (Dark / Light / Classic).
 * **Settings...** - the settings window (below).
 * **Help** - what every button does, check for a new version, POUNCer on
   GitHub, **Save diagnostics (zip)**, **Open the log file**, **Open the
@@ -686,7 +706,13 @@ a **team**:
   downloaded from GitHub only **once**; a POUNCer started later gets
   everything known so far from the master;
 - if the master is switched off (or its RBN is down over a minute) the next
-  one takes over within seconds.
+  one takes over within seconds;
+- each POUNCer tells the others whether it **needs RBN** (a radio on CW, not
+  an SSB contest): the master connects to RBN only while one does - the whole
+  team on SSB = no RBN connection anywhere, back at once when a radio goes to
+  CW (all PCs on v0.7.102 or newer; an older one counts as "needs it");
+- SSB: the master's SSB spots (from N1MM or its own cluster) go to the
+  slaves too.
 
 The main window shows a coloured bar at the top - **MASTER** (green) or
 **SLAVE** (blue, with the master's IP) - and the role in its title; the phone's status line starts with **M** or **S**. Allow UDP 12079
@@ -940,6 +966,8 @@ All options live in `config.ini` and are documented there, line by line:
 | `callsign` | N1MM's station call | Your call, the RBN / cluster login (nothing else is sent). |
 | `host`, `port`, `ft8_port` | telnet.reversebeacon.net, 7000, 7001 | RBN telnet (CW/RTTY; FT8/FT4 on `ft8_port`). |
 | `spotter` | S53WW | Only spots of these skimmers: calls (prefix match) and `ZONE14` = all in a CQ zone, comma separated; empty = all. |
+| `skimmer_quiet_minutes` | 3 | Check line warns when a listed skimmer has sent nothing this long while RBN works (offline / its connection down). |
+| `pause_on_phone` | true | No RBN in an SSB contest or while every radio is on SSB (in a team: while no POUNCer needs it). |
 | `backup_spotters`, `backup_after_minutes` | (our continent), 5 | Skimmers used while `spotter` is quiet this long. |
 | `history` | 30 | Last spots asked at login (SH/DX); 0 = off. |
 | `backup_host`, `backup_port`, `backup_commands` | azure.s53m.com, 8000, – | Telnet backup when RBN's telnet is down; commands sent after login. |
@@ -970,6 +998,10 @@ All options live in `config.ini` and are documented there, line by line:
 | `min_snr` | 0 (off) | Hide spots weaker than this (dB) in the window and on the phone; 0 = all spots. |
 | `min_snr_keep_mults` | true | New multipliers are listed even when weaker than `min_snr`. |
 | `mark_tried`, `tried_minutes` | true, 30 | Mark stations you tapped (↻3m, ×2) for this many minutes. |
+| `look` | dark | Window look: `dark` / `light` (Windows 11 style), `classic`; from the next start. |
+| `spot_tiles` | false | Window list as tiles like the phone (Ctrl+T); false = the table. |
+| `rate_line` | true | Rate / QSOs / mults per band line under the lights. |
+| `self_spot_alert` | true | Pop-up when a person spots your call on a DX cluster (self-spots marked). |
 | `check_line` | true | Pre-contest check line in the window; phone warns when something is wrong. |
 | `band_lights` | true | Band open lights (window row, phone band menu dots) from skimmers on your continent. |
 | `alert_popup` | true | Window: pop-up when a rare CQ that is a new mult appears (click = QSY and call). |
@@ -993,6 +1025,7 @@ All options live in `config.ini` and are documented there, line by line:
 | `host`, `port` | azure.s53m.com, 8000 | The DX cluster. |
 | `spotters` | EU | Spotters' continent (EU, NA, ... or ALL). |
 | `history`, `login`, `commands` | 30, (your call), – | Last spots at login; login call (e.g. S55OO-2); commands after login. |
+| `use_n1mm_spots` | auto | `auto` = N1MM's spots (Broadcast Data > Spots) replace this cluster connection while they come (20 s without = own cluster again); `off` = always own. |
 | `follow_radio_mode` | true | Radio on USB/LSB = SSB spots, CW = RBN CW spots. |
 | **[team]** | | |
 | `enabled`, `port`, `peers` | true, 12079, – | Several POUNCers on a network; extra IPs where broadcasts are dropped. |

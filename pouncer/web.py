@@ -1820,8 +1820,10 @@ spots you still need there. Nothing here transmits except the F-keys.</p>
   <dd>Re-read which log N1MM has open (after you open another log).</dd>
 </dl>
 <p><span style="color:#ffb74d;font-weight:700">&#9888; backup skimmers</span> at the start
-of the small line: your skimmer (S53WW) has sent nothing for 5 minutes, so spots from
-other skimmers on your continent are shown until it is back.</p>
+of the small line: your skimmers (S53WW, or the ones in the list) have sent nothing for 5
+minutes, so spots from other skimmers on your continent are shown until they are back. A
+<b>&#9888;</b> in the top line tapped shows the check items - e.g. <i>Skimmer: TK0C sends
+nothing</i> when your own skimmer is offline or its connection is down.</p>
 <p>The small line under it starts with <b>M</b> or <b>S</b> when several POUNCers
 work as a team on your network: M = this one is the master (keeps the RBN
 connection), S = it gets its spots from the master.
@@ -1965,9 +1967,11 @@ the numbers. 6 / 12 / 24 / 48 h; kept 48 hours, also over a restart.</p>
 
 <h2>SSB</h2>
 <p>RBN has no SSB, so on SSB the spots come from a <b>DX cluster</b> (human spots, only from
-spotters in Europe). The list follows the radio: radio on USB / LSB = SSB spots, on CW =
-the RBN CW spots - per radio (A / B). On SSB the WPM keys are hidden. Settings: <b>SSB</b>
-on the Settings page.</p>
+spotters in Europe): the spots of N1MM&#39;s own Telnet window when N1MM sends them (Broadcast
+Data &gt; Spots), else POUNCer&#39;s own cluster connection. The list follows the radio: radio
+on USB / LSB = SSB spots, on CW = the RBN CW spots - per radio (A / B). In an SSB contest
+RBN is not connected at all. On SSB the WPM keys are hidden. Settings: <b>SSB</b> on the
+Settings page.</p>
 
 <h2>Settings</h2>
 <p><b>Settings</b> in the band menu (or <b>Settings...</b> in the main window's menu bar, a window with tabs): the
