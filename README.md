@@ -484,9 +484,10 @@ spots (Broadcast Data > **Spots**, `127.0.0.1:12060` - every spot of its
 Telnet window), POUNCer takes the SSB spots from there after a minute and
 closes its own cluster connection (light "SSB via N1MM"). When N1MM stops
 sending (its telnet dropped, Spots unticked, N1MM closed) POUNCer's own
-cluster is back after **20 seconds** without a spot from N1MM, and stays
-for at least 5 minutes before N1MM takes over again (so a quiet band
-doesn't switch back and forth). You then see what N1MM's cluster and filters
+cluster is back after **20 seconds** without a spot from N1MM (on a slow
+band, where N1MM's spots are usually more than 5 s apart: 4 x the usual
+gap), and stays for at least 5 minutes before N1MM takes over again. N1MM
+takes over after a minute with at least 3 of its spots, pauses allowed. You then see what N1MM's cluster and filters
 pass. CW keeps the RBN feed (a cluster doesn't pass every skimmer spot).
 `[ssb] use_n1mm_spots = off` (Settings > SSB) always uses POUNCer's own.
 

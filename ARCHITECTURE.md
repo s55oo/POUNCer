@@ -752,8 +752,10 @@ a paused master stays healthy and master.
 `n1mm.parse_spot_packet` (tag `spot`, lower-cased children: dxcall, frequency kHz -
 > 500000 = 10 Hz units, spottercall, comment, mode, action) → `RadioListener(on_spot=)`
 → `app._on_n1mm_spot` (listener thread): `_n1mm_spot_first` / `_last` (a stream =
-spots at most `N1MM_SPOT_QUIET_S` 20 s apart, any mode counts as alive; after falling back
-`_ssb_back_at` keeps our own cluster `N1MM_SPOT_HOLD_S` 300 s). While
+spots less than `N1MM_SPOT_BREAK_S` 300 s apart, `_n1mm_streak` spots, `_n1mm_gap` = smoothed
+gap 0.8 / 0.2; any mode counts as alive). Hand over: `N1MM_SPOT_START_S` 60 s into the
+stream with ≥ `N1MM_SPOT_START_N` 3 spots; fall back: none for `_n1mm_quiet_limit()` = max(20 s,
+4 x gap), ≤ 300 s; then `_ssb_back_at` keeps our own cluster `N1MM_SPOT_HOLD_S` 300 s. While
 `_ssb_via_n1mm`, `add` packets → `rbn.spot_from_n1mm` (N1MM mode via `_MODE_WORDS`, else
 `guess_mode`; dB / WPM / CQ from the comment) → SSB only → `_on_raw_spot` → own
 `ContinentFilter` (`[ssb] spotters`) → `spot_queue`. `_n1mm_spots_ok()` = not `off`,
