@@ -718,6 +718,17 @@ WEB off) and `last` per group feed `states()` → {group: (live | quiet | dead |
 → `below` bar (`_show_below`, click = `_follow`); `_tick` catches errors, writes them
 into the view and always reschedules (restarting the tap if it was stopped).
 
+## No RBN for an SSB team (v0.7.102)
+
+`rbn.is_phone_contest(name)` (SSB / PHONE / PH, no CW / RTTY / DIGI / FT / MIX / PSK).
+`app._rbn_needed_here()`: option off or a radio not on phone → True; SSB contest →
+False at once (also with no radio info); no radio info → True; else the 60 s
+`_phone_since` timer. `_rbn_paused()` = not needed here and not
+`team.peers_need_rbn()` (peers' `cw` in `hi`, missing = True for older versions).
+`Team(needs_rbn=, rbn_paused=)` put `cw` / `paused` in `hi`; `master_paused()` for slaves
+(light "RBN paused", check "paused", console note). `_rbn_ok` counts a pause as ok, so
+a paused master stays healthy and master.
+
 ## Several skimmers, whole zones (v0.7.99)
 
 `rbn.parse_spotters(text)` → (call prefixes, CQ zones; `ZONE|CQZ|CQZONE|NEARZONE<n>`).

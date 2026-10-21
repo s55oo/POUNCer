@@ -76,6 +76,8 @@ class Team:
         version: str = "",
         peers: list[str] | None = None,
         get_bands=None,       # -> band-open counts (master sends them to the slaves)
+        needs_rbn=None,       # -> bool: this POUNCer needs RBN (a radio on CW, not an SSB contest)
+        rbn_paused=None,      # -> bool: (master) RBN closed - nobody needs it
     ) -> None:
         self.id = uuid.uuid4().hex[:12]
         self.started = time.time()
@@ -87,6 +89,8 @@ class Team:
         self._get_runhist = get_runhist
         self._rbn_ok = rbn_ok or (lambda: True)
         self._get_bands = get_bands
+        self._needs_rbn = needs_rbn
+        self._rbn_paused = rbn_paused
         self._fixed_targets = send_to  # tests: only these
         self._manual_peers = [p.strip() for p in (peers or []) if p.strip()]
         self._if_socks: dict[str, socket.socket] = {}  # local IP -> socket bound to it
@@ -227,6 +231,12 @@ class Team:
             self._last_healthy = self._healthy(now)
             hi = {"t": "hi", "started": self.started, "web": self.web_port,
                   "healthy": self._last_healthy, "ver": self.version}
+            for key, fn in (("cw", self._needs_rbn), ("paused", self._rbn_paused)):
+                if fn is not None:
+                    try:
+                        hi[key] = bool(fn())
+                    except Exception:  # noqa: BLE001
+                        pass
             if self._get_bands is not None and self.is_master():
                 try:
                     hi["bands"] = self._get_bands()
@@ -235,6 +245,17 @@ class Team:
             self._send(hi)
             self._maybe_sync()
             self._stop.wait(ANNOUNCE_S)
+
+    def peers_need_rbn(self) -> bool:
+        """Any other POUNCer of the team needs RBN (a radio on CW, ...)."""
+        return any(p.get("cw", True) for p in self.alive_peers())
+
+    def master_paused(self) -> bool:
+        """Slave: the master has closed RBN (no one in the team needs it)."""
+        mid = self.master_id()
+        with self._lock:
+            p = self.peers.get(mid or "")
+            return bool(p and p.get("paused"))
 
     def master_bands(self) -> dict | None:
         """Slave: the band-open counts the master sent last."""
@@ -286,6 +307,8 @@ class Team:
                     "healthy": bool(msg.get("healthy", True)),
                     "seen": time.time(), "ver": str(msg.get("ver") or ""),
                     "bands": msg.get("bands") if isinstance(msg.get("bands"), dict) else None,
+                    # needs RBN? (older POUNCers don't say: yes, to be safe)
+                    "cw": bool(msg.get("cw", True)), "paused": bool(msg.get("paused", False)),
                 }
             if new:
                 log.info("team: POUNCer %s at %s joined", pid, ip)
