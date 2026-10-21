@@ -1384,12 +1384,12 @@ class PouncerApp:
         # keep it a while after the radio went back to CW
         return time.time() - getattr(self, "_ssb_last_needed", 0) < 15 * 60
 
-    N1MM_SPOT_START_S = 60     # N1MM spots this long (and N1MM_SPOT_START_N of them) ...
-    N1MM_SPOT_START_N = 3      # ... before our cluster closes
+    N1MM_SPOT_START_S = 0      # N1MM's first spot: our cluster closes at once
+    N1MM_SPOT_START_N = 1
     N1MM_SPOT_BREAK_S = 300    # a gap this long ends N1MM's stream (start counting again)
     N1MM_SPOT_QUIET_S = 20     # no N1MM spot this long = N1MM stopped: our own cluster again ...
     N1MM_SPOT_QUIET_X = 4      # ... or 4 x its usual gap on a slow band (at most BREAK_S)
-    N1MM_SPOT_HOLD_S = 300     # then our own cluster at least this long (no flip-flop)
+    N1MM_SPOT_HOLD_S = 60      # then our own cluster at least this long (one login a minute at most)
 
     def _n1mm_quiet_limit(self) -> float:
         """20 s without an N1MM spot = stopped; on a slow band (usual gap over
@@ -1433,7 +1433,7 @@ class PouncerApp:
             pass
 
     def _n1mm_spots_ok(self) -> bool:
-        """N1MM has been sending spots for a minute and not gone quiet."""
+        """N1MM sends spots (from its first one) and hasn't gone quiet."""
         if getattr(self.cfg, "ssb_use_n1mm", "auto") == "off":
             return False
         first = getattr(self, "_n1mm_spot_first", None)
