@@ -342,7 +342,9 @@ for 30 minutes (`[ui] mark_tried`, `tried_minutes`; Settings).
 **Pre-contest check line** (top of the window): **READY** / **CHECK** /
 **NOT READY** with ✓ / ⚠ / ✗ for N1MM radio info, log, station call, RBN,
 country file (⚠ > 60 days old), Super Check Partial (⚠ > 30 days), phone
-page and PC clock (checked against an NTP time server every 30 min). The phone
+page and PC clock (checked against an NTP time server every 30 min). Each item
+has its own colour: **red** = not working, **amber** = check it, **green** = OK
+(N1MM closed: N1MM red, RBN / SCP still green). The phone
 shows ⚠ in its top line only when something is wrong; tap it for details.
 `[ui] check_line = false` hides it.
 
