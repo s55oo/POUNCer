@@ -718,6 +718,26 @@ WEB off) and `last` per group feed `states()` → {group: (live | quiet | dead |
 → `below` bar (`_show_below`, click = `_follow`); `_tick` catches errors, writes them
 into the view and always reschedules (restarting the tap if it was stopped).
 
+## Station test, own skimmer ★, rate line, SPOTTED pop-up (v0.7.109)
+
+- `stationtest.run(radios, snapshot, qsy, wait_for, entry_hwnd, read_box, set_box,
+  skip_qsy=)` → per radio lines (QSY `STEP_KHZ` 0.1 up / back with `_wait_for_qsy`,
+  `TEST` into an empty focused box via `set_focused_edit_text`, read back, cleared);
+  app `_station_test` runs it in a thread (UDP `set_frequency`, typed radio B skipped),
+  `_show_text_window` shows `report()`.
+- `_note_own(spot)` in both drains: `_own_heard[(call, band)] = (t, receiver)` when the
+  spotter starts with `spotter_filter.primary`; `_own_mark(s)` (only if `multi` or backup,
+  `OWN_HEARD_S` 600) → Spotter column `★ TK0C-1`, tile `own`.
+- `summary.build(..., now=)` adds per band / total `q10`, `q60`, `m60`; `rate_line()` text;
+  app `_maybe_rate_line` (thread every `RATE_EVERY_S` 30 → `_rate_text`, shown in the
+  tick) → `rate_label` under the lights; `[ui] rate_line`, View toggle.
+- `alerts.SelfSpotWatch.check(dxcall, spotter, khz, my_call)`: `base_call` match, not
+  `is_skimmer` (-# / -@), once per (spotter, kHz) per 15 min; fed from `_on_raw_spot`
+  (live cluster / RBN lines) and `_on_n1mm_spot` (every packet, any mode) →
+  `_self_spot_q` → `_drain_self_spots` (tick): `_show_alert(None, "SPOTTED: ...")`, sound,
+  status line; "(self-spot)" via `is_self`.
+- Lights: dots drawn on a Canvas (`create_oval`, `itemconfigure`), not a font glyph.
+
 ## Skimmer offline warning (v0.7.103)
 
 `skimwatch.SkimmerWatch(spotter_filter.calls, quiet_s)`: `seen(spotter)` from

@@ -158,8 +158,10 @@ def _hhmm(t: float) -> str:
     return time.strftime("%H:%M", time.gmtime(t))
 
 
-def build(qsos: list[dict], taps: list[tuple[float, str, str]], mult_types=()) -> dict:
+def build(qsos: list[dict], taps: list[tuple[float, str, str]], mult_types=(),
+          now: float | None = None) -> dict:
     """The summary (all times UTC)."""
+    now = time.time() if now is None else now
     qsos = sorted(qsos, key=lambda q: q["t"])
     # taps per (call core, band), oldest first
     tapped: dict[tuple[str, str], list[float]] = {}
@@ -189,8 +191,14 @@ def build(qsos: list[dict], taps: list[tuple[float, str, str]], mult_types=()) -
         q["via"] = via
         pouncer += via
         b = bands.setdefault(q["band"], {"band": q["band"], "qsos": 0, "pouncer": 0,
-                                         "mults": 0, "pouncer_mults": 0})
+                                         "mults": 0, "pouncer_mults": 0, "q10": 0, "q60": 0,
+                                         "m60": 0})
         b["qsos"] += 1
+        age = now - q["t"]
+        if 0 <= age < 600:
+            b["q10"] += 1
+        if 0 <= age < 3600:
+            b["q60"] += 1
         b["pouncer"] += via
         h = time.strftime("%Y-%m-%d %HZ", time.gmtime(q["t"]))
         hr = hours.setdefault(h, {"hour": h, "qsos": 0, "pouncer": 0})
@@ -208,6 +216,8 @@ def build(qsos: list[dict], taps: list[tuple[float, str, str]], mult_types=()) -
             got.add(v)
             total_mults += 1
             b["mults"] += 1
+            if 0 <= now - q["t"] < 3600:
+                b["m60"] += 1
             if via:
                 b["pouncer_mults"] += 1
                 mults_from_spots.append({
@@ -241,9 +251,26 @@ def build(qsos: list[dict], taps: list[tuple[float, str, str]], mult_types=()) -
         "best60": best,
         "best60_at": _hhmm(best_at) if best_at is not None else "",
         "mults": total_mults,
+        "q10": sum(b["q10"] for b in bands.values()),
+        "q60": sum(b["q60"] for b in bands.values()),
+        "m60": sum(b["m60"] for b in bands.values()),
         "pouncer_mults": len(mults_from_spots),
         "bands": sorted(bands.values(), key=lambda b: order.index(b["band"])
                         if b["band"] in order else 99),
         "hours": [hours[k] for k in sorted(hours)],
         "mults_from_spots": mults_from_spots,
     }
+
+
+def rate_line(summary: dict) -> str:
+    """The window's rate line: 'Rate 84/h (10 min) · 72 last hour · 1234 QSOs
+    345 mults (+12 this hour)  |  40m 380 Q 90 M (+3)  20m ...'."""
+    if not summary.get("ok") or not summary.get("qsos"):
+        return "Rate: no QSOs in the open contest yet"
+    head = (f"Rate {summary.get('q10', 0) * 6}/h (10 min) \u00b7 {summary.get('q60', 0)} last hour"
+            f" \u00b7 {summary['qsos']} QSOs {summary.get('mults', 0)} mults"
+            + (f" (+{summary['m60']} this hour)" if summary.get("m60") else ""))
+    bands = "   ".join(
+        f"{b['band']} {b['qsos']} Q {b['mults']} M" + (f" (+{b['m60']})" if b.get("m60") else "")
+        for b in summary.get("bands", []))
+    return head + ("    |    " + bands if bands else "")

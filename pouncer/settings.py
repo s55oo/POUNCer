@@ -181,6 +181,15 @@ SETTINGS: list[dict] = [
      "live": False, "group": "Program", "label": "Window look",
      "help": "dark / light = Windows 11 style (dark like the phone page); classic = the "
              "look up to v0.7.92. From the next start (View > Look)."},
+    {"key": "ui.self_spot_alert", "attr": "self_spot_alert", "kind": "bool", "live": True,
+     "group": "Program", "label": "Pop-up when someone spots my call",
+     "help": "A DX-cluster spot of your call (the log's station call) by a person, not a "
+             "skimmer: 'SPOTTED: S55OO by DL1ABC on 14025.0'. Your self-spot shows too "
+             "(marked). Once per spotter and QRG / 15 min."},
+    {"key": "ui.rate_line", "attr": "rate_line", "kind": "bool", "live": False, "group": "Program",
+     "label": "Rate / mults line",
+     "help": "Window: a line with the rate (last 10 min / hour), QSOs and multipliers per "
+             "band from the open N1MM log, every 30 s. Also View menu."},
     {"key": "ui.spot_tiles", "attr": "tiles", "kind": "bool", "live": True, "group": "Program",
      "label": "Spot list as tiles",
      "help": "The window's spot list as tiles like the phone page (call big, green = "

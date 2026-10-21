@@ -214,12 +214,13 @@ connections: [docs/NETWORK.md](docs/NETWORK.md) · code:
 
 ## Main window menu
 
-<p align="center"><img src="docs/main-window.png" width="760"
-  alt="POUNCer 0.7.62 main window: dark top bar with 3559.0 kHz 80m CW 30 WPM, READY badge and team badge SLAVE; connection lights; band open chips coloured by DX share with 20m selected; N1MM / RBN / Log info lines with bold values; Sort, Min SNR, F-keys with a green ENTER; spot list with new multipliers in red"></p>
+<p align="center"><img src="docs/main-window.png" width="820"
+  alt="POUNCer 0.7.109 main window, dark look: top bar 14025.0 kHz 20m CW with a 'SPOTTED: S55OO by DL1ABC on 14025.0' pop-up and the READY badge; stream lights (RBN, N1MM, Log green, HTTP backup on hold yellow, others grey); band open chips; the rate line with rate, QSOs and mults per band; info lines; Sort, Min SNR, F-keys with ENTER and SPOTit; the spot list table in small fonts, new multipliers in red, DX rows tinted"></p>
 
-*The Windows main window (0.7.62, a team slave on 80m): the 20m band chip is
-clicked, so the list shows the 20m spots while the radio stays on 80m;
-new multipliers in red, ⚡ = rare CQ, ? = not in Super Check Partial.*
+*The Windows main window (0.7.109, dark look, sample data): stream lights,
+the rate / QSOs / mults line, a "SPOTTED" pop-up (someone spotted you on a
+cluster) and the spot list table - new multipliers in red, MM = double
+mult, the tuned station highlighted.*
 
 The window is laid out like this, from the top:
 
@@ -271,6 +272,24 @@ over first heard / SNR / calling time; green = strong, darker = not
 re-spotted lately, pink bar = new mult (thick = double), blue frame = the
 radio is on it, yellow frame = selected. Click = QSY and call; arrow keys
 move, Space taps. Off = the table with columns (sorting by a column heading).
+
+**Rate line** (under the lights, `[ui] rate_line`, View menu): the rate of
+the last 10 minutes (as QSOs/h) and of the last hour, QSOs and multipliers in
+total and per band, "+n" = new this hour - from the open N1MM log, every
+30 s.
+
+**SPOTTED pop-up** (`[ui] self_spot_alert`): when your call (the log's
+station call - S55OO, TK0C ...) is spotted on a DX cluster by a person (not a
+skimmer -#), a pop-up like the multiplier alert says "SPOTTED: S55OO by
+DL1ABC on 14025.0" (with the alert sound, if on). Your own self-spot shows too,
+marked "(self-spot)" - spot yourself once to test it. It comes from N1MM's
+spots (Broadcast Data > Spots) or POUNCer's own SSB cluster.
+
+**Station test** (View > Station test): per radio a QSY 0.1 kHz up and back
+(no TX) with N1MM's response time, then a test call into the empty callsign
+box of its Entry Window, read back and cleared (a box that holds something
+is left alone). A quick check after setting up - cables, COM ports,
+Broadcast Data.
 
 **Phone page as an app window** (View menu): the phone page on the PC in a
 window of its own - Edge or Chrome "app" mode, no tabs, no address bar.
@@ -528,6 +547,12 @@ N1MM's `SupportFiles` (N1MM reads it at its next start). `[scp] enabled =
 false` = no marks.
 
 ## Spots at start
+
+**★ = heard by your own skimmer.** With several skimmers listed
+(`spotter = TK0C, IT9ABC, ZONE15`) the Spotter column shows **★ TK0C-1** for
+stations your own skimmer (the first in the list) heard in the last 10
+minutes, even when a later spot came from another one - your own reception
+is the best sign you can work him. Tiles show a ★ after the call.
 
 **Skimmer offline warning.** When a skimmer listed in `spotter` (S53WW, TK0C)
 has sent nothing for 3 minutes while RBN itself works, the check line shows

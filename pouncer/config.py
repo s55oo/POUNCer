@@ -153,6 +153,8 @@ class Config:
     mark_tried: bool = True      # mark stations already tapped (called): "↻3m"
     tried_minutes: int = 30      # ... for this long after the last tap
     check_line: bool = True      # pre-contest check line in the window (+ phone warning)
+    rate_line: bool = True       # window: rate / QSOs / mults per band from the log
+    self_spot_alert: bool = True  # pop-up when a person spots my call on a cluster
     band_lights: bool = True     # band open lights (skimmers on our continent, 10 min)
     # window alert when a rare CQ (⚡) that is also a new multiplier shows up
     # on the band: a pop-up (click it = QSY) and / or a beep, each on its own
@@ -312,6 +314,8 @@ def load_config(path: str) -> Config:
     cfg.mark_tried = b("ui", "mark_tried", cfg.mark_tried)
     cfg.tried_minutes = max(1, min(720, i("ui", "tried_minutes", cfg.tried_minutes)))
     cfg.check_line = b("ui", "check_line", cfg.check_line)
+    cfg.rate_line = b("ui", "rate_line", cfg.rate_line)
+    cfg.self_spot_alert = b("ui", "self_spot_alert", cfg.self_spot_alert)
     cfg.band_lights = b("ui", "band_lights", cfg.band_lights)
     lk = s("ui", "look", cfg.look).strip().lower()
     cfg.look = lk if lk in ("dark", "light", "classic") else "dark"

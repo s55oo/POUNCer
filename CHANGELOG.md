@@ -1,5 +1,21 @@
 # POUNCer — Changelog
 
+## v0.7.109 — 2026-10-21 — station test, ★ own skimmer, rate line, SPOTTED pop-up
+
+- **Station test** (View menu): per radio QSY 0.1 kHz up and back (no TX)
+  with N1MM's response time, then a test call into the empty callsign box,
+  read back and cleared. Runs in the background; result in a small window.
+- **★ in the Spotter column**: your own skimmer (first in `spotter`) heard
+  this station in the last 10 min - when other skimmers / zones are listed.
+- **Rate line** under the lights: rate (10 min as /h, last hour), QSOs and
+  mults in total and per band (+ new this hour), from the log every 30 s.
+  `[ui] rate_line`, View menu.
+- **SPOTTED pop-up**: your call spotted on a DX cluster by a person (not a
+  skimmer): "SPOTTED: S55OO by DL1ABC on 14025.0". Self-spots show too
+  (marked) for testing. `[ui] self_spot_alert`.
+- The light dots are drawn circles now (sharp at any scaling, any font).
+- New window screenshot in the README.
+
 ## v0.7.108 — 2026-10-21 — stream lights: green / yellow on hold / red
 
 - Lights: **green** = this stream works, **yellow** = on hold (ready, not

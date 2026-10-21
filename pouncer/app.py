@@ -7,6 +7,7 @@ import os
 import dataclasses
 import queue
 import sys
+import threading
 import time
 import tkinter as tk
 from tkinter import ttk
@@ -33,10 +34,11 @@ from .bandopen import BandActivity, dx_pct, share_color, state_of
 from .zones import ZoneMap
 from .timeline import Timeline
 from .perf import PerfMonitor
-from .alerts import AlertWatch, beep as alert_beep
+from .alerts import AlertWatch, SelfSpotWatch, beep as alert_beep
 from .panels import TimelineWindow, ZonesWindow
 from .console import TrafficConsole
 from .skimwatch import SkimmerWatch
+from . import stationtest
 from .tiles import TileList
 from . import theme
 from . import autostart as autostartmod
@@ -228,6 +230,9 @@ class PouncerApp:
                                       quiet_s=config.skimmer_quiet_minutes * 60)
         self._skim_quiet_text = ""
         self._last_team_spot = 0.0
+        # (call, band) -> (time, receiver): heard by our own skimmer (the first
+        # listed, TK0C / S53WW) - marked ★ when others are listed too
+        self._own_heard: dict[tuple[str, str], tuple[float, str]] = {}
         self._cty_cache: dict[str, Entity | None] = {}
         self.controller = N1MMController(
             config.n1mm_control_ip,
@@ -251,6 +256,7 @@ class PouncerApp:
         self.rbn_status = "starting"
         self.ssb_status = "off"
         self._ssb_status_q: "queue.Queue[str]" = queue.Queue()
+        self._self_spot_q: queue.Queue = queue.Queue()   # my call spotted by a person
         self._ssb_client = None
         self._ssb_last_needed = 0.0
         # N1MM's own spots (<spot> packets on the RadioInfo port): while they
@@ -321,6 +327,7 @@ class PouncerApp:
         self._build_menu()
         self._build_wpm_popup()
         self._alerts = AlertWatch()
+        self._self_spots = SelfSpotWatch()
         self._build_alert_popup()
         # View > CQ zones / Band opening timeline: windows of their own
         self._zones_win = ZonesWindow(self.root, self._zones,
@@ -391,6 +398,16 @@ class PouncerApp:
         # Status chips: connection lights, then band open (one flowing row)
         self.lights_frame = FlowFrame(header, padx=12, pady=2)
         self.lights_frame.pack(fill="x", padx=12, pady=(6, 2))
+        # rate / QSOs / mults per band from the open N1MM log (every 30 s)
+        self.rate_label = tk.Label(header, text="", anchor="w", justify="left",
+                                   font=(theme.FONT, 9), bg=theme.BG, fg=theme.MUTED, padx=12)
+        self.rate_label.bind("<Configure>", lambda e: self.rate_label.configure(
+            wraplength=max(200, e.width - 24)))
+        if getattr(self.cfg, "rate_line", True):
+            self.rate_label.pack(fill="x", padx=12, pady=(0, 2))
+        self._rate_text = None
+        self._rate_at = 0.0
+        self._rate_busy = False
         self.bands_frame = None          # made after the lights (same row)
         self._band_lights: dict[str, tk.Label] = {}
         # band chip clicked: the list shows that band (radio stays); None = follow the radio
@@ -554,6 +571,9 @@ class PouncerApp:
                              command=self._apply_compact, accelerator="Ctrl+M")
         view.add_checkbutton(label="Always on top", variable=self.topmost_var,
                              command=self._apply_topmost)
+        self.rate_var = tk.BooleanVar(value=bool(getattr(self.cfg, "rate_line", True)))
+        view.add_checkbutton(label="Rate / QSOs / mults per band line", variable=self.rate_var,
+                             command=self._toggle_rate_line)
         view.add_checkbutton(label="Spot list as tiles (like the phone)",
                              variable=self.tiles_var, accelerator="Ctrl+T",
                              command=lambda: self._toggle_tiles(flip=False))
@@ -575,6 +595,8 @@ class PouncerApp:
         view.add_command(label="Phone page as an app window", command=self._open_app_window)
         view.add_command(label="Traffic console (raw data in / out)", accelerator="Ctrl+Shift+D",
                          command=lambda: self._console.open())
+        view.add_command(label="Station test (QSY + callsign, each radio)",
+                         command=self._station_test)
         view.add_separator()
         looks = tk.Menu(view, tearoff=False)
         self.look_var = tk.StringVar(value=getattr(self.cfg, "look", "classic"))
@@ -730,6 +752,30 @@ class PouncerApp:
                                 "\nclick = QSY and call")
         if self.cfg.alert_sound:
             alert_beep(self.root)
+
+    def _note_self_spot(self, dxcall: str, spotter: str, freq_khz: float,
+                        comment: str = "") -> None:
+        """Any thread: a spot of MY call by a person (not a skimmer)."""
+        if not getattr(self.cfg, "self_spot_alert", True):
+            return
+        if self._self_spots.check(dxcall, spotter, freq_khz, self.own_call()):
+            self._self_spot_q.put((dxcall, spotter, float(freq_khz), comment or "",
+                                   time.strftime("%H%MZ", time.gmtime())))
+
+    def _drain_self_spots(self) -> None:
+        while True:
+            try:
+                call, spotter, khz, comment, t = self._self_spot_q.get_nowait()
+            except queue.Empty:
+                return
+            own = " (self-spot)" if SelfSpotWatch.is_self(spotter, self.own_call()) else ""
+            text = (f"SPOTTED: {call} by {spotter}{own} on {khz:.1f}  {t}"
+                    + (f"\n\u201c{comment}\u201d" if comment else ""))
+            log.info("self spot: %s spotted by %s on %.1f %s", call, spotter, khz, comment)
+            self.status_label.configure(text=text.replace("\n", "  "))
+            self._show_alert(None, text)
+            if self.cfg.alert_sound:
+                alert_beep(self.root)
 
     def _show_alert(self, spot, text: str) -> None:
         pop = getattr(self, "_alert_pop", None)
@@ -1142,6 +1188,111 @@ class PouncerApp:
                 data["geometry"] = old
         winstate.save(self._window_file(), data)
 
+    RATE_EVERY_S = 30
+
+    def _maybe_rate_line(self) -> None:
+        """Rate line: read the log in a thread every RATE_EVERY_S, show the
+        result here (main thread)."""
+        lbl = getattr(self, "rate_label", None)
+        if lbl is None or not getattr(self.cfg, "rate_line", True):
+            return
+        text = getattr(self, "_rate_text", None)
+        if text is not None and lbl.cget("text") != text:
+            lbl.configure(text=text)
+        if self._rate_busy or time.time() - self._rate_at < self.RATE_EVERY_S:
+            return
+        self._rate_at = time.time()
+        self._rate_busy = True
+
+        def work():
+            try:
+                self._rate_text = summarymod.rate_line(self._summary())
+            except Exception as exc:  # noqa: BLE001
+                log.debug("rate line: %s", exc)
+            finally:
+                self._rate_busy = False
+        threading.Thread(target=work, name="rate-line", daemon=True).start()
+
+    def _toggle_rate_line(self) -> None:
+        on = bool(self.rate_var.get())
+        self.cfg.rate_line = on
+        if on:
+            self.rate_label.pack(fill="x", padx=12, pady=(0, 2), after=self.lights_frame)
+            self._rate_at = 0.0
+        else:
+            self.rate_label.pack_forget()
+        self._save_setting("ui.rate_line", "true" if on else "false")
+
+    def _station_test(self) -> None:
+        """View > Station test: per radio QSY 0.1 kHz up / back and a test call
+        into the empty callsign box (in a thread - the window stays live)."""
+        if getattr(self, "_station_testing", False):
+            return
+        self._station_testing = True
+        self.status_label.configure(text="Station test running ...")
+        out: "queue.Queue[str]" = queue.Queue()
+
+        def qsy(nr, khz):
+            button = ("Left" if nr == 2 and self._so2r()
+                      and getattr(self.cfg, "radio_b_qsy", "udp-left") == "udp-left" else None)
+            try:
+                self.controller.set_frequency(khz, mousebutton=button, radio_nr=nr)
+                return True
+            except OSError:
+                return False
+
+        win = sys.platform == "win32"
+
+        def work():
+            try:
+                res = stationtest.run(
+                    self.state.radio_numbers(), self.state.snapshot, qsy, self._wait_for_qsy,
+                    entry_hwnd=self.state.entry_window_hwnd,
+                    read_box=focused_edit_text if win else None,
+                    set_box=set_focused_edit_text if win else None,
+                    radio_name=lambda nr: (f"Radio {'AB'[nr - 1]}" if self._so2r() and nr in (1, 2)
+                                           else "Radio"),
+                    skip_qsy=lambda nr: ("radio B is tuned by typing into its Entry Window "
+                                         "([n1mm] radio_b_qsy = type)" if self._types_qsy(nr) else ""))
+                text = stationtest.report(res)
+            except Exception as exc:  # noqa: BLE001
+                log.exception("station test")
+                text = f"Station test failed: {exc}"
+            log.info("station test:\n%s", text)
+            out.put(text)
+
+        def poll():
+            try:
+                text = out.get_nowait()
+            except queue.Empty:
+                self.root.after(200, poll)
+                return
+            self._station_testing = False
+            ok = "PROBLEM" not in text and "failed" not in text
+            self.status_label.configure(text="Station test: " + ("all OK" if ok else "see the result"))
+            self._show_text_window("POUNCer - station test", text)
+
+        threading.Thread(target=work, name="station-test", daemon=True).start()
+        self.root.after(200, poll)
+
+    def _show_text_window(self, title: str, text: str) -> None:
+        w = tk.Toplevel(self.root)
+        w.title(title)
+        w.configure(bg=theme.BG)
+        w.after(10, lambda: theme.title_bar(w))
+        t = tk.Text(w, width=78, height=min(24, text.count("\n") + 3), wrap="word",
+                    bg=theme.PANEL, fg=theme.TEXT, bd=0, padx=12, pady=10,
+                    font=(theme.FONT, 10))
+        for line in text.splitlines():
+            tag = "bad" if ("✗" in line or "PROBLEM" in line) else (
+                "ok" if ("✓" in line or line.endswith(": OK")) else "")
+            t.insert("end", line + "\n", tag)
+        for st, (_bg, fg) in theme.CHECK.items():
+            t.tag_configure("bad" if st == "bad" else st, foreground=fg)
+        t.configure(state="disabled")
+        t.pack(fill="both", expand=True)
+        ttk.Button(w, text="Close", command=w.destroy).pack(pady=(0, 10))
+
     def _console_notes(self) -> dict:
         """Why a source may be quiet, for the traffic console's top bar."""
         notes = {}
@@ -1412,6 +1563,9 @@ class PouncerApp:
             self._n1mm_gap = g if old is None else 0.8 * old + 0.2 * g
         self._n1mm_spot_last = now
         self._n1mm_spots += 1
+        if pkt.get("action") in ("", "add") and hasattr(self, "_self_spots"):
+            self._note_self_spot(pkt.get("call", ""), pkt.get("spotter", ""),
+                                 pkt.get("freq_khz") or 0.0, pkt.get("comment", ""))
         self._n1mm_streak = getattr(self, "_n1mm_streak", 0) + 1
         if not self._ssb_via_n1mm or pkt.get("action") not in ("", "add"):
             return
@@ -1920,6 +2074,8 @@ class PouncerApp:
     def _tick_body(self) -> None:
         self.updater.maybe_check()
         self._drain_status()
+        if hasattr(self, "_self_spot_q"):
+            self._drain_self_spots()
         self._check_late_qsy()
         self._drain_spots()
         self._drain_wpm()
@@ -1934,6 +2090,7 @@ class PouncerApp:
             self._last_radio_khz = khz
             self._dirty = True
         self._update_labels()
+        self._maybe_rate_line()
         if self._dirty:
             self._rebuild()
             self._dirty = False
@@ -2393,6 +2550,7 @@ class PouncerApp:
                 break
             if not spot.time_utc:     # N1MM / some cluster spots carry no time
                 spot.time_utc = time.strftime("%H%MZ", time.gmtime(spot.received))
+            self._note_own(spot)
             self.spots[spot.key] = spot
             self._track_on_freq(spot)
             got += 1
@@ -2408,11 +2566,37 @@ class PouncerApp:
                 break
             if not spot.time_utc:
                 spot.time_utc = time.strftime("%H%MZ", time.gmtime(spot.received))
+            self._note_own(spot)
             self.spots[spot.key] = spot
             self._track_on_freq(spot)
             got += 1
         if got:
             self._dirty = True
+
+    OWN_HEARD_S = 600   # ★ = our own skimmer heard him within this time
+
+    def _note_own(self, spot: Spot) -> None:
+        own = self.spotter_filter.primary
+        if own and (spot.spotter or "").upper().startswith(own):
+            d = self._own_heard
+            if len(d) > 5000:
+                cut = time.time() - self.OWN_HEARD_S
+                for k in [k for k, v in d.items() if v[0] < cut]:
+                    del d[k]
+            d[(spot.dxcall.upper(), band_from_khz(spot.freq_khz))] = (
+                time.time(), spot.spotter.replace("-#", ""))
+
+    def _own_mark(self, s: Spot) -> str:
+        """'TK0C-1' when our own skimmer heard this station lately - only when
+        other skimmers are listed too (or the backup is on): with S53WW
+        alone every spot is its own."""
+        f = self.spotter_filter
+        if not (getattr(f, "multi", False) or f.backup_active()):
+            return ""
+        got = getattr(self, "_own_heard", {}).get((s.dxcall.upper(), band_from_khz(s.freq_khz)))
+        if not got or time.time() - got[0] > self.OWN_HEARD_S:
+            return ""
+        return got[1]
 
     def _track_on_freq(self, spot: Spot) -> None:
         self._on_freq.add(spot, band_from_khz(spot.freq_khz))
@@ -3025,6 +3209,8 @@ class PouncerApp:
         sw = getattr(self, "skimwatch", None)
         if sw is not None:
             sw.seen(spot.spotter)
+        if hasattr(self, "_self_spots"):
+            self._note_self_spot(spot.dxcall, spot.spotter, spot.freq_khz)
         self.bandact.add(spot)
         zm = getattr(self, "zonemap", None)
         if zm is not None:
@@ -3215,8 +3401,10 @@ class PouncerApp:
         bg = theme.BG
         while len(self._lights) < len(states):
             box = tk.Frame(self.lights_frame, bg=bg)
-            dot = tk.Label(box, text="\u25cf", font=(theme.FONT, 12), bg=bg)
-            dot.pack(side="left")
+            d = theme.px(11)      # a drawn circle: sharp at any scaling, any font
+            dot = tk.Canvas(box, width=d + 2, height=d + 2, bg=bg, highlightthickness=0, bd=0)
+            dot.create_oval(1, 1, d, d, fill=lights.COLORS[lights.OFF], outline="", tags="dot")
+            dot.pack(side="left", padx=(0, 4))
             name = tk.Label(box, text="", font=(theme.FONT, 9, "bold"), bg=bg, fg=theme.TEXT)
             name.pack(side="left")
             self.lights_frame.add(box)
@@ -3226,7 +3414,7 @@ class PouncerApp:
             self.lights_frame.add(self.bands_frame, gap=10)
             self._bands_last = None
         for (dot, name), (state, text) in zip(self._lights, states):
-            dot.configure(fg=lights.COLORS[state])
+            dot.itemconfigure("dot", fill=lights.COLORS[state])
             name.configure(text=text)
         # the Update light (last) is a button: click = check GitHub now
         if self._lights and not getattr(self, "_update_light_bound", False):
@@ -3421,7 +3609,8 @@ class PouncerApp:
                     {0: "", 1: "M", 2: "MM"}.get(self._mults(s), ""),
                     s.mode,
                     s.spot_type,
-                    s.spotter,
+                    (f"\u2605 {own}" if (own := (self._own_mark(s) if hasattr(self, "_own_mark")
+                                                    else "")) else s.spotter),
                 ),
             )
         if reselect is not None:
@@ -3453,7 +3642,7 @@ class PouncerApp:
                 "mult": int(mults or 0), "worked": bool(worked), "rare": bool(rare),
                 "busted": bool(busted), "onfreq": bool(onfreq), "stale": bool(stale),
                 "tried": (f"\u21bb{tried[1]}m" + (f"\u00d7{tried[0]}" if tried[0] > 1 else ""))
-                if tried else ""}
+                if tried else "", "own": bool(self._own_mark(s)) if hasattr(self, "_own_mark") else False}
 
     def _tile_tap(self, i: int) -> None:
         """A tile clicked (or Space on the selected one): like clicking the row."""
