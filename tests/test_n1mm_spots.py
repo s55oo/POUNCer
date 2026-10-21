@@ -53,13 +53,14 @@ class SwitchTests(unittest.TestCase):
         f = types.SimpleNamespace(
             cfg=types.SimpleNamespace(ssb_use_n1mm=use, ssb_spotters="ALL"),
             N1MM_SPOT_START_S=P.N1MM_SPOT_START_S, N1MM_SPOT_QUIET_S=P.N1MM_SPOT_QUIET_S,
+            N1MM_SPOT_HOLD_S=P.N1MM_SPOT_HOLD_S, _ssb_back_at=0.0,
             _n1mm_spot_first=None, _n1mm_spot_last=0.0, _n1mm_spots=0, _ssb_via_n1mm=False,
             _n1mm_filter=None, spot_queue=queue.Queue(), ssb_status="off",
             _ssb_client=types.SimpleNamespace(stop=lambda: stopped.append(1)),
             _continent=lambda call: "EU", home_cont="EU", raw=[])
         f._on_raw_spot = f.raw.append
         f._ssb_wanted = lambda: want
-        for name in ("_on_n1mm_spot", "_n1mm_spots_ok", "_ensure_ssb_client"):
+        for name in ("_on_n1mm_spot", "_n1mm_spots_ok", "_ensure_ssb_client", "_n1mm_quiet_limit"):
             setattr(f, name, getattr(P, name).__get__(f))
         return f, stopped
 
@@ -82,8 +83,41 @@ class SwitchTests(unittest.TestCase):
         f._on_n1mm_spot(parse_spot_packet(PKT.replace(b"<mode>USB</mode>", b"<mode>CW</mode>")))
         self.assertTrue(f.spot_queue.empty())
         # 5 minutes without a spot from N1MM: our own cluster again
-        f._n1mm_spot_last -= 301
+        f._n1mm_spot_last -= 21
         self.assertFalse(f._n1mm_spots_ok())
+
+    def test_quiet_20_s_back_to_own_cluster_and_hold(self) -> None:
+        f, _ = self._fake()
+        import pouncer.app as appmod
+        real, real_client = appmod.time.time, appmod.RBNClient
+        t = [10000.0]
+        appmod.time.time = lambda: t[0]
+        appmod.RBNClient = lambda *a, **k: types.SimpleNamespace(start=lambda: None,
+                                                                stop=lambda: None)
+        f.cfg.ssb_host, f.cfg.ssb_port, f.cfg.ssb_login, f.cfg.rbn_callsign = "h", 1, "", "X"
+        f.cfg.ssb_history, f.cfg.ssb_commands = 0, ()
+        f._ssb_status_put = lambda s: None
+        try:
+            for _ in range(25):                        # a spot every 3 s
+                f._on_n1mm_spot(parse_spot_packet(PKT))
+                t[0] += 3
+            f._ensure_ssb_client()
+            self.assertTrue(f._ssb_via_n1mm)
+            t[0] += 21                                    # N1MM stopped sending
+            f._ensure_ssb_client()
+            self.assertFalse(f._ssb_via_n1mm)             # own cluster again
+            for _ in range(30):                           # N1MM back at once ...
+                f._on_n1mm_spot(parse_spot_packet(PKT))
+                t[0] += 3
+            f._ensure_ssb_client()
+            self.assertFalse(f._ssb_via_n1mm)             # ... but own cluster kept 5 min
+            for _ in range(80):
+                f._on_n1mm_spot(parse_spot_packet(PKT))
+                t[0] += 3
+            f._ensure_ssb_client()
+            self.assertTrue(f._ssb_via_n1mm)              # then N1MM again
+        finally:
+            appmod.time.time, appmod.RBNClient = real, real_client
 
     def test_off_or_not_wanted(self) -> None:
         f, _ = self._fake(use="off")

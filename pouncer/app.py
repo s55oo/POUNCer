@@ -257,6 +257,7 @@ class PouncerApp:
         # come they replace our SSB cluster connection (same spots, one telnet)
         self._n1mm_spot_first: float | None = None   # start of the current stream
         self._n1mm_spot_last = 0.0
+        self._ssb_back_at = 0.0                      # N1MM went quiet: own cluster since
         self._n1mm_spots = 0
         self._ssb_via_n1mm = False
         self._n1mm_filter = None
@@ -1382,15 +1383,19 @@ class PouncerApp:
         return time.time() - getattr(self, "_ssb_last_needed", 0) < 15 * 60
 
     N1MM_SPOT_START_S = 60     # N1MM spots this long before our cluster closes
-    N1MM_SPOT_QUIET_S = 300    # no N1MM spot this long = our own cluster again
+    N1MM_SPOT_QUIET_S = 20     # no N1MM spot this long = N1MM stopped: our own cluster again
+    N1MM_SPOT_HOLD_S = 300     # then our own cluster at least this long (no flip-flop)
+
+    def _n1mm_quiet_limit(self) -> float:
+        return self.N1MM_SPOT_QUIET_S
 
     def _on_n1mm_spot(self, pkt: dict) -> None:
         """A <spot> packet from N1MM (listener thread). Any spot shows N1MM's
         telnet is alive; SSB ones go to the list while N1MM is the SSB source."""
         now = time.time()
-        if self._n1mm_spot_first is None or now - self._n1mm_spot_last > self.N1MM_SPOT_QUIET_S:
+        if self._n1mm_spot_first is None or now - self._n1mm_spot_last > self._n1mm_quiet_limit():
             self._n1mm_spot_first = now
-            log.info("N1MM sends its spots (Broadcast Data > Spots)")
+            log.debug("N1MM sends its spots (Broadcast Data > Spots)")
         self._n1mm_spot_last = now
         self._n1mm_spots += 1
         if not self._ssb_via_n1mm or pkt.get("action") not in ("", "add"):
@@ -1418,15 +1423,22 @@ class PouncerApp:
             return False
         first = getattr(self, "_n1mm_spot_first", None)
         now = time.time()
-        if first is None or now - getattr(self, "_n1mm_spot_last", 0.0) > self.N1MM_SPOT_QUIET_S:
+        if first is None or now - getattr(self, "_n1mm_spot_last", 0.0) > self._n1mm_quiet_limit():
             return False
-        # once switched, stay until it goes quiet; before, wait for a steady stream
-        return getattr(self, "_ssb_via_n1mm", False) or now - first >= self.N1MM_SPOT_START_S
+        # once switched, stay until it goes quiet; before, wait for a steady
+        # stream - and after N1MM went quiet, keep our own cluster a while
+        if getattr(self, "_ssb_via_n1mm", False):
+            return True
+        if now - getattr(self, "_ssb_back_at", 0.0) < self.N1MM_SPOT_HOLD_S:
+            return False
+        return now - first >= self.N1MM_SPOT_START_S
 
     def _ensure_ssb_client(self) -> None:
         want = self._ssb_wanted()
         via = want and self._n1mm_spots_ok()
         if via != getattr(self, "_ssb_via_n1mm", False):
+            if not via and want:
+                self._ssb_back_at = time.time()    # N1MM quiet: own cluster for a while
             self._ssb_via_n1mm = via
             log.info("SSB spots %s", "from N1MM (own cluster connection closed)" if via
                      else "from our own cluster (N1MM sends no spots)" if want else "off")
