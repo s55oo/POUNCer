@@ -128,6 +128,31 @@ class SpotterFilterTests(unittest.TestCase):
         from pouncer.rbn import SpotterFilter
         self.assertTrue(SpotterFilter("").accept("ANY-#"))
 
+    def test_several_skimmers_and_zones_together(self) -> None:
+        from pouncer.rbn import SpotterFilter, parse_spotters
+        self.assertEqual(parse_spotters("tk0c, IT9ABC; NearZone14 zone15 cqz33 ZONE99"),
+                         (("TK0C", "IT9ABC", "ZONE99"), frozenset({14, 15, 33})))
+        zones = {"F5ABC": 14, "I4XYZ": 15, "W3LPL": 5, "EA8ZZ": 33}
+        now = [0.0]
+        f = SpotterFilter("TK0C, IT9ABC, ZONE14", zone_of=zones.get, clock=lambda: now[0],
+                          continent_of=lambda c: "EU", quiet_s=300)
+        self.assertTrue(f.multi)
+        for sk in ("TK0C-#", "TK0C-2-#", "IT9ABC-#", "F5ABC-#"):
+            self.assertTrue(f.accept(sk), sk)             # all of them, always
+        for sk in ("I4XYZ-#", "W3LPL-#", "EA8ZZ-#"):
+            self.assertFalse(f.accept(sk), sk)
+        self.assertEqual(f.label(), "TK0C, IT9ABC, zone 14")
+        now[0] = 301                                       # every chosen one quiet
+        self.assertTrue(f.accept("I4XYZ-#"))               # backup: own continent
+
+    def test_one_skimmer_history_is_filtered_on_the_server(self) -> None:
+        import queue
+        from pouncer.rbn import RBNClient, SpotterFilter
+        one = RBNClient("h", 1, "S55OO", SpotterFilter("S53WW"), queue.Queue())
+        many = RBNClient("h", 1, "S55OO", SpotterFilter("TK0C, ZONE15"), queue.Queue())
+        self.assertEqual(one._primary(), "S53WW")
+        self.assertEqual(many._primary(), "")             # plain SH/DX, filtered here
+
 
 class HistoryTests(unittest.TestCase):
     def test_parse_sh_dx_line(self) -> None:

@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## v0.7.99 — 2026-10-21 — several skimmers, whole CQ zones
+
+- `[rbn] spotter` takes a **list**, all used together: callsigns (prefix:
+  `TK0C` = TK0C-1, TK0C-2 ...) and **whole CQ zones** (`ZONE14` = every
+  skimmer in zone 14, by the country file). E.g. `TK0C, IT9ABC, ZONE15`:
+  your own skimmer plus near ones that keep hearing while your own
+  receivers are deaf from your transmitter. Backup skimmers only when all
+  of them are quiet for 5 min. Settings > RBN > Skimmers.
+
 ## v0.7.98 — 2026-10-21 — SSB spots from N1MM
 
 - When N1MM sends its spots (Broadcast Data > **Spots**, 127.0.0.1:12060),

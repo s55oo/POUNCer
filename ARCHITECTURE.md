@@ -381,7 +381,7 @@ LAN/VPN-only and unauthenticated.
 | `host` | `telnet.reversebeacon.net` | RBN telnet host. |
 | `port` | `7000` | CW/RTTY port. |
 | `callsign` | *(empty)* | Login callsign sent to RBN (also gives the home continent for EU/DX). Commented out by default: then `worked.n1mm_station_call()` reads it from `N1MM Logger.ini` - `[Packet] Logon Callsign`, else `[EntryWindow] Operator` (`DEFAULT` ignored). None found: RBN login is skipped with a status message. |
-| `spotter` | `S53WW` | Keep only spots whose spotter starts with this. |
+| `spotter` | `S53WW` | Keep only spots whose spotter starts with one of these calls, or is in a listed CQ zone (`ZONE14`). |
 | `follow_modes` | `CW` | Comma list of `CW, RTTY, FT8, FT4` (default CW only). |
 | `ft8_port` | `7001` | FT8/FT4 port. |
 | `cty` | *(blank)* | Country file for EU/DX; blank = N1MM's `SupportFiles\wl_cty.dat`. |
@@ -711,6 +711,15 @@ line, source = client name; commands as `name >`), `n1mm` listener (`N1MM <ip>`)
 Toplevel with group checkboxes, filter, Pause, Clear and a Text; `_tick` every 250 ms
 drains → `add()` (counts per group, filters, keeps `KEEP` 3000 lines, follows the end
 when scrolled there); `close()` (window X, app exit) → `traffic.stop()`.
+
+## Several skimmers, whole zones (v0.7.99)
+
+`rbn.parse_spotters(text)` → (call prefixes, CQ zones; `ZONE|CQZ|CQZONE|NEARZONE<n>`).
+`SpotterFilter(primary, ..., zone_of=)`: `calls`, `zones`, `primary` = first call,
+`multi`; `chosen(spotter)` = a call prefix matches or `zone_of(base)` (app: cty
+`Entity.cq`, cached per skimmer in `_zcache`) is listed; `accept` = chosen (refreshes
+`last_primary`), else backups only after `quiet_s` with none of them. `label()` for the
+"quiet - using" note. `RBNClient._primary()` = "" when `multi` (plain SH/DX).
 
 ## SSB spots from N1MM (v0.7.98)
 
