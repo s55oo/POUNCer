@@ -1,5 +1,11 @@
 # POUNCer — Changelog
 
+## v0.7.104 — 2026-10-21 — own SSB cluster back sooner
+
+- When N1MM stops sending spots, POUNCer's own SSB cluster comes back after
+  **20 seconds** (was 5 minutes) and stays at least 5 minutes before N1MM's
+  spots are used again - no switching back and forth on a quiet band.
+
 ## v0.7.103 — 2026-10-21 — skimmer offline warning, reset counters
 
 - Check line **Skimmer** (amber, ⚠ on the phone): a skimmer listed in
