@@ -235,6 +235,20 @@ def digital_mode(khz: float) -> str:
     return ""
 
 
+def digital_sure(khz: float) -> str:
+    """FT8 / FT4 window outside the SSB segments (14074, 21074 ...): no doubt."""
+    m = digital_mode(khz)
+    return m if m and not is_phone_freq(khz) else ""
+
+
+def digital_overlap(khz: float) -> str:
+    """FT8 / FT4 window INSIDE an SSB segment (7074 - 7077, 1840 - 1843, 6 m):
+    SSB contesters work there too - shown as SSB unless PSK Reporter has the
+    station on FT8 / FT4 there."""
+    m = digital_mode(khz)
+    return m if m and is_phone_freq(khz) else ""
+
+
 def _comment_mode(comment: str) -> str:
     for word in (comment or "").upper().replace(",", " ").split():
         if word in _DIGI_WORDS:
@@ -266,7 +280,7 @@ def guess_mode(freq_khz: float, comment: str = "") -> str:
     m = _comment_mode(comment)
     if m:
         return m
-    digi = digital_mode(freq_khz)
+    digi = digital_sure(freq_khz)      # 7074 - 7077 stays SSB (PSK Reporter may say FT8)
     if digi:
         return digi
     if is_phone_freq(freq_khz):
@@ -323,8 +337,8 @@ def spot_from_n1mm(pkt: dict, now: float | None = None) -> Spot:
         m = _MODE_WORDS.get((pkt.get("mode") or "").upper(), "")
         if not m:
             m = _DIGI_WORDS.get((pkt.get("mode") or "").upper(), "")
-        if m == "SSB" and digital_mode(pkt["freq_khz"]):
-            m = digital_mode(pkt["freq_khz"])
+        if m == "SSB" and digital_sure(pkt["freq_khz"]):
+            m = digital_sure(pkt["freq_khz"])
     mode = m or guess_mode(pkt["freq_khz"], pkt.get("comment", ""))
     spot_type = next((k for k in ("CQ", "NCDXF", "BEACON") if k in rest), "")
     return Spot(dxcall=pkt["call"], freq_khz=float(pkt["freq_khz"]), mode=mode, snr=snr,

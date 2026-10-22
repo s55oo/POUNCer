@@ -207,6 +207,7 @@ class Config:
     ssb_history: int = 30
     ssb_login: str = ""          # empty = the RBN callsign
     ssb_commands: tuple = ()
+    ssb_pskreporter: bool = True  # 7074-7077 SSB spot: ask PSK Reporter if he is on FT8
     ssb_use_n1mm: str = "auto"   # auto = N1MM's spot packets replace our cluster while they come; off
     follow_radio_mode: bool = True   # radio on USB/LSB -> SSB spots, CW -> CW
     web_enabled: bool = True
@@ -382,6 +383,7 @@ def load_config(path: str) -> Config:
     cfg.ssb_login = s("ssb", "login", "").strip()
     cfg.ssb_commands = tuple(c.strip() for c in s("ssb", "commands", "").split(",") if c.strip())
     cfg.follow_radio_mode = b("ssb", "follow_radio_mode", cfg.follow_radio_mode)
+    cfg.ssb_pskreporter = b("ssb", "pskreporter", cfg.ssb_pskreporter)
     un = s("ssb", "use_n1mm_spots", cfg.ssb_use_n1mm).strip().lower()
     cfg.ssb_use_n1mm = "off" if un in ("off", "false", "no", "0") else "auto"
     cfg.web_enabled = b("web", "enabled", cfg.web_enabled)

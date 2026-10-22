@@ -23,7 +23,7 @@ from .n1mm import (
 )
 from .rbn import (
     ContinentFilter, OnFreqTracker, RBNClient, Spot, SpotterFilter, is_beacon, is_phone_contest,
-    ports_for_modes, spot_from_n1mm, digital_mode,
+    ports_for_modes, spot_from_n1mm, digital_sure, digital_overlap,
 )
 from .runhist import RARE_HOURS, RARE_RUN_PCT, RunHistory
 from .rbnhttp import RBNHttpFeed
@@ -39,6 +39,7 @@ from .panels import TimelineWindow, ZonesWindow
 from .console import TrafficConsole
 from .skimwatch import SkimmerWatch
 from . import stationtest
+from .pskr import PskChecker
 from .tiles import TileList
 from . import theme
 from . import autostart as autostartmod
@@ -233,6 +234,10 @@ class PouncerApp:
         # (call, band) -> (time, receiver): heard by our own skimmer (the first
         # listed, TK0C / S53WW) - marked ★ when others are listed too
         self._own_heard: dict[tuple[str, str], tuple[float, str]] = {}
+        # SSB spots in an FT8 / FT4 window inside the SSB segment (7074 - 7077):
+        # PSK Reporter is asked about that one call; FT8 reports there = FT8
+        self.pskr = PskChecker() if getattr(config, "ssb_pskreporter", True) else None
+        self._overlap_keys: set = set()
         self._cty_cache: dict[str, Entity | None] = {}
         self.controller = N1MMController(
             config.n1mm_control_ip,
@@ -1323,6 +1328,8 @@ class PouncerApp:
         self._save_window()
         if getattr(self, "_console", None) is not None:
             self._console.close()
+        if getattr(self, "pskr", None) is not None:
+            self.pskr.stop()
         try:
             self.root.destroy()
         except tk.TclError:
@@ -1507,11 +1514,17 @@ class PouncerApp:
 
     def _phone_radio(self, radio: int | None = None) -> bool:
         """This radio is on USB / LSB / SSB (N1MM RadioInfo mode) - and not in
-        an FT8 / FT4 window (7074 on USB is FT8, not phone)."""
+        an FT8 / FT4 window: 14074 on USB is FT8; 7074 - 7077 (inside the SSB
+        segment) is phone only while an SSB contest is open in N1MM."""
         snap = self.state.snapshot(radio) if radio is not None or self.state.radio_numbers() else None
         if not snap or (snap.get("mode") or "").upper() not in ("USB", "LSB", "SSB", "AM", "FM"):
             return False
-        return not digital_mode(snap.get("freq_khz") or 0)
+        khz = snap.get("freq_khz") or 0
+        if digital_sure(khz):
+            return False
+        if digital_overlap(khz):
+            return self._phone_contest() if hasattr(self, "_phone_contest") else False
+        return True
 
     def _effective_modes(self, radio: int | None = None) -> tuple[str, ...]:
         """Modes of the spots to show for a radio: SSB while it is on
@@ -2554,6 +2567,7 @@ class PouncerApp:
             if not spot.time_utc:     # N1MM / some cluster spots carry no time
                 spot.time_utc = time.strftime("%H%MZ", time.gmtime(spot.received))
             self._note_own(spot)
+            self._check_overlap(spot)
             self.spots[spot.key] = spot
             self._track_on_freq(spot)
             got += 1
@@ -2570,11 +2584,45 @@ class PouncerApp:
             if not spot.time_utc:
                 spot.time_utc = time.strftime("%H%MZ", time.gmtime(spot.received))
             self._note_own(spot)
+            self._check_overlap(spot)
             self.spots[spot.key] = spot
             self._track_on_freq(spot)
             got += 1
+        self._relabel_overlap()
         if got:
             self._dirty = True
+
+    def _check_overlap(self, spot: Spot) -> None:
+        """An SSB spot in 7074 - 7077 (1840 - 1843, 6 m): ask PSK Reporter -
+        not in an SSB contest (there everything in the segment is SSB)."""
+        if (self.pskr is None or spot.mode != "SSB" or not digital_overlap(spot.freq_khz)
+                or self._phone_contest()):
+            return
+        # PSK Reporter may already know (a re-spot): use that at once
+        m = self.pskr.digital(spot.dxcall, spot.freq_khz)
+        if m:
+            spot.mode = m
+            return
+        self.pskr.ask(spot.dxcall)
+        self._overlap_keys.add(spot.key)
+
+    def _relabel_overlap(self) -> None:
+        """PSK Reporter has him on FT8 / FT4 there: the spot is FT8 / FT4."""
+        if not self._overlap_keys or self.pskr is None:
+            return
+        for key in list(self._overlap_keys):
+            s = self.spots.get(key)
+            if s is None or s.mode != "SSB":
+                self._overlap_keys.discard(key)
+                continue
+            m = self.pskr.digital(s.dxcall, s.freq_khz)
+            if m:
+                s.mode = m
+                self._overlap_keys.discard(key)
+                self._dirty = True
+                log.info("PSK Reporter: %s %.1f is on %s, not SSB", s.dxcall, s.freq_khz, m)
+            elif time.time() - s.received > self.pskr.watch_s + 30:
+                self._overlap_keys.discard(key)      # no FT8 report: SSB it is
 
     OWN_HEARD_S = 600   # ★ = our own skimmer heard him within this time
 

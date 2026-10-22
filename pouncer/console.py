@@ -32,7 +32,7 @@ DOT = {"live": "#43a047", "quiet": "#f9a825", "dead": "#e53935", "why": "#78909c
 GROUPS = traffic.GROUPS
 group_of = traffic.group_of
 COLORS = {"RBN": "#81c784", "SSB": "#ffb74d", "HTTP": "#4fc3f7", "N1MM": "#ce93d8",
-          "TEAM": "#90caf9", "WEB": "#b0bec5", "OUT": "#ffeb3b"}
+          "TEAM": "#90caf9", "WEB": "#b0bec5", "PSKR": "#f48fb1", "OUT": "#ffeb3b"}
 
 
 class TrafficConsole:
