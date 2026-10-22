@@ -135,7 +135,7 @@ class MasterListTests(unittest.TestCase):
             _perf={"spots_in": 0}, _last_own_spot=0.0, own_call=lambda: "S55OO",
             team=types.SimpleNamespace(is_master=lambda: True, send_spot=sent.append),
             _note_self_spot=lambda *a, **k: noted.append(a))
-        for n in ("_drain_spots", "_is_my_call"):
+        for n in ("_drain_spots", "_is_my_call", "_is_watched"):
             setattr(f, n, getattr(P, n).__get__(f))
         f._note_own = f._check_overlap = f._track_on_freq = lambda s: None
         f._relabel_overlap = lambda: None

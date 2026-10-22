@@ -314,7 +314,9 @@ spots of your call on to the others), and after login `self_spot_filter` (`accep
 {call}`) tells the node to send **only spots of your call** - normally not a
 single line arrives on it. Shown as "self-spot" (SSB) in the traffic console.
 Spots of your call from POUNCer's own SSB cluster or the team master count
-too. Every spot of your call is written to
+too. **Watched calls** (`[ui] watch_calls = S9R`, Settings > Program): the same
+pop-up for **every** spot of these calls, skimmer spots too - a DXpedition you
+need, or to test the pop-up with real traffic. Every spot of your call is written to
 the log ("spot of my call: ..."), so `cache\pouncer.log` shows whether it
 arrived at all.
 
