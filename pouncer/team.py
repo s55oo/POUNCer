@@ -79,6 +79,7 @@ class Team:
         needs_rbn=None,       # -> bool: this POUNCer needs RBN (a radio on CW, not an SSB contest)
         rbn_paused=None,      # -> bool: (master) RBN closed - nobody needs it
         on_self=None,         # slave: called with {call, spotter, khz, comment} - my call spotted
+        on_update=None,       # called when the master says: update now
     ) -> None:
         self.id = uuid.uuid4().hex[:12]
         self.started = time.time()
@@ -93,6 +94,7 @@ class Team:
         self._needs_rbn = needs_rbn
         self._rbn_paused = rbn_paused
         self._on_self = on_self
+        self._on_update = on_update
         self._fixed_targets = send_to  # tests: only these
         self._manual_peers = [p.strip() for p in (peers or []) if p.strip()]
         self._if_socks: dict[str, socket.socket] = {}  # local IP -> socket bound to it
@@ -271,6 +273,11 @@ class Team:
         if self.alive_peers():
             self._send({"t": "spot", "s": spot}, broadcast=False)
 
+    def send_update(self) -> None:
+        """Master: every POUNCer of the team - update to the newest version."""
+        if self.alive_peers():
+            self._send({"t": "update"}, broadcast=False)
+
     def send_self(self, d: dict) -> None:
         """Master: my call was spotted - the slaves show the pop-up too."""
         if self.alive_peers():
@@ -322,6 +329,8 @@ class Team:
         elif kind == "spot" and self._on_spot and not self.is_master():
             if pid == self.master_id() and isinstance(msg.get("s"), dict):
                 self._on_spot(msg["s"])
+        elif kind == "update" and self._on_update and pid == self.master_id():
+            self._on_update()
         elif kind == "self" and self._on_self and isinstance(msg.get("d"), dict) \
                 and pid == self.master_id():
             self._on_self(msg["d"])

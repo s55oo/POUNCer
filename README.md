@@ -462,6 +462,16 @@ release is downloaded, its SHA-256 checked, and it replaces POUNCer.exe on
 disk. It runs from the next start (or press **Restart -> vX**); POUNCer
 never restarts by itself in the middle of a contest. `[ui] auto_update`.
 
+**Update the whole team (from the master):** *Help > Update all POUNCers in
+the team* - only on the team master. Every POUNCer in the team (v0.7.127 or
+newer) checks GitHub, downloads the newest version and restarts into it by
+itself; the master does the same. A slave says "Only the team master…".
+
+**Kept versions / going back:** each update keeps the exe it replaces in
+`versions\POUNCer-<version>.exe` next to POUNCer.exe (the last 3).
+*Help > Go back to the previous version* installs the newest kept one and
+restarts. The first copy appears with the first update after v0.7.127.
+
 ## Two radios (SO2R / SO2V)
 
 When N1MM runs two radios (it then has Entry Windows **A** and **B**), the

@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## v0.7.127 — 2026-10-22 — Update the team, keep old versions
+
+- **Help > Update all POUNCers in the team** (team master only): every
+  POUNCer in the team gets the newest version from GitHub and restarts into
+  it. Works on PCs running v0.7.127 or newer (older ones ignore it).
+- Each update from v0.7.127 on keeps the exe it replaces in `versions\`
+  (the last 3). **Help > Go back to the previous version** puts the newest
+  kept one back and restarts.
+
 ## v0.7.126 — 2026-10-22 — SPOTTED for 3 s
 
 - The SPOTTED pop-up and its yellow bar show for **3 seconds** (were: until

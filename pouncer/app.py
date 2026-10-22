@@ -623,6 +623,9 @@ class PouncerApp:
         helpm = tk.Menu(bar, tearoff=False)
         helpm.add_command(label="What every button does", command=lambda: self._open_browser("help"))
         helpm.add_command(label="Check for a new version", command=self._on_update_click)
+        helpm.add_command(label="Update all POUNCers in the team (from the master)",
+                          command=self._update_team)
+        helpm.add_command(label="Go back to the previous version", command=self._rollback)
         helpm.add_command(label="POUNCer on GitHub", command=lambda: self._open_url(GITHUB_URL))
         helpm.add_command(label="Save diagnostics (zip)", command=self._save_diagnostics)
         helpm.add_command(label="Open the log file", command=lambda: self._open_path(
@@ -2258,6 +2261,7 @@ class PouncerApp:
 
     def _tick_body(self) -> None:
         self.updater.maybe_check()
+        self._check_auto_restart()
         self._drain_status()
         if hasattr(self, "_self_spot_q"):
             self._drain_self_spots()
@@ -2608,6 +2612,8 @@ class PouncerApp:
                 continue
             if item[0] == "restart":       # settings page: start POUNCer again
                 self._restart_now()
+            if item[0] == "team-update":   # the master: update now
+                self._start_team_update(from_master=True)
                 continue
             if item[0] == "band":
                 self._qsy_band(item[1], item[2])
@@ -2886,6 +2892,7 @@ class PouncerApp:
                 peers=list(self.cfg.team_peers),
                 get_bands=self.bandact.summary,
                 needs_rbn=self._rbn_needed_here,
+                on_update=lambda: self._web_queue.put(("team-update",)),
                 on_self=lambda d: self._note_self_spot(
                     str(d.get("call", "")), str(d.get("spotter", "")),
                     float(d.get("khz") or 0), str(d.get("comment", "")), from_team=True),
@@ -3715,6 +3722,78 @@ class PouncerApp:
             return
         self.status_label.configure(text="Checking GitHub for a new version...")
         self._lights_last = None   # redraw the light ("checking")
+
+    def _update_team(self) -> None:
+        """Help > Update all POUNCers in the team: only on the master - every
+        team POUNCer (this one too) gets the newest version and restarts."""
+        from tkinter import messagebox
+        role = self.team.role() if self.team is not None else "off"
+        if role == "slave":
+            messagebox.showinfo("POUNCer", "Only the team master can update the team.\n"
+                                "Do it on the master PC.", parent=self.root)
+            return
+        if not self.updater.enabled or not self.updater.exe:
+            messagebox.showinfo("POUNCer", "Updates work only in POUNCer.exe with auto-update on.",
+                                parent=self.root)
+            return
+        n = len(self.team.alive_peers()) if self.team is not None else 0
+        if not messagebox.askyesno(
+                "POUNCer", f"Update this POUNCer and {n} other(s) in the team to the newest "
+                "version? Each one restarts by itself when it has it.", parent=self.root):
+            return
+        if self.team is not None:
+            self.team.send_update()
+        log.info("team update started by this master (%d other POUNCer(s))", n)
+        self._start_team_update(from_master=False)
+
+    def _start_team_update(self, from_master: bool) -> None:
+        """Fetch the newest version; restart into it as soon as it is ready
+        (``_check_auto_restart`` in the tick). Already current: nothing."""
+        if not self.updater.enabled or not self.updater.exe:
+            log.info("team update: updates are off here")
+            return
+        log.info("team update%s: checking for a new version", " (asked by the master)" if from_master else "")
+        self._auto_restart = True
+        self._auto_restart_at = time.time()
+        if self.updater.state == "ready":
+            return                           # downloaded already: the tick restarts
+        if not self.updater.check_in_background():
+            self.status_label.configure(text="Team update: already downloading ...")
+        else:
+            self.status_label.configure(text="Team update: getting the newest version ...")
+
+    def _check_auto_restart(self) -> None:
+        if not getattr(self, "_auto_restart", False):
+            return
+        st = self.updater.state
+        if st == "ready":
+            self._auto_restart = False
+            log.info("team update: restarting with %s", self.updater.new_version)
+            self._restart_for_update()
+        elif st in ("current", "failed") and time.time() - self._auto_restart_at > 5:
+            self._auto_restart = False
+            self.status_label.configure(text="Team update: " + (
+                "already the newest version" if st == "current" else "failed - see the log"))
+
+    def _rollback(self) -> None:
+        """Help > Go back to the previous version (kept in versions\)."""
+        from tkinter import messagebox
+        prev = self.updater.previous_versions() if self.updater.exe else []
+        if not prev:
+            messagebox.showinfo("POUNCer", "No earlier version kept yet (versions\ folder next "
+                                "to POUNCer.exe - each update from v0.7.127 on keeps the one it "
+                                "replaces).", parent=self.root)
+            return
+        ver, path = prev[0]
+        if not messagebox.askyesno("POUNCer", f"Go back to v{ver} and restart now?",
+                                   parent=self.root):
+            return
+        try:
+            self.updater.rollback(path)
+        except OSError as exc:
+            messagebox.showerror("POUNCer", f"Could not go back: {exc}", parent=self.root)
+            return
+        self._restart_for_update()
 
     def _restart_for_update(self) -> None:
         """Restart button: quit and start the new version right away."""

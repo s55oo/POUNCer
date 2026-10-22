@@ -5,7 +5,9 @@ it is newer than the running version, POUNCer.exe is downloaded in the
 background, its SHA-256 is checked against the one GitHub publishes for the
 release (asset digest, or the hash in the release notes) and it replaces
 the exe on disk: Windows can't overwrite a running exe but can rename it,
-so the running one becomes ``POUNCer.exe.old`` (deleted at the next start)
+so the running one becomes ``POUNCer.exe.old`` (deleted at the next start);
+a copy of it is kept as ``versions/POUNCer-<version>.exe`` (the last
+``KEEP_VERSIONS``) so ``rollback()`` can go back to it
 and the new file takes its place. The running POUNCer is never stopped by
 itself - the new version starts at the next start, or right away with the
 "Restart" button.
@@ -58,6 +60,9 @@ def expected_sha256(release: dict, asset: dict) -> str | None:
         return digest.split(":", 1)[1].lower()
     m = re.search(r"SHA-256[^0-9A-Fa-f]{0,40}([0-9A-Fa-f]{64})", release.get("body") or "")
     return m.group(1).lower() if m else None
+
+
+KEEP_VERSIONS = 3
 
 
 def _get(url: str, accept: str = "application/json", timeout: float = 30) -> bytes:
@@ -162,7 +167,60 @@ class Updater:
         finally:
             self._busy.release()
 
-    def _install(self, data: bytes) -> None:
+    # --- previous versions ------------------------------------------------
+    def versions_dir(self) -> str:
+        return os.path.join(os.path.dirname(self.exe), "versions") if self.exe else ""
+
+    def keep_current(self) -> str:
+        """Copy the running exe to versions/POUNCer-<version>.exe (keep the
+        last KEEP_VERSIONS). The path, or "" when it couldn't."""
+        d = self.versions_dir()
+        if not d or not os.path.exists(self.exe):
+            return ""
+        try:
+            os.makedirs(d, exist_ok=True)
+            dest = os.path.join(d, f"POUNCer-{self.current}.exe")
+            if not os.path.exists(dest):
+                import shutil
+                shutil.copy2(self.exe, dest)
+            olds = sorted(self.previous_versions(), key=lambda p: parse_version(p[0]))
+            for _ver, path in olds[:-(KEEP_VERSIONS - 1)]:   # + the one just kept
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
+            return dest
+        except OSError as exc:
+            log.info("could not keep a copy of %s: %s", self.current, exc)
+            return ""
+
+    def previous_versions(self) -> list[tuple[str, str]]:
+        """[(version, path)] in versions/, newest first, not the running one."""
+        d = self.versions_dir()
+        out = []
+        try:
+            for name in os.listdir(d):
+                m = re.match(r"POUNCer-(\d+(?:\.\d+)*)\.exe$", name)
+                if m and m.group(1) != self.current:
+                    out.append((m.group(1), os.path.join(d, name)))
+        except OSError:
+            return []
+        return sorted(out, key=lambda p: parse_version(p[0]), reverse=True)
+
+    def rollback(self, path: str) -> None:
+        """Put a kept version in place of the running exe (used from the next
+        start / restart)."""
+        with open(path, "rb") as fh:
+            data = fh.read()
+        self._install(data, keep=True)
+        m = re.search(r"POUNCer-([\d.]+)\.exe$", path)
+        self.new_version = "v" + (m.group(1) if m else "?")
+        self.state = READY
+        log.info("going back to %s (from %s)", self.new_version, path)
+
+    def _install(self, data: bytes, keep: bool = True) -> None:
+        if keep:
+            self.keep_current()            # the version we replace stays in versions/
         new, old = self.exe + ".new", self.exe + ".old"
         with open(new, "wb") as fh:
             fh.write(data)

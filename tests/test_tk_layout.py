@@ -204,7 +204,7 @@ class TkSettingsWindowTests(unittest.TestCase):
         )
         for name in ("_open_config_folder", "_reconnect_log", "_restart_now", "_shutdown_and_quit",
                      "_on_toggle_worked", "_clear_spots", "_open_browser", "_on_update_click",
-                     "_open_url", "_about", "_apply_compact", "_apply_topmost", "_set_alert", "_open_app_window", "_set_look", "_toggle_tiles", "_station_test", "_toggle_rate_line"):
+                     "_open_url", "_about", "_apply_compact", "_apply_topmost", "_set_alert", "_open_app_window", "_set_look", "_toggle_tiles", "_station_test", "_toggle_rate_line", "_update_team", "_rollback"):
             setattr(f, name, lambda *a, **k: None)
         PouncerApp._build_menu(f)
         bar = f.menubar
