@@ -797,13 +797,15 @@ class PouncerApp:
                     + (f"\n\u201c{comment}\u201d" if comment else ""))
             log.info("self spot: %s spotted by %s on %.1f %s", call, spotter, khz, comment)
             self.status_label.configure(text=text.replace("\n", "  "))
-            self._show_alert(None, text)
+            # rare and easy to miss: stays until clicked (at most 5 min)
+            self._show_alert(None, text + "\nclick = close", ms=self.SELF_SPOT_MS)
             if self.cfg.alert_sound:
                 alert_beep(self.root)
 
     ALERT_HOLD_S = 30   # ~two FT8 cycles: PSK Reporter's answer comes first
+    SELF_SPOT_MS = 300_000   # the SPOTTED pop-up stays until clicked, 5 min at most
 
-    def _show_alert(self, spot, text: str) -> None:
+    def _show_alert(self, spot, text: str, ms: int | None = None) -> None:
         pop = getattr(self, "_alert_pop", None)
         if pop is None:
             return
@@ -824,7 +826,7 @@ class PouncerApp:
             self._alert_shown = True
             if self._alert_after is not None:
                 self.root.after_cancel(self._alert_after)
-            self._alert_after = self.root.after(self.ALERT_MS, self._hide_alert)
+            self._alert_after = self.root.after(ms or self.ALERT_MS, self._hide_alert)
         except tk.TclError:
             pass
 

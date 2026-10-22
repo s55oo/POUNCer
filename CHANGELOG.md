@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.7.120 — 2026-10-22 — SPOTTED pop-up stays
+
+- The SPOTTED pop-up stays until you click it (5 min at most) - 8 s like the
+  rare-CQ alert was easy to miss (it was shown, the log says so).
+- Connection errors in the log name the connection and the server
+  ("self-spot connection error (azure.s53m.com:8000): ..."), not always "RBN".
+
 ## v0.7.119 — 2026-10-22 — spots-of-my-call login <call>-77
 
 - The spots-of-my-call connection logs in as **`<call>-77`**
