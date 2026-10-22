@@ -276,11 +276,22 @@ def _show(item: dict, value) -> object:
     return value
 
 
+# Settings that start programs: changed only in the exe's own Settings
+# window, never through the web page (not even with [web] remote_settings).
+APP_ONLY_PREFIXES = ("autostart.",)
+
+
+def app_only(key: str) -> bool:
+    """True = this setting can't be changed from the web page."""
+    return str(key or "").strip().lower().startswith(APP_ONLY_PREFIXES)
+
+
 def current(cfg) -> list[dict]:
     """Every setting with its value now (for the page)."""
     out = []
     for item in SETTINGS:
         d = {k: v for k, v in item.items() if k != "attr"}
+        d["app_only"] = app_only(item["key"])
         d["value"] = _show(item, getattr(cfg, item["attr"], None))
         out.append(d)
     return out

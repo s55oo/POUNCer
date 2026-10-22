@@ -5,6 +5,8 @@ import os
 import shutil
 import tempfile
 import unittest
+import urllib.error
+import urllib.parse
 import urllib.request
 
 from pouncer import settings
@@ -93,6 +95,26 @@ class PageTests(unittest.TestCase):
         finally:
             web.stop()
         self.assertEqual(saved, [("n1mm.qsy_wait_ms", "900")])
+
+    def test_autostart_never_from_the_web(self) -> None:
+        web, saved = self._web(remote=True)          # even with remote_settings on
+        base = f"http://127.0.0.1:{web.port}"
+        try:
+            for key, value in (("autostart.folder", r"C:\\Users\\x\\Downloads"),
+                               ("autostart.app1", r"C:\\evil.exe"), ("Autostart.enabled", "true")):
+                with self.assertRaises(urllib.error.HTTPError) as cm:
+                    urllib.request.urlopen(base + "/api/settings/set?" + urllib.parse.urlencode(
+                        {"key": key, "value": value}), timeout=5)
+                self.assertEqual(cm.exception.code, 403)
+        finally:
+            web.stop()
+        self.assertEqual(saved, [])
+        from pouncer import settings
+        self.assertTrue(settings.app_only("autostart.app3_delay"))
+        self.assertFalse(settings.app_only("ui.look"))
+        items = {i["key"]: i for i in settings.current(load_config(""))}
+        self.assertTrue(items["autostart.folder"]["app_only"])
+        self.assertFalse(items["n1mm.qsy_wait_ms"]["app_only"])
 
     def test_other_devices_read_only_unless_allowed(self) -> None:
         from pouncer.web import _Handler
