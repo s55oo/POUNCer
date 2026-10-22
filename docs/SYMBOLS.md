@@ -154,7 +154,7 @@ Marks in the call and Mult columns:
 | **Radio A / Radio B** | which radio POUNCer follows. Shown only when N1MM reports two radios / VFOs |
 | **CW 30 WPM ▲** / **▼** popup | the CW speed was changed in N1MM: up or down |
 | yellow **⚡ rare CQ + new mult: 3B8X 7012.0** pop-up | a rare CQ that is also a new multiplier just appeared (once per station and band); **click it = QSY and call**; gone after 8 s. *View > Alert pop-up* on / off, *Alert sound* = two beeps (each on its own) |
-| yellow **SPOTTED: S55OO by DL1ABC on 14025.0 2147Z** pop-up | a person (not a skimmer) spotted your call on a DX cluster; **(self-spot)** = you spotted yourself. Once per spotter and frequency in 15 min; the alert sound if on |
+| yellow **SPOTTED: S55OO by DL1ABC on 14025.0 2147Z** pop-up + a yellow bar under the top bar | a person (not a skimmer) spotted your call on a DX cluster; **(self-spot)** = you spotted yourself, **(watched call)** = a call in `watch_calls` (S9R). 3 s (click closes it sooner), once per spotter and frequency in 15 min; the alert sound if on. In a team only on the PC whose radio is on that band; the status line keeps the last one |
 | **Station test** window (View menu) | per radio: ✓ QSY up / back and how long N1MM took, ✓ test call in the box and cleared; ✗ = that step failed; - = not tested (box not empty, radio B typed) |
 | **min SNR** box | spots weaker than this are not listed (0 = all) |
 
@@ -168,6 +168,8 @@ Marks in the call and Mult columns:
 | grey dot | quiet for a known reason (RBN on hold on SSB, SSB from N1MM, backup not needed) |
 | **(hidden)** | switched off - still counted |
 | yellow source, `>` | sent by POUNCer (commands, QSY, login) |
+| **PSKR** | PSK Reporter: `subscribe` / `unsubscribe` of one call and its FT8 / FT4 reports (the FT8-or-SSB check on 7074 - 7077) |
+| **self-spot** (under SSB) | the small connection for spots of your call: login `<call>-77`, the node filter, and only spots of your call |
 | blue bar **n new lines below** | you scrolled up; click it to follow the newest lines |
 
 ## Phone page
