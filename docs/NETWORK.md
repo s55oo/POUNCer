@@ -44,6 +44,12 @@ Firewall: inbound **UDP 12060** (only from N1MM on the same PC), **TCP 8080**
 (phones on the LAN) and **UDP 12079** (team) must be allowed; everything
 else is outgoing.
 
+**Trust:** the three inbound ports have no login and the team messages are not
+signed - everything on the network is trusted. Run POUNCer only on your own
+isolated LAN or a private ZeroTier network; never forward these ports on a
+router or open them on a shared network (hotel, club, contest-site Wi-Fi).
+Details: README *Security*.
+
 ---
 
 ## 1. N1MM → POUNCer: RadioInfo (UDP 12060, in)

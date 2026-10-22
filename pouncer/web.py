@@ -1985,6 +1985,10 @@ most-used settings of config.ini - wait times and how the call goes into N1MM, r
 cursor back, skimmer, backup server, auto-update - changed in the browser and written into
 config.ini. Most work at once; the ones marked &#8635; after a restart (Restart button).
 By default only from the browser on the PC itself (<code>[web] remote_settings</code>).</p>
+<p><b>Security:</b> this page has no login - anyone who can open it can QSY the radio and
+press the F-keys / CW keyboard, which <b>transmit</b>. Use it only on your own LAN or a
+private ZeroTier network; never forward port 8080 on a router or open it on a shared
+(hotel / club) network. The team (UDP 12079) trusts every POUNCer on the network the same way.</p>
 
 <h2>Two radios (SO2R / SO2V)</h2>
 <dl>

@@ -255,7 +255,7 @@ Ethernet adapter Ethernet:
 
 Ethernet adapter ZeroTier One [8056c2e21c000001]:
 
-   IPv4 Address. . . . . . . . . . . : 10.147.17.5(Preferred)
+   IPv4 Address. . . . . . . . . . . : 10.66.66.5(Preferred)
    Subnet Mask . . . . . . . . . . . : 255.255.255.0
 """
 
@@ -274,13 +274,13 @@ class AddressTests(unittest.TestCase):
     def test_parse_ipconfig_localised(self) -> None:
         self.assertEqual(parse_ipconfig(IPCONFIG_SL), [
             ("Ethernet adapter Ethernet", "192.168.1.20"),
-            ("Ethernet adapter ZeroTier One [8056c2e21c000001]", "10.147.17.5"),
+            ("Ethernet adapter ZeroTier One [8056c2e21c000001]", "10.66.66.5"),
         ])
 
     def test_zerotier_preferred(self) -> None:
         self.assertEqual(
             pick_web_address("0.0.0.0", parse_ipconfig(IPCONFIG_SL), "192.168.1.20"),
-            ("10.147.17.5", "ZeroTier"),
+            ("10.66.66.5", "ZeroTier"),
         )
 
     def test_lan_when_no_zerotier(self) -> None:
@@ -291,7 +291,7 @@ class AddressTests(unittest.TestCase):
         )
 
     def test_specific_bind_host_shown_as_is(self) -> None:
-        self.assertEqual(pick_web_address("10.147.17.5", []), ("10.147.17.5", "bound"))
+        self.assertEqual(pick_web_address("10.66.66.5", []), ("10.66.66.5", "bound"))
 
 
 if __name__ == "__main__":

@@ -372,7 +372,7 @@ focusing fails (best-effort focus; the status line flags it).
 
 Binds `[web] host` (default `0.0.0.0`) so it is reachable over the LAN and over
 VPN/ZeroTier. The main window has a **Phone view** line, e.g.
-`Phone view: http://10.147.17.5:8080 (ZeroTier)  listening on 0.0.0.0:8080`.
+`Phone view: http://10.66.66.5:8080 (ZeroTier)  listening on 0.0.0.0:8080`.
 `web.pick_web_address()` picks the address: a ZeroTier adapter's IPv4 first
 (adapters from `ipconfig`, parsed by `parse_ipconfig`; run with
 `CREATE_NO_WINDOW`), else the LAN address of the default route, else
