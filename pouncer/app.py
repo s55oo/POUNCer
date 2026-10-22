@@ -824,10 +824,10 @@ class PouncerApp:
                 log.info("self spot on %s: no pop-up here (radios on %s)", band_from_khz(khz),
                          ", ".join(sorted(self._my_bands())) or "-")
                 continue
-            # rare and easy to miss: stays until clicked (at most 5 min) - as a
-            # floating pop-up and as a bar in the window (always visible)
-            self._show_alert(None, text + "\nclick = close", ms=self.SELF_SPOT_MS)
-            self._show_spotted_bar(text.replace("\n", "   ") + "   (click = close)")
+            # a floating pop-up and a bar in the window, SELF_SPOT_MS each (the
+            # status line keeps it)
+            self._show_alert(None, text, ms=self.SELF_SPOT_MS)
+            self._show_spotted_bar(text.replace("\n", "   "))
             if self.cfg.alert_sound:
                 alert_beep(self.root)
 
@@ -888,7 +888,7 @@ class PouncerApp:
             log.warning("alert pop-up check: %s", exc)
 
     ALERT_HOLD_S = 30   # ~two FT8 cycles: PSK Reporter's answer comes first
-    SELF_SPOT_MS = 300_000   # the SPOTTED pop-up stays until clicked, 5 min at most
+    SELF_SPOT_MS = 3_000     # the SPOTTED pop-up (and its bar) for 3 s (click closes it sooner)
 
     def _show_alert(self, spot, text: str, ms: int | None = None) -> None:
         pop = getattr(self, "_alert_pop", None)
