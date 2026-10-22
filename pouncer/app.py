@@ -766,13 +766,18 @@ class PouncerApp:
         if self.cfg.alert_sound:
             alert_beep(self.root)
 
+    def _is_my_call(self, spot) -> bool:
+        me = self.own_call() if hasattr(self, "own_call") else ""
+        return bool(me) and alert_base_call(spot.dxcall) == alert_base_call(me)
+
     def _note_self_spot(self, dxcall: str, spotter: str, freq_khz: float,
                         comment: str = "", from_team: bool = False) -> None:
         """Any thread: a spot of MY call by a person (not a skimmer). The
-        master passes it on to the team."""
+        master passes it on to the team; a slave takes the master's word for
+        whose call it is (its own N1MM may name another station call)."""
         if not getattr(self.cfg, "self_spot_alert", True):
             return
-        me = self.own_call()
+        me = dxcall if from_team else self.own_call()
         if me and alert_base_call(dxcall) == alert_base_call(me):
             log.info("spot of my call: %s by %s on %.1f", dxcall, spotter, float(freq_khz or 0))
         if self._self_spots.check(dxcall, spotter, freq_khz, me):
@@ -2638,6 +2643,12 @@ class PouncerApp:
                 break
             if not spot.time_utc:     # N1MM / some cluster spots carry no time
                 spot.time_utc = time.strftime("%H%MZ", time.gmtime(spot.received))
+            if self._is_my_call(spot):
+                # a spot of MY call (live, or the last spots after a cluster
+                # login, up to 15 min old): the SPOTTED pop-up, not a row
+                if time.time() - spot.received < 900:
+                    self._note_self_spot(spot.dxcall, spot.spotter, spot.freq_khz)
+                continue
             self._note_own(spot)
             self._check_overlap(spot)
             self.spots[spot.key] = spot
@@ -2655,6 +2666,8 @@ class PouncerApp:
                 break
             if not spot.time_utc:
                 spot.time_utc = time.strftime("%H%MZ", time.gmtime(spot.received))
+            if self._is_my_call(spot):
+                continue                  # (the pop-up came with it: _team_spot)
             self._note_own(spot)
             self._check_overlap(spot)
             self.spots[spot.key] = spot

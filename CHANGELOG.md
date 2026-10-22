@@ -1,5 +1,16 @@
 # POUNCer — Changelog
 
+## v0.7.121 — 2026-10-22 — SPOTTED on the master too
+
+- **Fix:** a spot of your call that came into the master's list (e.g. with
+  the last spots after its SSB cluster login) was passed to the slave, which
+  showed the pop-up - but the master didn't check its own list. Now every
+  spot reaching the list is checked (up to 15 min old), on the master too.
+- A spot of your own call is no longer a row in your spot list; the master
+  passes the pop-up to the team instead of the spot.
+- A slave takes the master's word whose call it is, even if its own N1MM
+  names another station call.
+
 ## v0.7.120 — 2026-10-22 — SPOTTED pop-up stays
 
 - The SPOTTED pop-up stays until you click it (5 min at most) - 8 s like the
