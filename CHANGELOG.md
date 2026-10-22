@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.7.123 — 2026-10-22 — watched calls
+
+- `[ui] watch_calls` (Settings > Program, e.g. `S9R`): the SPOTTED pop-up for
+  **every** spot of these calls - skimmer spots too, once per spotter and
+  frequency in 15 min, "(watched call)". A DXpedition you need, or a test of
+  the pop-up with real traffic. Through the team like your own call.
+
 ## v0.7.122 — 2026-10-22 — pop-up diagnostics
 
 - The alert / SPOTTED pop-up logs where it was shown (position, size, the

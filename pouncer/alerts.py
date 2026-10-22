@@ -62,9 +62,15 @@ class SelfSpotWatch:
         self._lock = threading.Lock()
         self._seen: dict[tuple[str, int], float] = {}
 
-    def check(self, dxcall: str, spotter: str, freq_khz: float, my_call: str) -> bool:
+    def check(self, dxcall: str, spotter: str, freq_khz: float, my_call: str,
+              watched=()) -> bool:
+        """My call by a person - or a WATCHED call (S9R ...) by anyone, skimmers
+        too - once per spotter and frequency in ``repeat_s``."""
         me = base_call(my_call)
-        if not me or base_call(dxcall) != me or is_skimmer(spotter):
+        call = base_call(dxcall)
+        if call and call in {base_call(w) for w in watched}:
+            pass                                  # a watched call: every spot
+        elif not me or call != me or is_skimmer(spotter):
             return False
         key = ((spotter or "").upper(), int(round(float(freq_khz))))
         now = self._clock()
