@@ -210,6 +210,38 @@ SSB_SEGMENTS = (
 _MODE_WORDS = {"SSB": "SSB", "USB": "SSB", "LSB": "SSB", "PH": "SSB", "PHONE": "SSB",
                "AM": "SSB", "FM": "SSB",
                "CW": "CW", "RTTY": "RTTY", "FT8": "FT8", "FT4": "FT4"}
+# digital words in a comment (a spot "FT8 -12dB" / "PSK31 CQ"): not SSB
+_DIGI_WORDS = {"FT8": "FT8", "FT4": "FT4", "JT65": "FT8", "JT9": "FT8", "PSK": "PSK",
+               "PSK31": "PSK", "PSK63": "PSK", "DIGI": "FT8", "DATA": "FT8", "MSK144": "FT8",
+               "Q65": "FT8", "JS8": "FT8", "RTTY": "RTTY"}
+# FT8 / FT4 dial frequencies (kHz): their signals are 0 - 3 kHz above, on the
+# radio's USB / data mode - e.g. 7074 - 7077 is FT8, though inside the 40 m
+# SSB segment
+DIGI_DIALS = {
+    "FT8": (1840, 3573, 5357, 7074, 10136, 14074, 18100, 21074, 24915, 28074, 50313, 50323),
+    "FT4": (3575.5, 7047.5, 10140, 14080, 18104, 21140, 24919, 28180, 50318),
+}
+
+
+def digital_mode(khz: float) -> str:
+    """'FT8' / 'FT4' when the frequency is in an FT8 / FT4 window, else ''."""
+    try:
+        f = float(khz)
+    except (TypeError, ValueError):
+        return ""
+    for mode, dials in DIGI_DIALS.items():
+        if any(d <= f <= d + 3.0 for d in dials):
+            return mode
+    return ""
+
+
+def _comment_mode(comment: str) -> str:
+    for word in (comment or "").upper().replace(",", " ").split():
+        if word in _DIGI_WORDS:
+            return _DIGI_WORDS[word]
+        if word in _MODE_WORDS:
+            return _MODE_WORDS[word]
+    return ""
 
 
 _PHONE_CONTEST = re.compile(r"SSB|PHONE|(?:^|[^A-Z])PH(?:$|[^A-Z])")
@@ -228,11 +260,15 @@ def is_phone_freq(khz: float) -> bool:
 
 
 def guess_mode(freq_khz: float, comment: str = "") -> str:
-    """Mode of a human cluster spot: a mode word in the comment, else the
-    band plan (phone segment = SSB, below it = CW)."""
-    for word in comment.upper().replace(",", " ").split():
-        if word in _MODE_WORDS:
-            return _MODE_WORDS[word]
+    """Mode of a human cluster spot: a mode word in the comment, else an FT8 /
+    FT4 window (7074 - 7077 ...), else the band plan (phone segment = SSB,
+    below it = CW)."""
+    m = _comment_mode(comment)
+    if m:
+        return m
+    digi = digital_mode(freq_khz)
+    if digi:
+        return digi
     if is_phone_freq(freq_khz):
         return "SSB"
     return "CW"
@@ -280,7 +316,15 @@ def spot_from_n1mm(pkt: dict, now: float | None = None) -> Spot:
             snr = _to_int(rest[idx - 1])
         elif tok == "WPM" and idx:
             wpm = _to_int(rest[idx - 1])
-    m = _MODE_WORDS.get((pkt.get("mode") or "").upper(), "")
+    # the comment's own mode word first (N1MM often says USB for an FT8 spot),
+    # then N1MM's mode - but USB / LSB in an FT8 / FT4 window is digital
+    m = _comment_mode(pkt.get("comment", ""))
+    if not m:
+        m = _MODE_WORDS.get((pkt.get("mode") or "").upper(), "")
+        if not m:
+            m = _DIGI_WORDS.get((pkt.get("mode") or "").upper(), "")
+        if m == "SSB" and digital_mode(pkt["freq_khz"]):
+            m = digital_mode(pkt["freq_khz"])
     mode = m or guess_mode(pkt["freq_khz"], pkt.get("comment", ""))
     spot_type = next((k for k in ("CQ", "NCDXF", "BEACON") if k in rest), "")
     return Spot(dxcall=pkt["call"], freq_khz=float(pkt["freq_khz"]), mode=mode, snr=snr,

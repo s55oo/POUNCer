@@ -23,7 +23,7 @@ from .n1mm import (
 )
 from .rbn import (
     ContinentFilter, OnFreqTracker, RBNClient, Spot, SpotterFilter, is_beacon, is_phone_contest,
-    ports_for_modes, spot_from_n1mm,
+    ports_for_modes, spot_from_n1mm, digital_mode,
 )
 from .runhist import RARE_HOURS, RARE_RUN_PCT, RunHistory
 from .rbnhttp import RBNHttpFeed
@@ -1506,9 +1506,12 @@ class PouncerApp:
         )
 
     def _phone_radio(self, radio: int | None = None) -> bool:
-        """This radio is on USB / LSB / SSB (N1MM RadioInfo mode)."""
+        """This radio is on USB / LSB / SSB (N1MM RadioInfo mode) - and not in
+        an FT8 / FT4 window (7074 on USB is FT8, not phone)."""
         snap = self.state.snapshot(radio) if radio is not None or self.state.radio_numbers() else None
-        return bool(snap) and (snap.get("mode") or "").upper() in ("USB", "LSB", "SSB", "AM", "FM")
+        if not snap or (snap.get("mode") or "").upper() not in ("USB", "LSB", "SSB", "AM", "FM"):
+            return False
+        return not digital_mode(snap.get("freq_khz") or 0)
 
     def _effective_modes(self, radio: int | None = None) -> tuple[str, ...]:
         """Modes of the spots to show for a radio: SSB while it is on

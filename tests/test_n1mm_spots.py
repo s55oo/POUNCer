@@ -165,3 +165,29 @@ class SwitchTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DigitalTests(unittest.TestCase):
+    def test_ft8_window_is_not_ssb(self) -> None:
+        from pouncer.rbn import digital_mode, guess_mode
+        self.assertEqual(digital_mode(7076.0), "FT8")
+        self.assertEqual(digital_mode(14080.5), "FT4")
+        self.assertEqual(digital_mode(7100.0), "")
+        self.assertEqual(guess_mode(7076.0, "cq"), "FT8")
+        self.assertEqual(guess_mode(7076.0, "SSB 59"), "SSB")       # says SSB: SSB
+        self.assertEqual(guess_mode(7150.0, "59"), "SSB")
+        self.assertEqual(guess_mode(14205.0, "FT8 -12dB"), "FT8")   # says FT8
+
+    def test_n1mm_usb_spot_on_7076_is_ft8(self) -> None:
+        p = parse_spot_packet(PKT.replace(b"14205.0", b"7076.0").replace(b"59 cq contest", b"-10 dB"))
+        self.assertEqual(spot_from_n1mm(p).mode, "FT8")
+        self.assertEqual(spot_from_n1mm(parse_spot_packet(PKT)).mode, "SSB")
+
+    def test_radio_on_ft8_is_not_phone(self) -> None:
+        P = _app().PouncerApp
+        snap = {"mode": "USB", "freq_khz": 7076.0}
+        f = types.SimpleNamespace(state=types.SimpleNamespace(
+            snapshot=lambda nr: snap, radio_numbers=lambda: [1]))
+        self.assertFalse(P._phone_radio(f, 1))
+        snap["freq_khz"] = 7150.0
+        self.assertTrue(P._phone_radio(f, 1))
