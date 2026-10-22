@@ -248,7 +248,8 @@ DX de S50A:      14250.0  K1ABC        59 SSB                    1200Z
 ```
 
 POUNCer keeps spotters from your continent (`[ssb] spotters`), guesses the
-mode from the comment (SSB / USB / LSB / CW / FT8…) or else the band plan,
+mode from the comment (SSB / USB / LSB / CW / FT8…), else an FT8 / FT4 window
+(0 - 3 kHz above 7074, 14074, 7047.5 …), else the band plan,
 and shows them as SSB spots.
 
 **Not connected while N1MM sends its spots** (section 1, `[ssb]

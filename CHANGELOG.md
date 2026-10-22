@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## Unreleased — FT8 / FT4 is not SSB
+
+- A spot or the radio within 3 kHz above an FT8 / FT4 dial frequency (7074,
+  14074, 7047.5 ...) counts as FT8 / FT4, unless the comment says SSB: N1MM
+  often marks FT8 spots "USB", and 7074 - 7077 lies in the 40 m SSB segment,
+  so they were listed as SSB. A radio on USB there is not "on SSB" (no SSB
+  list, RBN not put on hold).
+
 ## v0.7.110 — 2026-10-22 — docs brought up to date
 
 - README (at a glance, View menu, team, configuration table with the new
