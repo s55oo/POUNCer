@@ -308,8 +308,9 @@ N1MM's ini - so with a TK0C log open it is TK0C. **N1MM never passes on spots
 of your own call** (not
 even when someone else spots you), so POUNCer keeps a small cluster
 connection of its own just for them: `[ssb] self_spot_host` (default
-azure.s53m.com:8000, the node N1MM uses), login `<call>-<2..9>` (its own SSID,
-never N1MM's), and after login `self_spot_filter` (`accept/spots call
+azure.s53m.com:8000, the node N1MM uses), login `<call>-77` (`self_spot_ssid`:
+its own SSID, never N1MM's; in a team only the master logs in and passes
+spots of your call on to the others), and after login `self_spot_filter` (`accept/spots call
 {call}`) tells the node to send **only spots of your call** - normally not a
 single line arrives on it. Shown as "self-spot" (SSB) in the traffic console.
 Spots of your call from POUNCer's own SSB cluster or the team master count

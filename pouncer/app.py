@@ -767,8 +767,9 @@ class PouncerApp:
             alert_beep(self.root)
 
     def _note_self_spot(self, dxcall: str, spotter: str, freq_khz: float,
-                        comment: str = "") -> None:
-        """Any thread: a spot of MY call by a person (not a skimmer)."""
+                        comment: str = "", from_team: bool = False) -> None:
+        """Any thread: a spot of MY call by a person (not a skimmer). The
+        master passes it on to the team."""
         if not getattr(self.cfg, "self_spot_alert", True):
             return
         me = self.own_call()
@@ -777,6 +778,13 @@ class PouncerApp:
         if self._self_spots.check(dxcall, spotter, freq_khz, me):
             self._self_spot_q.put((dxcall, spotter, float(freq_khz), comment or "",
                                    time.strftime("%H%MZ", time.gmtime())))
+            team = getattr(self, "team", None)
+            if not from_team and team is not None and team.is_master():
+                try:
+                    team.send_self({"call": dxcall, "spotter": spotter, "khz": float(freq_khz),
+                                    "comment": comment or ""})
+                except Exception:  # noqa: BLE001
+                    pass
 
     def _drain_self_spots(self) -> None:
         while True:
@@ -1755,21 +1763,22 @@ class PouncerApp:
         return True
 
     def _self_feed_login(self) -> str:
-        """Own SSID per PC (2 - 9 from its name), so this connection never
-        pushes N1MM's login, the RBN backup or another team PC off the node."""
-        import socket as _socket
-        import zlib
+        """<call>-77 ([ssb] self_spot_ssid): its own SSID, so this connection
+        never pushes N1MM's login or the RBN backup off the node."""
         base = (self.cfg.rbn_callsign or self.own_call() or "").split("-")[0]
         if not base:
             return ""
-        return f"{base}-{zlib.crc32(_socket.gethostname().encode()) % 8 + 2}"
+        ssid = str(getattr(self.cfg, "self_spot_ssid", "77") or "").strip().lstrip("-")
+        return f"{base}-{ssid}" if ssid else base
 
     def _ensure_self_feed(self) -> None:
         """SPOTTED pop-up: N1MM never passes on spots of your own call, so a
         cluster connection of its own with a node filter that lets only spots
         of my call through (DXSpider: accept/spots call S55OO) - nothing else
         arrives on it. [ssb] self_spot_host / port / filter."""
-        want = bool(getattr(self.cfg, "self_spot_alert", True)
+        team = getattr(self, "team", None)
+        slave = team is not None and team.role() == "slave"   # the master passes it on
+        want = bool(getattr(self.cfg, "self_spot_alert", True) and not slave
                     and getattr(self.cfg, "self_spot_host", "") and self.own_call())
         feed = getattr(self, "_self_feed", None)
         me = self.own_call().upper() if want else ""
@@ -2768,6 +2777,9 @@ class PouncerApp:
                 peers=list(self.cfg.team_peers),
                 get_bands=self.bandact.summary,
                 needs_rbn=self._rbn_needed_here,
+                on_self=lambda d: self._note_self_spot(
+                    str(d.get("call", "")), str(d.get("spotter", "")),
+                    float(d.get("khz") or 0), str(d.get("comment", "")), from_team=True),
                 rbn_paused=lambda: bool(getattr(self, "_rbn_pause_on", False)),
             )
             self.team.start()

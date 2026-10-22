@@ -159,6 +159,7 @@ class Config:
     self_spot_host: str = "azure.s53m.com"
     self_spot_port: int = 8000
     self_spot_filter: str = "accept/spots call {call}"
+    self_spot_ssid: str = "77"
     band_lights: bool = True     # band open lights (skimmers on our continent, 10 min)
     # window alert when a rare CQ (⚡) that is also a new multiplier shows up
     # on the band: a pop-up (click it = QSY) and / or a beep, each on its own
@@ -324,6 +325,7 @@ def load_config(path: str) -> Config:
     cfg.self_spot_host = s("ssb", "self_spot_host", cfg.self_spot_host).strip()
     cfg.self_spot_port = i("ssb", "self_spot_port", cfg.self_spot_port)
     cfg.self_spot_filter = s("ssb", "self_spot_filter", cfg.self_spot_filter).strip()
+    cfg.self_spot_ssid = s("ssb", "self_spot_ssid", cfg.self_spot_ssid).strip().lstrip("-")
     cfg.band_lights = b("ui", "band_lights", cfg.band_lights)
     lk = s("ui", "look", cfg.look).strip().lower()
     cfg.look = lk if lk in ("dark", "light", "classic") else "dark"
