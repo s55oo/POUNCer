@@ -494,10 +494,15 @@ most-used settings on tabs (*Tap -> N1MM*, *SO2R / SO2V*, *RBN*, *SSB*,
 A, decimal sign, cursor back, skimmer, backup server, SSB cluster, minimum
 SNR, tried marks, check line, band lights, the TX / log keys and which are
 half size, autostart programs 1-8 and the N1MM wait, auto-update. Every tab
-scrolls (scrollbar / mouse wheel). A tick
-box or list is saved at once, a number or text with Enter (or when you leave
-the box), straight into this POUNCer's config.ini (only that line; comments
-stay). Most work at once, the ones marked ↻ after **Restart POUNCer**.
+scrolls (scrollbar / mouse wheel). **Nothing is written until you press
+Save** (top right, or **Ctrl+S**): a changed box only shows "changed - not
+saved yet" and the button counts them (**Save (3)**); **Discard** puts the
+boxes back; closing the window with unsaved changes asks "Save them?". Save
+writes them into this POUNCer's config.ini (only those lines; comments
+stay). Most work at once, the ones marked ↻ after **Restart POUNCer**. Every
+saved change is written to `cache\pouncer.log`: *setting changed: Skimmers
+(rbn.spotter): 'S53WW' -> 'TK0C, ZONE15' [after a restart]* (also changes
+from the phone's settings page and the View menu).
 
 The same settings are on the **Settings** page in the browser (the phone's
 band menu, `/settings`) - only from the browser on the PC itself unless

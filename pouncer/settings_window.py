@@ -1,10 +1,13 @@
 """Settings window of the exe (Tk): the same settings as the /settings page.
 
 Built from ``settings.SETTINGS`` - one tab per group (Tap -> N1MM, SO2R /
-SO2V, RBN, SSB, Program). A change is saved to config.ini at once (tick
-box / list: when changed; number / text: Enter or leaving the box) through
-the same ``save`` the browser page uses, so both always agree. Settings
-used only after a restart are marked with ↻ and show the Restart button.
+SO2V, RBN, SSB, Program). Nothing is written until **Save** (top right,
+or Ctrl+S): a change only marks the row "changed - not saved yet"; Save writes
+them all to config.ini through the same ``save`` the browser page uses (so
+both always agree), Discard puts the boxes back; closing the window with
+unsaved changes asks. Every saved change is logged by the app (old -> new).
+Settings used only after a restart are marked with ↻ and show the Restart
+button.
 """
 
 from __future__ import annotations
@@ -15,6 +18,7 @@ from tkinter import ttk
 from . import theme
 
 OK_COLOR, ERR_COLOR, LATER_COLOR = "#2e7d32", "#c62828", "#ef6c00"
+PENDING_COLOR = "#f9a825"
 
 
 def group_items(items: list[dict]) -> list[tuple[str, list[dict]]]:
@@ -45,6 +49,7 @@ class SettingsWindow:
         self.state: dict[str, ttk.Label] = {}
         self.vars: dict[str, tk.Variable] = {}
         self.saved: dict[str, str] = {}
+        self.pending: dict[str, tuple[dict, str]] = {}   # key -> (item, new text), not saved yet
 
     def open(self) -> None:
         if self.win is not None and self.win.winfo_exists():
@@ -65,14 +70,23 @@ class SettingsWindow:
         win.minsize(theme.px(460), theme.px(320))
         top = ttk.Frame(win, padding=(10, 8, 10, 4))
         top.pack(fill="x")
-        lead = ttk.Label(top, justify="left", wraplength=660, text=(
-            "Saved straight into config.ini: a tick box or list at once, a number or text "
-            "with Enter (or when you leave the box). ↻ = used after a restart."
+        # Save / Discard first (right), then the text takes the rest
+        self.save_btn = tk.Button(top, text="Save", bg=OK_COLOR, fg="#ffffff", relief="flat",
+                                  padx=14, font=(theme.FONT, 10, "bold"), command=self.save_all,
+                                  state="disabled", disabledforeground="#cfd8dc")
+        self.save_btn.pack(side="right", padx=(6, 0))
+        self.discard_btn = ttk.Button(top, text="Discard", command=self.discard, state="disabled")
+        self.discard_btn.pack(side="right", padx=(6, 0))
+        self.restart_btn = tk.Button(top, text="Restart POUNCer", bg=LATER_COLOR, fg="#ffffff",
+                                     relief="flat", padx=10, command=self._restart)
+        lead = ttk.Label(top, justify="left", wraplength=560, text=(
+            "Change what you like, then press Save (Ctrl+S) - nothing is written to "
+            "config.ini before. ↻ = used after a restart."
             + (f"\n{self.config_path}" if self.config_path else "")))
         lead.pack(side="left", fill="x", expand=True)
         lead.bind("<Configure>", lambda e: lead.configure(wraplength=max(e.width - 4, 200)))
-        self.restart_btn = tk.Button(top, text="Restart POUNCer", bg=LATER_COLOR, fg="#ffffff",
-                                     relief="flat", padx=10, command=self._restart)
+        self.info = ttk.Label(win, text="", padding=(10, 0))
+        self.info.pack(fill="x")
         book = ttk.Notebook(win)
         book.pack(fill="both", expand=True, padx=10, pady=(4, 10))
         for group, items in group_items(self.get_items()):
@@ -80,7 +94,10 @@ class SettingsWindow:
             book.add(outer, text=group)
             for row, it in enumerate(items):
                 self._row(tab, row, it)
-        win.bind("<Escape>", lambda _e: win.destroy())
+        win.bind("<Escape>", lambda _e: self.close())
+        win.bind("<Control-s>", lambda _e: self.save_all())
+        win.bind("<Control-S>", lambda _e: self.save_all())
+        win.protocol("WM_DELETE_WINDOW", self.close)
         # the mouse wheel scrolls the tab under the mouse (all tabs can be long)
         win.bind_all("<MouseWheel>", self._wheel, add="+")
         win.bind_all("<Button-4>", self._wheel, add="+")    # Linux
@@ -170,20 +187,23 @@ class SettingsWindow:
             var = tk.BooleanVar(value=bool(it.get("value")))
             self.vars[key] = var
             return ttk.Checkbutton(parent, variable=var,
-                                   command=lambda: self._save(it, "true" if var.get() else "false"))
+                                   command=lambda: self._change(it, "true" if var.get() else "false"))
         var = tk.StringVar(value=text)
         self.vars[key] = var
+        # every keystroke marks the row changed (Save then takes what is typed,
+        # even without Enter)
+        var.trace_add("write", lambda *_a: self._change(it, var.get()))
         if kind == "choice":
             w = ttk.Combobox(parent, textvariable=var, values=list(it["choices"]),
                              state="readonly", width=12)
-            w.bind("<<ComboboxSelected>>", lambda _e: self._save(it, var.get()))
+            w.bind("<<ComboboxSelected>>", lambda _e: self._change(it, var.get()))
             return w
         if kind == "file":                 # a program path + Browse...
             box = ttk.Frame(parent)
             e = ttk.Entry(box, textvariable=var, width=46)
             e.pack(side="left")
-            e.bind("<Return>", lambda _e: self._save(it, var.get()))
-            e.bind("<FocusOut>", lambda _e: self._save(it, var.get()))
+            e.bind("<Return>", lambda _e: self._change(it, var.get()))
+            e.bind("<FocusOut>", lambda _e: self._change(it, var.get()))
 
             def browse():
                 from tkinter import filedialog
@@ -193,34 +213,112 @@ class SettingsWindow:
                 if path:
                     import os
                     var.set(os.path.normpath(path))      # C:/a/b.exe -> C:\\a\\b.exe
-                    self._save(it, var.get())
+                    self._change(it, var.get())
             ttk.Button(box, text="Browse...", command=browse).pack(side="left", padx=(4, 0))
             return box
         w = ttk.Entry(parent, textvariable=var, width=8 if kind == "int" else 24)
-        w.bind("<Return>", lambda _e: self._save(it, var.get()))
-        w.bind("<FocusOut>", lambda _e: self._save(it, var.get()))
+        w.bind("<Return>", lambda _e: self._change(it, var.get()))
+        w.bind("<FocusOut>", lambda _e: self._change(it, var.get()))
         return w
 
-    def _save(self, it: dict, text: str) -> None:
+    def _change(self, it: dict, text: str) -> None:
+        """A box / tick changed: remember it, nothing is written yet."""
         key = it["key"]
-        if text.strip() == self.saved.get(key, "").strip():
-            return                       # nothing changed (e.g. just left the box)
-        res = self.save(key, text) or {}
         st = self.state.get(key)
-        if res.get("ok"):
-            shown = display_value({"kind": it["kind"], "value": res.get("value")})
-            self.saved[key] = shown
-            var = self.vars.get(key)
-            if var is not None and it["kind"] != "bool":
-                var.set(shown)
+        if text.strip() == self.saved.get(key, "").strip():
+            if self.pending.pop(key, None) is not None and st is not None:
+                st.configure(text="")            # back to what is saved
+        else:
+            self.pending[key] = (it, text)
             if st is not None:
-                st.configure(foreground=OK_COLOR if res.get("live") else LATER_COLOR,
-                             text="Saved - in use now" if res.get("live")
-                             else "Saved - used after a restart")
-            if not res.get("live") and self.restart is not None:
-                self.restart_btn.pack(side="right")
-        elif st is not None:
-            st.configure(foreground=ERR_COLOR, text=res.get("error") or "not saved")
+                st.configure(foreground=PENDING_COLOR, text="changed - not saved yet (Save)")
+        self._update_buttons()
+
+    def _update_buttons(self) -> None:
+        n = len(self.pending)
+        state = "normal" if n else "disabled"
+        try:
+            self.save_btn.configure(state=state, text=f"Save ({n})" if n else "Save")
+            self.discard_btn.configure(state=state)
+        except (AttributeError, tk.TclError):
+            pass
+
+    def save_all(self) -> bool:
+        """Write every pending change. True when all of them were saved."""
+        if not self.pending:
+            return True
+        done, bad, later = 0, 0, False
+        for key, (it, text) in list(self.pending.items()):
+            res = self.save(key, text) or {}
+            st = self.state.get(key)
+            if res.get("ok"):
+                shown = display_value({"kind": it["kind"], "value": res.get("value")})
+                self.pending.pop(key, None)
+                self.saved[key] = shown
+                var = self.vars.get(key)
+                if var is not None and it["kind"] != "bool" and var.get() != shown:
+                    var.set(shown)           # (its trace sees "= saved": nothing pending)
+                done += 1
+                later = later or not res.get("live")
+                if st is not None:
+                    st.configure(foreground=OK_COLOR if res.get("live") else LATER_COLOR,
+                                 text="Saved - in use now" if res.get("live")
+                                 else "Saved - used after a restart")
+            else:
+                bad += 1
+                if st is not None:
+                    st.configure(foreground=ERR_COLOR, text=res.get("error") or "not saved")
+        if later and self.restart is not None:
+            self.restart_btn.pack(side="right", padx=(6, 0))
+        try:
+            self.info.configure(
+                foreground=ERR_COLOR if bad else OK_COLOR,
+                text=(f"Saved {done} change{'s' if done != 1 else ''}" if done else "")
+                + (f" - {bad} not saved (see the red rows)" if bad else ""))
+        except (AttributeError, tk.TclError):
+            pass
+        self._update_buttons()
+        return not bad
+
+    def discard(self) -> None:
+        """Back to what config.ini holds."""
+        items = list(self.pending.items())
+        self.pending.clear()
+        for key, (it, _text) in items:
+            var = self.vars.get(key)
+            if var is not None:
+                old = self.saved.get(key, "")
+                var.set(old == "true" if it["kind"] == "bool" else old)
+            self.pending.pop(key, None)
+            st = self.state.get(key)
+            if st is not None:
+                st.configure(text="")
+        self._update_buttons()
+        try:
+            self.info.configure(foreground=theme.HELP_TEXT, text="Changes discarded")
+        except (AttributeError, tk.TclError):
+            pass
+
+    def close(self) -> None:
+        """Window closed: unsaved changes? Ask first."""
+        if self.win is None:
+            return
+        if self.pending:
+            from tkinter import messagebox
+            ans = messagebox.askyesnocancel(
+                "POUNCer settings", f"{len(self.pending)} change(s) not saved. Save them?",
+                parent=self.win)
+            if ans is None:
+                return
+            if ans and not self.save_all():
+                return                      # a bad value: keep the window open
+            if not ans:
+                self.discard()
+        try:
+            self.win.destroy()
+        except tk.TclError:
+            pass
+        self.win = None
 
     def _restart(self) -> None:
         if self.restart is not None:

@@ -146,27 +146,40 @@ class TkSettingsWindowTests(unittest.TestCase):
         groups = [g for g, _ in group_items(settingsmod.current(cfg))]
         book = [c for c in w.win.winfo_children() if c.winfo_class() == "TNotebook"][0]
         self.assertEqual([book.tab(t, "text") for t in book.tabs()], groups)
-        # number: Enter saves, bad value refused
-        w.vars["n1mm.qsy_wait_ms"].set("abc")
-        w._save(settingsmod.BY_KEY["n1mm.qsy_wait_ms"] | {"kind": "int"}, "abc")
-        self.assertEqual(w.state["n1mm.qsy_wait_ms"].cget("text"), "not a number")
-        w._save(settingsmod.BY_KEY["n1mm.qsy_wait_ms"], "2000")
-        self.assertEqual(w.state["n1mm.qsy_wait_ms"].cget("text"), "Saved - in use now")
-        # tick box
-        w.vars["n1mm.focus_back_to_a"].set(True)
-        w._save(settingsmod.BY_KEY["n1mm.focus_back_to_a"], "true")
+        # a change is only marked - nothing saved before Save
+        w.vars["n1mm.qsy_wait_ms"].set("2000")
+        w._change(settingsmod.BY_KEY["n1mm.focus_back_to_a"], "true")
+        self.assertEqual(saved, [])
+        self.assertIn("not saved yet", w.state["n1mm.qsy_wait_ms"].cget("text"))
+        self.assertEqual(w.save_btn.cget("text"), "Save (2)")
+        # Save writes them all
+        self.assertTrue(w.save_all())
+        self.assertIn(("n1mm.qsy_wait_ms", "2000"), saved)
         self.assertIn(("n1mm.focus_back_to_a", "true"), saved)
-        # a restart setting shows the Restart button
+        self.assertEqual(w.state["n1mm.qsy_wait_ms"].cget("text"), "Saved - in use now")
+        self.assertEqual(w.save_btn.cget("state"), "disabled")
+        # a bad value is refused and stays pending
+        w.vars["n1mm.qsy_wait_ms"].set("abc")
+        self.assertFalse(w.save_all())
+        self.assertEqual(w.state["n1mm.qsy_wait_ms"].cget("text"), "not a number")
+        self.assertIn("n1mm.qsy_wait_ms", w.pending)
+        # Discard puts the box back
+        w.discard()
+        self.assertEqual(w.vars["n1mm.qsy_wait_ms"].get(), "2000")
+        self.assertEqual(w.pending, {})
+        # a restart setting shows the Restart button after Save
         self.assertFalse(w.restart_btn.winfo_ismapped())
-        w._save(settingsmod.BY_KEY["rbn.spotter"], "S50R")
+        w.vars["rbn.spotter"].set("S50R")
+        w.save_all()
         self.root.update()
         self.assertEqual(w.state["rbn.spotter"].cget("text"), "Saved - used after a restart")
         self.assertTrue(w.restart_btn.winfo_ismapped())
         w.restart_btn.invoke()
         self.assertEqual(restarted, [1])
-        # unchanged value (just leaving the box) doesn't save again
+        # typing back the saved value: nothing pending
         n = len(saved)
-        w._save(settingsmod.BY_KEY["rbn.spotter"], "S50R")
+        w.vars["rbn.spotter"].set("S50R")
+        w.save_all()
         self.assertEqual(len(saved), n)
         w.open()                                   # second open: same window
         self.assertEqual(len([c for c in self.root.winfo_children()
