@@ -32,5 +32,22 @@ class SelfSpotTests(unittest.TestCase):
         self.assertFalse(is_skimmer("S50ABC-2"))
 
 
+class TeamSlaveTests(unittest.TestCase):
+    def test_spot_from_the_master_brings_the_popup(self) -> None:
+        import queue
+        import types
+        from tests.test_so2r import _import_app
+        P = _import_app().PouncerApp
+        f = types.SimpleNamespace(_self_spots=SelfSpotWatch(), _self_spot_q=queue.Queue(),
+                                  _team_queue=queue.Queue(), _last_team_spot=0.0,
+                                  cfg=types.SimpleNamespace(self_spot_alert=True),
+                                  own_call=lambda: "S55OO")
+        f._note_self_spot = P._note_self_spot.__get__(f)
+        P._team_spot(f, {"dxcall": "S55OO", "freq_khz": 7197.0, "mode": "SSB", "snr": None,
+                         "wpm": None, "spot_type": "", "spotter": "DL1ABC", "time_utc": "0758Z"})
+        call, spotter, khz, _c, _t = f._self_spot_q.get_nowait()
+        self.assertEqual((call, spotter, khz), ("S55OO", "DL1ABC", 7197.0))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -34,7 +34,7 @@ from .bandopen import BandActivity, dx_pct, share_color, state_of
 from .zones import ZoneMap
 from .timeline import Timeline
 from .perf import PerfMonitor
-from .alerts import AlertWatch, SelfSpotWatch, beep as alert_beep
+from .alerts import AlertWatch, SelfSpotWatch, base_call as alert_base_call, beep as alert_beep
 from .panels import TimelineWindow, ZonesWindow
 from .console import TrafficConsole
 from .skimwatch import SkimmerWatch
@@ -771,7 +771,10 @@ class PouncerApp:
         """Any thread: a spot of MY call by a person (not a skimmer)."""
         if not getattr(self.cfg, "self_spot_alert", True):
             return
-        if self._self_spots.check(dxcall, spotter, freq_khz, self.own_call()):
+        me = self.own_call()
+        if me and alert_base_call(dxcall) == alert_base_call(me):
+            log.info("spot of my call: %s by %s on %.1f", dxcall, spotter, float(freq_khz or 0))
+        if self._self_spots.check(dxcall, spotter, freq_khz, me):
             self._self_spot_q.put((dxcall, spotter, float(freq_khz), comment or "",
                                    time.strftime("%H%MZ", time.gmtime())))
 
@@ -2694,6 +2697,8 @@ class PouncerApp:
         sw = getattr(self, "skimwatch", None)
         if sw is not None:
             sw.seen(spot.spotter)
+        if hasattr(self, "_self_spots"):      # my call spotted - also when the master saw it
+            self._note_self_spot(spot.dxcall, spot.spotter, spot.freq_khz)
         self._team_queue.put(spot)
 
     def _rbn_ok(self) -> bool:
