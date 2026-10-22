@@ -196,3 +196,25 @@ class DigitalTests(unittest.TestCase):
         self.assertFalse(P._phone_radio(f, 1))
         snap["freq_khz"] = 7150.0
         self.assertTrue(P._phone_radio(f, 1))
+
+
+class RealPacketTests(unittest.TestCase):
+    """Packets as N1MM sent them on a Slovenian Windows (decimal comma)."""
+
+    def test_decimal_comma_and_db(self) -> None:
+        raw = (b'<?xml version="1.0" encoding="utf-8"?> <spot> <app>N1MM</app> '
+               b'<StationName>PC1</StationName> <dxcall>US7IGN</dxcall> '
+               b'<frequency>21035,56</frequency> <spottercall>VU2TUM-#</spottercall> '
+               b'<timestamp>2026-10-22 08:15:24</timestamp> <action>add</action> <mode>CW</mode> '
+               b'<comment>CW 6DB Q:4* Z:14,22,24 </comment> <status>double mult</status> '
+               b'<statuslist>double mult</statuslist> </spot>')
+        p = parse_spot_packet(raw)
+        self.assertAlmostEqual(p["freq_khz"], 21035.56)
+        s = spot_from_n1mm(p)
+        self.assertEqual((s.dxcall, s.mode, s.snr, s.spotter), ("US7IGN", "CW", 6, "VU2TUM-#"))
+        p2 = parse_spot_packet(raw.replace(b"21035,56", b"7018,97"))
+        self.assertAlmostEqual(p2["freq_khz"], 7018.97)
+        from pouncer.n1mm import _to_float
+        self.assertEqual(_to_float("14245"), 14245.0)
+        self.assertEqual(_to_float("1.234,5"), 1234.5)
+        self.assertEqual(_to_float("1,234.5"), 1234.5)

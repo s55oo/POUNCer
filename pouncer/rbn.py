@@ -328,13 +328,13 @@ def spot_from_n1mm(pkt: dict, now: float | None = None) -> Spot:
     """A Spot from n1mm.parse_spot_packet: N1MM's mode (USB / LSB = SSB), else
     a mode word in the comment / the band plan; dB / WPM / CQ from a
     skimmer's comment ("CW 22 dB 28 WPM CQ")."""
-    rest = pkt.get("comment", "").split()
-    snr = wpm = None
-    for idx, tok in enumerate(rest):
-        if tok == "dB" and idx:
-            snr = _to_int(rest[idx - 1])
-        elif tok == "WPM" and idx:
-            wpm = _to_int(rest[idx - 1])
+    comment = pkt.get("comment", "")
+    rest = comment.split()
+    # N1MM's skimmer comments: "CW 22 dB 28 WPM CQ" or "CW 6DB Q:4* Z:14,22,24"
+    m_snr = re.search(r"(-?\d+)\s*DB\b", comment, re.I)
+    m_wpm = re.search(r"(\d+)\s*WPM\b", comment, re.I)
+    snr = int(m_snr.group(1)) if m_snr else None
+    wpm = int(m_wpm.group(1)) if m_wpm else None
     # the comment's own mode word first (N1MM often says USB for an FT8 spot),
     # then N1MM's mode - but USB / LSB in an FT8 / FT4 window is digital
     m = _comment_mode(pkt.get("comment", ""))

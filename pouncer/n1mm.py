@@ -26,10 +26,17 @@ def _to_int(value: str | None) -> int | None:
 
 
 def _to_float(value: str | None) -> float | None:
+    """'21035.56' or '21035,56' (N1MM writes the Windows decimal sign)."""
     if value is None or value == "":
         return None
+    v = value.strip()
+    if "," in v and "." not in v:
+        v = v.replace(",", ".")
+    elif "," in v:                      # 1.234,5 / 1,234.5: drop the grouping sign
+        v = v.replace(".", "").replace(",", ".") if v.rfind(",") > v.rfind(".") \
+            else v.replace(",", "")
     try:
-        return float(value)
+        return float(v)
     except ValueError:
         return None
 
