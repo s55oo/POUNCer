@@ -846,6 +846,24 @@ class PouncerApp:
             bar.pack_forget()
         self._hide_alert()
 
+    def _check_alert_place(self, x: int, y: int) -> None:
+        """The pop-up really where it should be? (On one PC it stayed off
+        screen, at its hiding place.) If not: put it there again, and log it."""
+        pop = getattr(self, "_alert_pop", None)
+        if pop is None or not getattr(self, "_alert_shown", False):
+            return
+        try:
+            rx, ry = pop.winfo_rootx(), pop.winfo_rooty()
+            if abs(rx - x) > 50 or abs(ry - y) > 50:
+                log.warning("alert pop-up is at %d,%d, not %d,%d - placing it again", rx, ry, x, y)
+                pop.geometry(f"+{x}+{y}")
+                pop.update_idletasks()
+                pop.attributes("-topmost", True)
+                pop.lift()
+                log.info("alert pop-up now at %d,%d", pop.winfo_rootx(), pop.winfo_rooty())
+        except tk.TclError as exc:
+            log.warning("alert pop-up check: %s", exc)
+
     ALERT_HOLD_S = 30   # ~two FT8 cycles: PSK Reporter's answer comes first
     SELF_SPOT_MS = 300_000   # the SPOTTED pop-up stays until clicked, 5 min at most
 
@@ -867,14 +885,15 @@ class PouncerApp:
                 y = self.root.winfo_rooty() + 8
             x = max(0, min(x, self.root.winfo_screenwidth() - w))
             pop.geometry(f"+{x}+{y}")
-            pop.attributes("-alpha", 0.96)
-            pop.attributes("-topmost", False)      # re-assert: some PCs lose it
+            pop.update_idletasks()                 # move it NOW (Windows applies it at idle)
             pop.attributes("-topmost", True)
+            pop.attributes("-alpha", 0.96)
             pop.lift()
-            pop.update_idletasks()
+            self.root.after(150, lambda: self._check_alert_place(x, y))
             self._alert_shown = True
-            log.info("alert pop-up shown at %d,%d (%dx%d; window %s at %d,%d %dx%d; screen %dx%d)",
-                     x, y, w, h, self.root.state(), self.root.winfo_rootx(),
+            log.info("alert pop-up shown at %d,%d (really at %d,%d; %dx%d; window %s at %d,%d "
+                     "%dx%d; screen %dx%d)", x, y, pop.winfo_rootx(), pop.winfo_rooty(),
+                     w, h, self.root.state(), self.root.winfo_rootx(),
                      self.root.winfo_rooty(), self.root.winfo_width(), self.root.winfo_height(),
                      self.root.winfo_screenwidth(), self.root.winfo_screenheight())
             if self._alert_after is not None:
