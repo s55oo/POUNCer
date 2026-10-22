@@ -2928,9 +2928,16 @@ class PouncerApp:
                 "rec": bool(info.get("rec")), "run_band": info.get("band")}
 
     def own_call(self) -> str:
-        """Our call: the open log's station call (N1MM Config > Change Your
-        Station Data), else [rbn] callsign / N1MM's ini."""
-        return self.worked.station_call or self.cfg.rbn_callsign
+        """Our call as N1MM has it now: <mycall> in its RadioInfo (Config >
+        Change Your Station Data), else the open log's station call, else
+        [rbn] callsign / N1MM's ini."""
+        st = getattr(self, "state", None)
+        try:
+            snap = st.snapshot() if st is not None and st.radio_numbers() else None
+        except Exception:  # noqa: BLE001
+            snap = None
+        mycall = (snap or {}).get("mycall") or ""
+        return mycall or self.worked.station_call or self.cfg.rbn_callsign
 
     @property
     def home_cont(self) -> str:

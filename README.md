@@ -302,7 +302,10 @@ total and per band, "+n" = new this hour - from the open N1MM log, every
 station call - S55OO, TK0C ...) is spotted on a DX cluster by a person (not a
 skimmer -#), a pop-up like the multiplier alert says "SPOTTED: S55OO by
 DL1ABC on 14025.0" (with the alert sound, if on). Your own self-spot shows too,
-marked "(self-spot)". **N1MM never passes on spots of your own call** (not
+marked "(self-spot)". *Your call* = N1MM's station call (`<mycall>` in its
+radio info, Config > Change Your Station Data), else the open log's, else
+N1MM's ini - so with a TK0C log open it is TK0C. **N1MM never passes on spots
+of your own call** (not
 even when someone else spots you), so POUNCer keeps a small cluster
 connection of its own just for them: `[ssb] self_spot_host` (default
 azure.s53m.com:8000, the node N1MM uses), login `<call>-<2..9>` (its own SSID,

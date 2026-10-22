@@ -84,3 +84,20 @@ class FeedTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OwnCallTests(unittest.TestCase):
+    def test_mycall_from_radioinfo_first(self) -> None:
+        from pouncer.n1mm import RadioState, parse_radio_info
+        from tests.test_so2r import _import_app
+        P = _import_app().PouncerApp
+        info = parse_radio_info(b"<RadioInfo><RadioNr>1</RadioNr><Freq>707200</Freq>"
+                                b"<Mode>LSB</Mode><mycall>tk0c</mycall></RadioInfo>")
+        self.assertEqual(info["mycall"], "TK0C")
+        st = RadioState()
+        st.update(info)
+        f = types.SimpleNamespace(state=st, worked=types.SimpleNamespace(station_call="S55OO"),
+                                  cfg=types.SimpleNamespace(rbn_callsign="S55OO"))
+        self.assertEqual(P.own_call(f), "TK0C")              # N1MM's station call now
+        f.state = RadioState()                               # no radio info yet: the log's
+        self.assertEqual(P.own_call(f), "S55OO")

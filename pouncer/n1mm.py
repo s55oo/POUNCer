@@ -63,6 +63,8 @@ def parse_radio_info(data: bytes) -> dict | None:
         "mode": (text("Mode") or "").strip().upper(),
         "active_radio": _to_int(text("ActiveRadioNr")),
         "station": (text("StationName") or "").strip(),
+        # N1MM's station call right now (Config > Change Your Station Data)
+        "mycall": (text("mycall") or "").strip().upper(),
         "entry_window_hwnd": _to_int(text("EntryWindowHwnd")),
     }
 
