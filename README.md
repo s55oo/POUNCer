@@ -125,7 +125,7 @@ team) and UDP 12079 (team); everything else is outgoing.
   the main window: the ZeroTier address if ZeroTier is running, otherwise the
   LAN address, plus the port it listens on.
   Binds to all interfaces, so it works over your LAN and over ZeroTier/VPN for
-  remote access. LAN/VPN only, no password. **Sort: Time / Freq / SNR** buttons (**CLR** in front clears all spots, with Undo)
+  remote access. LAN/VPN only, no password (see *Security*). **Sort: Time / Freq / SNR** buttons (**CLR** in front clears all spots, with Undo)
   in the top header row reorder the tiles (the choice is remembered in the
   browser); the **DX** button next to them puts DX spots on top, still in that
   order, and **MLT** puts new multipliers on top (double, then single; magenta
@@ -812,7 +812,9 @@ a **team**:
 The main window shows a coloured bar at the top - **MASTER** (green) or
 **SLAVE** (blue, with the master's IP) - and the role in its title; the phone's status line starts with **M** or **S**. Allow UDP 12079
 in the Windows firewall on each PC. `[team] enabled = false` = stand-alone.
-Give them all the same `[rbn] spotter` and modes.
+Give them all the same `[rbn] spotter` and modes. Team messages are not
+signed - use the team only on your own LAN / private ZeroTier (see
+*Security* below).
 
 ## Reading a tile (phone view)
 
@@ -984,6 +986,42 @@ app3_delay = 5
 app4 = C:\HAM\LogRouter\router.exe
 app4_delay = 5
 ```
+
+## Security: use it on your own network only
+
+POUNCer is built for a **station network you control**: an isolated shack LAN
+or a **private ZeroTier network** (members you authorise yourself). On such a
+network every device that can reach the PC is trusted - there is no login:
+
+- **Phone page (TCP 8080):** anyone who can open `http://<PC>:8080` can QSY
+  the radio, press the F-keys and use the CW keyboard - **F-keys and CW
+  transmit**. Settings can be changed only from the PC itself (unless
+  `[web] remote_settings = true`).
+- **Team (UDP 12079):** messages are not signed. A device on the network
+  could pretend to be the master (spots, SPOTTED pop-ups, "update all").
+- **N1MM port (UDP 12060):** listens on all adapters, so a device on the
+  network could send fake radio / spot packets.
+
+So:
+
+- **Never forward** ports 8080, 12079 or 12060 on your router, and don't run
+  POUNCer on a network you share with strangers (hotel, club or contest-site
+  Wi-Fi, a public ZeroTier network). If you must: set the Windows network to
+  **Public** and allow 8080 / 12079 only for the **Private** profile (or the
+  ZeroTier adapter), or `[team] enabled = false` and `[web] enabled = false`.
+- On ZeroTier keep the network **private** and remove members you no longer
+  use.
+- **Known, to be fixed:** a web page opened in a browser **on the shack PC
+  or on a device in the network** could send hidden requests to the phone
+  page (the radio could transmit, the autostart folder could be changed).
+  Until it is fixed: use that browser for normal surfing as little as
+  possible, or switch the phone page off when you don't need it.
+
+What POUNCer never does: store or send passwords (RBN and the DX cluster get
+your callsign only), send personal data, or accept settings changes from
+another PC by default. Updates come only from this repository's GitHub
+releases over HTTPS and are checked with their SHA-256 before they replace
+the exe.
 
 ## When something doesn't work
 

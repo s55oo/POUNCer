@@ -1,5 +1,16 @@
 # POUNCer — Changelog
 
+## Docs — 2026-10-22 — security note
+
+- README **Security: use it on your own network only**: POUNCer trusts every
+  device on its network (phone page, team, N1MM port have no login; team
+  messages are not signed) - own isolated LAN or private ZeroTier only, never
+  forward its ports or run it on a shared network; how to lock it down if you
+  must; the known web-request issue until it is fixed. Short notes in
+  docs/NETWORK.md, config.ini (`[web]`, `[team]`) and the phone help page
+  (from the next release).
+- Example addresses in the docs, config.ini and tests changed to 10.66.66.x.
+
 ## v0.7.129 — 2026-10-22 — Internet down: one clear message
 
 - **Red bar "⚠ Internet down since 12:03 (14 min)"** in the window (and on the
