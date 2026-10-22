@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.7.131 — 2026-10-22 — Watched calls removed
+
+- **Watched calls** (`[ui] watch_calls`, v0.7.123) removed - it was there to
+  test the SPOTTED pop-up with real traffic (S9R). SPOTTED is again only for
+  spots of **your** call by a person. A `watch_calls =` line left in your
+  config.ini is simply ignored.
+
 ## v0.7.130 — 2026-10-22 — Autostart only in the app
 
 - **Autostart can be changed only in POUNCer's own Settings window** (the

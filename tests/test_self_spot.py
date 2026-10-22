@@ -32,18 +32,6 @@ class SelfSpotTests(unittest.TestCase):
         self.assertFalse(is_skimmer("S50ABC-2"))
 
 
-class WatchedCallTests(unittest.TestCase):
-    def test_every_spot_of_a_watched_call(self) -> None:
-        w = SelfSpotWatch()
-        self.assertTrue(w.check("S9R", "OH8X-#", 14025.0, "S55OO", watched=("S9R",)))  # skimmer too
-        self.assertTrue(w.check("S9R", "DL1ABC", 14195.0, "S55OO", watched=("s9r",)))
-        self.assertFalse(w.check("S9R", "OH8X-#", 14025.2, "S55OO", watched=("S9R",)))  # again
-        self.assertFalse(w.check("S9R", "DL1ABC", 7040.0, "S55OO"))                       # not watched
-        from pouncer import settings
-        v, text = settings.parse(settings.BY_KEY["ui.watch_calls"], "s9r; 3B8X")
-        self.assertEqual((v, text), (("S9R", "3B8X"), "S9R, 3B8X"))
-
-
 class TeamSlaveTests(unittest.TestCase):
     def test_spot_from_the_master_brings_the_popup(self) -> None:
         import queue
