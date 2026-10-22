@@ -1,5 +1,16 @@
 # POUNCer — Changelog
 
+## v0.7.117 — 2026-10-22 — SPOTTED pop-up: its own filtered connection
+
+- N1MM never passes on spots of your own call (tested: another station's
+  spot of S55OO showed in N1MM's Telnet window, no `<spot>` came). POUNCer
+  now keeps a small cluster connection of its own for them: login
+  `<call>-<2..9>` (its own SSID per PC, never N1MM's), and after login the
+  node filter `accept/spots call <call>` so the node sends **only spots of
+  your call**. `[ssb] self_spot_host` (azure.s53m.com), `self_spot_port`
+  (8000), `self_spot_filter`; empty host = off. "self-spot" in the traffic
+  console.
+
 ## v0.7.116 — 2026-10-22 — N1MM spots with a decimal comma
 
 - **Fix:** on a Windows with a decimal comma (Slovenian and most of Europe)

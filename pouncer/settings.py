@@ -149,6 +149,16 @@ SETTINGS: list[dict] = [
      "group": "SSB", "label": "FT8 check with PSK Reporter",
      "help": "A spot on 7074 - 7077 / 1840 - 1843 (inside the SSB segment) without a mode: PSK Reporter "
              "is asked about that one call; FT8 / FT4 reports there = not SSB (in an SSB contest too)."},
+    {"key": "ssb.self_spot_host", "attr": "self_spot_host", "kind": "text", "live": False,
+     "group": "SSB", "label": "Spots of my call: cluster",
+     "help": "N1MM never passes on spots of your own call: a small connection of its own, "
+             "filtered on the node to spots of your call only (SPOTTED pop-up). Empty = off."},
+    {"key": "ssb.self_spot_port", "attr": "self_spot_port", "kind": "int", "min": 1, "max": 65535,
+     "live": False, "group": "SSB", "label": "Spots of my call: port", "help": ""},
+    {"key": "ssb.self_spot_filter", "attr": "self_spot_filter", "kind": "text", "live": False,
+     "group": "SSB", "label": "Spots of my call: node filter",
+     "help": "Sent after login; {call} = your call, ';' between commands. DXSpider: "
+             "accept/spots call {call}"},
     {"key": "ssb.spotters", "attr": "ssb_spotters", "kind": "text", "live": False,
      "group": "SSB", "label": "Spotters from", "help": "EU, NA, AS, ... or ALL."},
     {"key": "ssb.host", "attr": "ssb_host", "kind": "text", "live": False,

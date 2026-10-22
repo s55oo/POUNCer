@@ -302,9 +302,15 @@ total and per band, "+n" = new this hour - from the open N1MM log, every
 station call - S55OO, TK0C ...) is spotted on a DX cluster by a person (not a
 skimmer -#), a pop-up like the multiplier alert says "SPOTTED: S55OO by
 DL1ABC on 14025.0" (with the alert sound, if on). Your own self-spot shows too,
-marked "(self-spot)" - spot yourself once to test it. It comes from N1MM's
-spots (Broadcast Data > Spots), POUNCer's own SSB cluster, or - on a team
-slave - the spots the master passes on. Every spot of your call is written to
+marked "(self-spot)". **N1MM never passes on spots of your own call** (not
+even when someone else spots you), so POUNCer keeps a small cluster
+connection of its own just for them: `[ssb] self_spot_host` (default
+azure.s53m.com:8000, the node N1MM uses), login `<call>-<2..9>` (its own SSID,
+never N1MM's), and after login `self_spot_filter` (`accept/spots call
+{call}`) tells the node to send **only spots of your call** - normally not a
+single line arrives on it. Shown as "self-spot" (SSB) in the traffic console.
+Spots of your call from POUNCer's own SSB cluster or the team master count
+too. Every spot of your call is written to
 the log ("spot of my call: ..."), so `cache\pouncer.log` shows whether it
 arrived at all.
 

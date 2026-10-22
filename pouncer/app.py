@@ -1343,6 +1343,8 @@ class PouncerApp:
             self._console.close()
         if getattr(self, "pskr", None) is not None:
             self.pskr.stop()
+        if getattr(self, "_self_feed", None) is not None:
+            self._self_feed.stop()
         try:
             self.root.destroy()
         except tk.TclError:
@@ -1752,8 +1754,54 @@ class PouncerApp:
             return False                  # another POUNCer is on CW: keep feeding it
         return True
 
+    def _self_feed_login(self) -> str:
+        """Own SSID per PC (2 - 9 from its name), so this connection never
+        pushes N1MM's login, the RBN backup or another team PC off the node."""
+        import socket as _socket
+        import zlib
+        base = (self.cfg.rbn_callsign or self.own_call() or "").split("-")[0]
+        if not base:
+            return ""
+        return f"{base}-{zlib.crc32(_socket.gethostname().encode()) % 8 + 2}"
+
+    def _ensure_self_feed(self) -> None:
+        """SPOTTED pop-up: N1MM never passes on spots of your own call, so a
+        cluster connection of its own with a node filter that lets only spots
+        of my call through (DXSpider: accept/spots call S55OO) - nothing else
+        arrives on it. [ssb] self_spot_host / port / filter."""
+        want = bool(getattr(self.cfg, "self_spot_alert", True)
+                    and getattr(self.cfg, "self_spot_host", "") and self.own_call())
+        feed = getattr(self, "_self_feed", None)
+        me = self.own_call().upper() if want else ""
+        if feed is not None and (not want or getattr(feed, "_for_call", "") != me):
+            feed.stop()
+            self._self_feed = feed = None
+        if feed is not None or not want:
+            return
+        login = self._self_feed_login()
+        cmds = [c.strip().replace("{call}", me) for c in
+                (getattr(self.cfg, "self_spot_filter", "") or "").split(";") if c.strip()]
+
+        class _All:            # every spotter (the node filter does the work)
+            primary = ""
+
+            @staticmethod
+            def accept(_sp):
+                return True
+        feed = RBNClient(self.cfg.self_spot_host, self.cfg.self_spot_port, login, _All(),
+                         queue.Queue(maxsize=50), history=0, backup_commands=cmds,
+                         kind="cluster", name="self-spot",
+                         on_raw=lambda s: self._note_self_spot(s.dxcall, s.spotter, s.freq_khz))
+        feed.backup_commands = tuple(cmds)
+        feed._for_call = me
+        feed.start()
+        self._self_feed = feed
+        log.info("self-spot feed: %s:%s as %s, filter %s", self.cfg.self_spot_host,
+                 self.cfg.self_spot_port, login, "; ".join(cmds) or "(none)")
+
     def _ensure_rbn_clients(self) -> None:
         self._ensure_ssb_client()
+        self._ensure_self_feed()
         desired = self._desired_rbn_ports()
         paused = self._rbn_paused()
         if paused != getattr(self, "_rbn_pause_on", False):
