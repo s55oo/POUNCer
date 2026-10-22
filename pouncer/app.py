@@ -799,10 +799,6 @@ class PouncerApp:
         if self.cfg.alert_sound:
             alert_beep(self.root)
 
-    def _is_watched(self, spot) -> bool:
-        w = getattr(getattr(self, "cfg", None), "watch_calls", ()) or ()
-        return bool(w) and alert_base_call(spot.dxcall) in {alert_base_call(c) for c in w}
-
     def _is_my_call(self, spot) -> bool:
         me = self.own_call() if hasattr(self, "own_call") else ""
         return bool(me) and alert_base_call(spot.dxcall) == alert_base_call(me)
@@ -815,10 +811,9 @@ class PouncerApp:
         if not getattr(self.cfg, "self_spot_alert", True):
             return
         me = dxcall if from_team else self.own_call()
-        watched = tuple(getattr(self.cfg, "watch_calls", ()) or ())
         if me and alert_base_call(dxcall) == alert_base_call(me):
             log.info("spot of my call: %s by %s on %.1f", dxcall, spotter, float(freq_khz or 0))
-        if self._self_spots.check(dxcall, spotter, freq_khz, me, watched=watched):
+        if self._self_spots.check(dxcall, spotter, freq_khz, me):
             self._self_spot_q.put((dxcall, spotter, float(freq_khz), comment or "",
                                    time.strftime("%H%MZ", time.gmtime())))
             team = getattr(self, "team", None)
@@ -836,14 +831,11 @@ class PouncerApp:
             except queue.Empty:
                 return
             own = " (self-spot)" if SelfSpotWatch.is_self(spotter, self.own_call()) else ""
-            if alert_base_call(call) in {alert_base_call(w) for w in
-                                         (getattr(self.cfg, "watch_calls", ()) or ())}:
-                own = " (watched call)"
             text = (f"SPOTTED: {call} by {spotter}{own} on {khz:.1f}  {t}"
                     + (f"\n\u201c{comment}\u201d" if comment else ""))
             log.info("self spot: %s spotted by %s on %.1f %s", call, spotter, khz, comment)
             self.status_label.configure(text=text.replace("\n", "  "))
-            if own != " (watched call)" and not self._on_my_band(khz):
+            if not self._on_my_band(khz):
                 # my call spotted on a band none of this PC's radios is on:
                 # log + status line only (the PC on that band pops up)
                 log.info("self spot on %s: no pop-up here (radios on %s)", band_from_khz(khz),
@@ -2888,8 +2880,6 @@ class PouncerApp:
                 if time.time() - spot.received < 900:
                     self._note_self_spot(spot.dxcall, spot.spotter, spot.freq_khz)
                 continue
-            if self._is_watched(spot) and time.time() - spot.received < 900:
-                self._note_self_spot(spot.dxcall, spot.spotter, spot.freq_khz)
             self._note_own(spot)
             self._check_overlap(spot)
             self.spots[spot.key] = spot

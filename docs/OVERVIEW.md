@@ -31,7 +31,7 @@ Several of POUNCer's strongest parts come from **S53ZO**:
 | --- | --- |
 | Window | Spot list table in small fonts (new mults red, worked grey, ⚡ rare CQ, ★ your own skimmer) or tiles, sort by time / frequency / SNR, min SNR, band chips to look at another band, the tapped station holds its place 60 s; **rate line** (rate, QSOs, mults per band); stream lights (green / yellow on hold / red). **Compact window** beside N1MM (Ctrl+M). Looks Dark / Light / Classic. |
 | Phone | Big tiles you tap to QSY and call; F1-F7, ENTER, SPOTit and half-size keys; WPM - / +, ±25 Hz, NEXT; stacked messages; DX / MLT / ⚡ first. |
-| Alerts | A rare CQ that is also a new mult: pop-up (click = QSY and call) and sound, each switched on its own - in the window and on the phone. **SPOTTED**: someone spotted your call on a cluster (3 s, on the PC on that band; watched calls like S9R on every band). **Skimmer offline**: your skimmer stopped sending. |
+| Alerts | A rare CQ that is also a new mult: pop-up (click = QSY and call) and sound, each switched on its own - in the window and on the phone. **SPOTTED**: someone spotted your call on a cluster (3 s, on the PC on that band). **Skimmer offline**: your skimmer stopped sending. |
 | Band pictures | Band open chips (DX share), **CQ zones** (who hears you / what you hear), **band opening timeline** (48 h), contest summary - as windows and as phone pages. |
 | Station | SO2R / SO2V, a team of POUNCers sharing one RBN feed (none when all are on SSB), pre-contest READY check, **station test** (QSY + callsign per radio), CW speed popup, autostart of N1MM first and up to 8 other programs, auto-update from GitHub. |
 

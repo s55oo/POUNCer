@@ -365,9 +365,7 @@ Spots of your call from POUNCer's own SSB cluster or the team master count
 too. In a team every PC gets it, but the **pop-up only shows on the PC whose
 radio is on the spot's band** (`[ui] self_spot_band_only`, on); the others log
 it and show it in the status line (no radio info yet: pop-up anyway).
-**Watched calls** (`[ui] watch_calls = S9R`, Settings > Program, every band): the same
-pop-up for **every** spot of these calls, skimmer spots too - a DXpedition you
-need, or to test the pop-up with real traffic. Every spot of your call is written to
+Every spot of your call is written to
 the log ("spot of my call: ..."), so `cache\pouncer.log` shows whether it
 arrived at all.
 
@@ -1143,7 +1141,6 @@ All options live in `config.ini` and are documented there, line by line:
 | `self_spot_alert` | true | SPOTTED pop-up (3 s) and yellow bar when a person spots your call on a DX cluster (self-spots marked). |
 | `internet_check` | true | Watch the internet: red "Internet down since …" bar, last spots kept greyed, every feed reconnects at once when it's back (from the next start). |
 | `self_spot_band_only` | true | SPOTTED pop-up only on the PC whose radio is on the spot's band; the others log it. |
-| `watch_calls` | – | Calls (e.g. S9R) whose every spot brings the SPOTTED pop-up, skimmer spots too, every band. |
 | `check_line` | true | Pre-contest check line in the window; phone warns when something is wrong. |
 | `band_lights` | true | Band open lights (window row, phone band menu dots) from skimmers on your continent. |
 | `alert_popup` | true | Window: pop-up when a rare CQ that is a new mult appears (click = QSY and call). |

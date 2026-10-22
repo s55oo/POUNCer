@@ -213,10 +213,6 @@ SETTINGS: list[dict] = [
              "red bar 'Internet down since 12:03', the last spots stay in the list greyed out "
              "(not aged out), the phone shows it too; every connection retries at once when "
              "it's back. From the next start."},
-    {"key": "ui.watch_calls", "attr": "watch_calls", "kind": "text", "live": True,
-     "group": "Program", "label": "Watched calls (pop-up for every spot)",
-     "help": "Every spot of these calls brings the SPOTTED pop-up, skimmer spots too - e.g. S9R "
-             "(comma separated). Empty = none."},
     {"key": "ui.rate_line", "attr": "rate_line", "kind": "bool", "live": False, "group": "Program",
      "label": "Rate / mults line",
      "help": "Window: a line with the rate (last 10 min / hour), QSOs and multipliers per "
@@ -271,7 +267,7 @@ BY_KEY = {s["key"]: s for s in SETTINGS}
 def _show(item: dict, value) -> object:
     if item["attr"] == "default_radio":
         return "B" if value == 2 else "A"
-    if item["attr"] in ("rbn_backup_commands", "watch_calls"):
+    if item["attr"] == "rbn_backup_commands":
         return ", ".join(value or ())
     return value
 
@@ -321,10 +317,6 @@ def parse(item: dict, text: str):
         return c, c
     if item["attr"] == "rbn_backup_commands":
         parts = tuple(p.strip() for p in text.split(",") if p.strip())
-        return parts, ", ".join(parts)
-    if item["attr"] == "watch_calls":
-        parts = tuple(p.strip().upper() for p in text.replace(";", ",").replace(" ", ",").split(",")
-                      if p.strip())
         return parts, ", ".join(parts)
     if item["attr"] == "rbn_http_backup" and text and not text.lower().startswith(("http://", "https://")):
         raise ValueError(f"{item['label']}: an http(s):// address, or empty")

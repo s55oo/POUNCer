@@ -155,7 +155,6 @@ class Config:
     check_line: bool = True      # pre-contest check line in the window (+ phone warning)
     rate_line: bool = True       # window: rate / QSOs / mults per band from the log
     self_spot_alert: bool = True  # pop-up when a person spots my call on a cluster
-    watch_calls: tuple = ()       # also a pop-up for every spot of these calls (S9R ...)
     self_spot_band_only: bool = True  # SPOTTED pop-up only on the PC whose radio is on that band
     internet_check: bool = True     # red 'internet down since …' bar, last spots kept greyed
     # its own cluster connection, filtered on the node to spots of my call only
@@ -327,9 +326,6 @@ def load_config(path: str) -> Config:
     cfg.self_spot_alert = b("ui", "self_spot_alert", cfg.self_spot_alert)
     cfg.self_spot_band_only = b("ui", "self_spot_band_only", cfg.self_spot_band_only)
     cfg.internet_check = b("ui", "internet_check", cfg.internet_check)
-    cfg.watch_calls = tuple(c.strip().upper() for c in
-                            s("ui", "watch_calls", "").replace(";", ",").replace(" ", ",").split(",")
-                            if c.strip())
     cfg.self_spot_host = s("ssb", "self_spot_host", cfg.self_spot_host).strip()
     cfg.self_spot_port = i("ssb", "self_spot_port", cfg.self_spot_port)
     cfg.self_spot_filter = s("ssb", "self_spot_filter", cfg.self_spot_filter).strip()

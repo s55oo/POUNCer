@@ -288,7 +288,7 @@ each one on (`self`, section 9).
   "the node filter works" after 10 min with only your call, or a warning
   after 20 spots of other calls (then POUNCer drops them itself).
 - Spots: the usual `DX de … ` lines (section 8). A spot by a person (not a
-  skimmer) of your call, or of a call in `[ui] watch_calls`, brings the
+  skimmer) of your call brings the
   pop-up - on the PC whose radio is on that band (`[ui] self_spot_band_only`).
 
 ## 8c. Internet check (TCP 53, out)
