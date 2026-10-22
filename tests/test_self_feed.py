@@ -71,15 +71,36 @@ class FeedTests(unittest.TestCase):
     def test_login_ssid_and_when(self) -> None:
         from tests.test_so2r import _import_app
         P = _import_app().PouncerApp
-        f = types.SimpleNamespace(cfg=types.SimpleNamespace(rbn_callsign="S55OO"),
+        f = types.SimpleNamespace(cfg=types.SimpleNamespace(rbn_callsign="S55OO", self_spot_ssid="77"),
                                   own_call=lambda: "S55OO")
-        login = P._self_feed_login(f)
-        self.assertRegex(login, r"^S55OO-[2-9]$")
-        self.assertEqual(login, P._self_feed_login(f))        # the same on this PC
+        self.assertEqual(P._self_feed_login(f), "S55OO-77")
+        slave = types.SimpleNamespace(cfg=types.SimpleNamespace(self_spot_alert=True, self_spot_host="h"),
+                                      own_call=lambda: "S55OO", _self_feed=None,
+                                      team=types.SimpleNamespace(role=lambda: "slave"))
+        P._ensure_self_feed(slave)                            # a slave: the master logs in
+        self.assertIsNone(slave._self_feed)
         off = types.SimpleNamespace(cfg=types.SimpleNamespace(self_spot_alert=True, self_spot_host=""),
                                     own_call=lambda: "S55OO", _self_feed=None)
         P._ensure_self_feed(off)                              # empty host = off
         self.assertIsNone(off._self_feed)
+
+
+class TeamSelfTests(unittest.TestCase):
+    def test_master_passes_it_on_slave_shows_it(self) -> None:
+        import threading as th
+        from pouncer.team import Team
+        got = []
+        t = Team.__new__(Team)
+        t._lock = th.Lock()
+        t.peers = {}
+        t.id, t.started = "me", 5.0
+        t._on_self = got.append
+        t._on_spot = t._on_runhist = None
+        t.handle({"t": "hi", "id": "m", "started": 1}, "10.0.0.2")          # m = master
+        t.handle({"t": "self", "id": "m", "d": {"call": "S55OO", "spotter": "DL1ABC",
+                                                 "khz": 3678.0}}, "10.0.0.2")
+        t.handle({"t": "self", "id": "x", "d": {"call": "S55OO"}}, "10.0.0.3")  # not the master
+        self.assertEqual(got, [{"call": "S55OO", "spotter": "DL1ABC", "khz": 3678.0}])
 
 
 if __name__ == "__main__":

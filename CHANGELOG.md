@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.7.119 — 2026-10-22 — spots-of-my-call login <call>-77
+
+- The spots-of-my-call connection logs in as **`<call>-77`**
+  (`[ssb] self_spot_ssid`). In a team only the master logs in (one -77 on the
+  node) and passes a spot of your call on to the other POUNCers, which show
+  the SPOTTED pop-up too.
+
 ## v0.7.118 — 2026-10-22 — your call straight from N1MM
 
 - Your call (SPOTTED pop-up, its node filter, "my call" everywhere) is now

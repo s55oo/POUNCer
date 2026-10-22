@@ -159,6 +159,9 @@ SETTINGS: list[dict] = [
      "group": "SSB", "label": "Spots of my call: node filter",
      "help": "Sent after login; {call} = your call, ';' between commands. DXSpider: "
              "accept/spots call {call}"},
+    {"key": "ssb.self_spot_ssid", "attr": "self_spot_ssid", "kind": "text", "live": False,
+     "group": "SSB", "label": "Spots of my call: SSID",
+     "help": "Login <call>-77 - its own SSID, never N1MM's. In a team only the master logs in."},
     {"key": "ssb.spotters", "attr": "ssb_spotters", "kind": "text", "live": False,
      "group": "SSB", "label": "Spotters from", "help": "EU, NA, AS, ... or ALL."},
     {"key": "ssb.host", "attr": "ssb_host", "kind": "text", "live": False,
