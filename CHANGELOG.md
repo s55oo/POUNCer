@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.7.118 — 2026-10-22 — your call straight from N1MM
+
+- Your call (SPOTTED pop-up, its node filter, "my call" everywhere) is now
+  first N1MM's current station call from its radio info (`<mycall>`), then
+  the open log's station call, then N1MM's ini - never fixed. Open a TK0C log
+  and the spots-of-my-call connection follows with `accept/spots call TK0C`.
+
 ## v0.7.117 — 2026-10-22 — SPOTTED pop-up: its own filtered connection
 
 - N1MM never passes on spots of your own call (tested: another station's
