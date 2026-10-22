@@ -1039,7 +1039,9 @@ All options live in `config.ini` and are documented there, line by line:
 | `look` | dark | Window look: `dark` / `light` (Windows 11 style), `classic`; from the next start. |
 | `spot_tiles` | false | Window list as tiles like the phone (Ctrl+T); false = the table. |
 | `rate_line` | true | Rate / QSOs / mults per band line under the lights. |
-| `self_spot_alert` | true | Pop-up when a person spots your call on a DX cluster (self-spots marked). |
+| `self_spot_alert` | true | SPOTTED pop-up (3 s) and yellow bar when a person spots your call on a DX cluster (self-spots marked). |
+| `self_spot_band_only` | true | SPOTTED pop-up only on the PC whose radio is on the spot's band; the others log it. |
+| `watch_calls` | – | Calls (e.g. S9R) whose every spot brings the SPOTTED pop-up, skimmer spots too, every band. |
 | `check_line` | true | Pre-contest check line in the window; phone warns when something is wrong. |
 | `band_lights` | true | Band open lights (window row, phone band menu dots) from skimmers on your continent. |
 | `alert_popup` | true | Window: pop-up when a rare CQ that is a new mult appears (click = QSY and call). |
@@ -1063,7 +1065,10 @@ All options live in `config.ini` and are documented there, line by line:
 | `host`, `port` | azure.s53m.com, 8000 | The DX cluster. |
 | `spotters` | EU | Spotters' continent (EU, NA, ... or ALL). |
 | `history`, `login`, `commands` | 30, (your call), – | Last spots at login; login call (e.g. S55OO-2); commands after login. |
-| `use_n1mm_spots` | auto | `auto` = N1MM's spots (Broadcast Data > Spots) replace this cluster connection while they come (20 s without = own cluster again); `off` = always own. |
+| `use_n1mm_spots` | auto | `auto` = N1MM's spots (Broadcast Data > Spots) replace this cluster connection from N1MM's first spot (20 s without, or 4 x its usual gap = own cluster again, for at least a minute); `off` = always own. |
+| `pskreporter` | true | A spot on 7074 - 7077 / 1840 - 1843 without a mode: ask PSK Reporter about that one call; FT8 / FT4 reports there = not SSB. |
+| `self_spot_host`, `self_spot_port` | azure.s53m.com, 8000 | The small cluster connection for spots of MY call only (N1MM drops them); empty host = off. Team: the master only. |
+| `self_spot_filter`, `self_spot_ssid` | accept/spots call {call}, 77 | Node filter sent after login (only spots of your call come); login `<call>-77`. |
 | `follow_radio_mode` | true | Radio on USB/LSB = SSB spots, CW = RBN CW spots. |
 | **[team]** | | |
 | `enabled`, `port`, `peers` | true, 12079, – | Several POUNCers on a network; extra IPs where broadcasts are dropped. |

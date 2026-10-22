@@ -1,6 +1,6 @@
 # POUNCer — one-page overview
 
-*S55OO · October 2026 · version 0.7.109 · read this first*
+*S55OO · October 2026 · version 0.7.126 · read this first*
 
 ## What POUNCer is
 
@@ -10,7 +10,8 @@ POUNCer is a search-and-pounce helper for contesters who log in **N1MM Logger+**
 
 - **From N1MM** (UDP 12060): the radio frequency, mode and which Entry Window is active - so POUNCer always shows the band you are on, for radio A and B (SO2R / SO2V).
 - **From the RBN** (telnet, with an HTTP backup): every skimmer spot. POUNCer keeps the ones from your chosen skimmers (one, several, or whole CQ zones), or from others on your continent when they go quiet. In an SSB contest RBN isn't connected at all.
-- **SSB spots from N1MM** (its Telnet window's spots on 12060), with POUNCer's own DX-cluster connection only as a backup.
+- **SSB spots from N1MM** (its Telnet window's spots on 12060), with POUNCer's own DX-cluster connection only as a backup. On 40 m 7074 - 7077 (FT8 inside the SSB segment) PSK Reporter is asked about that one call before a spot is taken as FT8.
+- **Spots of your own call**: N1MM never passes them on, so a small node-filtered connection (`<call>-77`, only spots of your call) catches them for the SPOTTED pop-up.
 - **What it adds**: worked / new multiplier from your N1MM log, a rare CQ mark (⚡) from past contest logs, Super Check Partial (?), how long a station has been calling.
 - **Back to N1MM**: a click tunes the radio (UDP 13064) and types the call; F-keys, ENTER, SPOTit (Alt+P) and the CW speed are sent as keys.
 - **Phone page**: POUNCer serves the same list on port 8080, so a phone beside the radio works it too.
@@ -30,7 +31,7 @@ Several of POUNCer's strongest parts come from **S53ZO**:
 | --- | --- |
 | Window | Spot list table in small fonts (new mults red, worked grey, ⚡ rare CQ, ★ your own skimmer) or tiles, sort by time / frequency / SNR, min SNR, band chips to look at another band, the tapped station holds its place 60 s; **rate line** (rate, QSOs, mults per band); stream lights (green / yellow on hold / red). **Compact window** beside N1MM (Ctrl+M). Looks Dark / Light / Classic. |
 | Phone | Big tiles you tap to QSY and call; F1-F7, ENTER, SPOTit and half-size keys; WPM - / +, ±25 Hz, NEXT; stacked messages; DX / MLT / ⚡ first. |
-| Alerts | A rare CQ that is also a new mult: pop-up (click = QSY and call) and sound, each switched on its own - in the window and on the phone. **SPOTTED**: someone spotted your call on a cluster. **Skimmer offline**: your skimmer stopped sending. |
+| Alerts | A rare CQ that is also a new mult: pop-up (click = QSY and call) and sound, each switched on its own - in the window and on the phone. **SPOTTED**: someone spotted your call on a cluster (3 s, on the PC on that band; watched calls like S9R on every band). **Skimmer offline**: your skimmer stopped sending. |
 | Band pictures | Band open chips (DX share), **CQ zones** (who hears you / what you hear), **band opening timeline** (48 h), contest summary - as windows and as phone pages. |
 | Station | SO2R / SO2V, a team of POUNCers sharing one RBN feed (none when all are on SSB), pre-contest READY check, **station test** (QSY + callsign per radio), CW speed popup, autostart of N1MM first and up to 8 other programs, auto-update from GitHub. |
 
