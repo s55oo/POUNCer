@@ -34,7 +34,7 @@ in the examples are private example addresses.
 | 14 | **out** | HTTPS | 443 | www.supercheckpartial.com | MASTER.SCP (busted-call marks) | `[scp] url` |
 | 15 | – | UDP connect | – | 8.8.8.8 | finding the PC's LAN address – **nothing is sent** | – |
 | 17 | **out** | UDP (NTP) | 123 | pool.ntp.org, then time.windows.com | PC clock check every 30 min (SNTP, 48 bytes, no data of yours) | `[ui] check_line` |
-| 18 | **out** | MQTT (TCP) | 1883 | mqtt.pskreporter.info | FT8 or SSB? one call's PSK Reporter reports for 2 min (only for a spot on 7074 - 7077 without a mode) | `[ssb] pskreporter` |
+| 18 | **out** | MQTT (TCP) | 1883 | mqtt.pskreporter.info | FT8 or SSB? one call's PSK Reporter reports for up to 2 min (only for a spot on 7074 - 7077 / 1840 - 1843 without a mode) | `[ssb] pskreporter` |
 | 16 | local | process start | – | your own programs (.exe / .bat / shortcuts) | autostart with POUNCer – no network | `[autostart]` |
 
 Firewall: inbound **UDP 12060** (only from N1MM on the same PC), **TCP 8080**
@@ -363,11 +363,12 @@ runs.
 ## 18. PSK Reporter (MQTT, TCP 1883, out)
 
 Only for an SSB spot in an FT8 / FT4 window **inside** the SSB segment (7074 -
-7077 on 40 m, 1840 - 1843, 6 m FT8) without "FT8" / "SSB" in it, and not while
+7077 on 40 m, 1840 - 1843 on 160 m) without "FT8" / "SSB" in it, and not while
 an SSB contest is open: POUNCer connects to `mqtt.pskreporter.info:1883`
 (MQTT 3.1.1, no login, client id `pouncer-<random>`), subscribes to
 `pskr/filter/v2/+/+/<CALL>/#` - **that one station transmitting**, never the
-whole feed - for 2 minutes (at most 8 calls at once), then unsubscribes and
+whole feed - for 2 minutes, or until the first FT8 / FT4 report near the
+spot (at most 8 calls at once), then unsubscribes and
 hangs up when nothing is watched. Each report is a small JSON (`sc` call, `f`
 Hz, `md` mode, `rp` SNR, `rc` receiver …); an FT8 / FT4 report within 3 kHz of
 the spot makes the spot FT8 / FT4. Nothing about you is sent.

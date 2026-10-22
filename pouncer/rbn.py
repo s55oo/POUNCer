@@ -242,11 +242,16 @@ def digital_sure(khz: float) -> str:
 
 
 def digital_overlap(khz: float) -> str:
-    """FT8 / FT4 window INSIDE an SSB segment (7074 - 7077, 1840 - 1843, 6 m):
-    SSB contesters work there too - shown as SSB unless PSK Reporter has the
-    station on FT8 / FT4 there."""
+    """FT8 / FT4 window INSIDE the SSB segment on 40 m (7074 - 7077) and 160 m
+    (1840 - 1843): SSB contesters work there too - shown as SSB unless PSK
+    Reporter has the station on FT8 / FT4 there. (Other bands: not checked.)"""
     m = digital_mode(khz)
-    return m if m and is_phone_freq(khz) else ""
+    try:
+        f = float(khz)
+    except (TypeError, ValueError):
+        return ""
+    on_40_160 = 7000 <= f <= 7300 or 1800 <= f <= 2000
+    return m if m and on_40_160 and is_phone_freq(f) else ""
 
 
 def _comment_mode(comment: str) -> str:
