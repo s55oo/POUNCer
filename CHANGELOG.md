@@ -1,5 +1,25 @@
 # POUNCer — Changelog
 
+## v0.7.128 — 2026-10-22 — No freeze on a click, less CPU
+
+- **No more 2-3 s freeze on a click / tap:** the window keeps drawing while
+  POUNCer waits for N1MM to report the new frequency (the wait was a sleep in
+  the window's own thread). Same order as before - QSY, wait for N1MM, wipe,
+  call in, check. A new click while the last one still waits replaces it.
+- **Less CPU:** the phone page's lists are built every half second only while
+  a phone has the page open (asked in the last 20 s), else every 5 s - about
+  half of each refresh when no phone looks. (Your PC's perf log: POUNCer
+  itself was ~4 % of one core, ~1 % of the PC; most of the CPU there is N1MM
+  and other programs.)
+- **CW speed pop-up** placed like the SPOTTED pop-up (on one PC Windows kept
+  that kind of window off screen) and checked 150 ms later.
+- **Self-spot feed filter check:** pouncer.log shows the node's answer to
+  `accept/spots call <call>` and says once per connection whether the node
+  really applies it ("the node filter works" after 10 min with only your
+  call, or a warning after 20 spots of other calls). The sent command also
+  shows in the traffic console.
+- Help messages about `versions\` fixed (a Python warning).
+
 ## v0.7.127 — 2026-10-22 — Update the team, keep old versions
 
 - **Help > Update all POUNCers in the team** (team master only): every

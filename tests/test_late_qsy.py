@@ -81,6 +81,7 @@ class RadioATimingTests(unittest.TestCase):
         f.cfg.qsy_wait_ms, f.cfg.qsy_settle_ms, f.cfg.type_mode = 2500, 250, "settext"
         f.cfg.return_focus = False
         f._guard_call = app.PouncerApp._guard_call.__get__(f)
+        f._guard_call_steps = app.PouncerApp._guard_call_steps.__get__(f)
         f._restore_call = app.PouncerApp._restore_call.__get__(f)
         clock = [1000.0]
         box = {"t": ""}

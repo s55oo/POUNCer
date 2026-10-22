@@ -601,8 +601,11 @@ class RBNClient(threading.Thread):
                 for cmd in self.backup_commands:     # e.g. set/skimmer
                     try:
                         sock.sendall((cmd.strip() + "\r\n").encode("ascii", "ignore"))
+                        traffic.emit(f"{self.name or self.kind} >", cmd.strip())
                     except OSError:
                         pass
+                if self.backup_commands:
+                    self._reply_lines = 4     # log what the node says to them
                 cmds_sent = True
             if logged_in and self.history and hist_step < 2:
                 now = time.monotonic()
@@ -648,6 +651,9 @@ class RBNClient(threading.Thread):
                 line = line[at:]
             if line.startswith("DX de"):
                 self._last_dx = time.monotonic()   # the feed is alive
+            elif getattr(self, "_reply_lines", 0) > 0 and line.strip():
+                self._reply_lines -= 1      # e.g. the node's answer to accept/spots
+                log.info("%s: node says: %s", self.name or self.kind, line.strip()[:120])
             if self.kind == "cluster":
                 spot = parse_cluster_spot(line)
             else:

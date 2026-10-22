@@ -68,6 +68,16 @@ log = logging.getLogger(__name__)
 
 GITHUB_URL = "https://github.com/s55oo/POUNCer"
 REFRESH_MS = 500
+
+
+def _drive(steps):
+    """Run a steps generator (yields seconds to wait) right here, sleeping -
+    for threads and tests. Its return value."""
+    try:
+        while True:
+            time.sleep(next(steps))
+    except StopIteration as stop:
+        return stop.value
 CW_PUMP_MS = 80   # phone CW keyboard: typed text handled this often
 WEB_MAX_SPOTS = 60
 WEB_MAX_SPOTS_ALL = 120  # phone band menu > ALL: every band, new mults first
@@ -151,6 +161,8 @@ PIN_S = 60     # a clicked / tapped station keeps its row this long (or until lo
 class PouncerApp:
     def __init__(self, config: Config) -> None:
         self.cfg = config
+        self._tap_async = True      # taps run as steps between window updates
+        self._tap_gen = None
         self.spot_queue: "queue.Queue[Spot]" = queue.Queue(maxsize=20000)
         self.status_queue: "queue.Queue[str]" = queue.Queue()
         self.spots: dict[tuple, Spot] = {}
@@ -989,16 +1001,40 @@ class PouncerApp:
             else:
                 x = self.root.winfo_rootx() + (self.root.winfo_width() - w) // 2
                 y = self.root.winfo_rooty() + max(10, self.root.winfo_height() // 3 - h // 2)
+            x = max(0, min(x, self.root.winfo_screenwidth() - w))
             pop.geometry(f"+{x}+{y}")
+            pop.update_idletasks()          # move it NOW (Windows applies it at idle)
+            pop.attributes("-topmost", True)
             pop.attributes("-alpha", 0.94)
+            pop.lift()
+            self._wpm_shown = True
+            self.root.after(150, lambda: self._check_wpm_place(x, y))
             if self._wpm_pop_after is not None:
                 self.root.after_cancel(self._wpm_pop_after)
             self._wpm_pop_after = self.root.after(1500, self._hide_wpm_popup)
         except tk.TclError:
             pass
 
+    def _check_wpm_place(self, x: int, y: int) -> None:
+        """Same check as the alert pop-up: still at its hiding place? Place it again."""
+        pop = getattr(self, "_wpm_pop", None)
+        if pop is None or not getattr(self, "_wpm_shown", False):
+            return
+        try:
+            rx, ry = pop.winfo_rootx(), pop.winfo_rooty()
+            if abs(rx - x) > 50 or abs(ry - y) > 50:
+                log.warning("CW speed pop-up is at %d,%d, not %d,%d - placing it again",
+                            rx, ry, x, y)
+                pop.geometry(f"+{x}+{y}")
+                pop.update_idletasks()
+                pop.attributes("-topmost", True)
+                pop.lift()
+        except tk.TclError as exc:
+            log.warning("CW speed pop-up check: %s", exc)
+
     def _hide_wpm_popup(self) -> None:
         self._wpm_pop_after = None
+        self._wpm_shown = False
         if self._wpm_pop is None:
             return
         try:
@@ -1873,6 +1909,37 @@ class PouncerApp:
         ssid = str(getattr(self.cfg, "self_spot_ssid", "77") or "").strip().lstrip("-")
         return f"{base}-{ssid}" if ssid else base
 
+    SELF_FEED_OK_S = 600       # this long with only my call: "the node filter works"
+    SELF_FEED_BAD_N = 20       # this many spots of other calls: it doesn't
+
+    def _on_self_feed_spot(self, s) -> None:
+        """A spot on the self-spot feed (its thread): the SPOTTED check, and
+        is the node's filter (accept/spots call ...) really applied? Logged
+        once: works / doesn't (then POUNCer filters itself - still right,
+        just more traffic)."""
+        self._note_self_spot(s.dxcall, s.spotter, s.freq_khz)
+        c = getattr(self, "_self_feed_check", None)
+        if not c or c["said"]:
+            return
+        me = getattr(getattr(self, "_self_feed", None), "_for_call", "")
+        mine = alert_base_call(s.dxcall) == alert_base_call(me)
+        c["mine" if mine else "other"] += 1
+        if c["other"] >= self.SELF_FEED_BAD_N:
+            c["said"] = True
+            mins = max(1 / 60, (time.time() - c["t"]) / 60)
+            log.warning("self-spot feed: the node does NOT apply the filter - %d spots of other "
+                        "calls in %.0f min (about %.0f a minute); POUNCer drops them itself. "
+                        "Check [ssb] self_spot_filter for this node.", c["other"], mins,
+                        c["other"] / mins)
+
+    def _check_self_feed_filter(self) -> None:
+        """From _tick: 10 min on the feed and nothing but my call - say so."""
+        c = getattr(self, "_self_feed_check", None)
+        if c and not c["said"] and time.time() - c["t"] >= self.SELF_FEED_OK_S:
+            c["said"] = True
+            log.info("self-spot feed: the node filter works - only spots of my call in %d min "
+                     "(%d of them)", self.SELF_FEED_OK_S // 60, c["mine"])
+
     def _ensure_self_feed(self) -> None:
         """SPOTTED pop-up: N1MM never passes on spots of your own call, so a
         cluster connection of its own with a node filter that lets only spots
@@ -1902,9 +1969,10 @@ class PouncerApp:
         feed = RBNClient(self.cfg.self_spot_host, self.cfg.self_spot_port, login, _All(),
                          queue.Queue(maxsize=50), history=0, backup_commands=cmds,
                          kind="cluster", name="self-spot",
-                         on_raw=lambda s: self._note_self_spot(s.dxcall, s.spotter, s.freq_khz))
+                         on_raw=self._on_self_feed_spot)
         feed.backup_commands = tuple(cmds)
         feed._for_call = me
+        self._self_feed_check = {"t": time.time(), "mine": 0, "other": 0, "said": False}
         feed.start()
         self._self_feed = feed
         log.info("self-spot feed: %s:%s as %s, filter %s", self.cfg.self_spot_host,
@@ -1972,6 +2040,11 @@ class PouncerApp:
         """Wait until N1MM reports radio ``nr`` on ``khz`` (it may wipe the
         callsign when the radio moves - typing before that lost the call),
         then a little more. False if it never came (we type anyway)."""
+        return _drive(self._wait_for_qsy_steps(nr, khz))
+
+    def _wait_for_qsy_steps(self, nr: int, khz: float):
+        """_wait_for_qsy as steps: yields the seconds to wait (a tap runs
+        between window updates - the window doesn't freeze)."""
         wait = getattr(self.cfg, "qsy_wait_ms", 0) / 1000
         settle = getattr(self.cfg, "qsy_settle_ms", 0) / 1000
         end = time.time() + wait
@@ -1980,11 +2053,11 @@ class PouncerApp:
             f = snap.get("freq_khz") if snap else None
             if f is not None and abs(f - khz) <= 0.15:
                 if settle:
-                    time.sleep(settle)
+                    yield settle
                 return True
             if time.time() >= end:
                 return wait == 0
-            time.sleep(0.05)
+            yield 0.05
 
     def _settext(self) -> bool:
         return getattr(self.cfg, "type_mode", "settext") == "settext"
@@ -2011,11 +2084,14 @@ class PouncerApp:
         came late), put it in again - up to 3 times. Only with settext: with
         typed keys a slow PC may still be typing, and typing again would mix
         the two ("PHB9CBR/P")."""
+        return _drive(self._check_call_steps(hwnd, call))
+
+    def _check_call_steps(self, hwnd, call: str):
         if not hwnd or not self._settext():
             return ""
         want = call.strip().upper()
         for attempt in range(3):
-            time.sleep(0.15)
+            yield 0.15
             got = focused_edit_text(hwnd)
             if got is None or got.strip().upper() == want:
                 return " [call put in again]" if attempt else ""
@@ -2026,6 +2102,9 @@ class PouncerApp:
         """Radio B when N1MM hadn't reported the new frequency yet: keep the
         call in the box a little longer - if N1MM's QSY (and its wipe of the
         callsign) comes late, put the call in again. True = the report came."""
+        return _drive(self._guard_call_steps(hwnd, call, nr, khz))
+
+    def _guard_call_steps(self, hwnd, call: str, nr: int, khz: float):
         if not hwnd or not self._settext():
             return False
         settle = getattr(self.cfg, "qsy_settle_ms", 0) / 1000
@@ -2041,7 +2120,7 @@ class PouncerApp:
             got = focused_edit_text(hwnd)
             if got is not None and got.strip().upper() != want:
                 set_focused_edit_text(hwnd, call)
-            time.sleep(0.05)
+            yield 0.05
         return landed_at is not None
 
     def _restore_call(self, hwnd, call: str) -> bool:
@@ -2107,6 +2186,37 @@ class PouncerApp:
         return f" [cursor back in Entry Window {back}]" if back else " [cursor back]"
 
     def _act_on_spot(self, spot: Spot, radio: int | None = None) -> None:
+        """A tap / click: QSY, wait for N1MM, type the call. In the app it
+        runs as steps between window updates (no 2-3 s freeze while N1MM
+        tunes); a new tap stops the one still running."""
+        steps = self._tap_steps(spot, radio)
+        if getattr(self, "_tap_async", False):
+            self._run_steps(steps)
+        else:
+            _drive(steps)
+
+    def _run_steps(self, gen) -> None:
+        old = getattr(self, "_tap_gen", None)
+        if old is not None:
+            old.close()
+        self._tap_gen = gen
+
+        def step():
+            if self._tap_gen is not gen:
+                return
+            try:
+                wait = next(gen)
+            except StopIteration:
+                self._tap_gen = None
+                return
+            except Exception:  # noqa: BLE001 - a tap must never break the window
+                log.exception("tap failed")
+                self._tap_gen = None
+                return
+            self.root.after(max(1, int(wait * 1000)), step)
+        step()
+
+    def _tap_steps(self, spot: Spot, radio: int | None = None):
         nr = self._radio_nr(radio)
         hwnd = self.state.entry_window_hwnd(nr)  # that radio's Entry Window (A / B)
         snap = self._snapshot_focus()
@@ -2114,7 +2224,7 @@ class PouncerApp:
         if self.cfg.focus_n1mm and hwnd:
             focused = force_foreground(hwnd)
             if focused:
-                time.sleep(0.15)
+                yield 0.15
 
         t0 = time.time()
         self._late_qsy = None             # a new tap: stop watching the last one
@@ -2132,7 +2242,7 @@ class PouncerApp:
         # wait until N1MM reports the radio on the new frequency (it wipes
         # the callsign when the radio moves), radio B too
         t_wait = time.time()
-        landed = self._wait_for_qsy(nr, spot.freq_khz)
+        landed = yield from self._wait_for_qsy_steps(nr, spot.freq_khz)
         msg_retry = ""
         if not landed and not self._types_qsy(nr) and self.cfg.qsy_wait_ms:
             # N1MM didn't report the new frequency: send the QSY once more and
@@ -2141,7 +2251,7 @@ class PouncerApp:
             log.info("tap %s: no report of %.1f after %.1f s - QSY sent again", spot.dxcall,
                      spot.freq_khz, time.time() - t_wait)
             if self._qsy(nr, spot.freq_khz, hwnd, focused):
-                landed = self._wait_for_qsy(nr, spot.freq_khz)
+                landed = yield from self._wait_for_qsy_steps(nr, spot.freq_khz)
                 if landed:
                     msg_retry = " [QSY sent again]"
         reported = f"N1MM reported it after {time.time() - t_wait:.1f} s" if landed else \
@@ -2164,14 +2274,14 @@ class PouncerApp:
                         pass
                     if not self._settext():
                         wipe_callsign()   # Alt+W key: only when typing keys
-                    time.sleep(0.2)  # let N1MM finish the wipe before we type
+                    yield 0.2  # let N1MM finish the wipe before we type
                 how = self._enter_text(hwnd, spot.dxcall)
                 msg += " (call typed, no TX)" + ("" if how else " [box not cleared]")
-                msg += self._check_call(hwnd, spot.dxcall)
+                msg += yield from self._check_call_steps(hwnd, spot.dxcall)
                 if not landed:
                     # N1MM's QSY (and its wipe of the callsign) may still come:
                     # keep the call in the box a little longer - every radio
-                    landed = self._guard_call(hwnd, spot.dxcall, nr, spot.freq_khz)
+                    landed = yield from self._guard_call_steps(hwnd, spot.dxcall, nr, spot.freq_khz)
                 if not landed:
                     msg += " [N1MM didn't report the new frequency]"
             else:
@@ -2265,6 +2375,7 @@ class PouncerApp:
         self._drain_status()
         if hasattr(self, "_self_spot_q"):
             self._drain_self_spots()
+        self._check_self_feed_filter()
         self._check_late_qsy()
         self._drain_spots()
         self._drain_wpm()
@@ -2285,7 +2396,7 @@ class PouncerApp:
             self._dirty = False
             self._perf["rebuilds"] += 1
         self._drain_web()
-        if self.web is not None:
+        if self.web is not None and self._web_due():
             # one payload per radio: each phone shows its own radio's band
             radios = set(self.state.radio_numbers()) | {1, self.radio}
             self._web_cache = {r: self._build_web_payload(r) for r in sorted(radios)}
@@ -2451,9 +2562,24 @@ class PouncerApp:
         }
         return out
 
+    WEB_IDLE_S = 20      # no phone asked this long: build its list every WEB_IDLE_EVERY_S only
+    WEB_IDLE_EVERY_S = 5
+
+    def _web_due(self) -> bool:
+        """Build the phone lists this tick? Every tick while a phone looks
+        (asked < WEB_IDLE_S ago), else every WEB_IDLE_EVERY_S - about half a
+        tick's work saved when nobody has the phone page open."""
+        now = time.time()
+        if now - getattr(self, "_web_asked", 0.0) < self.WEB_IDLE_S or \
+                now - getattr(self, "_web_built", 0.0) >= self.WEB_IDLE_EVERY_S:
+            self._web_built = now
+            return True
+        return False
+
     def _web_spots(self, radio: int | None = None, band: str | None = None) -> dict:
         """Phone list: the radio's band, or ``band`` from the band menu (the
         radio isn't moved - tapping a station there QSYs it)."""
+        self._web_asked = time.time()       # a phone looks: lists every tick again
         cache = self._web_cache
         base = cache.get(radio or self.radio) or cache.get(self.radio) or cache.get(1) or {}
         if not band or (band not in CONTEST_BANDS and band != ALL_BANDS) \
@@ -3776,11 +3902,11 @@ class PouncerApp:
                 "already the newest version" if st == "current" else "failed - see the log"))
 
     def _rollback(self) -> None:
-        """Help > Go back to the previous version (kept in versions\)."""
+        """Help > Go back to the previous version (kept in versions\\)."""
         from tkinter import messagebox
         prev = self.updater.previous_versions() if self.updater.exe else []
         if not prev:
-            messagebox.showinfo("POUNCer", "No earlier version kept yet (versions\ folder next "
+            messagebox.showinfo("POUNCer", "No earlier version kept yet (versions\\ folder next "
                                 "to POUNCer.exe - each update from v0.7.127 on keeps the one it "
                                 "replaces).", parent=self.root)
             return
