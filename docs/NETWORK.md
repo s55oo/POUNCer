@@ -2,7 +2,8 @@
 
 Every connection POUNCer opens or listens on, what goes over it and in which
 format: N1MM Logger+, the Reverse Beacon Network, the DX cluster, the phone
-page, the team, and the downloads from the internet. Valid for **v0.7.71**.
+page, the team, PSK Reporter, the clock and internet checks, and the
+downloads from the internet. Valid for **v0.7.129**.
 Ports and addresses are the defaults; each can be changed in `config.ini`
 (the section and key are given).
 
@@ -35,9 +36,9 @@ in the examples are private example addresses.
 | 13 | **out** | HTTPS | 443 | raw.githubusercontent.com (S53ZO's log archive) | run history of calls not in the lists | `[ui] run_history` |
 | 14 | **out** | HTTPS | 443 | www.supercheckpartial.com | MASTER.SCP (busted-call marks) | `[scp] url` |
 | 15 | – | UDP connect | – | 8.8.8.8 | finding the PC's LAN address – **nothing is sent** | – |
+| 16 | local | process start | – | your own programs (.exe / .bat / shortcuts) | autostart with POUNCer – no network | `[autostart]` |
 | 17 | **out** | UDP (NTP) | 123 | pool.ntp.org, then time.windows.com | PC clock check every 30 min (SNTP, 48 bytes, no data of yours) | `[ui] check_line` |
 | 18 | **out** | MQTT (TCP) | 1883 | mqtt.pskreporter.info | FT8 or SSB? one call's PSK Reporter reports for up to 2 min (only for a spot on 7074 - 7077 / 1840 - 1843 without a mode) | `[ssb] pskreporter` |
-| 16 | local | process start | – | your own programs (.exe / .bat / shortcuts) | autostart with POUNCer – no network | `[autostart]` |
 
 Firewall: inbound **UDP 12060** (only from N1MM on the same PC), **TCP 8080**
 (phones on the LAN) and **UDP 12079** (team) must be allowed; everything
@@ -264,6 +265,37 @@ use_n1mm_spots = auto`): from N1MM's first spot this connection is closed
 its usual gap) it is opened again, for at least a minute. A spot of your own
 call by a person on either source brings the SPOTTED pop-up.
 
+## 8b. Spots of my call (TCP 8000, out)
+
+A third, separate connection to `azure.s53m.com:8000` (`[ssb] self_spot_host`,
+`self_spot_port`) only for the **SPOTTED** pop-up - N1MM never passes on
+spots of its own station call. In a team only the master has it and passes
+each one on (`self`, section 9).
+
+- **Login:** `<call>-77` (`[ssb] self_spot_ssid`) - its own SSID, so it never
+  pushes N1MM's login or the RBN backup off the node. The call is N1MM's
+  (RadioInfo `mycall`, else the log's station call).
+- **1 s after login:** `[ssb] self_spot_filter`, default
+  `accept/spots call <call>` (DXSpider) - only spots **of your call** come down
+  this connection. POUNCer logs the node's next 4 lines ("self-spot feed:
+  node says: …"), and once per connection whether the filter really works:
+  "the node filter works" after 10 min with only your call, or a warning
+  after 20 spots of other calls (then POUNCer drops them itself).
+- Spots: the usual `DX de … ` lines (section 8). A spot by a person (not a
+  skimmer) of your call, or of a call in `[ui] watch_calls`, brings the
+  pop-up - on the PC whose radio is on that band (`[ui] self_spot_band_only`).
+
+## 8c. Internet check (TCP 53, out)
+
+`[ui] internet_check`: every 30 s (every 10 s while down) a plain TCP
+connect to `1.1.1.1:53`, `8.8.8.8:53` and `9.9.9.9:53` - by IP, so no DNS
+is needed - closed at once, **nothing is sent**. One answer = the internet is
+up; no answer in two rounds in a row = the red bar *"Internet down since
+12:03"* (window and phone), the last spots stay greyed. A spot arriving from
+the internet also counts as "up". When it's back, every feed (sections 5, 6,
+8, 8b) reconnects at once instead of after its backoff (2 → 60 s). A
+connection error is logged the first time and then every 10th time in a row.
+
 ## 9. Team (UDP 12079, in and out)
 
 Several POUNCers on one network. Compact JSON datagrams, each with `id` (a
@@ -273,7 +305,7 @@ random id of that POUNCer) and `t` (type):
 |---|---|---|---|
 | `hi` | every 2 s | `started` (time), `web` (its web port), `healthy` (RBN works or closed on purpose), `ver` (version), `cw` (this POUNCer needs RBN: a radio on CW, not an SSB contest), `paused` (master: RBN closed, nobody needs it) | broadcast `255.255.255.255:12079` out of **every** network adapter (LAN, ZeroTier…) + directly to each known POUNCer and each `[team] peers` IP |
 | `spot` | master, per spot | `s`: `{dxcall, freq_khz, mode, snr, wpm, spot_type, spotter, time_utc}` | directly to each POUNCer |
-| `update` | master, *Help > Update all POUNCers in the team* | - | every POUNCer checks GitHub, downloads the newest and restarts (only from the master) | directly to each POUNCer |
+| `update` | master, *Help > Update all POUNCers in the team* | nothing else - every POUNCer checks GitHub, downloads the newest and restarts (accepted only from the master) | directly to each POUNCer |
 | `self` | master, when your call is spotted | `d`: `{call, spotter, khz, comment}` - the slaves show the SPOTTED pop-up too | directly to each POUNCer |
 | `rh` | when a call's run history is learned | `d`: `{"CALL\|CONTEST\|MODE": {run, hours, rec, bands…}}` | directly to each POUNCer |
 
@@ -366,6 +398,19 @@ To show the phone address, POUNCer opens a UDP socket and *connects* it to
 `8.8.8.8:80` – this only asks Windows which network card would be used;
 **no packet is sent**. ZeroTier addresses are shown first when ZeroTier
 runs.
+
+## 16. Autostart (local, no network)
+
+`[autostart]`: POUNCer can start your other programs (.exe, .bat, shortcuts)
+with it - N1MM first, waiting for it. Local process starts only; nothing goes
+over the network.
+
+## 17. PC clock (NTP, UDP 123, out)
+
+For the clock item of the pre-contest check: at start and every 30 min one
+SNTP request (48 bytes) to `pool.ntp.org`, else `time.windows.com`, and its
+48-byte answer - nothing of yours is in it. Only if neither answers:
+`HEAD https://api.github.com` and its `Date` header (section 11).
 
 ## 18. PSK Reporter (MQTT, TCP 1883, out)
 
