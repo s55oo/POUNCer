@@ -137,6 +137,7 @@ drain web actions → refresh the cached web payload.
 | `pouncer/stationtest.py` | `run(...)` / `report()`: View > Station test - QSY 0.1 kHz up / back per radio with N1MM's response time, test call into the empty box, read back, cleared. |
 | `pouncer/tiles.py` | `TileList`: the window's spot list as canvas cards (View > Spot list as tiles). |
 | `pouncer/alerts.py` | `AlertWatch` (rare CQ + new mult, warm-up), `SelfSpotWatch` (my call spotted by a person: `is_skimmer`, `base_call`, `is_self`), `beep`. |
+| `pouncer/pskr.py` | `PskChecker`: minimal MQTT 3.1.1 client (CONNECT / SUBSCRIBE / UNSUBSCRIBE / PINGREQ, QoS 0) to mqtt.pskreporter.info:1883; `ask(call)` watches `pskr/filter/v2/+/+/<CALL>/#` for `WATCH_S` 120 (≤ `MAX_CALLS` 8), `digital(call, khz)` = FT8 / FT4 report within `NEAR_KHZ` 3.5 in `KEEP_S` 300. App: `rbn.digital_sure` (FT8 / FT4 window below the SSB segment → FT8) vs `digital_overlap` (7074 - 7077 … inside it → SSB); `_check_overlap` in the drains asks (not in an SSB contest), `_relabel_overlap` sets the mode when confirmed; `_phone_radio`: USB in a sure window = not phone, in an overlap window = phone only in an SSB contest. |
 | `pouncer/flow.py` | `flow_positions`: pure flow-layout geometry (items left to right, wrapping onto rows) for `app.FlowFrame`, which holds the main window's sort / option / key / action controls. |
 
 ---

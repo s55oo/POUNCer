@@ -15,7 +15,7 @@ import time
 
 MAX_LINES = 5000          # kept between two console refreshes at most
 _sink: "collections.deque | None" = None
-GROUPS = ("RBN", "SSB", "HTTP", "N1MM", "TEAM", "WEB")
+GROUPS = ("RBN", "SSB", "HTTP", "N1MM", "TEAM", "WEB", "PSKR")
 
 
 def active() -> bool:
@@ -69,6 +69,8 @@ def group_of(source: str) -> str:
         return "WEB"
     if s.startswith("HTTP"):
         return "HTTP"
+    if s.startswith("PSKR"):
+        return "PSKR"
     if "CLUSTER" in s or s.startswith("SSB"):
         return "SSB"
     return "RBN"

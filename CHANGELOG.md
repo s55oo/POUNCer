@@ -1,12 +1,17 @@
 # POUNCer — Changelog
 
-## Unreleased — FT8 / FT4 is not SSB
+## v0.7.111 — 2026-10-22 — FT8 or SSB? PSK Reporter decides on 40 m
 
-- A spot or the radio within 3 kHz above an FT8 / FT4 dial frequency (7074,
-  14074, 7047.5 ...) counts as FT8 / FT4, unless the comment says SSB: N1MM
-  often marks FT8 spots "USB", and 7074 - 7077 lies in the 40 m SSB segment,
-  so they were listed as SSB. A radio on USB there is not "on SSB" (no SSB
-  list, RBN not put on hold).
+- FT8 / FT4 windows **below** the SSB segment (14074, 21074, 28074, 3573 ...):
+  a spot there - or the radio on USB there - is FT8 / FT4, not SSB (N1MM often
+  marks FT8 spots "USB").
+- **7074 - 7077** (also 1840 - 1843 and 6 m) is **inside** the SSB segment and
+  contesters work SSB there too: a spot without "FT8" / "SSB" in it stays SSB,
+  and POUNCer asks **PSK Reporter** about that **one call** for 2 minutes
+  (MQTT, only his reports, not the whole feed). FT8 / FT4 reports of him
+  within 3 kHz = the spot is FT8 / FT4 and leaves the SSB list. Not in an SSB
+  contest. `[ssb] pskreporter` (Settings > SSB); the traffic console shows it
+  as PSKR. A radio on USB at 7074 - 7077 is "on SSB" only in an SSB contest.
 
 ## v0.7.110 — 2026-10-22 — docs brought up to date
 
