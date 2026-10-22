@@ -102,7 +102,8 @@ class AppRadioTests(unittest.TestCase):
         f._band_memory, f._tune_last = {}, {}
         for name in ("_radio_nr", "_radio_tag", "_so2r", "_current_band", "_radio_khz",
                      "_focus_radio", "_qsy", "_types_qsy", "_snapshot_focus", "_return_focus",
-                     "_wait_for_qsy", "_check_call", "_freq_text",
+                     "_wait_for_qsy", "_check_call", "_freq_text", "_tap_steps",
+                     "_wait_for_qsy_steps", "_check_call_steps", "_guard_call_steps",
                      "_settext", "_enter_text", "_after_radio", "_focus_a"):
             setattr(f, name, getattr(app.PouncerApp, name).__get__(f))
         return f
@@ -450,6 +451,7 @@ class RadioBTimingTests(unittest.TestCase):
         f.cfg.qsy_wait_ms, f.cfg.qsy_settle_ms, f.cfg.type_mode = 1500, 250, "settext"
         f.cfg.freq_decimal, f.cfg.return_focus = ",", False
         f._guard_call = app.PouncerApp._guard_call.__get__(f)
+        f._guard_call_steps = app.PouncerApp._guard_call_steps.__get__(f)
         clock = [1000.0]
         box = {"t": ""}
         entered = []

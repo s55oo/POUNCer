@@ -26,7 +26,7 @@ in the examples are private example addresses.
 | 6 | **out** | TCP (telnet) | 8000 | azure.s53m.com | RBN backup when RBN's telnet is down | `[rbn] backup_host`, `backup_port` |
 | 7 | **out** | HTTPS | 443 | azure.s53m.com `/cors/rbn/live` | RBN over HTTP, second backup | `[rbn] http_backup` |
 | 8 | **out** | TCP (telnet) | 8000 | azure.s53m.com | DX cluster: SSB spots | `[ssb] host`, `port` |
-| 8b | **out** | TCP (telnet) | 8000 | azure.s53m.com (`[ssb] self_spot_host`) | spots of MY call only (node filter `accept/spots call <call>`, login `<call>-77`, team: the master only) for the SPOTTED pop-up | `[ssb] self_spot_host`, `self_spot_port`, `self_spot_filter` |
+| 8b | **out** | TCP (telnet) | 8000 | azure.s53m.com (`[ssb] self_spot_host`) | spots of MY call only (node filter `accept/spots call <call>`, login `<call>-77`, team: the master only) for the SPOTTED pop-up | `[ssb] self_spot_host`, `self_spot_port`, `self_spot_filter` - the log says once whether the node applies the filter ("self-spot feed: the node filter works" / "does NOT apply") |
 | 9 | **in** + out | UDP broadcast | 12079 | other POUNCers on the network | team: who is master, who needs RBN, spots, run history; the master's band-open counts | `[team] port`, `peers` |
 | 10 | **in** | HTTP (TCP) | 8080 | phones, tablets, browsers on the LAN; other POUNCers | phone page, its API, settings, team sync | `[web] host`, `port` |
 | 11 | **out** | HTTPS | 443 | api.github.com, github.com | update check and download (SHA-256 checked); clock check fallback: `HEAD api.github.com` (`Date` + `Age`) only if no NTP server answers | `[ui] auto_update`; clock: `[ui] check_line` |

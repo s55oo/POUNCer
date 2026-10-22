@@ -1078,7 +1078,7 @@ All options live in `config.ini` and are documented there, line by line:
 | `use_n1mm_spots` | auto | `auto` = N1MM's spots (Broadcast Data > Spots) replace this cluster connection from N1MM's first spot (20 s without, or 4 x its usual gap = own cluster again, for at least a minute); `off` = always own. |
 | `pskreporter` | true | A spot on 7074 - 7077 / 1840 - 1843 without a mode: ask PSK Reporter about that one call; FT8 / FT4 reports there = not SSB. |
 | `self_spot_host`, `self_spot_port` | azure.s53m.com, 8000 | The small cluster connection for spots of MY call only (N1MM drops them); empty host = off. Team: the master only. |
-| `self_spot_filter`, `self_spot_ssid` | accept/spots call {call}, 77 | Node filter sent after login (only spots of your call come); login `<call>-77`. |
+| `self_spot_filter`, `self_spot_ssid` | accept/spots call {call}, 77 | Node filter sent after login (only spots of your call come); login `<call>-77`. pouncer.log shows the node's answer and, once, whether the filter works. |
 | `follow_radio_mode` | true | Radio on USB/LSB = SSB spots, CW = RBN CW spots. |
 | **[team]** | | |
 | `enabled`, `port`, `peers` | true, 12079, – | Several POUNCers on a network; extra IPs where broadcasts are dropped. |
