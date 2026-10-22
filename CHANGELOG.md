@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.116 — 2026-10-22 — N1MM spots with a decimal comma
+
+- **Fix:** on a Windows with a decimal comma (Slovenian and most of Europe)
+  N1MM sends `<frequency>21035,56</frequency>` - POUNCer dropped every such
+  spot (only whole-kHz ones like 14245 got through), so SSB spots from N1MM
+  were few and POUNCer kept falling back to its own cluster. Read now.
+- SNR from N1MM's skimmer comments like "CW 6DB" (one word, capitals).
+
 ## v0.7.115 — 2026-10-22 — Settings: Save button, change log
 
 - The settings window writes **nothing until Save** (top right, Ctrl+S):

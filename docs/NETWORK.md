@@ -65,6 +65,9 @@ contest, so only that contest is counted (the ini can be out of date):
 While they come (from the first one, then at most 20 s apart) POUNCer uses the SSB
 ones and closes its own DX cluster connection (`[ssb] use_n1mm_spots`):
 
+(N1MM writes the frequency with the Windows decimal sign - `21035,56` on a
+Slovenian Windows; both are read.)
+
 ```xml
 <spot><app>N1MM</app><dxcall>K1ABC</dxcall><frequency>14205.0</frequency>
   <spottercall>S50XYZ</spottercall><comment>59 cq</comment><action>add</action>
