@@ -493,6 +493,8 @@ class RBNClient(threading.Thread):
         # ``retry_primary_s`` RBN is tried again.
         self.backup = backup if backup and backup[0] else None
         self.backup_commands = tuple(c for c in backup_commands if c.strip())
+        self._wake = threading.Event()   # kick(): reconnect now, not after the backoff
+        self._errs = 0                   # connection errors in a row (logged quietly)
         self.silent_s = silent_s
         self.retry_primary_s = retry_primary_s
         self.on_backup = False
@@ -517,8 +519,17 @@ class RBNClient(threading.Thread):
         self._stop = threading.Event()
         self._sock: socket.socket | None = None
 
+    def kick(self) -> None:
+        """The internet is back: try again now instead of after the backoff."""
+        self._wake.set()
+
+    def _pause(self, seconds: float) -> None:
+        self._wake.wait(seconds)
+        self._wake.clear()
+
     def stop(self) -> None:
         self._stop.set()
+        self._wake.set()
         sock = self._sock
         if sock is not None:
             try:
@@ -552,9 +563,13 @@ class RBNClient(threading.Thread):
                 back_to_rbn = True
             except Exception as exc:  # noqa: BLE001 - keep the thread alive
                 if not self._stop.is_set():
-                    log.warning("%s connection error (%s:%s%s): %s", self.name or self.kind,
-                                *(self.backup if self.on_backup else (self.host, self.port)),
-                                ", backup" if self.on_backup else "", exc)
+                    self._errs += 1
+                    # the 1st, then every 10th: an outage doesn't fill the log
+                    if self._errs == 1 or self._errs % 10 == 0:
+                        log.warning("%s connection error (%s:%s%s): %s%s", self.name or self.kind,
+                                    *(self.backup if self.on_backup else (self.host, self.port)),
+                                    ", backup" if self.on_backup else "", exc,
+                                    f" ({self._errs} in a row)" if self._errs > 1 else "")
             if self._stop.is_set():
                 break
             if self.on_backup:
@@ -562,16 +577,18 @@ class RBNClient(threading.Thread):
                 self.on_backup = False
                 fails = 0
                 self._status("trying RBN again")
-                self._stop.wait(1)
+                self._pause(1)
                 continue
             fails += 1
             if self.backup and fails >= 2:
                 self.on_backup = True
                 self._status(f"RBN down - switching to backup {self.backup[0]}:{self.backup[1]}")
-                self._stop.wait(1)
+                self._pause(1)
                 continue
             self._status("disconnected, reconnecting")
-            self._stop.wait(backoff)
+            if self._wake.is_set():
+                backoff = 2                # kicked: the internet is back
+            self._pause(backoff)
             backoff = min(backoff * 2, 60)
 
     def _connect_and_read(self, host: str | None = None, port: int | None = None,
@@ -579,6 +596,10 @@ class RBNClient(threading.Thread):
         host, port = host or self.host, port or self.port
         self._status(f"connecting to {host}:{port}" + (" (backup)" if backup else ""))
         sock = socket.create_connection((host, port), timeout=30)
+        if self._errs:
+            log.info("%s connected again (%s:%s) after %d failed tries", self.name or self.kind,
+                     host, port, self._errs)
+            self._errs = 0
         sock.settimeout(1.0)   # wake up every second (login / SH/DX timing)
         self._sock = sock
         telnet = TelnetFilter()

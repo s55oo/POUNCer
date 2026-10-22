@@ -34,6 +34,7 @@ from .bandopen import BandActivity, dx_pct, share_color, state_of
 from .zones import ZoneMap
 from .timeline import Timeline
 from .perf import PerfMonitor
+from .netwatch import NetWatch, minutes_text
 from .alerts import AlertWatch, SelfSpotWatch, base_call as alert_base_call, beep as alert_beep
 from .panels import TimelineWindow, ZonesWindow
 from .console import TrafficConsole
@@ -163,6 +164,10 @@ class PouncerApp:
         self.cfg = config
         self._tap_async = True      # taps run as steps between window updates
         self._tap_gen = None
+        # internet up / down: one clear red bar instead of every feed failing alone
+        self.net = (NetWatch(on_change=lambda up: self._web_queue.put(("net", up)))
+                    if getattr(config, "internet_check", True) else None)
+        self._net_bar_text = ""
         self.spot_queue: "queue.Queue[Spot]" = queue.Queue(maxsize=20000)
         self.status_queue: "queue.Queue[str]" = queue.Queue()
         self.spots: dict[tuple, Spot] = {}
@@ -409,6 +414,10 @@ class PouncerApp:
                                     bg="#ffd600", fg="#212121", padx=12, pady=4,
                                     font=(theme.FONT, 11, "bold"), cursor="hand2")
         self.spotted_bar.bind("<Button-1>", lambda _e: self._hide_spotted_bar())
+        # internet down: a red bar under the top bar while it lasts
+        self.net_bar = tk.Label(header, text="", anchor="w", justify="left",
+                                bg="#c62828", fg="white", padx=12, pady=4,
+                                font=(theme.FONT, 11, "bold"))
         self._spotted_after = None
         # ... and its items, shown when something is wrong (or clicked)
         # one colour per item: red = not ok, amber = check, green = ok
@@ -543,6 +552,7 @@ class PouncerApp:
         self.tree.tag_configure("mult", foreground=theme.T_MULT,
                                 font=(theme.FONT, 9 if theme.MODERN else 10, "bold"))
         self.tree.tag_configure("worked", foreground=theme.T_WORKED)
+        self.tree.tag_configure("offline", foreground=theme.T_WORKED)   # internet down: old
         self._row_spots: list = []
         # keyboard: arrows move (Treeview), Space taps the selected spot
         self.tree.bind("<space>", self._on_tree_key)
@@ -2376,6 +2386,7 @@ class PouncerApp:
         if hasattr(self, "_self_spot_q"):
             self._drain_self_spots()
         self._check_self_feed_filter()
+        self._update_net_bar()
         self._check_late_qsy()
         self._drain_spots()
         self._drain_wpm()
@@ -2464,6 +2475,7 @@ class PouncerApp:
             "team": self._team_text(),
             "fade_s": self.cfg.fade_minutes * 60,
             "backup": self._backup_text(),
+            "net": self._net_text(),
             "contest_bands": list(CONTEST_BANDS),
             "tune_step": self.cfg.tune_step_hz,
             "rare_run": RARE_RUN_PCT,
@@ -2721,6 +2733,9 @@ class PouncerApp:
             if item[0] == "status":
                 self.status_label.configure(text=item[1])
                 continue
+            if item[0] == "net":
+                self._on_net_change(item[1])
+                continue
             if item[0] == "minsnr":
                 self._set_min_snr(item[1])
                 continue
@@ -2880,6 +2895,8 @@ class PouncerApp:
             self.spots[spot.key] = spot
             self._track_on_freq(spot)
             got += 1
+            if getattr(self, "net", None) is not None:
+                self.net.alive()          # a spot from the internet: it's up
             self._perf["spots_in"] += 1
             self._last_own_spot = time.time()
             if self.team is not None and self.team.is_master():
@@ -3131,8 +3148,64 @@ class PouncerApp:
             return f"team: master ({n + 1} POUNCers){note}"
         return "team: alone"
 
+    NET_BACK_SHOW_S = 8     # "Internet back after 14 min" stays this long
+
+    def _net_down_since(self) -> float | None:
+        net = getattr(self, "net", None)
+        return net.down_since if net is not None and not net.up else None
+
+    def _net_text(self) -> str:
+        """'Internet down since 12:03 (14 min)' while it's down, else ''."""
+        down = self._net_down_since()
+        if down is None:
+            return ""
+        return (f"Internet down since {time.strftime('%H:%M', time.localtime(down))} "
+                f"({minutes_text(time.time() - down)})")
+
+    def _update_net_bar(self) -> None:
+        """The red bar (from _tick): down, or 'back' for a few seconds."""
+        bar = getattr(self, "net_bar", None)
+        net = getattr(self, "net", None)
+        if bar is None or net is None:
+            return
+        text, bg = self._net_text(), "#c62828"
+        if text:
+            text = "\u26a0 " + text + " - the last spots stay, greyed; reconnecting by itself"
+        elif net.back_at and time.time() - net.back_at < self.NET_BACK_SHOW_S:
+            text, bg = "\u2714 Internet back after " + minutes_text(net.back_after), "#2e7d32"
+        if text == self._net_bar_text:
+            return
+        self._net_bar_text = text
+        try:
+            if text:
+                bar.configure(text=text, bg=bg)
+                if not bar.winfo_manager():
+                    bar.pack(fill="x", after=self._top)
+            elif bar.winfo_manager():
+                bar.pack_forget()
+        except tk.TclError as exc:
+            log.warning("internet bar: %s", exc)
+
+    def _on_net_change(self, up: bool) -> None:
+        """From NetWatch (via the web queue, so in the Tk thread)."""
+        self._dirty = True                    # grey / not grey
+        if not up:
+            self.status_label.configure(text=self._net_text() + " - reconnecting by itself")
+            return
+        net = self.net
+        self.status_label.configure(text="Internet back after " + minutes_text(net.back_after))
+        # every feed: try now, not after its backoff (up to a minute)
+        clients = list(self._rbn_clients.values()) + [
+            getattr(self, "_ssb_client", None), getattr(self, "_self_feed", None)]
+        for c in clients:
+            if c is not None and hasattr(c, "kick"):
+                c.kick()
+
     def _prune(self) -> None:
-        cutoff = time.time() - self.cfg.max_age_minutes * 60
+        # internet down: keep what was fresh when it went (shown greyed),
+        # instead of an empty list after max_age_minutes
+        down = self._net_down_since()
+        cutoff = (down if down is not None else time.time()) - self.cfg.max_age_minutes * 60
         stale = [k for k, s in self.spots.items() if s.received < cutoff]
         for key in stale:
             del self.spots[key]
@@ -4025,6 +4098,7 @@ class PouncerApp:
         tile_items = []
         want_tiles = getattr(self, "tiles_var", None) is not None and self.tiles_var.get()
         fade_s = getattr(self.cfg, "fade_minutes", 5) * 60 if hasattr(self, "cfg") else 300
+        net_down = self._net_down_since() if hasattr(self, "_net_down_since") else None
         now = time.time()
         for idx, s in enumerate(items):
             mults = self._mults(s)
@@ -4035,9 +4109,13 @@ class PouncerApp:
             busted = self.scp is not None and self.scp.busted(s.dxcall)
             if rare and mults and not worked:
                 alert.append(s)
-            # one text colour: worked (grey) > new mult (red, bold) > strong
-            if worked:
-                tags: tuple = ("worked",)
+            # one text colour: internet down (old spot, grey) > worked (grey) >
+            # new mult (red, bold) > strong
+            offline = net_down is not None and s.received < net_down
+            if offline:
+                tags: tuple = ("offline",)
+            elif worked:
+                tags = ("worked",)
             elif mults:
                 tags = ("mult",)
             elif s.snr is not None and s.snr >= 20:
@@ -4059,7 +4137,7 @@ class PouncerApp:
                 call_text += f"   \u21bb{tried[1]}m" + (f"\u00d7{tried[0]}" if tried[0] > 1 else "")
             if want_tiles:
                 tile_items.append(self._tile_item(s, s is tuned, mults, worked, run, rare, busted,
-                                                  tried, now - s.received >= fade_s))
+                                                  tried, offline or now - s.received >= fade_s))
             self.tree.insert(
                 "", "end", iid=str(idx), tags=tags,
                 values=(
@@ -4308,6 +4386,8 @@ class PouncerApp:
         if getattr(self, "_services_started", False):
             return
         self._services_started = True
+        if getattr(self, "net", None) is not None:
+            self.net.start()
         if self.cfg.web_enabled:
             self._start_web()
             if self.cfg.touch_view:
@@ -4380,6 +4460,8 @@ class PouncerApp:
     def _shutdown(self) -> None:
         if getattr(self, "perf", None) is not None:
             self.perf.stop()
+        if getattr(self, "net", None) is not None:
+            self.net.stop()
         rh = getattr(self, "runhist", None)
         if rh is not None and hasattr(rh, "flush"):
             try:

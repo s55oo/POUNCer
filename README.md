@@ -298,6 +298,17 @@ the last 10 minutes (as QSOs/h) and of the last hour, QSOs and multipliers in
 total and per band, "+n" = new this hour - from the open N1MM log, every
 30 s.
 
+**Internet down** (`[ui] internet_check`): every 30 s POUNCer tries a plain
+connect to 1.1.1.1 / 8.8.8.8 / 9.9.9.9 (port 53, nothing sent). No answer
+twice: a **red bar "⚠ Internet down since 12:03 (14 min)"** under the top bar
+(and on the phone). The spots you had stay in the list **greyed out** instead
+of ageing out (spots from the team master or N1MM still come in colour), so
+you still see who was where. POUNCer reconnects by itself, quietly (a
+connection error is logged once, then every 10th try); when the internet is
+back - "✔ Internet back after 14 min" for 8 s - every feed reconnects at once
+instead of after its backoff of up to a minute, and old spots age out
+normally again.
+
 **SPOTTED pop-up** (`[ui] self_spot_alert`; also a yellow bar in the window
 under the top bar, for 3 s): when your call (the log's
 station call - S55OO, TK0C ...) is spotted on a DX cluster by a person (not a
@@ -1050,6 +1061,7 @@ All options live in `config.ini` and are documented there, line by line:
 | `spot_tiles` | false | Window list as tiles like the phone (Ctrl+T); false = the table. |
 | `rate_line` | true | Rate / QSOs / mults per band line under the lights. |
 | `self_spot_alert` | true | SPOTTED pop-up (3 s) and yellow bar when a person spots your call on a DX cluster (self-spots marked). |
+| `internet_check` | true | Watch the internet: red "Internet down since …" bar, last spots kept greyed, every feed reconnects at once when it's back (from the next start). |
 | `self_spot_band_only` | true | SPOTTED pop-up only on the PC whose radio is on the spot's band; the others log it. |
 | `watch_calls` | – | Calls (e.g. S9R) whose every spot brings the SPOTTED pop-up, skimmer spots too, every band. |
 | `check_line` | true | Pre-contest check line in the window; phone warns when something is wrong. |

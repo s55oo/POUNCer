@@ -207,6 +207,12 @@ SETTINGS: list[dict] = [
      "group": "Program", "label": "SPOTTED only on the PC on that band",
      "help": "My call spotted on 20 m: the pop-up only on the PC whose radio is on 20 m; the "
              "others log it and show it in the status line. Off = every PC."},
+    {"key": "ui.internet_check", "attr": "internet_check", "kind": "bool", "live": False,
+     "group": "Program", "label": "Watch the internet (red bar when it's down)",
+     "help": "Every 30 s a plain connect to 1.1.1.1 / 8.8.8.8 / 9.9.9.9 (nothing sent). Down: a "
+             "red bar 'Internet down since 12:03', the last spots stay in the list greyed out "
+             "(not aged out), the phone shows it too; every connection retries at once when "
+             "it's back. From the next start."},
     {"key": "ui.watch_calls", "attr": "watch_calls", "kind": "text", "live": True,
      "group": "Program", "label": "Watched calls (pop-up for every spot)",
      "help": "Every spot of these calls brings the SPOTTED pop-up, skimmer spots too - e.g. S9R "

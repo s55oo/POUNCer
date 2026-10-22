@@ -1072,6 +1072,8 @@ INDEX_HTML = """<!doctype html>
     }
     else if (!logBad) meta += ' &middot; ' + esc(data.worked || '');
     if (data.backup) meta = '<span class="warn" title="' + esc(data.backup) + '">\u26a0 backup skimmers</span> &middot; ' + meta;
+    // internet down on the PC: say so first (the list shows the last spots)
+    if (data.net) meta = '<span class="warn" title="the last spots stay; POUNCer reconnects by itself">\u26a0 ' + esc(data.net) + '</span> &middot; ' + meta;
     // team: M = this POUNCer is the team master (RBN), S = slave of it
     if (data.team && data.team.indexOf('master') >= 0) meta = '<b title="' + esc(data.team) + '">M</b> &middot; ' + meta;
     else if (data.team && data.team.indexOf('slave') >= 0) meta = '<b title="' + esc(data.team) + '">S</b> &middot; ' + meta;
@@ -1819,6 +1821,10 @@ spots you still need there. Nothing here transmits except the F-keys.</p>
   <dt><span class="k">&#8635;</span></dt>
   <dd>Re-read which log N1MM has open (after you open another log).</dd>
 </dl>
+<p><span style="color:#ffb74d;font-weight:700">&#9888; Internet down since 12:03 (14 min)</span>
+at the start of the line: the PC running POUNCer has no internet. The list keeps the
+last spots (on the PC they are greyed out) instead of emptying; POUNCer reconnects by
+itself and says "Internet back after …".</p>
 <p><span style="color:#ffb74d;font-weight:700">&#9888; backup skimmers</span> at the start
 of the small line: your skimmers (S53WW, or the ones in the list) have sent nothing for 5
 minutes, so spots from other skimmers on your continent are shown until they are back. A
