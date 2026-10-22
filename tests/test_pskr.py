@@ -138,12 +138,29 @@ class AppTests(unittest.TestCase):
         self.assertEqual(s.mode, "FT8")
         self.assertTrue(f._dirty)
 
-    def test_not_in_ssb_contest_or_elsewhere(self) -> None:
+    def test_also_in_ssb_contest_not_elsewhere(self) -> None:
         f, c = self._fake(contest="CQWWSSB")
-        f._check_overlap(self.spot())
+        f._check_overlap(self.spot())                     # ZL4AS on 7074 in CQWW SSB: asked
         f2, c2 = self._fake()
         f2._check_overlap(self.spot(7150.0))
-        self.assertEqual((c.asked, c2.asked), ([], []))
+        self.assertEqual((c.asked, c2.asked), (["K1ABC"], []))
+
+    def test_alert_waits_for_the_answer(self) -> None:
+        from tests.test_so2r import _import_app
+        P = _import_app().PouncerApp
+        from pouncer.alerts import AlertWatch
+        s = self.spot()
+        shown = []
+        f = types.SimpleNamespace(_overlap_keys={s.key}, _overlap_since={s.key: time.time()},
+                                  ALERT_HOLD_S=30, _alerts=AlertWatch(warmup_s=0),
+                                  _row_key=lambda x: x.key,
+                                  cfg=types.SimpleNamespace(alert_popup=True, alert_sound=False),
+                                  _show_alert=lambda sp, text: shown.append(sp))
+        P._check_alerts(f, [s])
+        self.assertEqual(shown, [])                       # still waiting for PSK Reporter
+        f._overlap_since[s.key] -= 31
+        P._check_alerts(f, [s])
+        self.assertEqual(shown, [s])                      # no FT8 answer: it is SSB, alert
 
 
 if __name__ == "__main__":

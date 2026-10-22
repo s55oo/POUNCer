@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.113 — 2026-10-22 — PSK Reporter check in SSB contests too
+
+- **Fix:** with an SSB contest open (CQWW SSB) a spot like ZL4AS on 7074.0
+  stayed SSB without asking PSK Reporter - and set off the rare-CQ alert.
+  The check now runs in SSB contests too (it only ever confirms FT8 / FT4; a
+  real SSB station stays), and the alert for such a spot waits 30 s for the
+  answer.
+
 ## v0.7.112 — 2026-10-22 — PSK Reporter check: 40 / 160 m only, stops early
 
 - The FT8-or-SSB check runs only on **40 m (7074 - 7077)** and **160 m
