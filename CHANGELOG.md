@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.7.114 — 2026-10-22 — SPOTTED pop-up on team slaves
+
+- **Fix:** a team slave gets its SSB spots from the master, and those were
+  not checked for your call - no SPOTTED pop-up on a slave. Now they are.
+- Every spot of your call is logged ("spot of my call: S55OO by DL1ABC on
+  7197.0"), pop-up or not, so the log shows whether it arrived.
+
 ## v0.7.113 — 2026-10-22 — PSK Reporter check in SSB contests too
 
 - **Fix:** with an SSB contest open (CQWW SSB) a spot like ZL4AS on 7074.0

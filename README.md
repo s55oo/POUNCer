@@ -303,7 +303,10 @@ station call - S55OO, TK0C ...) is spotted on a DX cluster by a person (not a
 skimmer -#), a pop-up like the multiplier alert says "SPOTTED: S55OO by
 DL1ABC on 14025.0" (with the alert sound, if on). Your own self-spot shows too,
 marked "(self-spot)" - spot yourself once to test it. It comes from N1MM's
-spots (Broadcast Data > Spots) or POUNCer's own SSB cluster.
+spots (Broadcast Data > Spots), POUNCer's own SSB cluster, or - on a team
+slave - the spots the master passes on. Every spot of your call is written to
+the log ("spot of my call: ..."), so `cache\pouncer.log` shows whether it
+arrived at all.
 
 **Station test** (View > Station test): per radio a QSY 0.1 kHz up and back
 (no TX) with N1MM's response time, then a test call into the empty callsign
