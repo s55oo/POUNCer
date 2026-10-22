@@ -1,5 +1,20 @@
 # POUNCer — Changelog
 
+## v0.7.129 — 2026-10-22 — Internet down: one clear message
+
+- **Red bar "⚠ Internet down since 12:03 (14 min)"** in the window (and on the
+  phone) when this PC has no internet - one answer instead of every feed
+  failing on its own. Checked every 30 s with a plain connect to 1.1.1.1 /
+  8.8.8.8 / 9.9.9.9 (nothing sent); down after two rounds without an answer.
+- The **last spots stay in the list, greyed out**, instead of ageing out to
+  an empty list; spots from the team master or N1MM still come in colour.
+- **Quiet reconnecting:** a connection error is logged the 1st and then
+  every 10th time in a row ("connected again after 37 failed tries").
+- **Internet back:** a green "✔ Internet back after 14 min" for 8 s, and every
+  feed (RBN, SSB cluster, self-spot feed) reconnects at once instead of after
+  its backoff of up to a minute.
+- `[ui] internet_check` (Settings > Program), on by default.
+
 ## v0.7.128 — 2026-10-22 — No freeze on a click, less CPU
 
 - **No more 2-3 s freeze on a click / tap:** the window keeps drawing while
