@@ -3880,6 +3880,15 @@ class PouncerApp:
                 padx=8, command=self._restart_for_update)
             self.lights_frame.add(self._restart_btn)
 
+    def _save_setting_web(self, key: str, value: str) -> dict:
+        """A change from the web page: never the autostart programs / folder
+        (they start programs) - those only in the exe's Settings window."""
+        if settingsmod.app_only(key):
+            log.warning("web: change of %s refused (autostart only in the app)", key)
+            return {"ok": False, "error": "Autostart can be changed only in POUNCer's own "
+                                          "Settings window (the exe)"}
+        return self._save_setting(key, value)
+
     def _save_setting(self, key: str, value: str) -> dict:
         """Settings window / page (web thread): write config.ini, update the
         config - and log what changed (old -> new)."""
@@ -4422,7 +4431,7 @@ class PouncerApp:
             self.web.set_min_snr_handler(self._web_min_snr)
             self.web.set_settings_provider(
                 lambda: {"items": settingsmod.current(self.cfg), "path": self.cfg.config_path},
-                self._save_setting,
+                self._save_setting_web,
                 restart=(self._web_restart if self.updater.exe else None),
                 remote=self.cfg.web_remote_settings,
             )

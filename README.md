@@ -579,7 +579,9 @@ from the phone's settings page and the View menu).
 
 The same settings are on the **Settings** page in the browser (the phone's
 band menu, `/settings`) - only from the browser on the PC itself unless
-`[web] remote_settings = true`.
+`[web] remote_settings = true`. **Autostart** (programs, folder) is shown
+there read-only: it can be changed only in POUNCer's own Settings window,
+never from a browser.
 
 **CW keyboard on the phone**: hold **ENTER** for 1.3 s (it fills up
 yellow) and a text box opens at the top. POUNCer opens N1MM's CW window
@@ -911,7 +913,9 @@ keyboard and window controls are unavailable on macOS.
 POUNCer can start your other programs when it starts - in order, each a
 number of seconds after the one before:
 
-- **Settings > Autostart** (or `[autostart]` in config.ini): *Program 1-8*
+- **Settings > Autostart** in POUNCer's own window (or `[autostart]` in
+  config.ini) - **not** from the browser's settings page (read-only there:
+  programs that start with POUNCer are never set over the network): *Program 1-8*
   with the full path of an .exe, .bat, .cmd or shortcut (**Browse...**), and
   for each *start after (seconds)* - Program 1 after POUNCer's start, the
   others after the program before. Arguments: put the path in quotes and the
@@ -996,7 +1000,8 @@ network every device that can reach the PC is trusted - there is no login:
 - **Phone page (TCP 8080):** anyone who can open `http://<PC>:8080` can QSY
   the radio, press the F-keys and use the CW keyboard - **F-keys and CW
   transmit**. Settings can be changed only from the PC itself (unless
-  `[web] remote_settings = true`).
+  `[web] remote_settings = true`), and **autostart never** from the web page -
+  only in POUNCer's own Settings window.
 - **Team (UDP 12079):** messages are not signed. A device on the network
   could pretend to be the master (spots, SPOTTED pop-ups, "update all").
 - **N1MM port (UDP 12060):** listens on all adapters, so a device on the
@@ -1013,7 +1018,8 @@ So:
   use.
 - **Known, to be fixed:** a web page opened in a browser **on the shack PC
   or on a device in the network** could send hidden requests to the phone
-  page (the radio could transmit, the autostart folder could be changed).
+  page (the radio could transmit). The autostart programs are safe from this
+  since v0.7.130 (changed only in the app).
   Until it is fixed: use that browser for normal surfing as little as
   possible, or switch the phone page off when you don't need it.
 
@@ -1154,7 +1160,7 @@ All options live in `config.ini` and are documented there, line by line:
 | `touch_view` | false | Open the phone page in the browser at start. |
 | **[web]** | | |
 | `enabled`, `host`, `port` | true, 0.0.0.0, 8080 | The phone / browser page. |
-| `remote_settings` | false | Allow settings changes from other devices too. |
+| `remote_settings` | false | Allow settings changes from other devices too (never the autostart ones). |
 | `cw_keyboard` | true | Hold ENTER 1.3 s on the phone = CW keyboard (N1MM Ctrl+K window, transmits). |
 | **[ssb]** | | |
 | `mode` | auto | DX cluster for SSB: `auto` (while a radio is on SSB), `always`, `off`. |

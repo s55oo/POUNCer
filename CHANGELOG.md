@@ -1,5 +1,16 @@
 # POUNCer — Changelog
 
+## v0.7.130 — 2026-10-22 — Autostart only in the app
+
+- **Autostart can be changed only in POUNCer's own Settings window** (the
+  exe) - never from the browser's settings page, not even with
+  `[web] remote_settings = true`. The page shows Program 1-8, the folder and
+  the other autostart settings read-only, with a note. A change sent to the
+  web server anyway is refused (and logged). Before, a hidden request from a
+  web page opened on the PC could have pointed the autostart folder or a
+  program at something else.
+- Security note on the phone help page (own LAN / private ZeroTier only).
+
 ## Docs — 2026-10-22 — security note
 
 - README **Security: use it on your own network only**: POUNCer trusts every
