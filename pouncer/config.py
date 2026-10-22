@@ -156,6 +156,7 @@ class Config:
     rate_line: bool = True       # window: rate / QSOs / mults per band from the log
     self_spot_alert: bool = True  # pop-up when a person spots my call on a cluster
     watch_calls: tuple = ()       # also a pop-up for every spot of these calls (S9R ...)
+    self_spot_band_only: bool = True  # SPOTTED pop-up only on the PC whose radio is on that band
     # its own cluster connection, filtered on the node to spots of my call only
     self_spot_host: str = "azure.s53m.com"
     self_spot_port: int = 8000
@@ -323,6 +324,7 @@ def load_config(path: str) -> Config:
     cfg.check_line = b("ui", "check_line", cfg.check_line)
     cfg.rate_line = b("ui", "rate_line", cfg.rate_line)
     cfg.self_spot_alert = b("ui", "self_spot_alert", cfg.self_spot_alert)
+    cfg.self_spot_band_only = b("ui", "self_spot_band_only", cfg.self_spot_band_only)
     cfg.watch_calls = tuple(c.strip().upper() for c in
                             s("ui", "watch_calls", "").replace(";", ",").replace(" ", ",").split(",")
                             if c.strip())

@@ -149,3 +149,26 @@ class MasterListTests(unittest.TestCase):
         self.assertEqual(noted, [("S55OO", "DL1ABC", 14234.0)])
         self.assertEqual([s.dxcall for s in f.spots.values()], ["K1ABC"])   # no row of myself
         self.assertEqual(sent, [{"dxcall": "K1ABC"}])                         # not passed on as a spot
+
+
+class BandTests(unittest.TestCase):
+    def _fake(self, radio_khz, only=True):
+        from pouncer.n1mm import RadioState
+        from tests.test_so2r import _import_app
+        P = _import_app().PouncerApp
+        st = RadioState()
+        for nr, khz in enumerate(radio_khz, 1):
+            st.update({"radio_nr": nr, "freq_khz": khz, "mode": "USB"})
+        f = types.SimpleNamespace(state=st, cfg=types.SimpleNamespace(self_spot_band_only=only))
+        for n in ("_my_bands", "_on_my_band"):
+            setattr(f, n, getattr(P, n).__get__(f))
+        return f
+
+    def test_only_on_the_radios_band(self) -> None:
+        f = self._fake([7072.0])
+        self.assertFalse(f._on_my_band(14345.0))
+        self.assertTrue(f._on_my_band(7150.0))
+        f2 = self._fake([7072.0, 14250.0])                 # SO2R: either radio
+        self.assertTrue(f2._on_my_band(14345.0))
+        self.assertTrue(self._fake([])._on_my_band(14345.0))          # no radio info: show
+        self.assertTrue(self._fake([7072.0], only=False)._on_my_band(14345.0))

@@ -203,6 +203,10 @@ SETTINGS: list[dict] = [
      "help": "A DX-cluster spot of your call (the log's station call) by a person, not a "
              "skimmer: 'SPOTTED: S55OO by DL1ABC on 14025.0'. Your self-spot shows too "
              "(marked). Once per spotter and QRG / 15 min."},
+    {"key": "ui.self_spot_band_only", "attr": "self_spot_band_only", "kind": "bool", "live": True,
+     "group": "Program", "label": "SPOTTED only on the PC on that band",
+     "help": "My call spotted on 20 m: the pop-up only on the PC whose radio is on 20 m; the "
+             "others log it and show it in the status line. Off = every PC."},
     {"key": "ui.watch_calls", "attr": "watch_calls", "kind": "text", "live": True,
      "group": "Program", "label": "Watched calls (pop-up for every spot)",
      "help": "Every spot of these calls brings the SPOTTED pop-up, skimmer spots too - e.g. S9R "
