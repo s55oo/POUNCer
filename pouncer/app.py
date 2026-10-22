@@ -238,6 +238,7 @@ class PouncerApp:
         # PSK Reporter is asked about that one call; FT8 reports there = FT8
         self.pskr = PskChecker() if getattr(config, "ssb_pskreporter", True) else None
         self._overlap_keys: set = set()
+        self._overlap_since: dict = {}     # key -> first asked (the alert waits a while)
         self._cty_cache: dict[str, Entity | None] = {}
         self.controller = N1MMController(
             config.n1mm_control_ip,
@@ -745,7 +746,14 @@ class PouncerApp:
             self._alert_pop = None
 
     def _check_alerts(self, candidates: list) -> None:
-        """Rows that are a rare CQ and a new mult now: alert the new ones."""
+        """Rows that are a rare CQ and a new mult now: alert the new ones. A
+        spot PSK Reporter is still asked about (7074 - 7077: FT8 or SSB?) waits
+        ALERT_HOLD_S - an FT8 station shouldn't pop up before the answer."""
+        since = getattr(self, "_overlap_since", {})
+        keys = getattr(self, "_overlap_keys", set())
+        now = time.time()
+        candidates = [s for s in candidates
+                      if not (s.key in keys and now - since.get(s.key, now) < self.ALERT_HOLD_S)]
         fresh = self._alerts.fresh([(self._row_key(s), s) for s in candidates])
         if not fresh:
             return
@@ -781,6 +789,8 @@ class PouncerApp:
             self._show_alert(None, text)
             if self.cfg.alert_sound:
                 alert_beep(self.root)
+
+    ALERT_HOLD_S = 30   # ~two FT8 cycles: PSK Reporter's answer comes first
 
     def _show_alert(self, spot, text: str) -> None:
         pop = getattr(self, "_alert_pop", None)
@@ -2593,10 +2603,9 @@ class PouncerApp:
             self._dirty = True
 
     def _check_overlap(self, spot: Spot) -> None:
-        """An SSB spot in 7074 - 7077 or 1840 - 1843: ask PSK Reporter -
-        not in an SSB contest (there everything in the segment is SSB)."""
-        if (self.pskr is None or spot.mode != "SSB" or not digital_overlap(spot.freq_khz)
-                or self._phone_contest()):
+        """An SSB spot in 7074 - 7077 or 1840 - 1843: ask PSK Reporter (also in
+        an SSB contest - it only ever confirms FT8, a real SSB station stays)."""
+        if self.pskr is None or spot.mode != "SSB" or not digital_overlap(spot.freq_khz):
             return
         # PSK Reporter may already know (a re-spot): use that at once
         m = self.pskr.digital(spot.dxcall, spot.freq_khz)
@@ -2605,6 +2614,9 @@ class PouncerApp:
             return
         self.pskr.ask(spot.dxcall, spot.freq_khz)
         self._overlap_keys.add(spot.key)
+        since = getattr(self, "_overlap_since", None)
+        if since is not None:
+            since.setdefault(spot.key, time.time())
 
     def _relabel_overlap(self) -> None:
         """PSK Reporter has him on FT8 / FT4 there: the spot is FT8 / FT4."""
@@ -2614,6 +2626,7 @@ class PouncerApp:
             s = self.spots.get(key)
             if s is None or s.mode != "SSB":
                 self._overlap_keys.discard(key)
+                self._overlap_since.pop(key, None)
                 continue
             m = self.pskr.digital(s.dxcall, s.freq_khz)
             if m:

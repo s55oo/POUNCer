@@ -148,7 +148,7 @@ SETTINGS: list[dict] = [
     {"key": "ssb.pskreporter", "attr": "ssb_pskreporter", "kind": "bool", "live": False,
      "group": "SSB", "label": "FT8 check with PSK Reporter",
      "help": "A spot on 7074 - 7077 / 1840 - 1843 (inside the SSB segment) without a mode: PSK Reporter "
-             "is asked about that one call; FT8 / FT4 reports there = not SSB. Not in an SSB contest."},
+             "is asked about that one call; FT8 / FT4 reports there = not SSB (in an SSB contest too)."},
     {"key": "ssb.spotters", "attr": "ssb_spotters", "kind": "text", "live": False,
      "group": "SSB", "label": "Spotters from", "help": "EU, NA, AS, ... or ALL."},
     {"key": "ssb.host", "attr": "ssb_host", "kind": "text", "live": False,

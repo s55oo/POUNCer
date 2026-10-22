@@ -363,8 +363,7 @@ runs.
 ## 18. PSK Reporter (MQTT, TCP 1883, out)
 
 Only for an SSB spot in an FT8 / FT4 window **inside** the SSB segment (7074 -
-7077 on 40 m, 1840 - 1843 on 160 m) without "FT8" / "SSB" in it, and not while
-an SSB contest is open: POUNCer connects to `mqtt.pskreporter.info:1883`
+7077 on 40 m, 1840 - 1843 on 160 m) without "FT8" / "SSB" in it (in an SSB contest too): POUNCer connects to `mqtt.pskreporter.info:1883`
 (MQTT 3.1.1, no login, client id `pouncer-<random>`), subscribes to
 `pskr/filter/v2/+/+/<CALL>/#` - **that one station transmitting**, never the
 whole feed - for 2 minutes, or until the first FT8 / FT4 report near the

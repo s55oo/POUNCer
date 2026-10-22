@@ -548,8 +548,9 @@ a spot without "FT8" / "SSB" in it is listed as **SSB**, and POUNCer asks
 `pskr/filter/v2/+/+/<CALL>/#` - only his reports, not the whole feed). If
 PSK Reporter has him on FT8 / FT4 within 3 kHz, the spot becomes FT8 / FT4
 and leaves the SSB list (and POUNCer stops watching him at once); otherwise
-it stays SSB. Not while an SSB contest is
-open in N1MM (then everything in the segment is SSB). `[ssb] pskreporter`
+it stays SSB. Also in an SSB contest (it only ever confirms FT8, a real SSB
+station is never hidden); the rare-CQ alert for such a spot waits 30 s for
+the answer. `[ssb] pskreporter`
 (Settings > SSB). The traffic console shows it as **PSKR**.
 
 ## Backup when RBN is down
