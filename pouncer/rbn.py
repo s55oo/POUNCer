@@ -552,8 +552,9 @@ class RBNClient(threading.Thread):
                 back_to_rbn = True
             except Exception as exc:  # noqa: BLE001 - keep the thread alive
                 if not self._stop.is_set():
-                    log.warning("RBN connection error (%s): %s",
-                                "backup" if self.on_backup else "RBN", exc)
+                    log.warning("%s connection error (%s:%s%s): %s", self.name or self.kind,
+                                *(self.backup if self.on_backup else (self.host, self.port)),
+                                ", backup" if self.on_backup else "", exc)
             if self._stop.is_set():
                 break
             if self.on_backup:
