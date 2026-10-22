@@ -5,7 +5,10 @@
 - **SPOTTED** also shows as a **yellow bar inside the window** under the top
   bar, until clicked (5 min at most) - on one PC Windows did not draw the
   floating pop-up at all (the log said it was shown; a screenshot showed
-  nothing). The floating pop-up re-asserts "on top" each time it shows.
+  nothing). The likely cause, found by the Windows test: the pop-up's new
+  place took effect only later, so it could stay at its hiding place off
+  screen. It is now moved at once, checked 0.15 s later and placed again if
+  it isn't there (logged, with where it really is).
 
 ## v0.7.123 — 2026-10-22 — watched calls
 
