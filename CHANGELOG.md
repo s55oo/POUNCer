@@ -1,5 +1,11 @@
 # POUNCer — Changelog
 
+## v0.7.122 — 2026-10-22 — pop-up diagnostics
+
+- The alert / SPOTTED pop-up logs where it was shown (position, size, the
+  window's state and place, the screen) - or why it could not be made or
+  shown (it was silent before). To find why one PC shows no pop-up.
+
 ## v0.7.121 — 2026-10-22 — SPOTTED on the master too
 
 - **Fix:** a spot of your call that came into the master's list (e.g. with

@@ -742,7 +742,8 @@ class PouncerApp:
                 except (ValueError, tk.TclError):
                     pass
             self._alert_pop = pop
-        except tk.TclError:
+        except tk.TclError as exc:
+            log.warning("alert pop-up could not be made: %s", exc)
             self._alert_pop = None
 
     def _check_alerts(self, candidates: list) -> None:
@@ -813,6 +814,8 @@ class PouncerApp:
     def _show_alert(self, spot, text: str, ms: int | None = None) -> None:
         pop = getattr(self, "_alert_pop", None)
         if pop is None:
+            log.warning("alert pop-up not shown: it could not be made at start (%s)",
+                        text.splitlines()[0])
             return
         try:
             self._alert_spot = spot
@@ -829,11 +832,15 @@ class PouncerApp:
             pop.attributes("-alpha", 0.96)
             pop.lift()
             self._alert_shown = True
+            log.info("alert pop-up shown at %d,%d (%dx%d; window %s at %d,%d %dx%d; screen %dx%d)",
+                     x, y, w, h, self.root.state(), self.root.winfo_rootx(),
+                     self.root.winfo_rooty(), self.root.winfo_width(), self.root.winfo_height(),
+                     self.root.winfo_screenwidth(), self.root.winfo_screenheight())
             if self._alert_after is not None:
                 self.root.after_cancel(self._alert_after)
             self._alert_after = self.root.after(ms or self.ALERT_MS, self._hide_alert)
-        except tk.TclError:
-            pass
+        except tk.TclError as exc:
+            log.warning("alert pop-up failed: %s", exc)
 
     def _hide_alert(self) -> None:
         self._alert_after = None
