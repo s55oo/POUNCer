@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.125 — 2026-10-22 — SPOTTED on the PC on that band
+
+- The SPOTTED pop-up (and its yellow bar and sound) only on the PC whose
+  radio is on the spot's band - S55OO spotted on 20 m pops up at the 20 m
+  station; the others log it and show it in the status line. Every PC still
+  gets it from the master. No radio info yet = pop-up anyway. Watched calls
+  pop up on every band. `[ui] self_spot_band_only` (Settings > Program).
+
 ## v0.7.124 — 2026-10-22 — SPOTTED bar in the window
 
 - **SPOTTED** also shows as a **yellow bar inside the window** under the top

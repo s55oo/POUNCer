@@ -818,12 +818,35 @@ class PouncerApp:
                     + (f"\n\u201c{comment}\u201d" if comment else ""))
             log.info("self spot: %s spotted by %s on %.1f %s", call, spotter, khz, comment)
             self.status_label.configure(text=text.replace("\n", "  "))
+            if own != " (watched call)" and not self._on_my_band(khz):
+                # my call spotted on a band none of this PC's radios is on:
+                # log + status line only (the PC on that band pops up)
+                log.info("self spot on %s: no pop-up here (radios on %s)", band_from_khz(khz),
+                         ", ".join(sorted(self._my_bands())) or "-")
+                continue
             # rare and easy to miss: stays until clicked (at most 5 min) - as a
             # floating pop-up and as a bar in the window (always visible)
             self._show_alert(None, text + "\nclick = close", ms=self.SELF_SPOT_MS)
             self._show_spotted_bar(text.replace("\n", "   ") + "   (click = close)")
             if self.cfg.alert_sound:
                 alert_beep(self.root)
+
+    def _my_bands(self) -> set:
+        out = set()
+        for nr in self.state.radio_numbers():
+            snap = self.state.snapshot(nr) or {}
+            b = band_from_khz(snap.get("freq_khz")) if snap.get("freq_khz") else None
+            if b:
+                out.add(b)
+        return out
+
+    def _on_my_band(self, khz: float) -> bool:
+        """The spot is on a band one of this PC's radios is on - or we don't
+        know the radios' bands (then: pop up), or the option is off."""
+        if not getattr(self.cfg, "self_spot_band_only", True):
+            return True
+        bands = self._my_bands()
+        return not bands or band_from_khz(khz) in bands
 
     def _show_spotted_bar(self, text: str) -> None:
         bar = getattr(self, "spotted_bar", None)
