@@ -155,6 +155,10 @@ class Config:
     check_line: bool = True      # pre-contest check line in the window (+ phone warning)
     rate_line: bool = True       # window: rate / QSOs / mults per band from the log
     self_spot_alert: bool = True  # pop-up when a person spots my call on a cluster
+    # its own cluster connection, filtered on the node to spots of my call only
+    self_spot_host: str = "azure.s53m.com"
+    self_spot_port: int = 8000
+    self_spot_filter: str = "accept/spots call {call}"
     band_lights: bool = True     # band open lights (skimmers on our continent, 10 min)
     # window alert when a rare CQ (⚡) that is also a new multiplier shows up
     # on the band: a pop-up (click it = QSY) and / or a beep, each on its own
@@ -317,6 +321,9 @@ def load_config(path: str) -> Config:
     cfg.check_line = b("ui", "check_line", cfg.check_line)
     cfg.rate_line = b("ui", "rate_line", cfg.rate_line)
     cfg.self_spot_alert = b("ui", "self_spot_alert", cfg.self_spot_alert)
+    cfg.self_spot_host = s("ssb", "self_spot_host", cfg.self_spot_host).strip()
+    cfg.self_spot_port = i("ssb", "self_spot_port", cfg.self_spot_port)
+    cfg.self_spot_filter = s("ssb", "self_spot_filter", cfg.self_spot_filter).strip()
     cfg.band_lights = b("ui", "band_lights", cfg.band_lights)
     lk = s("ui", "look", cfg.look).strip().lower()
     cfg.look = lk if lk in ("dark", "light", "classic") else "dark"

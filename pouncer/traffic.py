@@ -65,6 +65,8 @@ def group_of(source: str) -> str:
         return "N1MM"
     if s.startswith("TEAM"):
         return "TEAM"
+    if s.startswith("SELF"):            # the spots-of-my-call connection: a cluster
+        return "SSB"
     if s.startswith("WEB"):
         return "WEB"
     if s.startswith("HTTP"):
