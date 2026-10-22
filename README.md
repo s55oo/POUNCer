@@ -298,7 +298,8 @@ the last 10 minutes (as QSOs/h) and of the last hour, QSOs and multipliers in
 total and per band, "+n" = new this hour - from the open N1MM log, every
 30 s.
 
-**SPOTTED pop-up** (`[ui] self_spot_alert`): when your call (the log's
+**SPOTTED pop-up** (`[ui] self_spot_alert`; also a yellow bar in the window
+under the top bar until clicked): when your call (the log's
 station call - S55OO, TK0C ...) is spotted on a DX cluster by a person (not a
 skimmer -#), a pop-up like the multiplier alert says "SPOTTED: S55OO by
 DL1ABC on 14025.0" (with the alert sound, if on). Your own self-spot shows too,

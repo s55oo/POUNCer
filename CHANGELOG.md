@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.7.124 — 2026-10-22 — SPOTTED bar in the window
+
+- **SPOTTED** also shows as a **yellow bar inside the window** under the top
+  bar, until clicked (5 min at most) - on one PC Windows did not draw the
+  floating pop-up at all (the log said it was shown; a screenshot showed
+  nothing). The floating pop-up re-asserts "on top" each time it shows.
+
 ## v0.7.123 — 2026-10-22 — watched calls
 
 - `[ui] watch_calls` (Settings > Program, e.g. `S9R`): the SPOTTED pop-up for
