@@ -1,5 +1,10 @@
 # POUNCer — Changelog
 
+## v0.7.126 — 2026-10-22 — SPOTTED for 3 s
+
+- The SPOTTED pop-up and its yellow bar show for **3 seconds** (were: until
+  clicked). The status line keeps the last one, the log has them all.
+
 ## v0.7.125 — 2026-10-22 — SPOTTED on the PC on that band
 
 - The SPOTTED pop-up (and its yellow bar and sound) only on the PC whose
