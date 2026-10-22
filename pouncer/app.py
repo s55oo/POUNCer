@@ -391,6 +391,13 @@ class PouncerApp:
         self.ready_badge.pack(side="right")
         self.ready_badge.bind("<Button-1>", lambda e: self._toggle_check_details())
         self._check_details = False
+        # SPOTTED bar inside the window (always drawn, unlike a floating
+        # pop-up on some PCs): shown under the top bar until clicked
+        self.spotted_bar = tk.Label(header, text="", anchor="w", justify="left",
+                                    bg="#ffd600", fg="#212121", padx=12, pady=4,
+                                    font=(theme.FONT, 11, "bold"), cursor="hand2")
+        self.spotted_bar.bind("<Button-1>", lambda _e: self._hide_spotted_bar())
+        self._spotted_after = None
         # ... and its items, shown when something is wrong (or clicked)
         # one colour per item: red = not ok, amber = check, green = ok
         self.check_label = tk.Text(header, height=1, wrap="word", bd=0, highlightthickness=0,
@@ -811,10 +818,33 @@ class PouncerApp:
                     + (f"\n\u201c{comment}\u201d" if comment else ""))
             log.info("self spot: %s spotted by %s on %.1f %s", call, spotter, khz, comment)
             self.status_label.configure(text=text.replace("\n", "  "))
-            # rare and easy to miss: stays until clicked (at most 5 min)
+            # rare and easy to miss: stays until clicked (at most 5 min) - as a
+            # floating pop-up and as a bar in the window (always visible)
             self._show_alert(None, text + "\nclick = close", ms=self.SELF_SPOT_MS)
+            self._show_spotted_bar(text.replace("\n", "   ") + "   (click = close)")
             if self.cfg.alert_sound:
                 alert_beep(self.root)
+
+    def _show_spotted_bar(self, text: str) -> None:
+        bar = getattr(self, "spotted_bar", None)
+        if bar is None:
+            return
+        try:
+            bar.configure(text=text)
+            if not bar.winfo_manager():
+                bar.pack(fill="x", after=self._top)
+            if self._spotted_after is not None:
+                self.root.after_cancel(self._spotted_after)
+            self._spotted_after = self.root.after(self.SELF_SPOT_MS, self._hide_spotted_bar)
+        except tk.TclError as exc:
+            log.warning("SPOTTED bar: %s", exc)
+
+    def _hide_spotted_bar(self) -> None:
+        self._spotted_after = None
+        bar = getattr(self, "spotted_bar", None)
+        if bar is not None and bar.winfo_manager():
+            bar.pack_forget()
+        self._hide_alert()
 
     ALERT_HOLD_S = 30   # ~two FT8 cycles: PSK Reporter's answer comes first
     SELF_SPOT_MS = 300_000   # the SPOTTED pop-up stays until clicked, 5 min at most
@@ -838,7 +868,10 @@ class PouncerApp:
             x = max(0, min(x, self.root.winfo_screenwidth() - w))
             pop.geometry(f"+{x}+{y}")
             pop.attributes("-alpha", 0.96)
+            pop.attributes("-topmost", False)      # re-assert: some PCs lose it
+            pop.attributes("-topmost", True)
             pop.lift()
+            pop.update_idletasks()
             self._alert_shown = True
             log.info("alert pop-up shown at %d,%d (%dx%d; window %s at %d,%d %dx%d; screen %dx%d)",
                      x, y, w, h, self.root.state(), self.root.winfo_rootx(),
@@ -863,6 +896,8 @@ class PouncerApp:
     def _on_alert_click(self) -> None:
         s = self._alert_spot
         self._hide_alert()
+        if s is None and getattr(self, "spotted_bar", None) is not None:
+            self._hide_spotted_bar()          # SPOTTED: closing the pop-up closes the bar
         if s is not None:
             self._act_on_spot(s)
 
