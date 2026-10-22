@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.7.112 — 2026-10-22 — PSK Reporter check: 40 / 160 m only, stops early
+
+- The FT8-or-SSB check runs only on **40 m (7074 - 7077)** and **160 m
+  (1840 - 1843)** - no longer on 6 m.
+- A watched call is dropped at **the first FT8 / FT4 report** near the spot
+  (was: always 2 minutes) - a confirmed FT8 station costs a few KB.
+
 ## v0.7.111 — 2026-10-22 — FT8 or SSB? PSK Reporter decides on 40 m
 
 - FT8 / FT4 windows **below** the SSB segment (14074, 21074, 28074, 3573 ...):

@@ -100,19 +100,24 @@ class PskChecker:
         self._connector = connector or (lambda: socket.create_connection((host, port), 10))
         self._lock = threading.Lock()
         self._want: dict[str, float] = {}      # call -> watch until
+        self._near: dict[str, list[float]] = {}  # call -> spot kHz (stop early once confirmed)
         self._reports: dict[str, list[dict]] = {}
         self._thread: threading.Thread | None = None
         self._stop = threading.Event()
         self.state = "idle"                      # idle / connected / error
 
     # ---- what the app calls ------------------------------------------------
-    def ask(self, call: str) -> None:
-        """Watch this call's PSK Reporter reports for a while (any thread)."""
+    def ask(self, call: str, khz: float | None = None) -> None:
+        """Watch this call's PSK Reporter reports for a while (any thread);
+        stops as soon as an FT8 / FT4 report near ``khz`` came."""
         c = (call or "").upper()
         if not topic_for(c):
             return
         with self._lock:
             now = self.clock()
+            if khz is not None:
+                self._near.setdefault(c, []).append(float(khz))
+                del self._near[c][:-4]
             if c in self._want and self._want[c] > now:
                 return
             if len([1 for t in self._want.values() if t > now]) >= MAX_CALLS:
@@ -139,6 +144,11 @@ class PskChecker:
             lst = self._reports.setdefault(r["call"], [])
             lst.append(r)
             del lst[:-20]
+            # confirmed FT8 / FT4 near a spot of his: stop watching him now
+            if r["mode"] in ("FT8", "FT4") and any(
+                    abs(r["khz"] - k) <= NEAR_KHZ for k in self._near.get(r["call"], ())):
+                self._want.pop(r["call"], None)
+                self._near.pop(r["call"], None)
 
     def stop(self) -> None:
         self._stop.set()

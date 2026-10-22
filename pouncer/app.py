@@ -2593,7 +2593,7 @@ class PouncerApp:
             self._dirty = True
 
     def _check_overlap(self, spot: Spot) -> None:
-        """An SSB spot in 7074 - 7077 (1840 - 1843, 6 m): ask PSK Reporter -
+        """An SSB spot in 7074 - 7077 or 1840 - 1843: ask PSK Reporter -
         not in an SSB contest (there everything in the segment is SSB)."""
         if (self.pskr is None or spot.mode != "SSB" or not digital_overlap(spot.freq_khz)
                 or self._phone_contest()):
@@ -2603,7 +2603,7 @@ class PouncerApp:
         if m:
             spot.mode = m
             return
-        self.pskr.ask(spot.dxcall)
+        self.pskr.ask(spot.dxcall, spot.freq_khz)
         self._overlap_keys.add(spot.key)
 
     def _relabel_overlap(self) -> None:

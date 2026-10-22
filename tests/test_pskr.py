@@ -71,6 +71,8 @@ class PacketTests(unittest.TestCase):
 
     def test_windows(self) -> None:
         self.assertEqual(digital_overlap(7076.0), "FT8")     # inside the 40 m SSB segment
+        self.assertEqual(digital_overlap(1841.0), "FT8")     # 160 m
+        self.assertEqual(digital_overlap(50314.0), "")       # 6 m: not checked
         self.assertEqual(digital_sure(7076.0), "")
         self.assertEqual(digital_sure(14075.0), "FT8")       # below 20 m SSB: sure
         self.assertEqual(guess_mode(7076.0, "59"), "SSB")    # unclear: SSB first
@@ -80,8 +82,8 @@ class PacketTests(unittest.TestCase):
 class CheckerTests(unittest.TestCase):
     def test_ft8_report_near_the_spot(self) -> None:
         broker = FakeBroker(7075.8)
-        c = pskr.PskChecker(connector=lambda: broker.a, watch_s=2)
-        c.ask("K1ABC")
+        c = pskr.PskChecker(connector=lambda: broker.a, watch_s=60)
+        c.ask("K1ABC", 7076.0)
         for _ in range(50):
             if c.digital("K1ABC", 7076.0):
                 break
@@ -89,6 +91,12 @@ class CheckerTests(unittest.TestCase):
         self.assertEqual(c.digital("K1ABC", 7076.0), "FT8")
         self.assertEqual(c.digital("K1ABC", 7150.0), "")     # far from it: not him there
         self.assertEqual(broker.topics, ["pskr/filter/v2/+/+/K1ABC/#"])
+        self.assertNotIn("K1ABC", c._want)                   # confirmed: no longer watched
+        for _ in range(60):                                  # ... and the line is hung up
+            if c._thread is None or not c._thread.is_alive():
+                break
+            time.sleep(0.05)
+        self.assertFalse(c._thread.is_alive())
         c.stop()
 
     def test_no_connection_confirms_nothing(self) -> None:
@@ -105,7 +113,7 @@ class AppTests(unittest.TestCase):
         from tests.test_so2r import _import_app
         P = _import_app().PouncerApp
         checker = types.SimpleNamespace(asked=[], known={}, watch_s=120)
-        checker.ask = checker.asked.append
+        checker.ask = lambda call, khz=None: checker.asked.append(call)
         checker.digital = lambda call, khz: checker.known.get(call, "")
         f = types.SimpleNamespace(pskr=checker, _overlap_keys=set(), spots={}, _dirty=False,
                                   worked=types.SimpleNamespace(contest_name=contest))

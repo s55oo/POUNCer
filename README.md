@@ -541,13 +541,14 @@ pass. CW keeps the RBN feed (a cluster doesn't pass every skimmer spot).
 
 **FT8 or SSB?** On 20 / 15 / 10 / 80 m the FT8 / FT4 frequencies (14074,
 21074 ...) lie below the SSB segment: a spot there (or the radio on USB there)
-is FT8 / FT4, not SSB. On **40 m 7074 - 7077** (also 1840 - 1843 and 6 m) the
+is FT8 / FT4, not SSB. On **40 m 7074 - 7077** and **160 m 1840 - 1843** the
 FT8 window is **inside** the SSB segment and contesters work SSB there too, so
 a spot without "FT8" / "SSB" in it is listed as **SSB**, and POUNCer asks
 **PSK Reporter** about that **one call** for 2 minutes (MQTT,
 `pskr/filter/v2/+/+/<CALL>/#` - only his reports, not the whole feed). If
 PSK Reporter has him on FT8 / FT4 within 3 kHz, the spot becomes FT8 / FT4
-and leaves the SSB list; otherwise it stays SSB. Not while an SSB contest is
+and leaves the SSB list (and POUNCer stops watching him at once); otherwise
+it stays SSB. Not while an SSB contest is
 open in N1MM (then everything in the segment is SSB). `[ssb] pskreporter`
 (Settings > SSB). The traffic console shows it as **PSKR**.
 

@@ -147,7 +147,7 @@ SETTINGS: list[dict] = [
              "replace POUNCer's own cluster connection; 20 s without = own cluster again."},
     {"key": "ssb.pskreporter", "attr": "ssb_pskreporter", "kind": "bool", "live": False,
      "group": "SSB", "label": "FT8 check with PSK Reporter",
-     "help": "A spot on 7074 - 7077 (inside the SSB segment) without a mode: PSK Reporter "
+     "help": "A spot on 7074 - 7077 / 1840 - 1843 (inside the SSB segment) without a mode: PSK Reporter "
              "is asked about that one call; FT8 / FT4 reports there = not SSB. Not in an SSB contest."},
     {"key": "ssb.spotters", "attr": "ssb_spotters", "kind": "text", "live": False,
      "group": "SSB", "label": "Spotters from", "help": "EU, NA, AS, ... or ALL."},
