@@ -33,11 +33,47 @@ SPOTit); WPM / ±25 Hz / NEXT at the bottom.*
 ## How it works
 
 <p align="center"><a href="docs/NETWORK.md"><img src="docs/network-diagram.svg" width="760"
-  alt="POUNCer network connections: N1MM UDP 12060 / 13064, RBN telnet, Azure backup and DX cluster, HTTP RBN feed, GitHub, Super Check Partial, phone page on HTTP 8080, team on UDP 12079"></a></p>
+  alt="POUNCer network connections: N1MM UDP 12060 / 13064, RBN telnet, Azure backup, DX cluster and my-call feed, HTTP RBN feed, PSK Reporter MQTT, GitHub, Super Check Partial, NTP, internet check, phone page on HTTP 8080, team on UDP 12079"></a></p>
 
-*All network connections (N1MM UDP, RBN / cluster telnet, HTTP backup, team,
-phone page, downloads) with their ports and message formats:
-[docs/NETWORK.md](docs/NETWORK.md).*
+### All network traffic, in and out
+
+Everything POUNCer receives or sends, with the default ports (each can be
+changed in `config.ini`). **No passwords anywhere:** RBN and the DX cluster
+get your callsign only, and nothing personal is sent. Message formats and
+examples: [docs/NETWORK.md](docs/NETWORK.md).
+
+**Coming IN to POUNCer** - the only ports a firewall must let in:
+
+| From | Transport / port | What comes in | When |
+|---|---|---|---|
+| N1MM Logger+ (same PC) | UDP **12060** | `RadioInfo` (frequency, mode, radio A/B, Entry Window), `AppInfo` (open log + contest, station call), N1MM's cluster `spot`s | all the time (N1MM *Broadcast Data*: Radio, App Info, Spots) |
+| Phones, tablets, browsers (LAN / ZeroTier) | TCP **8080** (HTTP) | the phone page and its API: list, tap = QSY + call, F-keys, band, settings (changes only from the PC itself) | while a page is open |
+| Other POUNCers (team) | UDP **12079** (broadcast + direct) | `hi` every 2 s, the master's `spot`s, `self` (SPOTTED), `update` (update all), `rh` (run history) | in a team |
+| Other POUNCers (team) | TCP **8080** (HTTP) | `GET /api/runhist` when a POUNCer joins the team | once per join |
+
+**Going OUT from POUNCer:**
+
+| To | Transport / port | What goes out → what comes back | When |
+|---|---|---|---|
+| N1MM Logger+ (127.0.0.1) | UDP **13064** | XML commands: QSY radio A/B, `{WIPE}`, CAT strings (filter). Never transmits | on a click / tap, band, ±Hz, filter |
+| N1MM's windows (same PC) | Windows messages (no network) | the call into the Entry Window, F-keys, Enter, PgUp/PgDn, Ctrl+K CW text; reads the CW speed box | on a click / key; WPM once a second |
+| N1MM's files (same PC) | file read, read-only | the log `.s3db` (+ `-wal`), `N1MM Logger.ini`, `wl_cty.dat`, `MASTER.SCP` | log every 0.5 s, ini every 10 s |
+| telnet.reversebeacon.net | TCP **7000** / 7001 (telnet) | login = your callsign → RBN skimmer spots (CW/RTTY; 7001 = FT8/FT4) | while a radio is on CW; team: the master only |
+| azure.s53m.com | TCP **8000** (telnet) | RBN backup → the same skimmer spots | when RBN's telnet is down |
+| azure.s53m.com | TCP **8000** (telnet) | DX cluster → SSB spots (closed while N1MM sends its own spots) | while a radio is on SSB |
+| azure.s53m.com | TCP **8000** (telnet) | login `<call>-77` + `accept/spots call <call>` → spots of **your** call only (SPOTTED pop-up) | always (`[ui] self_spot_alert`); team: the master only |
+| azure.s53m.com | HTTPS **443** | `GET /cors/rbn/live` → RBN spots as JSON pages | only while the telnet feeds are down |
+| mqtt.pskreporter.info | TCP **1883** (MQTT) | subscribe to one call → its FT8/FT4 reports (is that spot FT8 or SSB?) | only for spots in the 40 m / 160 m FT8 windows, max 2 min |
+| api.github.com, github.com | HTTPS **443** | update check → new POUNCer.exe (SHA-256 checked); warm-up lists (CW, SSB) | start + every 6 h; lists every 30 days |
+| raw.githubusercontent.com | HTTPS **443** | S53ZO's public contest-log archive → run history of a call (the call is in the URL) | for spotted calls not in the lists, cached |
+| www.supercheckpartial.com | HTTPS **443** | `MASTER.SCP` (only if newer: 304 otherwise) | at start + every 7 days |
+| pool.ntp.org, time.windows.com | UDP **123** (NTP) | one 48-byte time request → the PC clock check | at start + every 30 min |
+| api.github.com | HTTPS **443** (`HEAD`) | clock check fallback (its `Date` header) | only if no NTP server answers |
+| 1.1.1.1, 8.8.8.8, 9.9.9.9 | TCP **53** | a plain connect, **nothing sent** → the "Internet down" bar | every 30 s (10 s while down) |
+| 8.8.8.8 | UDP (connect only) | **no packet** - only asks Windows which network card has the LAN address | at start (phone address) |
+
+Firewall in short: allow **in** UDP 12060 (from N1MM), TCP 8080 (phones,
+team) and UDP 12079 (team); everything else is outgoing.
 
 * **Own call** - taken from the open N1MM log's *Change Your Station Data*
   (follows the log you open); your own spots are never listed, and EU/DX
