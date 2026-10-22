@@ -122,3 +122,30 @@ class OwnCallTests(unittest.TestCase):
         self.assertEqual(P.own_call(f), "TK0C")              # N1MM's station call now
         f.state = RadioState()                               # no radio info yet: the log's
         self.assertEqual(P.own_call(f), "S55OO")
+
+
+class MasterListTests(unittest.TestCase):
+    def test_my_call_in_the_list_feed_pops_up_and_is_no_row(self) -> None:
+        from pouncer.rbn import Spot
+        from tests.test_so2r import _import_app
+        P = _import_app().PouncerApp
+        sent, noted = [], []
+        f = types.SimpleNamespace(
+            spot_queue=queue.Queue(), _team_queue=queue.Queue(), spots={}, _dirty=False,
+            _perf={"spots_in": 0}, _last_own_spot=0.0, own_call=lambda: "S55OO",
+            team=types.SimpleNamespace(is_master=lambda: True, send_spot=sent.append),
+            _note_self_spot=lambda *a, **k: noted.append(a))
+        for n in ("_drain_spots", "_is_my_call"):
+            setattr(f, n, getattr(P, n).__get__(f))
+        f._note_own = f._check_overlap = f._track_on_freq = lambda s: None
+        f._relabel_overlap = lambda: None
+        f._spot_dict = lambda s: {"dxcall": s.dxcall}
+        # the last spots after a cluster login: received = the spot's own time
+        f.spot_queue.put(Spot("S55OO", 14234.0, "SSB", None, None, "", "DL1ABC", "0932Z",
+                              time.time() - 240))
+        f.spot_queue.put(Spot("K1ABC", 14250.0, "SSB", None, None, "", "DL1ABC", "0932Z",
+                              time.time()))
+        f._drain_spots()
+        self.assertEqual(noted, [("S55OO", "DL1ABC", 14234.0)])
+        self.assertEqual([s.dxcall for s in f.spots.values()], ["K1ABC"])   # no row of myself
+        self.assertEqual(sent, [{"dxcall": "K1ABC"}])                         # not passed on as a spot
