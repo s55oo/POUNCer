@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## v0.7.115 — 2026-10-22 — Settings: Save button, change log
+
+- The settings window writes **nothing until Save** (top right, Ctrl+S):
+  changed rows say "changed - not saved yet", the button counts them,
+  **Discard** puts them back, closing with unsaved changes asks.
+- Every saved setting is logged: "setting changed: Skimmers (rbn.spotter):
+  'S53WW' -> 'TK0C' [after a restart]" - from the window, the phone's
+  settings page and the View menu; a refused value too.
+
 ## v0.7.114 — 2026-10-22 — SPOTTED pop-up on team slaves
 
 - **Fix:** a team slave gets its SSB spots from the master, and those were

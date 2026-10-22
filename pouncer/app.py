@@ -3499,8 +3499,21 @@ class PouncerApp:
             self.lights_frame.add(self._restart_btn)
 
     def _save_setting(self, key: str, value: str) -> dict:
-        """Settings page (web thread): write config.ini, update the config."""
-        return settingsmod.save(self.cfg, self.cfg.config_path, key, value)
+        """Settings window / page (web thread): write config.ini, update the
+        config - and log what changed (old -> new)."""
+        item = settingsmod.BY_KEY.get(key, {})
+        old = getattr(self.cfg, item.get("attr", ""), None) if item else None
+        res = settingsmod.save(self.cfg, self.cfg.config_path, key, value)
+        if res.get("ok"):
+            new = res.get("value")
+            show = (lambda v: "***") if any(w in key.lower() for w in ("pass", "token", "secret")) \
+                else (lambda v: ", ".join(v) if isinstance(v, (list, tuple)) else repr(v))
+            if old != new:
+                log.info("setting changed: %s (%s): %s -> %s%s", item.get("label", key), key,
+                         show(old), show(new), "" if res.get("live") else "  [after a restart]")
+        else:
+            log.info("setting NOT saved: %s = %r: %s", key, value, res.get("error"))
+        return res
 
     def _web_restart(self) -> None:
         self._web_queue.put(("restart",))
