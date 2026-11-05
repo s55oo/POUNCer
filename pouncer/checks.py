@@ -132,6 +132,21 @@ def segments(items: list[dict]) -> list[tuple[str, str]]:
     return out
 
 
+def problem(items: list[dict]) -> tuple[str, str]:
+    """The clean layout's one sentence: the first NOT READY item, else the
+    first CHECK item - ('Log: N1MM Logger.ini not found (+2 more)', state);
+    ('', 'ok') when all is well."""
+    bad = [i for i in items if i["state"] == "bad"]
+    warn = [i for i in items if i["state"] == "warn"]
+    pick = bad or warn
+    if not pick:
+        return "", "ok"
+    first = pick[0]
+    more = len(bad) + len(warn) - 1
+    text = first["name"] + (f": {first['text']}" if first["text"] else "")
+    return text + (f"  (+{more} more)" if more > 0 else ""), first["state"]
+
+
 def line(items: list[dict]) -> str:
     """'READY  ✓ N1MM 14025.0  ✓ Log ...' / 'CHECK  ⚠ cty 75 days old ...'."""
     return "   ".join(t for t, _ in segments(items))

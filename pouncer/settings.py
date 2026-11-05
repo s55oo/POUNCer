@@ -217,6 +217,12 @@ SETTINGS: list[dict] = [
      "label": "Rate / mults line",
      "help": "Window: a line with the rate (last 10 min / hour), QSOs and multipliers per "
              "band from the open N1MM log, every 30 s. Also View menu."},
+    {"key": "ui.layout", "attr": "layout", "kind": "choice", "choices": ["clean", "detailed"],
+     "live": True, "group": "Program", "label": "Window layout",
+     "help": "clean (default): the spots first - one row of lights with one sentence when "
+             "something is wrong (click it: details), the call big in the list. detailed: "
+             "every status line (check line, N1MM / RBN / Log lines, rate line) and the table "
+             "as before. View > Detailed layout."},
     {"key": "ui.spot_tiles", "attr": "tiles", "kind": "bool", "live": True, "group": "Program",
      "label": "Spot list as tiles",
      "help": "The window's spot list as tiles like the phone page (call big, green = "

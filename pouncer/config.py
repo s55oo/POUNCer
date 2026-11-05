@@ -167,6 +167,7 @@ class Config:
     # on the band: a pop-up (click it = QSY) and / or a beep, each on its own
     look: str = "dark"            # window look: dark / light (Windows 11 style) / classic
     tiles: bool = False           # window spot list as tiles (like the phone); False = table
+    layout: str = "clean"         # window: clean (spots first) / detailed (every status line)
     alert_popup: bool = True
     alert_sound: bool = False
     # [autostart]: your other programs, started with POUNCer (see autostart.py)
@@ -336,6 +337,8 @@ def load_config(path: str) -> Config:
     # "spot_tiles" since v0.7.96: the old "tiles = true" (the v0.7.93 default) is
     # not read, so the window is back on the small-font table
     cfg.tiles = b("ui", "spot_tiles", cfg.tiles)
+    lay = s("ui", "layout", cfg.layout).strip().lower()
+    cfg.layout = lay if lay in ("clean", "detailed") else "clean"
     cfg.alert_popup = b("ui", "alert_popup", cfg.alert_popup)
     cfg.alert_sound = b("ui", "alert_sound", cfg.alert_sound)
     cfg.autostart = b("autostart", "enabled", cfg.autostart)

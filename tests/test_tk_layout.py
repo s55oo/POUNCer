@@ -193,7 +193,7 @@ class TkSettingsWindowTests(unittest.TestCase):
             root=self.root, set_call_var=tk.BooleanVar(value=True),
             hide_worked_var=tk.BooleanVar(value=False),
             compact_var=tk.BooleanVar(value=False), topmost_var=tk.BooleanVar(value=False),
-            tiles_var=tk.BooleanVar(value=True),
+            tiles_var=tk.BooleanVar(value=True), detailed_var=tk.BooleanVar(value=False),
             updater=types.SimpleNamespace(exe="C:/x/POUNCer.exe"),
             _settings_win=types.SimpleNamespace(open=lambda: None),
             _console=types.SimpleNamespace(open=lambda: None),
@@ -204,7 +204,7 @@ class TkSettingsWindowTests(unittest.TestCase):
         )
         for name in ("_open_config_folder", "_reconnect_log", "_restart_now", "_shutdown_and_quit",
                      "_on_toggle_worked", "_clear_spots", "_open_browser", "_on_update_click",
-                     "_open_url", "_about", "_apply_compact", "_apply_topmost", "_set_alert", "_open_app_window", "_set_look", "_toggle_tiles", "_station_test", "_toggle_rate_line", "_update_team", "_rollback"):
+                     "_open_url", "_about", "_apply_compact", "_apply_topmost", "_set_alert", "_open_app_window", "_set_look", "_toggle_tiles", "_toggle_layout", "_station_test", "_toggle_rate_line", "_update_team", "_rollback"):
             setattr(f, name, lambda *a, **k: None)
         PouncerApp._build_menu(f)
         bar = f.menubar
@@ -403,6 +403,7 @@ class TkCompactTests(unittest.TestCase):
         f._radio_nr = lambda radio=None: radio or f.radio
         for name in ("_apply_compact", "_apply_topmost", "_update_compact_bar", "_wpm"):
             setattr(f, name, getattr(PouncerApp, name).__get__(f))
+        f._show_tiles = lambda: None
         self.root.geometry("900x500+20+20")
         self.root.update()
         f.compact_var.set(True)
