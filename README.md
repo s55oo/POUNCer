@@ -268,12 +268,11 @@ connections: [docs/NETWORK.md](docs/NETWORK.md) · code:
 ## Main window menu
 
 <p align="center"><img src="docs/main-window.png" width="820"
-  alt="POUNCer 0.7.109 main window, dark look: top bar 14025.0 kHz 20m CW with a 'SPOTTED: S55OO by DL1ABC on 14025.0' pop-up and the READY badge; stream lights (RBN, N1MM, Log green, HTTP backup on hold yellow, others grey); band open chips; the rate line with rate, QSOs and mults per band; info lines; Sort, Min SNR, F-keys with ENTER and SPOTit; the spot list table in small fonts, new multipliers in red, DX rows tinted"></p>
+  alt="POUNCer 0.7.135 main window on Windows, clean layout, dark look: the frequency 14025.0 large with 20m · CW, the address, NOT READY and TEAM OFF badges; one row of lights and one problem sentence; Sort, Min SNR and the band chips on one row; the F-keys; the spot list as rows with big bold calls, new mults red with M / MM tags, rare runners in yellow with a lightning mark, DX rows tinted, the tuned station framed in blue"></p>
 
-*The Windows main window (0.7.109, dark look, sample data): stream lights,
-the rate / QSOs / mults line, a "SPOTTED" pop-up (someone spotted you on a
-cluster) and the spot list table - new multipliers in red, MM = double
-mult, the tuned station highlighted.*
+*The Windows main window (0.7.135, clean layout, dark look, made-up spots):
+the call big, new multipliers red with an M / MM tag, ⚡ = a rare runner,
+DX rows tinted, the station the radio is on framed in blue.*
 
 The window has two layouts (*View > Detailed layout*, `[ui] layout`).
 
