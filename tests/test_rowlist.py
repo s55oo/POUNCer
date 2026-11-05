@@ -108,3 +108,24 @@ class RowListTkTests(unittest.TestCase):
         self.assertEqual(w.selected, 0)
         w._tap_selected()
         self.assertEqual(taps, [1, 0])
+
+
+class NoWpmSortTests(unittest.TestCase):
+    def test_wpm_is_not_sortable(self) -> None:
+        wpm = next(c for c in rowlist.COLUMNS if c[0] == "wpm")
+        self.assertIsNone(wpm[4])                      # heading click does nothing
+        import types
+        P = _import_app().PouncerApp
+        calls = []
+        f = types.SimpleNamespace(UNSORTED=P.UNSORTED, _set_sort=calls.append)
+        P._on_sort(f, "wpm")
+        P._on_sort(f, "snr")
+        self.assertEqual(calls, ["snr"])
+        from pouncer.config import load_config
+        import os
+        import tempfile
+        d = tempfile.mkdtemp()
+        p = os.path.join(d, "c.ini")
+        with open(p, "w") as fh:
+            fh.write("[ui]\nsort = wpm\n")
+        self.assertEqual(load_config(p).sort, "snr")   # an old 'sort = wpm' -> SNR

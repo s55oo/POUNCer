@@ -408,7 +408,7 @@ def load_config(path: str) -> Config:
     cfg.web_host = s("web", "host", cfg.web_host).strip()
     cfg.web_port = i("web", "port", cfg.web_port)
 
-    if cfg.sort not in ("time", "freq", "snr", "wpm", "call", "cont", "mult", "mode", "type", "spotter"):
+    if cfg.sort not in ("time", "freq", "snr", "call", "cont", "mult", "mode", "type", "spotter"):
         cfg.sort = "snr"
     if cfg.trigger not in ("single", "double"):
         cfg.trigger = "single"

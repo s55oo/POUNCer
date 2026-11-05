@@ -1,5 +1,11 @@
 # POUNCer — Changelog
 
+## v0.7.136 — 2026-11-05 — No sorting by WPM
+
+- The **WPM** column is still shown, but clicking its heading no longer sorts
+  (in both layouts) - the speed says nothing about whom to call first. An old
+  `[ui] sort = wpm` in config.ini starts sorted by SNR.
+
 ## v0.7.135 — 2026-11-05 — Clean window layout
 
 - **New clean layout** (the default; *View > Detailed layout* brings back

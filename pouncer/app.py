@@ -275,7 +275,7 @@ class PouncerApp:
         }
         self._sort_labels = {"time": "Time", "freq": "Freq", "snr": "SNR", "mult": "Mult"}
         self._sort_buttons: dict[str, ttk.Button] = {}
-        self.sort_col = config.sort if config.sort in self.columns else "snr"
+        self.sort_col = config.sort if config.sort in self.columns and config.sort != "wpm" else "snr"
         self.sort_reverse = self.sort_col == "snr"
         self.rbn_status = "starting"
         self.ssb_status = "off"
@@ -1614,7 +1614,11 @@ class PouncerApp:
         label.pack(fill="x")
         return label
 
+    UNSORTED = ("wpm",)     # shown, but sorting by them says nothing
+
     def _on_sort(self, col: str) -> None:
+        if col in self.UNSORTED:
+            return
         self._set_sort(col)
 
     def _set_sort(self, col: str) -> None:

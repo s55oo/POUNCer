@@ -297,7 +297,7 @@ The window has two layouts (*View > Detailed layout*, `[ui] layout`).
   the station the radio is on: a blue frame; **Runs** `R84% ~23h` (⚡ yellow =
   rare runner); **Age** = since its last spot. *Mode* and *Type* appear only
   when the list has more than one mode or a spot that isn't a CQ. Click a
-  heading to sort; click a row (or arrows + Space) to QSY and call;
+  heading to sort (not WPM); click a row (or arrows + Space) to QSY and call;
 - a status bar: what the last tap did.
 
 **Detailed** - everything as before v0.7.135: the check items whenever
