@@ -3466,7 +3466,8 @@ class PouncerApp:
             )
         else:
             self.n1mm_label.configure(
-                text="N1MM: **no radio info** (enable Config > Broadcast Data > Radio to **127.0.0.1:12060**)"
+                text="N1MM: **no radio info** (enable Config > Broadcast Data > Radio to "
+                     f"**127.0.0.1:{getattr(self.cfg, 'n1mm_listen_port', 12060)}**)"
             )
         band = self._current_band()
         if self.worked.log_open or self.worked.log_state == "unknown":
