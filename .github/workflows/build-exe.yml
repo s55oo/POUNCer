@@ -73,6 +73,20 @@ jobs:
           path: screenshots/*.png
           if-no-files-found: ignore
 
+      # ... and on the pre-release "screenshots" (replaced each build; the
+      # updater follows only the latest real release, never this one)
+      - name: Publish screenshots
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls screenshots/*.png >/dev/null 2>&1 || exit 0
+          gh release view screenshots >/dev/null 2>&1 || gh release create screenshots \
+            --prerelease --target "$GITHUB_SHA" --title "Window screenshots (built by CI)" \
+            --notes "Screenshots of the POUNCer window on Windows with made-up spots, taken by every build. Not a POUNCer version - see the latest release for that."
+          gh release upload screenshots screenshots/*.png --clobber
+
       # PyInstaller's own deps first, then PyInstaller itself from the sdist:
       # pip compiles the bootloader with the runner's MSVC.
       - name: Install PyInstaller (bootloader compiled from source)
