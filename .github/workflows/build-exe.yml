@@ -69,6 +69,7 @@ jobs:
       - name: Build
         run: |
           python -m PyInstaller --noconfirm POUNCer.spec
+          python -m PyInstaller --noconfirm N1MMautostarter.spec
           Copy-Item config.ini dist\config.ini
 
       - name: SHA-256
@@ -76,12 +77,16 @@ jobs:
           $h = (Get-FileHash dist\POUNCer.exe -Algorithm SHA256).Hash
           "SHA-256 $h"
           "**POUNCer.exe** SHA-256: ``$h``" >> $env:GITHUB_STEP_SUMMARY
+          $a = (Get-FileHash dist\N1MMautostarter.exe -Algorithm SHA256).Hash
+          "N1MMautostarter SHA-256 $a"
+          "**N1MMautostarter.exe** SHA-256: ``$a``" >> $env:GITHUB_STEP_SUMMARY
 
       # Informational: does Defender flag the fresh build? Never fails the job.
       - name: Defender scan
         continue-on-error: true
         run: |
           Start-MpScan -ScanType CustomScan -ScanPath "$PWD\dist\POUNCer.exe"
+          Start-MpScan -ScanType CustomScan -ScanPath "$PWD\dist\N1MMautostarter.exe"
           $t = Get-MpThreatDetection
           if ($t) { $t | Format-List ThreatID, Resources; "Defender flagged the build" } else { "Defender: clean" }
 
@@ -94,9 +99,10 @@ jobs:
           TAG: ${{ inputs.release != '' && inputs.release || github.ref_name }}
         run: |
           $h = (Get-FileHash dist\POUNCer.exe -Algorithm SHA256).Hash
+          $a = (Get-FileHash dist\N1MMautostarter.exe -Algorithm SHA256).Hash
           $tk = if (Select-String -Path tk-test.txt -Pattern "skipped" -Quiet) { "skipped (no Tk display on the runner)" } else { "passed on a real Tk window" }
-          $notes = "POUNCer $env:TAG - built by GitHub Actions run $env:GITHUB_RUN_ID with the PyInstaller bootloader compiled from source.`n`n**POUNCer.exe** SHA-256: ``$h```n`nWindow layout test: $tk.`n`nPut POUNCer.exe and config.ini in the same folder; see CHANGELOG.md for what's new."
-          gh release create "$env:TAG" dist\POUNCer.exe dist\config.ini --target "$env:GITHUB_SHA" --title "POUNCer $env:TAG" --notes "$notes"
+          $notes = "POUNCer $env:TAG - built by GitHub Actions run $env:GITHUB_RUN_ID with the PyInstaller bootloader compiled from source.`n`n**POUNCer.exe** SHA-256: ``$h```n`n**N1MMautostarter.exe** SHA-256: ``$a`` (for PCs without POUNCer: starts N1MM and your other programs)`n`nWindow layout test: $tk.`n`nPut POUNCer.exe and config.ini in the same folder; see CHANGELOG.md for what's new."
+          gh release create "$env:TAG" dist\POUNCer.exe dist\config.ini dist\N1MMautostarter.exe --target "$env:GITHUB_SHA" --title "POUNCer $env:TAG" --notes "$notes"
 
       - uses: actions/upload-artifact@v6
         with:
@@ -104,6 +110,7 @@ jobs:
           path: |
             dist/POUNCer.exe
             dist/config.ini
+            dist/N1MMautostarter.exe
           if-no-files-found: error
 
   build-macos:

@@ -890,6 +890,10 @@ bootloader compiled from source, so Windows Defender doesn't flag them
 (locally built exes can be flagged `Trojan:Win32/Wacatac.B!ml` - a false
 positive). Each release lists the exe's SHA-256.
 
+On a PC **without** POUNCer that should still start N1MM and your other
+programs: **N1MMautostarter.exe** from the same release (see *N1MM
+Autostarter* below).
+
 For macOS, download **POUNCer-macos-arm64.tar.gz** (Apple Silicon) or
 **POUNCer-macos-x86_64.tar.gz** (Intel) from the same release. Extract the
 archive, keep `POUNCer` and `config.ini` together, and run `./POUNCer` from
@@ -1026,6 +1030,36 @@ your callsign only), send personal data, or accept settings changes from
 another PC by default. Updates come only from this repository's GitHub
 releases over HTTPS and are checked with their SHA-256 before they replace
 the exe.
+
+## N1MM Autostarter (PCs without POUNCer)
+
+**N1MMautostarter.exe** (on every release, Windows) is POUNCer's autostart as
+a small program of its own - for a PC where you run N1MM Logger+ but not
+POUNCer. It only starts the programs you chose; nothing else (no network,
+no spots).
+
+- Put **N1MMautostarter.exe** in a folder of its own and run it. The first
+  time the window opens empty: fill in **Program 1-8** (Browse..., or the
+  path with arguments after it: `"C:\HAM\My Tool\tool.exe" --port 9000`),
+  each with **start after (s)** and **wait for N1MM**, optionally a
+  **Folder** (every program in it, in name order), and **Save**. The
+  settings are in `N1MMautostarter.ini` next to the exe (the same keys as
+  POUNCer's `[autostart]`, so a list can be copied either way); what it did
+  goes to `N1MMautostarter.log`.
+- Every later start: a 5 s countdown (**Stop** to change something first),
+  then your programs, in order. An .exe that already runs is not started
+  again. **Close when everything is started** closes the window 5 s after
+  the last one.
+- **N1MM first:** with N1MM Logger+ as Program 1 (and *N1MM as Program 1:
+  start the rest when N1MM is up* ticked), N1MM is started and the others
+  wait until it is up - its first Radio / App Info broadcast on UDP **12060**
+  (*Config > Configure Ports... > Broadcast Data*), or, if that port is used
+  by another program or the broadcasts are off, N1MM running for **30 s**.
+  The Autostarter listens on the port only while it waits, frees it at once,
+  and never takes it from another program. Port 0 = don't listen.
+- **At Windows logon:** *Windows Startup folder* opens the folder; put a
+  shortcut to N1MMautostarter.exe in it.
+- `N1MMautostarter.exe --setup` opens the window without starting anything.
 
 ## When something doesn't work
 

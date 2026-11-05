@@ -37,6 +37,7 @@ in the examples are private example addresses.
 | 14 | **out** | HTTPS | 443 | www.supercheckpartial.com | MASTER.SCP (busted-call marks) | `[scp] url` |
 | 15 | – | UDP connect | – | 8.8.8.8 | finding the PC's LAN address – **nothing is sent** | – |
 | 16 | local | process start | – | your own programs (.exe / .bat / shortcuts) | autostart with POUNCer – no network | `[autostart]` |
+| 16b | **in** (briefly) | UDP | 12060 | N1MM (same PC) | **N1MMautostarter.exe** only (PCs without POUNCer): listens for N1MM's first RadioInfo / AppInfo while waiting for N1MM to start, then closes the port; an exclusive bind, so a port used by another program is never taken | `N1MMautostarter.ini` `[autostarter] n1mm_port` (0 = off) |
 | 17 | **out** | UDP (NTP) | 123 | pool.ntp.org, then time.windows.com | PC clock check every 30 min (SNTP, 48 bytes, no data of yours) | `[ui] check_line` |
 | 18 | **out** | MQTT (TCP) | 1883 | mqtt.pskreporter.info | FT8 or SSB? one call's PSK Reporter reports for up to 2 min (only for a spot on 7074 - 7077 / 1840 - 1843 without a mode) | `[ssb] pskreporter` |
 
