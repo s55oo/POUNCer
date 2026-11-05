@@ -42,6 +42,7 @@ from .skimwatch import SkimmerWatch
 from . import stationtest
 from .pskr import PskChecker
 from .tiles import TileList
+from .rowlist import RowList
 from . import theme
 from . import autostart as autostartmod
 from . import diag as diagmod
@@ -338,6 +339,8 @@ class PouncerApp:
         self.root.minsize(theme.px(420), theme.px(300))
         self.compact_var = tk.BooleanVar(value=False)
         self.tiles_var = tk.BooleanVar(value=bool(getattr(self.cfg, "tiles", False)))
+        # clean (spots first) / detailed (every status line): View > Detailed layout
+        self.detailed_var = tk.BooleanVar(value=getattr(self.cfg, "layout", "clean") == "detailed")
         self.topmost_var = tk.BooleanVar(value=False)
         self._normal_geom = ""
         self._compact_geom = ""
@@ -455,10 +458,16 @@ class PouncerApp:
         self._view_from: str | None = None
         self._bands_last = None
         self._lights: list[tuple[tk.Label, tk.Label]] = []
+        # clean layout: one sentence when something is wrong (click = details)
+        self.problem_label = tk.Label(self.lights_frame, text="", bg=theme.BG,
+                                      font=(theme.FONT, 9, "bold"), cursor="hand2")
+        self.problem_label.bind("<Button-1>", lambda _e: self._toggle_check_details())
+        self._problem_added = False
         self._lights_last: list | None = None
         self._restart_btn: tk.Button | None = None
         info = ttk.Frame(header, padding=(12, 2, 12, 2))
         info.pack(fill="x")
+        self._info = info
         self.n1mm_label = self._wrap_label(info, "N1MM: waiting for radio info...", muted=True)
         self.rbn_label = self._wrap_label(info, "RBN: starting...", muted=True)
         self.log_label = self._wrap_label(info, "Log: -", muted=True)
@@ -492,6 +501,8 @@ class PouncerApp:
         ttk.Label(box, text="dB").pack(side="left")
         flow.add(box, gap=12)
         self._min_snr_save = None
+        # clean layout: the rate, short (the full rate line in the detailed layout)
+        self.rate_short = ttk.Label(flow, text="", style="Muted.TLabel")
 
         # (the options and actions are in the menu bar: File / View /
         # Settings / Help)
@@ -548,6 +559,8 @@ class PouncerApp:
         scroll.pack(side="right", fill="y")
         # the same list as tiles, like the phone (View > Spot list as tiles)
         self.tiles = TileList(tree_frame, on_tap=self._tile_tap)
+        # clean layout: readable rows (call big, colour only where it means something)
+        self.rows = RowList(tree_frame, on_tap=self._tile_tap, on_sort=self._on_sort)
         self.root.bind_all("<Control-t>", lambda _e: self._toggle_tiles(flip=True))
         self.root.bind_all("<Control-T>", lambda _e: self._toggle_tiles(flip=True))
         self._show_tiles()
@@ -584,6 +597,7 @@ class PouncerApp:
         self.status_label = self._wrap_label(bottom, "", bg=theme.BAR_BG)
         self.web_label = self._wrap_label(bottom, "Phone view: starting...", bg=theme.BAR_BG,
                                           muted=True)
+        self._apply_layout()
 
     def _build_menu(self) -> None:
         """Menu bar: File / View / Settings... / Help - the actions and
@@ -615,6 +629,8 @@ class PouncerApp:
         self.rate_var = tk.BooleanVar(value=bool(getattr(self.cfg, "rate_line", True)))
         view.add_checkbutton(label="Rate / QSOs / mults per band line", variable=self.rate_var,
                              command=self._toggle_rate_line)
+        view.add_checkbutton(label="Detailed layout (every status line, the old table)",
+                             variable=self.detailed_var, command=self._toggle_layout)
         view.add_checkbutton(label="Spot list as tiles (like the phone)",
                              variable=self.tiles_var, accelerator="Ctrl+T",
                              command=lambda: self._toggle_tiles(flip=False))
@@ -688,6 +704,7 @@ class PouncerApp:
                 bands.pack(fill="x", before=self._tree_frame)
                 self._bands_last = None
             self.tree.configure(displaycolumns=self.COMPACT_COLUMNS)
+            self._show_tiles()                     # the compact window lists in the table
             self.root.minsize(theme.px(240), theme.px(200))
             cw, ch = (int(v) for v in self.COMPACT_GEOMETRY.split("x"))
             geom = self._compact_geom or f"{theme.px(cw)}x{theme.px(ch)}"
@@ -708,6 +725,7 @@ class PouncerApp:
             self._tree_frame.pack(fill="both", expand=True)
             self._bottom.pack(fill="x")
             self.tree.configure(displaycolumns="#all")
+            self._show_tiles()
             self.root.minsize(theme.px(420), theme.px(300))
             if self._normal_geom:
                 self.root.geometry(self._normal_geom)
@@ -1371,6 +1389,10 @@ class PouncerApp:
         text = getattr(self, "_rate_text", None)
         if text is not None and lbl.cget("text") != text:
             lbl.configure(text=text)
+        short = getattr(self, "_rate_short_text", None)
+        rs = getattr(self, "rate_short", None)
+        if short is not None and rs is not None and rs.cget("text") != short:
+            rs.configure(text=short)
         if self._rate_busy or time.time() - self._rate_at < self.RATE_EVERY_S:
             return
         self._rate_at = time.time()
@@ -1378,7 +1400,9 @@ class PouncerApp:
 
         def work():
             try:
-                self._rate_text = summarymod.rate_line(self._summary())
+                summary = self._summary()
+                self._rate_text = summarymod.rate_line(summary)
+                self._rate_short_text = summarymod.rate_short(summary)
             except Exception as exc:  # noqa: BLE001
                 log.debug("rate line: %s", exc)
             finally:
@@ -1388,11 +1412,14 @@ class PouncerApp:
     def _toggle_rate_line(self) -> None:
         on = bool(self.rate_var.get())
         self.cfg.rate_line = on
-        if on:
+        if on and not self._clean():
             self.rate_label.pack(fill="x", padx=12, pady=(0, 2), after=self.lights_frame)
-            self._rate_at = 0.0
         else:
             self.rate_label.pack_forget()
+        if on:
+            self._rate_at = 0.0
+        if getattr(self, "_rate_short_added", False):
+            self._flow.set_visible(self.rate_short, on and self._clean())
         self._save_setting("ui.rate_line", "true" if on else "false")
 
     def _station_test(self) -> None:
@@ -1606,6 +1633,9 @@ class PouncerApp:
             if col == self.sort_col:
                 text += " \u25bc" if self.sort_reverse else " \u25b2"
             self.tree.heading(col, text=text)
+        rows = getattr(self, "rows", None)
+        if rows is not None:
+            rows.set_sort(self.sort_col, self.sort_reverse)
 
     def _update_sort_buttons(self) -> None:
         for col, btn in self._sort_buttons.items():
@@ -3061,7 +3091,10 @@ class PouncerApp:
                 okhz = self._radio_khz(other)
                 if okhz:
                     parts.append(f"{'AB'[other - 1]} {okhz:.1f}")
-            sub = "   ".join(p for p in parts if p)
+            if self._clean():              # '20m · CW · 28 WPM' (the big number is kHz)
+                sub = " \u00b7 ".join(p for p in parts[1:] if p)
+            else:
+                sub = "   ".join(p for p in parts if p)
         else:
             big, sub = "----.-", "no radio info from N1MM"
         if getattr(self, "_view_band", None):
@@ -3601,8 +3634,10 @@ class PouncerApp:
                     badge.configure(text=word, bg=b_bg, fg=b_fg)
         if not self.cfg.check_line:
             return
+        self._update_problem()
         # the items: shown when something is wrong, or when the badge was clicked
-        want = state != "ok" or self._check_details
+        # (clean layout: only when clicked - the lights row has the one sentence)
+        want = (state != "ok" and not self._clean()) or self._check_details
         if want != bool(lbl.winfo_manager()):
             if want:
                 lbl.pack(fill="x", after=self._top)
@@ -3619,6 +3654,28 @@ class PouncerApp:
                 lbl.insert("end", text, st)
             lbl.configure(state="disabled")
             self._fit_check_line()
+
+    def _update_problem(self) -> None:
+        """Clean layout: '⚠ Log: N1MM Logger.ini not found (+1 more)' at the
+        end of the lights row - click it (or the badge) for every item."""
+        lbl = getattr(self, "problem_label", None)
+        if lbl is None:
+            return
+        text, state = checksmod.problem(getattr(self, "_checks", []) or [])
+        show = self._clean() and bool(self.cfg.check_line) and bool(text)
+        if show:
+            mark = "\u2717" if state == "bad" else "\u26a0"
+            hint = "  \u2013 click: hide details" if self._check_details else "  \u2013 click: details"
+            full = f"{mark} {text}{hint}"
+            fg = theme.CHECK.get(state, ("", theme.TEXT))[1]
+            if lbl.cget("text") != full or lbl.cget("fg") != fg:
+                lbl.configure(text=full, fg=fg)
+        if not self._problem_added:
+            if not getattr(self, "_lights", None):
+                return                       # after the lights (they come first)
+            self.lights_frame.add(lbl, gap=16)
+            self._problem_added = True
+        self.lights_frame.set_visible(lbl, show)
 
     def _fit_check_line(self) -> None:
         """Check line height = its wrapped rows."""
@@ -3726,6 +3783,13 @@ class PouncerApp:
             data.setdefault(b, {"state": "closed", "dx": 0, "calls": 0, "spots": 0}).update(w)
         return data
 
+    @staticmethod
+    def _band_chip_short(band: str, c: dict) -> str:
+        """Clean layout: '20 · 7M' (7 new mults spotted there) / '160' - the
+        colour still says open / our continent only / nothing."""
+        m = c.get("mults") or 0
+        return band.rstrip("m") + (f" \u00b7 {m}M" if m else "")
+
     def _band_chip_text(self, band: str, c: dict) -> str:
         """'40m: 34 DX 70%' (open) / '80m: EU only' (only our continent) /
         '160m: -' (nothing). The % = DX stations of all heard (the colour).
@@ -3791,11 +3855,13 @@ class PouncerApp:
             return
         self._bands_last = key
         self._update_compact_bands(data, here)
+        clean = self._clean()
         if not self._band_lights:
-            tk.Label(self.bands_frame, text="Band open (DX heard, 10 min; new mults spotted):",
-                     bg=theme.BG,
-                     fg=theme.MUTED,
-                     font=(theme.FONT, 9)).pack(side="left", padx=(0, 4))
+            if not clean:
+                tk.Label(self.bands_frame, text="Band open (DX heard, 10 min; new mults spotted):",
+                         bg=theme.BG,
+                         fg=theme.MUTED,
+                         font=(theme.FONT, 9)).pack(side="left", padx=(0, 4))
             for band in CONTEST_BANDS:
                 lbl = tk.Label(self.bands_frame, text=band, padx=6, pady=1,
                                font=(theme.FONT, 9, "bold"), relief="flat", cursor="hand2")
@@ -3806,7 +3872,8 @@ class PouncerApp:
             c = data.get(band) or {"state": "closed", "dx": 0, "spots": 0}
             bg, fg = self._band_chip_color(c)
             viewed = band == self._view_band
-            lbl.configure(text=("\u25b6 " if viewed else "") + self._band_chip_text(band, c),
+            text = (self._band_chip_short(band, c) if clean else self._band_chip_text(band, c))
+            lbl.configure(text=("\u25b6 " if viewed else "") + text,
                           bg=bg, fg=fg,
                           relief="solid" if band in (here, self._view_band) else "flat",
                           bd=2 if viewed else (1 if band == here else 0))
@@ -3857,13 +3924,22 @@ class PouncerApp:
             name.pack(side="left")
             self.lights_frame.add(box)
             self._lights.append((dot, name))
-        if self.bands_frame is None:         # band open chips: same row, after the lights
-            self.bands_frame = tk.Frame(self.lights_frame, bg=bg)
-            self.lights_frame.add(self.bands_frame, gap=10)
+        clean = self._clean()
+        if self.bands_frame is None:
+            if clean:                         # clean: on the sort row, after Min SNR
+                self.bands_frame = tk.Frame(self._flow, bg=bg)
+                self._flow.add(self.bands_frame, gap=16)
+            else:                             # detailed: same row, after the lights
+                self.bands_frame = tk.Frame(self.lights_frame, bg=bg)
+                self.lights_frame.add(self.bands_frame, gap=10)
             self._bands_last = None
+        if not self._problem_added:
+            self._update_problem()           # the sentence after the lights
         for (dot, name), (state, text) in zip(self._lights, states):
             dot.itemconfigure("dot", fill=lights.COLORS[state])
             name.configure(text=text)
+            # clean: a light that is simply off (grey) isn't shown
+            self.lights_frame.set_visible(dot.master, not (clean and state == lights.OFF))
         # the Update light (last) is a button: click = check GitHub now
         if self._lights and not getattr(self, "_update_light_bound", False):
             for w in self._lights[-1]:
@@ -4089,7 +4165,11 @@ class PouncerApp:
         tuned = self._on_freq_spot(items)
 
         # keep the selected spot selected (arrow keys + Space) across redraws
+        kind = self._list_kind() if hasattr(self, "_list_kind") else "tree"
         sel = self.tree.selection()
+        if kind in ("rows", "tiles"):
+            w = self.rows if kind == "rows" else self.tiles
+            sel = (str(w.selected),) if w.selected is not None else ()
         keep = None
         if sel:
             try:
@@ -4102,7 +4182,9 @@ class PouncerApp:
         reselect = None
         alert = []
         tile_items = []
+        row_items = []
         want_tiles = getattr(self, "tiles_var", None) is not None and self.tiles_var.get()
+        want_rows = kind == "rows"
         fade_s = getattr(self.cfg, "fade_minutes", 5) * 60 if hasattr(self, "cfg") else 300
         net_down = self._net_down_since() if hasattr(self, "_net_down_since") else None
         now = time.time()
@@ -4144,6 +4226,11 @@ class PouncerApp:
             if want_tiles:
                 tile_items.append(self._tile_item(s, s is tuned, mults, worked, run, rare, busted,
                                                   tried, offline or now - s.received >= fade_s))
+            if want_rows:
+                row_items.append(self._row_item(s, s is tuned, mults, worked, run, rare, busted,
+                                                tried, now - s.received >= fade_s, offline, now))
+            if kind != "tree":
+                continue
             self.tree.insert(
                 "", "end", iid=str(idx), tags=tags,
                 values=(
@@ -4165,12 +4252,46 @@ class PouncerApp:
             self.tree.focus(reselect)
         if getattr(self, "tiles_var", None) is not None and self.tiles_var.get():
             self.tiles.set_items(tile_items, int(reselect) if reselect is not None else None)
+        if want_rows:
+            self.rows.set_items(row_items, int(reselect) if reselect is not None else None)
         check = getattr(self, "_check_alerts", None)
         if check is not None and getattr(self, "_alerts", None) is not None:
             try:
                 check(alert)
             except Exception as exc:  # noqa: BLE001 - an alert must never break the list
                 log.info("alert: %s", exc)
+
+    @staticmethod
+    def _age_text(seconds: float) -> str:
+        """'now' / '3 min' / '1 h 05' - since the last spot of that station."""
+        m = int(max(0, seconds) // 60)
+        if m < 1:
+            return "now"
+        if m < 60:
+            return f"{m} min"
+        return f"{m // 60} h {m % 60:02d}"
+
+    def _row_item(self, s, onfreq, mults, worked, run, rare, busted, tried, stale, offline,
+                  now) -> dict:
+        """What one row of the clean list shows (rowlist.RowList)."""
+        runs = ""
+        if run.get("run") is not None:
+            runs = f"R{run['run']}%" + ("*" if run.get("rec") else "")
+        if run.get("hours") is not None:
+            runs += (" " if runs else "") + f"~{round(run['hours'])}h"
+        own = self._own_mark(s) if hasattr(self, "_own_mark") else ""
+        return {"freq": f"{s.freq_khz:.1f}", "call": s.dxcall,
+                "snr": "" if s.snr is None else str(s.snr),
+                "wpm": "" if s.wpm is None else str(s.wpm),
+                "mult": int(mults or 0), "run": runs, "rare": bool(rare),
+                "age": self._age_text(now - s.received),
+                "spotter": f"\u2605 {own}" if own else s.spotter,
+                "mode": s.mode or "", "type": s.spot_type or "",
+                "strong": s.snr is not None and s.snr >= 20, "dx": bool(self._is_dx(s.dxcall)),
+                "worked": bool(worked), "offline": bool(offline), "busted": bool(busted),
+                "onfreq": bool(onfreq), "stale": bool(stale), "own": bool(own),
+                "tried": (f"\u21bb{tried[1]}m" + (f"\u00d7{tried[0]}" if tried[0] > 1 else ""))
+                if tried else ""}
 
     def _tile_item(self, s, onfreq, mults, worked, run, rare, busted, tried, stale) -> dict:
         """What one tile shows (tiles.TileList), like the phone's tile."""
@@ -4199,17 +4320,96 @@ class PouncerApp:
             return
         self._act_on_spot(spot)
 
+    def _clean(self) -> bool:
+        """The clean layout (spots first) - not View > Detailed layout."""
+        var = getattr(self, "detailed_var", None)
+        return var is not None and not var.get()
+
+    def _list_kind(self) -> str:
+        """Which list is shown: 'tiles', 'rows' (clean layout) or 'tree'
+        (detailed layout, and the compact window)."""
+        if getattr(self, "tiles_var", None) is not None and self.tiles_var.get():
+            return "tiles"
+        compact = getattr(self, "compact_var", None) is not None and self.compact_var.get()
+        if self._clean() and not compact and getattr(self, "rows", None) is not None:
+            return "rows"
+        return "tree"
+
     def _show_tiles(self) -> None:
-        """Show the tiles or the table in the list's place."""
-        on = bool(self.tiles_var.get())
-        if on:
-            self.tree.pack_forget()
-            self._tree_scroll.pack_forget()
+        """Show the tiles, the rows or the table in the list's place."""
+        kind = self._list_kind()
+        self.tree.pack_forget()
+        self._tree_scroll.pack_forget()
+        self.tiles.pack_forget()
+        rows = getattr(self, "rows", None)
+        if rows is not None:
+            rows.pack_forget()
+        if kind == "tiles":
             self.tiles.pack(fill="both", expand=True)
+        elif kind == "rows":
+            rows.set_sort(self.sort_col, self.sort_reverse)
+            rows.pack(fill="both", expand=True)
         else:
-            self.tiles.pack_forget()
             self.tree.pack(side="left", fill="both", expand=True)
             self._tree_scroll.pack(side="right", fill="y")
+        self._dirty = True
+
+    def _toggle_layout(self) -> None:
+        """View > Detailed layout: used at once, saved in config.ini."""
+        self._apply_layout()
+        try:
+            self._save_setting("ui.layout", "detailed" if self.detailed_var.get() else "clean")
+        except Exception as exc:  # noqa: BLE001
+            log.info("layout setting not saved: %s", exc)
+
+    def _apply_layout(self) -> None:
+        """Clean: the top bar, ONE row of lights (one sentence when something
+        is wrong), sort + band chips + rate on one row, the F-keys and the
+        readable list. Detailed: every status line as before."""
+        clean = self._clean()
+        try:
+            self.freq_big.configure(font=(theme.FONT, 30 if clean else 20, "bold"))
+            # the address: beside the badges (clean), after the mode (detailed)
+            self.addr_label.pack_forget()
+            if clean:
+                self.addr_label.configure(font=(theme.FONT, 9))
+                self.addr_label.pack(side="right", padx=(0, 10), pady=(6, 0))
+            else:
+                self.addr_label.configure(font=(theme.FONT, 11))
+                self.addr_label.pack(side="left", pady=(6, 0), after=self.freq_sub)
+            # status lines under the lights
+            for w in (self.rate_label, self._info):
+                w.pack_forget()
+            if not clean:
+                if getattr(self.cfg, "rate_line", True):
+                    self.rate_label.pack(fill="x", padx=12, pady=(0, 2), after=self.lights_frame)
+                self._info.pack(fill="x", after=self.rate_label if getattr(
+                    self.cfg, "rate_line", True) else self.lights_frame)
+            # the phone address in the status bar: the top bar has it (clean)
+            if clean:
+                self.web_label.pack_forget()
+            elif not self.web_label.winfo_manager():
+                self.web_label.pack(fill="x", after=self.status_label)
+            # the rate, short, on the sort row (clean)
+            if not getattr(self, "_rate_short_added", False):
+                self._flow.add(self.rate_short, gap=16)
+                self._rate_short_added = True
+            self._flow.set_visible(self.rate_short, clean and getattr(self.cfg, "rate_line", True))
+        except (tk.TclError, AttributeError) as exc:
+            log.debug("layout: %s", exc)
+        # band chips: rebuilt in the right row (lights row / sort row)
+        old = getattr(self, "bands_frame", None)
+        if old is not None:
+            try:
+                old.destroy()
+            except tk.TclError:
+                pass
+            self.bands_frame = None
+            self._band_lights = {}
+            self._bands_last = None
+        self._lights_last = None          # redraw the lights (off ones hidden or not)
+        self._check_segs = None
+        self._show_tiles()
         self._dirty = True
 
     def _toggle_tiles(self, flip: bool) -> str:

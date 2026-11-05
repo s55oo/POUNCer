@@ -262,6 +262,14 @@ def build(qsos: list[dict], taps: list[tuple[float, str, str]], mult_types=(),
     }
 
 
+def rate_short(summary: dict) -> str:
+    """The clean layout's rate: 'Rate 84/h · 1234 Q 345 M' ('' = no QSOs)."""
+    if not summary.get("ok") or not summary.get("qsos"):
+        return ""
+    return (f"Rate {summary.get('q10', 0) * 6}/h \u00b7 {summary['qsos']} Q "
+            f"{summary.get('mults', 0)} M")
+
+
 def rate_line(summary: dict) -> str:
     """The window's rate line: 'Rate 84/h (10 min) · 72 last hour · 1234 QSOs
     345 mults (+12 this hour)  |  40m 380 Q 90 M (+3)  20m ...'."""

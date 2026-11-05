@@ -58,6 +58,21 @@ jobs:
           Get-Content tk-test.txt
           exit $code
 
+      # Screenshots of the window (both layouts) on real Windows - checked
+      # before a release; never fails the build.
+      - name: Window screenshots
+        continue-on-error: true
+        run: |
+          python -m pip install pillow
+          python tests/ci_screenshots.py screenshots
+
+      - uses: actions/upload-artifact@v6
+        continue-on-error: true
+        with:
+          name: screenshots
+          path: screenshots/*.png
+          if-no-files-found: ignore
+
       # PyInstaller's own deps first, then PyInstaller itself from the sdist:
       # pip compiles the bootloader with the runner's MSVC.
       - name: Install PyInstaller (bootloader compiled from source)
