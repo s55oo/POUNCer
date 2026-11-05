@@ -273,7 +273,7 @@ class PouncerApp:
             "type": "Type",
             "spotter": "Spotter",
         }
-        self._sort_labels = {"time": "Time", "freq": "Freq", "snr": "SNR"}
+        self._sort_labels = {"time": "Time", "freq": "Freq", "snr": "SNR", "mult": "Mult"}
         self._sort_buttons: dict[str, ttk.Button] = {}
         self.sort_col = config.sort if config.sort in self.columns else "snr"
         self.sort_reverse = self.sort_col == "snr"
@@ -480,7 +480,7 @@ class PouncerApp:
         flow.pack(fill="x")
         self._flow = flow
         flow.add(ttk.Label(flow, text="Sort", style="Muted.TLabel"))
-        for col in ("time", "freq", "snr"):
+        for col in ("time", "freq", "snr", "mult"):
             btn = flow.add(ttk.Button(
                 flow, text=self._sort_labels[col], style="Sort.TButton",
                 command=lambda c=col: self._set_sort(c),

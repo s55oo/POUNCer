@@ -1,5 +1,26 @@
 # POUNCer — Changelog
 
+## v0.7.135 — 2026-11-05 — Clean window layout
+
+- **New clean layout** (the default; *View > Detailed layout* brings back
+  every status line and the old table, `[ui] layout`):
+  - **one row of lights** - only the connections that are on - and **one
+    sentence** when something is wrong ("✗ Log: N1MM Logger.ini not found
+    (+1 more) – click: details"); the check items, the N1MM / RBN / Log lines
+    and the long rate line only on that click (or in the detailed layout);
+  - **band chips and the rate on the Sort row** (`20 · 7M`, `Rate 84/h ·
+    1234 Q 345 M`), the phone address only in the top bar;
+  - the **frequency twice as big**, `20m · CW · 28 WPM` beside it;
+  - the **spot list as readable rows**: the call big and bold, the rest
+    small and quiet; colour only where it means something (new mult: red call
+    + M / MM tag, worked: grey row, DX: warm tint, tuned: blue frame);
+    **Runs** (R84% ~23h, ⚡ rare runner) and **Age** (since the last spot)
+    columns; Mode / Type only when they say something. Click a heading to
+    sort, a row to QSY and call; arrows + Space as before.
+- **Mult** sort button (new multipliers first) next to Time / Freq / SNR.
+- The build takes screenshots of the window on Windows (both layouts) so
+  the look can be checked before a release.
+
 ## v0.7.134 — 2026-11-05 — Address next to the frequency
 
 - The top bar shows this PC's address with the phone page's port next to

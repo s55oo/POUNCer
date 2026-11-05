@@ -275,24 +275,37 @@ the rate / QSOs / mults line, a "SPOTTED" pop-up (someone spotted you on a
 cluster) and the spot list table - new multipliers in red, MM = double
 mult, the tuned station highlighted.*
 
-The window is laid out like this, from the top:
+The window has two layouts (*View > Detailed layout*, `[ui] layout`).
 
-- a **dark top bar**: the radio frequency **large**, with band, mode, CW
-  speed (and the other radio's frequency in SO2R / SO2V) next to it, then
-  this PC's address with the phone page's port - **ZeroTier 10.66.66.5:8080**,
-  or **LAN 192.168.1.20:8080** without ZeroTier (click: open the page); on the
-  right the **READY / CHECK / NOT READY** badge (click it to show the check
-  items) and the team badge (MASTER / SLAVE / ALONE / TEAM OFF);
-- the check items - only while something is wrong (or after a click);
-- **one row of status chips**: the connection lights, then *Band open* -
-  coloured from orange (only your continent heard) to green (all DX);
-  **click a band** to list its spots while the radio stays;
-- small grey info lines (N1MM, RBN, Log) with the values in bold;
-- Sort (the active sort key filled blue), Min SNR, and Radio A/B (only while
-  N1MM reports two radios);
+**Clean** (the default since v0.7.135) - the spots first:
+
+- a **dark top bar**: the radio frequency **large**, then band · mode · CW
+  speed (and the other radio in SO2R / SO2V); on the right this PC's
+  address with the phone page's port - **ZeroTier 10.66.66.5:8080**, or
+  **LAN 192.168.1.20:8080** without ZeroTier (click: open the page) - the
+  **READY / CHECK / NOT READY** badge and the team badge;
+- **one row of lights** - only the connections that are on (a light that is
+  simply off isn't shown) - and, when something is wrong, **one sentence**
+  after them: *"✗ Log: N1MM Logger.ini not found (+1 more) – click: details"*.
+  A click on it (or on the badge) shows every check item; click again to hide;
+- **one row of controls**: Sort (Time / Freq / SNR / Mult), Min SNR, the
+  **band chips** (`20 · 7M` = 7 new mults spotted on 20 m; colour = band
+  open; click = list that band) and the **rate** (`Rate 84/h · 1234 Q 345 M`);
 - the F-keys (ENTER green);
-- the spot list: taller rows, light zebra stripes, bold column headings;
-- a status bar: what the last tap did, and the phone page address.
+- the **spot list as readable rows**: the **call big and bold**, the rest small
+  and quiet; colour only where it means something - **new mult**: the call
+  red and an **M / MM** tag; **worked**: the row grey; **DX**: a warm row tint;
+  the station the radio is on: a blue frame; **Runs** `R84% ~23h` (⚡ yellow =
+  rare runner); **Age** = since its last spot. *Mode* and *Type* appear only
+  when the list has more than one mode or a spot that isn't a CQ. Click a
+  heading to sort; click a row (or arrows + Space) to QSY and call;
+- a status bar: what the last tap did.
+
+**Detailed** - everything as before v0.7.135: the check items whenever
+something is wrong, the lights with *Band open* chips, the rate line, the
+N1MM / RBN / Log info lines, the table with every column, and the phone
+address in the status bar. The compact window (Ctrl+M) and the tiles
+(Ctrl+T) work in both.
 
 The options and actions are in the menu bar (sort, the A / B key and the
 F-keys stay as buttons - they're used all contest long):
@@ -303,6 +316,7 @@ F-keys stay as buttons - they're used all contest long):
 * **View** - *Also enter callsign in N1MM* and *Hide worked* (tick),
   **Compact window (beside N1MM)** (tick, **Ctrl+M**) and **Always on top**
   (tick), **Alert pop-up (rare CQ + new mult)** and **Alert sound** (tick),
+  **Detailed layout** (tick: every status line and the old table),
   **Rate / QSOs / mults per band line** and **Spot list as tiles** (Ctrl+T)
   (tick), Clear spots, Contest summary, **CQ zones: who hears me** and **Band
   opening timeline** (each opens a window of its own), Phone page in the
@@ -1191,6 +1205,7 @@ All options live in `config.ini` and are documented there, line by line:
 | `rate_line` | true | Rate / QSOs / mults per band line under the lights. |
 | `self_spot_alert` | true | SPOTTED pop-up (3 s) and yellow bar when a person spots your call on a DX cluster (self-spots marked). |
 | `internet_check` | true | Watch the internet: red "Internet down since …" bar, last spots kept greyed, every feed reconnects at once when it's back (from the next start). |
+| `layout` | clean | Window: `clean` (spots first, one status row, readable list) or `detailed` (every status line, the old table). View > Detailed layout. |
 | `self_spot_band_only` | true | SPOTTED pop-up only on the PC whose radio is on the spot's band; the others log it. |
 | `check_line` | true | Pre-contest check line in the window; phone warns when something is wrong. |
 | `band_lights` | true | Band open lights (window row, phone band menu dots) from skimmers on your continent. |
