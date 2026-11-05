@@ -101,7 +101,28 @@ The values in bold - spotter, mode, spot counts, ports, IPs, the CW and SSB
 warm-up counts - are what POUNCer is doing right now; the plain text around
 them only says what they are.
 
-### Spot list
+### Spot list - clean layout (readable rows, the default)
+
+| What you see | Meaning |
+| --- | --- |
+| **K1ABC** big and bold | the station; red = a **new multiplier** on this band, with an **M** (one) or **MM** (double) tag in *Mult* |
+| whole row grey | already worked on this band and mode (or, while the internet is down, an old spot) |
+| warm (beige / brown) row | DX - another continent than yours |
+| blue frame | the radio is on this station (within 0.5 kHz) |
+| yellow frame | selected (arrow keys); Space = tap it |
+| **R84% ~23h** in *Runs* | that station ran (called CQ) 84 % of its QSOs, ~23 h on the air, in its past logs of this contest; **R12% ⚡** in yellow = a **rare runner** - it won't stay, work it now |
+| *Age* `now` / `3 min` | since that station's last spot |
+| **?** after the call | not in Super Check Partial (busted?) |
+| **★** / ★ S53WW | your own skimmer heard it |
+| ↻3m×2 | you tapped it 3 min ago, twice |
+| *Mode*, *Type* columns | shown only when the list has more than one mode, or a spot that isn't a CQ |
+
+Click a heading to sort by it (▼ / ▲). The lights row in this layout shows
+only the connections that are on, and **one sentence** when something is
+wrong (*✗ Log: N1MM Logger.ini not found (+1 more) – click: details*). The
+band chips sit on the Sort row: **20 · 7M** = 7 new mults spotted on 20 m.
+
+### Spot list - detailed layout (the table)
 
 Text colour (one per row; the first that fits):
 
