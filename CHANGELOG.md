@@ -1,5 +1,17 @@
 # POUNCer — Changelog
 
+## v0.7.133 — 2026-11-05 — N1MM Autostarter
+
+- **N1MMautostarter.exe** (new, on every release): POUNCer's autostart as a
+  small program of its own, for PCs without POUNCer. Program 1-8 (Browse,
+  arguments, start after, wait for N1MM) and a folder; N1MM first and the
+  rest when it is up; already running programs are not started again; a 5 s
+  countdown with Stop at start; *Close when everything is started*; a button
+  for the Windows Startup folder. Settings in `N1MMautostarter.ini` (the same
+  keys as POUNCer's `[autostart]`), a log in `N1MMautostarter.log`.
+- "N1MM is up" = its first broadcast on UDP 12060 (listened to only while
+  waiting, never taken from another program), or N1MM running for 30 s.
+
 ## v0.7.132 — 2026-11-05 — N1MM port hint follows the setting
 
 - The window's "no radio info" hint names the port POUNCer really listens on

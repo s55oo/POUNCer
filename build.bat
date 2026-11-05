@@ -12,6 +12,8 @@ setlocal
 cd /d "%~dp0"
 python -m PyInstaller --noconfirm --clean --distpath dist --workpath build POUNCer.spec
 if errorlevel 1 goto :err
+python -m PyInstaller --noconfirm --clean --distpath dist --workpath build N1MMautostarter.spec
+if errorlevel 1 goto :err
 
 rem Ship the editable config alongside the exe.
 copy /y config.ini dist\config.ini >nul
