@@ -1082,6 +1082,21 @@ the exe.
 No setting is needed for the control direction (port 13064 is always listened
 to by N1MM).
 
+**Another program already listens on 12060?** Give POUNCer its own port in
+config.ini:
+
+```ini
+[n1mm]
+listen_ip = 127.0.0.1    ; only from N1MM on this PC
+listen_port = 12061
+```
+
+and in N1MM's Broadcast Data add `127.0.0.1:12061` **after** the address on
+each line POUNCer uses - **Application Info, Radio, Contacts, Spots, Score**
+and **External Callsign Lookup** - separated by a space, e.g. Radio
+`127.0.0.1:12060 127.0.0.1:12061`. N1MM sends to every address listed. Then
+restart POUNCer (the port is read at start).
+
 ## Running
 
 ```

@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## v0.7.132 — 2026-11-05 — N1MM port hint follows the setting
+
+- The window's "no radio info" hint names the port POUNCer really listens on
+  (`[n1mm] listen_port`, e.g. 12061), not always 12060.
+- README *N1MM Logger+ setup* and the config.ini comment explain how to give
+  POUNCer its own port (`listen_ip = 127.0.0.1`, `listen_port = 12061`) when
+  another program uses 12060, and which N1MM Broadcast Data lines get the
+  second address.
+
 ## v0.7.131 — 2026-10-22 — Watched calls removed
 
 - **Watched calls** (`[ui] watch_calls`, v0.7.123) removed - it was there to
