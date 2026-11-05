@@ -31,7 +31,7 @@ COLUMNS = (
     ("freq", "kHz", 82, "e", "freq"),
     ("call", "Call", 150, "w", "call"),
     ("snr", "SNR", 52, "e", "snr"),
-    ("wpm", "WPM", 52, "e", "wpm"),
+    ("wpm", "WPM", 52, "e", None),          # shown, not sortable
     ("mult", "Mult", 54, "w", "mult"),
     ("run", "Runs", 104, "w", None),
     ("mode", "Mode", 58, "w", "mode"),
