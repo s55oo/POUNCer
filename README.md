@@ -121,8 +121,8 @@ team) and UDP 12079 (team); everything else is outgoing.
 * **Phone view (web)** - a small local web server (stdlib only) serves the same
   needed spots as big tap tiles for a phone/browser. Tapping a tile QSYs and
   enters the call on this PC. Open
-  `http://<pc-ip>:8080` - the exact URL is shown on the **Phone view** line of
-  the main window: the ZeroTier address if ZeroTier is running, otherwise the
+  `http://<pc-ip>:8080` - the exact address is shown in the top bar next to
+  the frequency and on the **Phone view** line of the main window: the ZeroTier address if ZeroTier is running, otherwise the
   LAN address, plus the port it listens on.
   Binds to all interfaces, so it works over your LAN and over ZeroTier/VPN for
   remote access. LAN/VPN only, no password (see *Security*). **Sort: Time / Freq / SNR** buttons (**CLR** in front clears all spots, with Undo)
@@ -278,7 +278,9 @@ mult, the tuned station highlighted.*
 The window is laid out like this, from the top:
 
 - a **dark top bar**: the radio frequency **large**, with band, mode, CW
-  speed (and the other radio's frequency in SO2R / SO2V) next to it; on the
+  speed (and the other radio's frequency in SO2R / SO2V) next to it, then
+  this PC's address with the phone page's port - **ZeroTier 10.66.66.5:8080**,
+  or **LAN 192.168.1.20:8080** without ZeroTier (click: open the page); on the
   right the **READY / CHECK / NOT READY** badge (click it to show the check
   items) and the team badge (MASTER / SLAVE / ALONE / TEAM OFF);
 - the check items - only while something is wrong (or after a click);

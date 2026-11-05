@@ -399,6 +399,12 @@ class PouncerApp:
         self.freq_sub = tk.Label(top, text="waiting for N1MM", bg=theme.TOP_BG,
                                  fg=theme.TOP_MUTED, font=(theme.FONT, 11), padx=10)
         self.freq_sub.pack(side="left", pady=(6, 0))
+        # this PC's address for the phone page: ZeroTier, else LAN - IP:port
+        # (click = open the phone page here)
+        self.addr_label = tk.Label(top, text="", bg=theme.TOP_BG, fg=theme.TOP_MUTED,
+                                   font=(theme.FONT, 11), padx=6, cursor="hand2")
+        self.addr_label.pack(side="left", pady=(6, 0))
+        self.addr_label.bind("<Button-1>", lambda _e: self._open_browser())
         # Team role: MASTER (talks to RBN) / SLAVE / alone - a coloured badge
         self.team_label = tk.Label(top, text="", font=(theme.FONT, 9, "bold"), padx=8, pady=2)
         self.team_label.pack(side="right", padx=(8, 0))
@@ -4394,6 +4400,7 @@ class PouncerApp:
                 self.root.after(1500, self._open_browser)
         else:
             self.web_label.configure(text="Phone view: **disabled** ([web] enabled = false)")
+            self._show_addr(None)
         if self.cfg.team:
             self._start_team()
         self._ensure_rbn_clients()
@@ -4438,9 +4445,33 @@ class PouncerApp:
                 text=f"Phone view: **FAILED** to listen on port **{self.cfg.web_port}** "
                      f"({exc}) - port in use? Change [web] port in config.ini"
             )
+            self._show_addr(None)
             return
         self._refresh_web_address()
         log.info("phone view: %s", self.web_url)
+
+    @staticmethod
+    def addr_text(ip: str, network: str, port: int | None) -> str:
+        """Top bar: 'ZeroTier 10.66.66.5:8080' / 'LAN 192.168.1.20:8080';
+        no phone page: the IP only."""
+        net = "ZeroTier" if network == "ZeroTier" else ("LAN" if network == "LAN" else "")
+        where = f"{ip}:{port}" if port else f"{ip} (phone page off)"
+        return f"{net} {where}".strip()
+
+    def _show_addr(self, port, ip: str | None = None, network: str = "") -> None:
+        """This PC's address next to the frequency (ZeroTier first, else LAN)."""
+        lbl = getattr(self, "addr_label", None)
+        if lbl is None:
+            return
+        if ip is None:
+            try:
+                ip, network = pick_web_address(getattr(self.cfg, "web_host", "0.0.0.0"))
+            except Exception:  # noqa: BLE001
+                ip, network = "", ""
+        try:
+            lbl.configure(text=self.addr_text(ip, network, port) if ip else "")
+        except tk.TclError:
+            pass
 
     def _refresh_web_address(self) -> None:
         """Work out the URL to show for the phone view (ZeroTier, else LAN)."""
@@ -4449,6 +4480,7 @@ class PouncerApp:
         port = self.web.port
         ip, network = pick_web_address(self.cfg.web_host)
         self.web_url = f"http://{ip}:{port}"
+        self._show_addr(port, ip, network)
         self.web_label.configure(
             text=(
                 f"Phone view: **{self.web_url}**   ({network})"

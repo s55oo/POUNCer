@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.134 — 2026-11-05 — Address next to the frequency
+
+- The top bar shows this PC's address with the phone page's port next to
+  the frequency: **ZeroTier 10.66.66.5:8080**, or **LAN 192.168.1.20:8080**
+  when ZeroTier doesn't run (re-checked every minute, so it switches when
+  ZeroTier comes up). Click it to open the phone page. With the phone page
+  off: the IP only, "(phone page off)".
+
 ## v0.7.133 — 2026-11-05 — N1MM Autostarter
 
 - **N1MMautostarter.exe** (new, on every release): POUNCer's autostart as a
