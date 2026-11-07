@@ -315,6 +315,14 @@ messages are dropped; without a password nothing is added (as before).
 UDP` (this port) and `POUNCer phone page TCP` (8080), private + domain
 networks.
 
+**VPNs:** discovery is by UDP broadcast, so the team finds itself by itself
+on **ZeroTier** and **OpenVPN TAP** (virtual Ethernet). **Tailscale**,
+**WireGuard** and **OpenVPN TUN** carry no broadcasts: set `[team] peers` to
+the other PC's VPN address (one side is enough; then every message goes
+there directly). The phone page (TCP), N1MM (local UDP) and the internet
+feeds don't use broadcasts. The VPN adapter must be **Private** in Windows
+for the firewall rules to apply. Details: README *Several POUNCers (team)*.
+
 Several POUNCers on one network. Compact JSON datagrams, each with `id` (a
 random id of that POUNCer) and `t` (type):
 

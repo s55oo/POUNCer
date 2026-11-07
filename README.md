@@ -880,6 +880,28 @@ Give them all the same `[rbn] spotter` and modes. Team messages are not
 signed - use the team only on your own LAN / private ZeroTier (see
 *Security* below).
 
+> **Which VPN for PCs in different places.** POUNCers find each other by
+> **UDP broadcast** (port 12079), and only some VPNs carry broadcasts:
+>
+> | VPN | Team | What to do |
+> |---|---|---|
+> | **ZeroTier** | works by itself | keep the network **Private** (members approved by hand) |
+> | **OpenVPN, TAP mode** (`dev tap`, `client-to-client`) | works by itself | the OpenVPN community client with the TAP-Windows6 driver (OpenVPN Connect and the DCO driver are TUN only) |
+> | **Tailscale** | needs `peers` | `[team] peers = <the other PC's 100.x address>` |
+> | **WireGuard** | needs `peers` | `[team] peers = <the other PC's VPN address>`; its **AllowedIPs** must include that address (or the whole VPN range) |
+> | **OpenVPN, TUN mode** (the usual) | needs `peers` | `[team] peers = <the other PC's VPN address>` |
+>
+> With `peers` the team works on any VPN: POUNCer sends to those addresses
+> directly, and one side listed is enough (the other learns the address from
+> the first message) - listing both is safer. The phone page, N1MM and the
+> internet connections don't use broadcasts, so they work on every VPN.
+>
+> Whichever VPN: set its network adapter to **Private** in Windows, or the
+> firewall rules (*File > Allow POUNCer in Windows Firewall…*, private and
+> domain networks only) don't apply - symptom: works on the LAN, not over
+> the VPN. The top bar and the QR codes show the ZeroTier address; with
+> another VPN they show the LAN one - type the VPN address on the phone.
+
 ## Reading a tile (phone view)
 
 **Ping**: a small label above **CLR** shows the round trip from the phone
