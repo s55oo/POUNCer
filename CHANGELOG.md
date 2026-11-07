@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## v0.7.162 — 2026-11-07 — Spotted filter (the DX)
+
+- New menu **Spotted** next to Spotters, with the same choices but for the
+  **spotted stations** (the DX): Calls (prefix: 3Y0, VP8), DXCC (JA, VK or
+  Japan), Zones (3, 4, 5), Continents (NA, OC) or WW (all, the default).
+  Spots of other stations are dropped at once, from every source - also not
+  passed on on port 10000. Lists in Settings > Spotted (`[spotted]`); the
+  line in the window shows "Spotted: ..." when it is not WW.
+
 ## v0.7.161 — 2026-11-07 — Spots and Spotters as menus
 
 - **Spots** and **Spotters** are now menus in the menu bar instead of rows

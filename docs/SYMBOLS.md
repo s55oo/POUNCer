@@ -173,6 +173,7 @@ Marks in the call and Mult columns:
 | **▲** / **▼** in a column heading | sorted up / down by that column |
 | **MyCall** / **Relay** (first row, after Min SNR) | MyCall = the connection for spots of your own call (azure, `<call>-77`, SPOTTED pop-up); Relay = hand the spots out on port 10000 (N1MM's Telnet window) - no connection of its own, N1MM's commands go over POUNCer's Telnet / Cluster connection; blue = on, hover = details |
 | "Spots: RBN + Cluster   Spotters: S53WW" | what is in use: the sources ticked in the menu **Spots** (RBN, Telnet, HTTP, Cluster; backups TelBck, HamQTH) and the filter chosen in the menu **Spotters** (Calls / DXCC / Zones / Continents / WW); click = every connection and its state |
+| "Spotted: continent NA" in that line | the Spotted menu filters the spotted stations (the DX): only these are kept, from every source; not shown when it is WW (all) |
 | "nothing on - no spots" after it | every source is off |
 | "master's choice" after it | team slave: the master's sources; a click asks the master |
 | **ENTER** (green) | logs the QSO in N1MM |

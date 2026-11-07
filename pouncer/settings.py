@@ -125,6 +125,21 @@ SETTINGS: list[dict] = [
              "listed skimmers / spotters, dxcc = spotters in the listed countries, zones = in "
              "the listed CQ zones, cont = on the listed continents, ww = all. Also the "
              "Spotters menu."},
+    {"key": "spotted.mode", "attr": "spotted_mode", "kind": "choice",
+     "choices": ["calls", "dxcc", "zones", "cont", "ww"], "live": True,
+     "group": "Spotted", "label": "Keep spots of these stations",
+     "help": "Which SPOTTED stations (the DX) are kept, from every source: calls = the "
+             "listed calls (prefix), dxcc = in the listed countries, zones = in the listed CQ "
+             "zones, cont = on the listed continents, ww = all. Separate from Spotters "
+             "(who spots). Also the Spotted menu."},
+    {"key": "spotted.calls", "attr": "spotted_calls", "kind": "text", "live": True,
+     "group": "Spotted", "label": "  Calls", "help": "e.g. 3Y0J, VP8 - prefix match."},
+    {"key": "spotted.dxcc", "attr": "spotted_dxcc", "kind": "text", "live": True,
+     "group": "Spotted", "label": "  DXCC", "help": "Prefix or name: JA, VK, ZL or Japan."},
+    {"key": "spotted.zones", "attr": "spotted_zones", "kind": "text", "live": True,
+     "group": "Spotted", "label": "  Zones", "help": "CQ zones: 3, 4, 5."},
+    {"key": "spotted.conts", "attr": "spotted_conts", "kind": "text", "live": True,
+     "group": "Spotted", "label": "  Continents", "help": "EU, NA, SA, AS, AF, OC."},
     {"key": "rbn.spotter", "attr": "rbn_spotter", "kind": "text", "live": True,
      "group": "Spotters", "label": "  Calls",
      "help": "Skimmers / spotters, comma separated (prefix: TK0C = TK0C-1, TK0C-2 ...), "
@@ -393,7 +408,8 @@ def parse(item: dict, text: str):
         raise ValueError(f"{item['label']}: an http(s):// address, or empty")
     if any(ch in text for ch in "\r\n[]"):
         raise ValueError(f"{item['label']}: no line breaks or brackets")
-    if item["attr"] in ("rbn_spotter", "ssb_spotters", "ssb_login", "filter_conts"):
+    if item["attr"] in ("rbn_spotter", "ssb_spotters", "ssb_login", "filter_conts",
+                        "spotted_calls", "spotted_conts"):
         text = text.upper()
     return text, text
 

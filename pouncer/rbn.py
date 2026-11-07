@@ -353,6 +353,77 @@ def spot_from_n1mm(pkt: dict, now: float | None = None) -> Spot:
                 received=time.time() if now is None else now, source="n1mm")
 
 
+class SpottedFilter:
+    """The Spotted filter: which SPOTTED stations (the DX) are kept, from
+    every source - calls (prefix), DXCC (prefix or name), CQ zones,
+    continents, or ww = all. Separate from the Spotters filter."""
+
+    MODES = ("calls", "dxcc", "zones", "cont", "ww")
+
+    def __init__(self, entity_of=None) -> None:
+        self.entity_of = entity_of        # call -> cty Entity (name, continent, cq)
+        self.mode = "ww"
+        self.calls: tuple = ()
+        self.dxcc: tuple = ()
+        self.zones: frozenset = frozenset()
+        self.conts: tuple = ()
+        self._names: set | None = None
+
+    def configure(self, mode: str, calls=(), dxcc=(), zones=(), conts=()) -> None:
+        self.mode = mode if mode in self.MODES else "ww"
+        self.calls = tuple(c.strip().upper() for c in calls if c.strip())
+        self.dxcc = tuple(d.strip() for d in dxcc if d.strip())
+        self.zones = frozenset(int(z) for z in zones)
+        self.conts = tuple(c.strip().upper() for c in conts if c.strip())
+        self._names = None
+
+    def active(self) -> bool:
+        return self.mode != "ww" and bool({"calls": self.calls, "dxcc": self.dxcc,
+                                           "zones": self.zones, "cont": self.conts}[self.mode])
+
+    def label(self) -> str:
+        if not self.active():
+            return "all"
+        if self.mode == "calls":
+            return ", ".join(self.calls)
+        if self.mode == "dxcc":
+            return "DXCC " + ", ".join(self.dxcc)
+        if self.mode == "zones":
+            return "zone " + ", ".join(str(z) for z in sorted(self.zones))
+        return "continent " + ", ".join(self.conts)
+
+    def _ent(self, call: str):
+        if self.entity_of is None:
+            return None
+        try:
+            return self.entity_of(call)
+        except Exception:  # noqa: BLE001
+            return None
+
+    def accept(self, dxcall: str) -> bool:
+        if not self.active():
+            return True
+        call = (dxcall or "").strip().upper()
+        if self.mode == "calls":
+            return any(call.startswith(c) for c in self.calls)
+        ent = self._ent(call)
+        if ent is None:
+            return False                   # unknown country: not in the filter
+        if self.mode == "dxcc":
+            if self._names is None:
+                names = set()
+                for item in self.dxcc:
+                    e = self._ent(item.upper())
+                    names.add(e.name.lower() if e is not None else item.lower())
+                if self.entity_of is None:
+                    return False
+                self._names = names
+            return ent.name.lower() in self._names
+        if self.mode == "zones":
+            return getattr(ent, "cq", None) in self.zones
+        return getattr(ent, "continent", None) in self.conts
+
+
 class PeopleFilter:
     """People's spots through the one spotter filter (``SpotterFilter.people_accept``)."""
 

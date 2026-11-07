@@ -95,5 +95,59 @@ class AppFilterTests(unittest.TestCase):
         self.assertEqual(len(saved), 1)
 
 
+class SpottedTests(unittest.TestCase):
+    def sf(self):
+        from pouncer.rbn import SpottedFilter
+        ents = {"JA1ABC": ("Japan", "AS", 25), "JA": ("Japan", "AS", 25),
+                "K1ABC": ("United States", "NA", 5), "DL1ABC": ("Germany", "EU", 14),
+                "VK2ABC": ("Australia", "OC", 30)}
+        return SpottedFilter(entity_of=lambda c: types.SimpleNamespace(
+            name=ents[c][0], continent=ents[c][1], cq=ents[c][2]) if c in ents else None)
+
+    def test_modes(self) -> None:
+        f = self.sf()
+        self.assertTrue(f.accept("ANY1"))                       # ww
+        f.configure("calls", calls=["3Y0", "VK2"])
+        self.assertTrue(f.accept("VK2ABC"))
+        self.assertFalse(f.accept("K1ABC"))
+        f.configure("dxcc", dxcc=["JA"])
+        self.assertTrue(f.accept("JA1ABC"))
+        self.assertFalse(f.accept("K1ABC"))
+        f.configure("zones", zones=[5, 30])
+        self.assertTrue(f.accept("K1ABC") and f.accept("VK2ABC"))
+        self.assertFalse(f.accept("DL1ABC"))
+        f.configure("cont", conts=["NA", "OC"])
+        self.assertTrue(f.accept("VK2ABC"))
+        self.assertFalse(f.accept("JA1ABC"))
+        self.assertFalse(f.accept("XX9ZZZ"))                    # unknown country
+        self.assertEqual(f.label(), "continent NA, OC")
+        f.configure("dxcc", dxcc=[])                            # empty list = everyone
+        self.assertTrue(f.accept("K1ABC"))
+
+    def test_menu_and_apply(self) -> None:
+        from tests.test_so2r import _import_app
+        app = _import_app()
+        P = app.PouncerApp
+        cfg = types.SimpleNamespace(spotted_mode="ww", spotted_calls="", spotted_dxcc="JA, VK",
+                                    spotted_zones="", spotted_conts="NA")
+        saved = []
+        f = types.SimpleNamespace(cfg=cfg, spotted_filter=self.sf(), FILTER_NAMES=P.FILTER_NAMES,
+                                  _list=P._list,
+                                  status_label=types.SimpleNamespace(configure=lambda **k: None))
+        f._apply_spotted = lambda log_it=True: P._apply_spotted(f, log_it)
+
+        def save(k, v):
+            saved.append((k, v))
+            cfg.spotted_mode = v
+            f._apply_spotted()
+        f._save_setting = save
+        P._set_spotted_filter(f, "dxcc")
+        self.assertEqual(saved, [("spotted.mode", "dxcc")])
+        self.assertTrue(f.spotted_filter.accept("JA1ABC"))
+        self.assertFalse(f.spotted_filter.accept("K1ABC"))
+        P._set_spotted_filter(f, "calls")                        # empty list: refused
+        self.assertEqual(len(saved), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

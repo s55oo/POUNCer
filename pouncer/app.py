@@ -23,7 +23,8 @@ from .n1mm import (
     N1MMController, RadioListener, RadioState, cat_macro, next_tune_khz,
 )
 from .rbn import (
-    ContinentFilter, OnFreqTracker, PeopleFilter, RBNClient, Spot, SpotterFilter, is_beacon,
+    ContinentFilter, OnFreqTracker, PeopleFilter, RBNClient, Spot, SpotterFilter, SpottedFilter,
+    is_beacon,
     is_phone_contest,
     ports_for_modes, spot_from_n1mm, digital_sure, digital_overlap, digital_mode,
 )
@@ -266,6 +267,8 @@ class PouncerApp:
         )
         self.spotter_filter.entity_of = self._entity
         self._apply_filter(log_it=False)
+        self.spotted_filter = SpottedFilter(entity_of=self._entity)
+        self._apply_spotted(log_it=False)
         # our own skimmer(s) still spotting? (S53WW, TK0C-1 / -2 ...)
         self.skimwatch = SkimmerWatch(self.spotter_filter.calls,
                                       quiet_s=config.skimmer_quiet_minutes * 60)
@@ -744,6 +747,17 @@ class PouncerApp:
                              command=self._settings_win.open)
         bar.add_cascade(label="Spotters", menu=spotters)
         self._spotters_menu = spotters
+        # Spotted: which spotted stations (the DX) - separate from Spotters
+        spotted = tk.Menu(bar, tearoff=False, postcommand=self._refresh_spot_menus)
+        self._spd_var = tk.StringVar(value=getattr(self.cfg, "spotted_mode", "ww"))
+        for key in ("calls", "dxcc", "zones", "cont", "ww"):
+            spotted.add_radiobutton(label=key, value=key, variable=self._spd_var,
+                                    command=lambda k=key: self._menu_spotted(k))
+        spotted.add_separator()
+        spotted.add_command(label="Edit the lists\u2026 (Settings > Spotted)",
+                            command=self._settings_win.open)
+        bar.add_cascade(label="Spotted", menu=spotted)
+        self._spotted_menu = spotted
         bar.add_command(label="Settings...", command=self._settings_win.open)
         helpm = tk.Menu(bar, tearoff=False)
         helpm.add_command(label="What every button does", command=lambda: self._open_browser("help"))
@@ -2455,6 +2469,39 @@ class PouncerApp:
         if log_it:
             log.info("spotters filter: %s", self.spotter_filter.label() or "all")
 
+    def _apply_spotted(self, log_it: bool = True) -> None:
+        """The Spotted filter ([spotted]) -> which spotted stations are kept."""
+        c = self.cfg
+        zones = []
+        for t in self._list(getattr(c, "spotted_zones", "")):
+            digits = "".join(ch for ch in t if ch.isdigit())
+            if digits and 1 <= int(digits) <= 40:
+                zones.append(int(digits))
+        self.spotted_filter.configure(
+            getattr(c, "spotted_mode", "ww"), calls=self._list(getattr(c, "spotted_calls", "")),
+            dxcc=self._list(getattr(c, "spotted_dxcc", "")), zones=zones,
+            conts=self._list(getattr(c, "spotted_conts", "")))
+        self._src_last = None
+        if log_it:
+            log.info("spotted filter: %s", self.spotted_filter.label())
+
+    def _set_spotted_filter(self, mode: str) -> None:
+        """Spotted menu: keep spots of these stations (saved)."""
+        if mode not in self.FILTER_NAMES:
+            return
+        lists = {"calls": "spotted_calls", "dxcc": "spotted_dxcc", "zones": "spotted_zones",
+                 "cont": "spotted_conts"}
+        if mode in lists and not self._list(getattr(self.cfg, lists[mode], "")):
+            self.status_label.configure(text=f"Spotted {self.FILTER_NAMES[mode]}: the list is "
+                                             "empty - fill it in Settings > Spotted")
+            return
+        self._save_setting("spotted.mode", mode)      # applies it (_apply_spotted)
+        self.status_label.configure(text=f"Spots of: {self.spotted_filter.label()}")
+
+    def _menu_spotted(self, mode: str) -> None:
+        self._set_spotted_filter(mode)
+        self._refresh_spot_menus()
+
     def _set_spotter_filter(self, mode: str) -> None:
         """A Spotters button: that filter from now on (saved)."""
         if mode not in self.FILTER_NAMES:
@@ -2578,7 +2625,8 @@ class PouncerApp:
             if getattr(self.cfg, attr, False):
                 on.add(key)
         flt = self.spotter_filter.label() or "all"
-        sig = (tuple(sorted(on)), note, flt)
+        spd = self.spotted_filter.label() if getattr(self, "spotted_filter", None) else "all"
+        sig = (tuple(sorted(on)), note, flt, spd)
         if sig == self._src_last:
             return
         self._src_last = sig
@@ -2590,6 +2638,8 @@ class PouncerApp:
         if extra:
             summ += " (backup: " + ", ".join(extra) + ")"
         summ += f"   Spotters: {flt}"
+        if spd != "all":
+            summ += f"   Spotted: {spd}"
         sl = getattr(self, "_src_sum", None)
         if sl is not None:
             sl.configure(text=summ)
@@ -2635,6 +2685,23 @@ class PouncerApp:
                 except tk.TclError:
                     pass
             self._flt_var.set(getattr(c, "filter_mode", "calls"))
+        m = getattr(self, "_spotted_menu", None)
+        if m is not None:
+            lists = {"calls": ("Calls", getattr(c, "spotted_calls", "")),
+                     "dxcc": ("DXCC", getattr(c, "spotted_dxcc", "")),
+                     "zones": ("Zones", getattr(c, "spotted_zones", "")),
+                     "cont": ("Continents", getattr(c, "spotted_conts", "")),
+                     "ww": ("WW - every station", "")}
+            for idx, key in enumerate(("calls", "dxcc", "zones", "cont", "ww")):
+                name, lst = lists[key]
+                text = f"{name}: {lst}" if key != "ww" else name
+                if key != "ww" and not str(lst).strip():
+                    text = f"{name}: (empty - fill the list in Settings)"
+                try:
+                    m.entryconfigure(idx, label=text)
+                except tk.TclError:
+                    pass
+            self._spd_var.set(getattr(c, "spotted_mode", "ww"))
 
     def _menu_source(self, key: str) -> None:
         self._set_source(key)
@@ -2650,6 +2717,8 @@ class PouncerApp:
                             ("rbn", "telnet", "http", "cluster", "telnetbck", "hamqth",
                              "mycall", "relay"))
         text += "\n\nSpotters: " + (self.spotter_filter.label() or "all")
+        sf = getattr(self, "spotted_filter", None)
+        text += "\nSpotted: " + (sf.label() if sf is not None else "all")
         win = getattr(self, "_conn_win", None)
         try:
             if win is not None and win.winfo_exists():
@@ -3711,6 +3780,9 @@ class PouncerApp:
                 if time.time() - spot.received < 900:
                     self._note_self_spot(spot.dxcall, spot.spotter, spot.freq_khz)
                 continue
+            sf = getattr(self, "spotted_filter", None)
+            if sf is not None and not sf.accept(spot.dxcall):
+                continue                  # the Spotted filter: not one of these stations
             if self._merged_dup(spot):
                 continue                  # the same spot from another source: once
             self._note_own(spot)
@@ -3737,6 +3809,9 @@ class PouncerApp:
                 spot.time_utc = time.strftime("%H%MZ", time.gmtime(spot.received))
             if self._is_my_call(spot):
                 continue                  # (the pop-up came with it: _team_spot)
+            sf = getattr(self, "spotted_filter", None)
+            if sf is not None and not sf.accept(spot.dxcall):
+                continue
             dxc = getattr(self, "_dxc", None)
             if dxc is not None:
                 dxc.publish(spot)
@@ -4827,6 +4902,8 @@ class PouncerApp:
                          show(old), show(new), "" if res.get("live") else "  [after a restart]")
             if key.startswith("filter.") or key == "rbn.spotter":
                 self._apply_filter()
+            if key.startswith("spotted."):
+                self._apply_spotted()
             if key == "rbn.sources":
                 self._apply_source()
                 self._src_last = None

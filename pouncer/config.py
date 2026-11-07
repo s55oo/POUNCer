@@ -78,6 +78,12 @@ class Config:
     filter_dxcc: str = ""
     filter_zones: str = ""
     filter_conts: str = "EU"
+    # the Spotted filter: which spotted stations (the DX) are kept
+    spotted_mode: str = "ww"
+    spotted_calls: str = ""
+    spotted_dxcc: str = ""
+    spotted_zones: str = ""
+    spotted_conts: str = ""
     rbn_history: int = 30
     # backup telnet server when RBN's own telnet is down (CW feed)
     rbn_backup_host: str = "azure.s53m.com"
@@ -457,6 +463,12 @@ def load_config(path: str) -> Config:
     cfg.filter_zones = s("filter", "zones", ", ".join(str(z) for z in sorted(old_zones))).strip()
     old_cont = cfg.ssb_spotters if cfg.ssb_spotters not in ("ALL", "*", "HOME", "OWN") else "EU"
     cfg.filter_conts = s("filter", "conts", old_cont).strip().upper() or "EU"
+    m2 = s("spotted", "mode", cfg.spotted_mode).strip().lower()
+    cfg.spotted_mode = m2 if m2 in ("calls", "dxcc", "zones", "cont", "ww") else "ww"
+    cfg.spotted_calls = s("spotted", "calls", cfg.spotted_calls).strip().upper()
+    cfg.spotted_dxcc = s("spotted", "dxcc", cfg.spotted_dxcc).strip()
+    cfg.spotted_zones = s("spotted", "zones", cfg.spotted_zones).strip()
+    cfg.spotted_conts = s("spotted", "conts", cfg.spotted_conts).strip().upper()
     cfg.ssb_history = max(0, i("ssb", "history", cfg.ssb_history))
     cfg.ssb_login = s("ssb", "login", "").strip()
     cfg.ssb_commands = tuple(c.strip() for c in s("ssb", "commands", "").split(",") if c.strip())

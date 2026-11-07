@@ -765,6 +765,12 @@ list **and** out to N1MM / any client of the cluster server (port 10000):
 - **Telnet + Cluster on the same node** (both azure.s53m.com:8000) use
   **one** connection and one login - also for what N1MM sends through the
   Relay.
+- **Spotted** (the menu **Spotted**, `[spotted]`): the same choices for the
+  **spotted stations** (the DX) - Calls (prefix: `3Y0, VP8`) | DXCC (`JA,
+  VK`) | Zones (`3, 4, 5`) | Continents (`NA, OC`) | WW (all, the default) -
+  separate from Spotters (who spots). Spots of other stations are dropped
+  at once, from every source (also not passed on on port 10000). Lists in
+  Settings > Spotted.
 - **Spotters** (the menu **Spotters**, `[filter]`): **one filter for every
   source**, skimmers and people alike - **Calls** (the listed skimmers /
   spotters, `[rbn] spotter`, S53WW; while all of them are quiet the other

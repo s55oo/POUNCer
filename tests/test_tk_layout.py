@@ -204,7 +204,9 @@ class TkSettingsWindowTests(unittest.TestCase):
                                       rbn_spotter="S53WW", filter_dxcc="", filter_zones="14, 15",
                                       filter_conts="EU", rbn_host="telnet.reversebeacon.net",
                                       rbn_port=7000, rbn_backup_host="azure.s53m.com",
-                                      rbn_backup_port=8000, ssb_host="azure.s53m.com", ssb_port=8000),
+                                      rbn_backup_port=8000, ssb_host="azure.s53m.com", ssb_port=8000,
+                                      spotted_mode="ww", spotted_calls="", spotted_dxcc="JA",
+                                      spotted_zones="", spotted_conts=""),
             _start_autostart=lambda: None, _stop_waiting_n1mm=lambda: None, _save_diagnostics=lambda: None, _open_path=lambda p: None,
             _autostart_folder=lambda: "",
         )
@@ -214,14 +216,16 @@ class TkSettingsWindowTests(unittest.TestCase):
                      "_team_password", "_switch_version", "_station_test", "_toggle_rate_line", "_update_team", "_rollback"):
             setattr(f, name, lambda *a, **k: None)
         f._team_pw_label = PouncerApp._team_pw_label.__get__(f)
-        for name in ("_refresh_spot_menus", "_menu_source", "_menu_filter", "_show_connections"):
+        for name in ("_refresh_spot_menus", "_menu_source", "_menu_filter", "_show_connections",
+                     "_menu_spotted"):
             setattr(f, name, getattr(PouncerApp, name).__get__(f))
         f.SPOT_MENU, f.SOURCE_NAMES, f.CONN_KEYS = (PouncerApp.SPOT_MENU, PouncerApp.SOURCE_NAMES,
                                                     PouncerApp.CONN_KEYS)
         PouncerApp._build_menu(f)
         bar = f.menubar
         labels = [bar.entrycget(i, "label") for i in range(bar.index("end") + 1)]
-        self.assertEqual(labels, ["File", "View", "Spots", "Spotters", "Settings...", "Help"])
+        self.assertEqual(labels, ["File", "View", "Spots", "Spotters", "Spotted", "Settings...",
+                                  "Help"])
         f._refresh_spot_menus()
         spots = self.root.nametowidget(bar.entrycget(2, "menu"))
         slabels = [spots.entrycget(i, "label") for i in range(spots.index("end") + 1)
@@ -234,6 +238,9 @@ class TkSettingsWindowTests(unittest.TestCase):
         self.assertEqual(spt.entrycget(0, "label"), "Calls: S53WW")
         self.assertIn("empty", spt.entrycget(1, "label"))
         self.assertEqual(f._flt_var.get(), "calls")
+        spd = self.root.nametowidget(bar.entrycget(4, "menu"))
+        self.assertEqual(spd.entrycget(1, "label"), "DXCC: JA")
+        self.assertEqual(f._spd_var.get(), "ww")
         view = self.root.nametowidget(bar.entrycget(1, "menu"))
         vlabels = [view.entrycget(i, "label") for i in range(view.index("end") + 1)
                    if view.type(i) != "separator"]
