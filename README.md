@@ -279,6 +279,22 @@ connections: [docs/NETWORK.md](docs/NETWORK.md) · code:
 the call big, new multipliers red with an M / MM tag, ⚡ = a rare runner,
 DX rows tinted, the station the radio is on framed in blue.*
 
+<p align="center"><img src="docs/main-window-live.png" width="820"
+  alt="POUNCer 0.7.164 on the air, light look: menu bar File, View, Spots, Spotters, Spotted, Settings, Help; 7044.5 40m CW 37 WPM, the ZeroTier address, NOT READY, CLR BAND, CLR ALL and TEAM: ALONE; lights RBN, N1MM, Log, Team alone, Phone, Cluster, Warm-up, Up to date; Sort, Min SNR, MyCall and Relay, and the line Spots: Telnet + Cluster, Spotters: continent EU, Spotted: continent EU; the band chips; the F-keys; two spots from Telnet skimmers DF7GB-# and SE5E-# with SNR 26 and 14, both MM"></p>
+
+*On the air (0.7.164, light look, the address replaced by an example):*
+- *menu bar:* **Spots** (RBN / Telnet / HTTP / Cluster, TelBck, HamQTH),
+  **Spotters** (who spots), **Spotted** (who is spotted);
+- *top bar:* frequency, band, mode and N1MM's CW speed; the phone-page
+  address; **CLR BAND** / **CLR ALL**; the team badge;
+- *first row:* Sort, Min SNR, **MyCall | Relay**, then the line saying what
+  is in use - here *Spots: Telnet + Cluster, Spotters: continent EU,
+  Spotted: continent EU* (click = every connection and its state);
+- *the list:* skimmer spots from the Telnet source (azure) with their SNR
+  (26, 14 dB) - both new multipliers on two bands (MM), one a rare runner
+  (⚡); the status line says the cluster server is waiting for N1MM on TCP
+  10000.
+
 The window has two layouts (*View > Detailed layout*, `[ui] layout`).
 
 **Clean** (the default since v0.7.135) - the spots first:
