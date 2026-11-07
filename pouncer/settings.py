@@ -52,7 +52,7 @@ SETTINGS: list[dict] = [
              "the same PC) and this port. Allow it in the firewall for other PCs."},
     {"key": "cluster.relay", "attr": "cluster_relay", "kind": "bool", "live": True,
      "group": "Cluster server", "label": "  ... Relay: hand out the spots",
-     "help": "On = the spots of the sources switched on with the Spots buttons go out to "
+     "help": "On = the spots of the sources switched on in the Spots menu go out to "
              "the clients on the port above; what a client sends (DX spots, sh/dx) goes over "
              "POUNCer's own telnet connection (Telnet / Cluster on), the answers come back. "
              "Opens no connection of its own. Off = nothing goes out. Also the Relay button."},
@@ -124,7 +124,7 @@ SETTINGS: list[dict] = [
      "help": "One filter for every source (RBN, Telnet, HTTP, HamQTH, Cluster): calls = the "
              "listed skimmers / spotters, dxcc = spotters in the listed countries, zones = in "
              "the listed CQ zones, cont = on the listed continents, ww = all. Also the "
-             "Spotters buttons in the window."},
+             "Spotters menu."},
     {"key": "rbn.spotter", "attr": "rbn_spotter", "kind": "text", "live": True,
      "group": "Spotters", "label": "  Calls",
      "help": "Skimmers / spotters, comma separated (prefix: TK0C = TK0C-1, TK0C-2 ...), "
@@ -149,7 +149,7 @@ SETTINGS: list[dict] = [
              "HTTP feed), cluster (the DX cluster's spots of people, [ssb] host). What is on "
              "goes into POUNCer and out to the cluster server (port 10000); the same spot from "
              "two sources counts once. Nothing takes over when they are down. Also the Spots "
-             "buttons next to Min SNR (in a team: the master's choice)."},
+             "menu (in a team: the master's choice)."},
     {"key": "rbn.telnet_backup", "attr": "rbn_telnet_backup", "kind": "bool", "live": True,
      "group": "RBN", "label": "TelBck: the telnet server while RBN is down",
      "help": "With RBN on and Telnet off: when RBN has been down or silent for a minute, "

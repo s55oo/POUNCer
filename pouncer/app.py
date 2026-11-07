@@ -533,37 +533,18 @@ class PouncerApp:
             self._src_buttons[key] = b
             self._source_hover(b, key)
         flow.add(cn, gap=16)
-        # where the CW spots come from: RBN or the telnet backup - one click
+        # where the spots come from and which spotters: menus Spots / Spotters;
+        # here only one short line saying what is in use
         src = ttk.Frame(flow)
-        ttk.Label(src, text="Spots", style="Muted.TLabel").pack(side="left", padx=(0, 4))
-        for key, label in (("rbn", "RBN"), ("telnet", "Telnet"), ("http", "HTTP"),
-                           ("cluster", "Cluster"), ("telnetbck", "TelBck"),
-                           ("hamqth", "HamQTH")):
-            if key == "telnetbck":
-                ttk.Label(src, text="", width=1).pack(side="left")    # a small gap
-            b = ttk.Button(src, text=label, style="Sort.TButton", takefocus=False,
-                           width=self.BTN_W, command=lambda k=key: self._set_source(k))
-            b.pack(side="left")
-            self._src_buttons[key] = b
-            self._source_hover(b, key)
+        self._src_sum = ttk.Label(src, text="", style="Muted.TLabel", cursor="hand2")
+        self._src_sum.pack(side="left")
+        self._src_sum.bind("<Button-1>", lambda _e: self._show_connections())
         self._src_note = ttk.Label(src, text="", style="Muted.TLabel")
         self._src_note.pack(side="left", padx=(6, 0))
-        # the one spotter filter for every source
-        flt = ttk.Frame(flow)
-        ttk.Label(flt, text="Spotters", style="Muted.TLabel").pack(side="left", padx=(0, 4))
-        self._flt_buttons = {}
-        for key in ("calls", "dxcc", "zones", "cont", "ww"):
-            b = ttk.Button(flt, text=self.FILTER_NAMES[key], style="Sort.TButton",
-                           takefocus=False, width=self.BTN_W,
-                           command=lambda k=key: self._set_spotter_filter(k))
-            b.pack(side="left")
-            self._flt_buttons[key] = b
-            self._source_hover(b, "flt:" + key)
-        self._flt_last = None
         self._src_box = src
         flow.add(src, gap=16)
-        flow.add(flt, gap=16)
         self._src_last = None
+        self._flt_last = None
         # clean layout: the rate, short (the full rate line in the detailed layout)
         self.rate_short = ttk.Label(flow, text="", style="Muted.TLabel")
 
@@ -734,6 +715,35 @@ class PouncerApp:
                                   command=self._set_look)
         view.add_cascade(label="Look (from the next start)", menu=looks)
         bar.add_cascade(label="View", menu=view)
+        # Spots: where the spots come in from (each on / off) + the backups
+        spots = tk.Menu(bar, tearoff=False, postcommand=self._refresh_spot_menus)
+        self._src_vars = {}
+        for key in ("rbn", "telnet", "http", "cluster"):
+            v = tk.BooleanVar(value=has_source(self.cfg, key))
+            self._src_vars[key] = v
+            spots.add_checkbutton(label=key, variable=v,
+                                  command=lambda k=key: self._menu_source(k))
+        spots.add_separator()
+        for key in ("telnetbck", "hamqth"):
+            v = tk.BooleanVar(value=bool(getattr(self.cfg, self.CONN_KEYS[key][1], False)))
+            self._src_vars[key] = v
+            spots.add_checkbutton(label=key, variable=v,
+                                  command=lambda k=key: self._menu_source(k))
+        spots.add_separator()
+        spots.add_command(label="The connections now\u2026", command=self._show_connections)
+        bar.add_cascade(label="Spots", menu=spots)
+        self._spots_menu = spots
+        # Spotters: the one filter for every source
+        spotters = tk.Menu(bar, tearoff=False, postcommand=self._refresh_spot_menus)
+        self._flt_var = tk.StringVar(value=getattr(self.cfg, "filter_mode", "calls"))
+        for key in ("calls", "dxcc", "zones", "cont", "ww"):
+            spotters.add_radiobutton(label=key, value=key, variable=self._flt_var,
+                                     command=lambda k=key: self._menu_filter(k))
+        spotters.add_separator()
+        spotters.add_command(label="Edit the lists\u2026 (Settings > Spotters)",
+                             command=self._settings_win.open)
+        bar.add_cascade(label="Spotters", menu=spotters)
+        self._spotters_menu = spotters
         bar.add_command(label="Settings...", command=self._settings_win.open)
         helpm = tk.Menu(bar, tearoff=False)
         helpm.add_command(label="What every button does", command=lambda: self._open_browser("help"))
@@ -2567,13 +2577,93 @@ class PouncerApp:
         for key, (_s, attr, _n) in self.CONN_KEYS.items():
             if getattr(self.cfg, attr, False):
                 on.add(key)
-        sig = (tuple(sorted(on)), note)
+        flt = self.spotter_filter.label() or "all"
+        sig = (tuple(sorted(on)), note, flt)
         if sig == self._src_last:
             return
         self._src_last = sig
         for key, b in self._src_buttons.items():
             b.configure(style="SortOn.TButton" if key in on else "Sort.TButton")
+        names = [self.SOURCE_NAMES[k] for k in ("rbn", "telnet", "http", "cluster") if k in on]
+        extra = [n for k, n in (("telnetbck", "TelBck"), ("hamqth", "HamQTH")) if k in on]
+        summ = "Spots: " + (" + ".join(names) or "none")
+        if extra:
+            summ += " (backup: " + ", ".join(extra) + ")"
+        summ += f"   Spotters: {flt}"
+        sl = getattr(self, "_src_sum", None)
+        if sl is not None:
+            sl.configure(text=summ)
         self._src_note.configure(text=note)
+
+    SPOT_MENU = (("rbn", "RBN - {c.rbn_host}:{c.rbn_port}"),
+                 ("telnet", "Telnet - {c.rbn_backup_host}:{c.rbn_backup_port} (its skimmer spots)"),
+                 ("http", "HTTP - RBN over HTTP (azure)"),
+                 ("cluster", "Cluster - spots of people, {c.ssb_host}:{c.ssb_port}"),
+                 (None, None),
+                 ("telnetbck", "TelBck - the telnet server while RBN is down"),
+                 ("hamqth", "HamQTH - its APIs while the telnet is down (or alone)"))
+
+    def _refresh_spot_menus(self) -> None:
+        """Before a menu opens: labels with the lists, ticks from the settings."""
+        c = self.cfg
+        m = getattr(self, "_spots_menu", None)
+        if m is not None:
+            for idx, (key, text) in enumerate(self.SPOT_MENU):
+                if key is None:
+                    continue
+                try:
+                    m.entryconfigure(idx, label=text.format(c=c))
+                except (tk.TclError, AttributeError, KeyError):
+                    pass
+                on = has_source(c, key) if key in self.SOURCE_NAMES else \
+                    bool(getattr(c, self.CONN_KEYS[key][1], False))
+                self._src_vars[key].set(on)
+        m = getattr(self, "_spotters_menu", None)
+        if m is not None:
+            lists = {"calls": ("Calls", getattr(c, "rbn_spotter", "")),
+                     "dxcc": ("DXCC", getattr(c, "filter_dxcc", "")),
+                     "zones": ("Zones", getattr(c, "filter_zones", "")),
+                     "cont": ("Continents", getattr(c, "filter_conts", "")),
+                     "ww": ("WW - everyone", "")}
+            for idx, key in enumerate(("calls", "dxcc", "zones", "cont", "ww")):
+                name, lst = lists[key]
+                text = f"{name}: {lst}" if key != "ww" else name
+                if key != "ww" and not str(lst).strip():
+                    text = f"{name}: (empty - fill the list in Settings)"
+                try:
+                    m.entryconfigure(idx, label=text)
+                except tk.TclError:
+                    pass
+            self._flt_var.set(getattr(c, "filter_mode", "calls"))
+
+    def _menu_source(self, key: str) -> None:
+        self._set_source(key)
+        self._refresh_spot_menus()
+
+    def _menu_filter(self, mode: str) -> None:
+        self._set_spotter_filter(mode)
+        self._refresh_spot_menus()
+
+    def _show_connections(self) -> None:
+        """Spots > The connections now: every source's connection and state."""
+        text = "\n\n".join(self._source_tip(k) for k in
+                            ("rbn", "telnet", "http", "cluster", "telnetbck", "hamqth",
+                             "mycall", "relay"))
+        text += "\n\nSpotters: " + (self.spotter_filter.label() or "all")
+        win = getattr(self, "_conn_win", None)
+        try:
+            if win is not None and win.winfo_exists():
+                win.destroy()
+        except tk.TclError:
+            pass
+        win = tk.Toplevel(self.root)
+        win.title("POUNCer - spot connections")
+        t = tk.Text(win, width=92, height=34, wrap="word", font=(theme.FONT, 9), bd=0,
+                    padx=10, pady=8)
+        t.insert("1.0", text)
+        t.configure(state="disabled")
+        t.pack(fill="both", expand=True)
+        self._conn_win = win
 
     def _source_tip(self, key: str) -> str:
         """Hover over a Spots button: the connection behind it, now."""

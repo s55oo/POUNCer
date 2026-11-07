@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## v0.7.161 — 2026-11-07 — Spots and Spotters as menus
+
+- **Spots** and **Spotters** are now menus in the menu bar instead of rows
+  of buttons: Spots = RBN, Telnet, HTTP, Cluster (ticked = on, each with its
+  server), the backups TelBck and HamQTH, and *The connections now…* (every
+  connection, login and state in one window); Spotters = Calls / DXCC /
+  Zones / Continents / WW (each with its list) and *Edit the lists…*.
+- In the window one short line says what is in use - "Spots: RBN + Cluster
+  Spotters: S53WW" (click = the connections) - next to MyCall | Relay.
+
 ## v0.7.160 — 2026-11-07 — Buttons: MyCall / Relay on the first row, one width
 
 - **MyCall** and **Relay** moved to the first row, after Min SNR.

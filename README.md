@@ -293,12 +293,12 @@ The window has two layouts (*View > Detailed layout*, `[ui] layout`).
   after them: *"✗ Log: N1MM Logger.ini not found (+1 more) – click: details"*.
   A click on it (or on the badge) shows every check item; click again to hide;
 - **one row of controls**: Sort (Time / Freq / SNR / Mult), Min SNR,
-  **MyCall | Relay**, and on the next row **Spots: RBN | Telnet | HTTP |
-  Cluster  TelBck | HamQTH** and **Spotters: Calls | DXCC | Zones | Cont |
-  WW** - every button the same width, room for six letters (where the spots come in from -
-  each one on / off, see *Spots: where they come in from*; hover = the
-  connection behind it; in a team the master's choice, a slave's click asks
-  the master), the
+  **MyCall | Relay** (every button the same width, room for six letters),
+  then one short line **"Spots: RBN + Cluster   Spotters: S53WW"** - what is
+  in use (click = every connection and its state). Where the spots come
+  from and which spotters: the menus **Spots** and **Spotters** (see *Spots:
+  where they come in from*; in a team the master's choice, a slave's click
+  asks the master). Then the
   **band chips** (`20 · 7M` = 7 new mults spotted on 20 m; colour = band
   open; click = list that band) and the **rate** (`Rate 84/h · 1234 Q 345 M`);
 - the F-keys (ENTER green);
@@ -718,8 +718,10 @@ without a mode word are FT8 / FT4 at once anyway. `[ssb] pskreporter`
 
 ## Spots: where they come in from
 
-Four buttons next to Min SNR, **each one on or off** (blue = on; `[rbn]
-sources = rbn,cluster`, the default). Whatever is on goes into POUNCer's
+The menu **Spots**: RBN, Telnet, HTTP and Cluster, **each one on or off**
+(ticked = on; the menu names the server of each; `[rbn] sources =
+rbn,cluster`, the default), then the backups TelBck and HamQTH, and *The
+connections now…* (every connection, its login and state). Whatever is on goes into POUNCer's
 list **and** out to N1MM / any client of the cluster server (port 10000):
 
 | Button | What | Connection |
@@ -733,7 +735,7 @@ list **and** out to N1MM / any client of the cluster server (port 10000):
   RBN on and Telnet off, when RBN has been down or silent for a minute
   POUNCer connects to the telnet server (azure.s53m.com:8000 = S50DXS, its
   skimmer spots) until RBN has worked for a minute again ("TelBck: RBN
-  down, telnet server meanwhile" next to the buttons). Off = nothing takes
+  down, telnet server meanwhile" on the Spots line). Off = nothing takes
   over.
 - **HamQTH** (`[rbn] hamqth_backup`, off by default): the backup when
   POUNCer's **telnet connections die**. When the skimmer telnet (RBN /
@@ -742,7 +744,7 @@ list **and** out to N1MM / any client of the cluster server (port 10000):
   skimmer choice); when the Cluster telnet is down, its DX cluster spots
   (`/api/v2/spots`). Every 20 s, no login, nothing to sign up for; stopped a
   minute after the telnet works again ("HamQTH: telnet down - ... from
-  HamQTH.com meanwhile" next to the buttons). With RBN / Telnet (or
+  HamQTH.com meanwhile" on the Spots line). With RBN / Telnet (or
   Cluster) **switched off**, HamQTH is that source itself, at once - HamQTH
   alone on = skimmer + cluster spots from HamQTH. No WPM or CQ in those spots.
   *Data provided by [HamQTH.com](https://www.hamqth.com/).*
@@ -763,7 +765,7 @@ list **and** out to N1MM / any client of the cluster server (port 10000):
 - **Telnet + Cluster on the same node** (both azure.s53m.com:8000) use
   **one** connection and one login - also for what N1MM sends through the
   Relay.
-- **Spotters** (the buttons after them, `[filter]`): **one filter for every
+- **Spotters** (the menu **Spotters**, `[filter]`): **one filter for every
   source**, skimmers and people alike - **Calls** (the listed skimmers /
   spotters, `[rbn] spotter`, S53WW; while all of them are quiet the other
   skimmers on your continent; people's spots: those calls' continent) |
@@ -933,7 +935,7 @@ enabled`, off by default) makes POUNCer a small telnet cluster on **TCP
 10000** (`port`). In N1MM's **Telnet** window add a cluster with this PC's
 address (`127.0.0.1` on the same PC, its LAN / ZeroTier address from other
 PCs) and port 10000, and connect: N1MM gets `login:`, sends your call, and
-from then on every spot of the sources switched on with the Spots buttons -
+from then on every spot of the sources switched on in the Spots menu -
 RBN, Telnet, HTTP, Cluster - and the team master's spots, as standard lines:
 
 ```
@@ -947,7 +949,7 @@ DX de S53WW-#:   14025.0  DL1ABC       CW 23 dB 28 WPM CQ             1200Z
   spots and close its Cluster connection, its source.
 - **Relay** (the **Relay** button, `[cluster] relay = true`, the default) is
   the switch for this output - it opens **no connection of its own**:
-  - **on**: every spot of the sources switched on with the Spots buttons
+  - **on**: every spot of the sources switched on in the Spots menu
     (RBN, Telnet, HTTP - with your skimmer choice - and Cluster, the spots of
     people) goes out to the clients. What a client sends after login - your
     `DX` spots (Alt+P / Spot It), `sh/dx`, filters - goes over **POUNCer's

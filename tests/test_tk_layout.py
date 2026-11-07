@@ -198,7 +198,13 @@ class TkSettingsWindowTests(unittest.TestCase):
             _settings_win=types.SimpleNamespace(open=lambda: None),
             _console=types.SimpleNamespace(open=lambda: None),
             cfg=types.SimpleNamespace(config_path="C:/x/config.ini", alert_popup=True, rate_line=True,
-                                      alert_sound=False, look="dark", team_key=""),
+                                      alert_sound=False, look="dark", team_key="",
+                                      rbn_source="rbn,cluster", rbn_telnet_backup=False,
+                                      rbn_hamqth_backup=True, filter_mode="calls",
+                                      rbn_spotter="S53WW", filter_dxcc="", filter_zones="14, 15",
+                                      filter_conts="EU", rbn_host="telnet.reversebeacon.net",
+                                      rbn_port=7000, rbn_backup_host="azure.s53m.com",
+                                      rbn_backup_port=8000, ssb_host="azure.s53m.com", ssb_port=8000),
             _start_autostart=lambda: None, _stop_waiting_n1mm=lambda: None, _save_diagnostics=lambda: None, _open_path=lambda p: None,
             _autostart_folder=lambda: "",
         )
@@ -208,10 +214,26 @@ class TkSettingsWindowTests(unittest.TestCase):
                      "_team_password", "_switch_version", "_station_test", "_toggle_rate_line", "_update_team", "_rollback"):
             setattr(f, name, lambda *a, **k: None)
         f._team_pw_label = PouncerApp._team_pw_label.__get__(f)
+        for name in ("_refresh_spot_menus", "_menu_source", "_menu_filter", "_show_connections"):
+            setattr(f, name, getattr(PouncerApp, name).__get__(f))
+        f.SPOT_MENU, f.SOURCE_NAMES, f.CONN_KEYS = (PouncerApp.SPOT_MENU, PouncerApp.SOURCE_NAMES,
+                                                    PouncerApp.CONN_KEYS)
         PouncerApp._build_menu(f)
         bar = f.menubar
         labels = [bar.entrycget(i, "label") for i in range(bar.index("end") + 1)]
-        self.assertEqual(labels, ["File", "View", "Settings...", "Help"])
+        self.assertEqual(labels, ["File", "View", "Spots", "Spotters", "Settings...", "Help"])
+        f._refresh_spot_menus()
+        spots = self.root.nametowidget(bar.entrycget(2, "menu"))
+        slabels = [spots.entrycget(i, "label") for i in range(spots.index("end") + 1)
+                   if spots.type(i) != "separator"]
+        self.assertIn("RBN - telnet.reversebeacon.net:7000", slabels)
+        self.assertTrue(f._src_vars["rbn"].get() and f._src_vars["cluster"].get())
+        self.assertFalse(f._src_vars["telnet"].get())
+        self.assertTrue(f._src_vars["hamqth"].get())
+        spt = self.root.nametowidget(bar.entrycget(3, "menu"))
+        self.assertEqual(spt.entrycget(0, "label"), "Calls: S53WW")
+        self.assertIn("empty", spt.entrycget(1, "label"))
+        self.assertEqual(f._flt_var.get(), "calls")
         view = self.root.nametowidget(bar.entrycget(1, "menu"))
         vlabels = [view.entrycget(i, "label") for i in range(view.index("end") + 1)
                    if view.type(i) != "separator"]

@@ -33,7 +33,7 @@ colour - green, amber, red - so one red item doesn't colour the whole line:
 | N1MM | radio info arrives | ✗ no radio info for 30 s (N1MM: Config > Broadcast Data > Radio) |
 | Log | a contest log is open | ⚠ N1MM's ini names another contest than today's QSOs · ✗ no log open |
 | Call | your station call is known | ✗ no station call |
-| RBN | skimmer spots arrive (RBN, Telnet or HTTP - the Spots buttons - or from the team master), or "paused - SSB, not needed" | ✗ no spots / no skimmer source on |
+| RBN | skimmer spots arrive (RBN, Telnet or HTTP - the Spots menu - or from the team master), or "paused - SSB, not needed" | ✗ no spots / no skimmer source on |
 | Skimmer | your listed skimmers (S53WW, TK0C) send spots | ⚠ one sent nothing for 3 min while RBN works - offline or its connection down |
 | cty | country file loaded, 60 days old or less | ⚠ older · ✗ not loaded (no mults / DX) |
 | SCP | Super Check Partial loaded, 30 days old or less | ⚠ older or not loaded (no **?** marks) |
@@ -171,13 +171,10 @@ Marks in the call and Mult columns:
 | --- | --- |
 | sort key filled **blue** | the list is sorted by this key |
 | **▲** / **▼** in a column heading | sorted up / down by that column |
-| **Spots: RBN Telnet HTTP Cluster**, filled **blue** | that source is **on** (each one on its own); click = on / off; hover = the connection behind it (server, login, state) |
-| **HamQTH** after them | blue = HamQTH.com's RBN / cluster APIs stand in while POUNCer's telnet connections are down; hover = standby / active per part |
-| **TelBck** after them | blue = the telnet server (azure) takes over while RBN is down; hover = standby / active and why |
 | **MyCall** / **Relay** (first row, after Min SNR) | MyCall = the connection for spots of your own call (azure, `<call>-77`, SPOTTED pop-up); Relay = hand the spots out on port 10000 (N1MM's Telnet window) - no connection of its own, N1MM's commands go over POUNCer's Telnet / Cluster connection; blue = on, hover = details |
-| **Spotters: Calls DXCC Zones Cont WW** (blue = the one in use) | the one filter for every source: only the listed skimmers / spotters, countries, CQ zones, continents - or WW = all; hover = its list (Settings > Spotters) |
-| "nothing on - no spots" next to them | every source is off |
-| "master's choice" next to them | team slave: the master's sources; a click asks the master |
+| "Spots: RBN + Cluster   Spotters: S53WW" | what is in use: the sources ticked in the menu **Spots** (RBN, Telnet, HTTP, Cluster; backups TelBck, HamQTH) and the filter chosen in the menu **Spotters** (Calls / DXCC / Zones / Continents / WW); click = every connection and its state |
+| "nothing on - no spots" after it | every source is off |
+| "master's choice" after it | team slave: the master's sources; a click asks the master |
 | **ENTER** (green) | logs the QSO in N1MM |
 | **F1 ... F12** | send N1MM's function key: they **transmit** (the edge turns red under the mouse) |
 | **Radio A / Radio B** | which radio POUNCer follows. Shown only when N1MM reports two radios / VFOs |
