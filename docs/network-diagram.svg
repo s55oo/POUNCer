@@ -1,184 +1,189 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 880" width="1200" height="880" font-family="Segoe UI, Helvetica, Arial, sans-serif">
-  <title>POUNCer network connections</title>
-  <defs>
-    <marker id="aU" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#e65100"/></marker>
-    <marker id="aT" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1565c0"/></marker>
-    <marker id="aH" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2e7d32"/></marker>
-    <marker id="aL" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6a1b9a"/></marker>
-    <style>
-      .box { fill: #ffffff; stroke: #37474f; stroke-width: 1.5; }
-      .main { fill: #263238; }
-      .zone { fill: #f5f7f8; stroke: #90a4ae; stroke-width: 1.2; stroke-dasharray: 6 4; }
-      .zt { font-size: 13px; font-weight: 700; fill: #546e7a; letter-spacing: .5px; }
-      .h { font-size: 16px; font-weight: 700; fill: #263238; }
-      .hw { font-size: 20px; font-weight: 700; fill: #ffffff; }
-      .s { font-size: 12.5px; fill: #455a64; }
-      .sw { font-size: 12.5px; fill: #cfd8dc; }
-      .l { font-size: 12px; font-weight: 600; }
-      .u { stroke: #e65100; fill: #e65100; }
-      .t { stroke: #1565c0; fill: #1565c0; }
-      .w { stroke: #2e7d32; fill: #2e7d32; }
-      .p { stroke: #6a1b9a; fill: #6a1b9a; }
-      line, path.c { stroke-width: 2.2; fill: none; }
-      text.u, text.t, text.w, text.p { stroke: none; }
-    </style>
-  </defs>
-
-  <rect width="1200" height="880" fill="#ffffff"/>
-  <text x="600" y="38" text-anchor="middle" font-size="24" font-weight="700" fill="#263238">POUNCer – network connections</text>
-  <text x="600" y="60" text-anchor="middle" class="s">ports are the defaults (config.ini) · no passwords anywhere: RBN and the cluster get your callsign only · details: docs/NETWORK.md</text>
-
-  <!-- zones -->
-  <rect class="zone" x="20" y="80" width="600" height="420" rx="14"/>
-  <text class="zt" x="38" y="104">SHACK PC (Windows)</text>
-  <rect class="zone" x="850" y="80" width="330" height="640" rx="14"/>
-  <text class="zt" x="868" y="104">INTERNET (all outgoing)</text>
-  <rect class="zone" x="20" y="555" width="760" height="220" rx="14"/>
-  <text class="zt" x="38" y="579">YOUR NETWORK (LAN / ZeroTier)</text>
-
-  <!-- N1MM -->
-  <rect class="box" x="30" y="125" width="170" height="350" rx="10"/>
-  <text class="h" x="115" y="155" text-anchor="middle">N1MM Logger+</text>
-  <text class="s" x="115" y="180" text-anchor="middle">Entry Window A</text>
-  <text class="s" x="115" y="198" text-anchor="middle">Entry Window B</text>
-  <line x1="45" y1="215" x2="185" y2="215" stroke="#cfd8dc" stroke-width="1"/>
-  <text class="s" x="115" y="238" text-anchor="middle">log  *.s3db (+ -wal)</text>
-  <text class="s" x="115" y="256" text-anchor="middle">N1MM Logger.ini</text>
-  <text class="s" x="115" y="274" text-anchor="middle">wl_cty.dat · MASTER.SCP</text>
-  <line x1="45" y1="292" x2="185" y2="292" stroke="#cfd8dc" stroke-width="1"/>
-  <text class="s" x="115" y="315" text-anchor="middle">Broadcast Data:</text>
-  <text class="s" x="115" y="333" text-anchor="middle">Radio + App Info + Spots</text>
-  <text class="s" x="115" y="351" text-anchor="middle">→ 127.0.0.1:12060</text>
-  <text class="s" x="115" y="369" text-anchor="middle">control port 13064</text>
-
-  <!-- POUNCer -->
-  <rect class="main" x="425" y="125" width="180" height="350" rx="12"/>
-  <text class="hw" x="515" y="160" text-anchor="middle">POUNCer</text>
-  <text class="sw" x="515" y="186" text-anchor="middle">spot list · settings</text>
-  <text class="sw" x="515" y="204" text-anchor="middle">run history · SCP marks</text>
-  <line x1="440" y1="222" x2="590" y2="222" stroke="#455a64" stroke-width="1"/>
-  <text class="sw" x="515" y="246" text-anchor="middle">listens:</text>
-  <text class="sw" x="515" y="266" text-anchor="middle">UDP 12060 (N1MM)</text>
-  <text class="sw" x="515" y="284" text-anchor="middle">TCP 8080 (phone page)</text>
-  <text class="sw" x="515" y="302" text-anchor="middle">UDP 12079 (team)</text>
-  <line x1="440" y1="320" x2="590" y2="320" stroke="#455a64" stroke-width="1"/>
-  <text class="sw" x="515" y="344" text-anchor="middle">cache\</text>
-  <text class="sw" x="515" y="362" text-anchor="middle">warm lists · MASTER.SCP</text>
-  <text class="sw" x="515" y="380" text-anchor="middle">run history · window.json</text>
-  <line x1="440" y1="398" x2="590" y2="398" stroke="#455a64" stroke-width="1"/>
-  <text class="sw" x="515" y="422" text-anchor="middle">starts your programs</text>
-  <text class="sw" x="515" y="440" text-anchor="middle">(autostart, local)</text>
-
-  <!-- N1MM <-> POUNCer -->
-  <line class="u" x1="202" y1="160" x2="421" y2="160" marker-end="url(#aU)"/>
-  <text class="l u" x="312" y="152" text-anchor="middle">XML · UDP 12060</text>
-  <text class="s" x="312" y="178" text-anchor="middle">RadioInfo · AppInfo · N1MM's spots</text>
-
-  <line class="u" x1="423" y1="230" x2="204" y2="230" marker-end="url(#aU)"/>
-  <text class="l u" x="312" y="222" text-anchor="middle">commands XML · UDP 13064</text>
-  <text class="s" x="312" y="248" text-anchor="middle">QSY A/B · {WIPE} · {CATnASC}</text>
-
-  <line class="p" x1="423" y1="300" x2="204" y2="300" marker-end="url(#aL)"/>
-  <text class="l p" x="312" y="292" text-anchor="middle">Windows messages</text>
-  <text class="s" x="312" y="318" text-anchor="middle">call · keys · WPM · Ctrl+K CW</text>
-
-  <line class="p" x1="202" y1="380" x2="421" y2="380" stroke-dasharray="7 5" marker-end="url(#aL)"/>
-  <text class="l p" x="312" y="372" text-anchor="middle">reads files (read-only)</text>
-  <text class="s" x="312" y="398" text-anchor="middle">worked · mults · contest · call</text>
-
-  <!-- Internet boxes -->
-  <rect class="box" x="870" y="118" width="290" height="58" rx="10"/>
-  <text class="h" x="1015" y="142" text-anchor="middle">Reverse Beacon Network</text>
-  <text class="s" x="1015" y="162" text-anchor="middle">telnet.reversebeacon.net :7000 / :7001</text>
-
-  <rect class="box" x="870" y="188" width="290" height="140" rx="10"/>
-  <text class="h" x="1015" y="212" text-anchor="middle">azure.s53m.com (S53ZO)</text>
-  <text class="s" x="1015" y="234" text-anchor="middle">:8000 telnet – RBN backup (CW)</text>
-  <text class="s" x="1015" y="253" text-anchor="middle">:8000 telnet – DX cluster (SSB)</text>
-  <text class="s" x="1015" y="272" text-anchor="middle">:8000 telnet – my call only (CALL-77)</text>
-  <text class="s" x="1015" y="291" text-anchor="middle">→ SPOTTED pop-up (team master)</text>
-  <text class="s" x="1015" y="312" text-anchor="middle">HTTPS /cors/rbn/live – RBN over HTTP</text>
-
-  <rect class="box" x="870" y="340" width="290" height="58" rx="10"/>
-  <text class="h" x="1015" y="364" text-anchor="middle">PSK Reporter</text>
-  <text class="s" x="1015" y="384" text-anchor="middle">MQTT :1883 · one call · FT8 or SSB?</text>
-
-  <rect class="box" x="870" y="410" width="290" height="96" rx="10"/>
-  <text class="h" x="1015" y="434" text-anchor="middle">GitHub</text>
-  <text class="s" x="1015" y="456" text-anchor="middle">s55oo/POUNCer: updates (SHA-256)</text>
-  <text class="s" x="1015" y="475" text-anchor="middle">warm-up lists CW + SSB</text>
-  <text class="s" x="1015" y="494" text-anchor="middle">S53ZO contest-log archive</text>
-
-  <rect class="box" x="870" y="518" width="290" height="58" rx="10"/>
-  <text class="h" x="1015" y="542" text-anchor="middle">supercheckpartial.com</text>
-  <text class="s" x="1015" y="562" text-anchor="middle">HTTPS · MASTER.SCP (if newer)</text>
-
-  <rect class="box" x="870" y="588" width="290" height="50" rx="10"/>
-  <text class="s" x="1015" y="608" text-anchor="middle">pool.ntp.org · time.windows.com</text>
-  <text class="s" x="1015" y="627" text-anchor="middle">NTP · UDP 123 · PC clock, every 30 min</text>
-
-  <rect class="box" x="870" y="650" width="290" height="58" rx="10"/>
-  <text class="s" x="1015" y="672" text-anchor="middle">1.1.1.1 · 8.8.8.8 · 9.9.9.9  TCP 53</text>
-  <text class="s" x="1015" y="692" text-anchor="middle">internet check every 30 s · nothing sent</text>
-
-  <!-- POUNCer -> Internet -->
-  <line class="t" x1="607" y1="147" x2="866" y2="147" marker-end="url(#aT)"/>
-  <text class="l t" x="734" y="139" text-anchor="middle">telnet · TCP 7000/7001</text>
-  <text class="s" x="734" y="165" text-anchor="middle">login = callsign · DX de … spots</text>
-
-  <line class="t" x1="607" y1="232" x2="866" y2="245" marker-end="url(#aT)"/>
-  <text class="l t" x="734" y="222" text-anchor="middle">telnet · TCP 8000</text>
-  <text class="s" x="734" y="254" text-anchor="middle">backup · SSB spots · my-call feed</text>
-
-  <line class="w" x1="607" y1="300" x2="866" y2="310" marker-end="url(#aH)"/>
-  <text class="l w" x="734" y="292" text-anchor="middle">HTTPS · JSON pages</text>
-  <text class="s" x="734" y="322" text-anchor="middle">only while telnet is down</text>
-
-  <line class="t" x1="607" y1="365" x2="866" y2="369" marker-end="url(#aT)"/>
-  <text class="l t" x="734" y="357" text-anchor="middle">MQTT · TCP 1883</text>
-  <text class="s" x="734" y="384" text-anchor="middle">40/160 m FT8 window spots only</text>
-
-  <line class="w" x1="607" y1="418" x2="866" y2="430" marker-end="url(#aH)"/>
-  <text class="l w" x="734" y="410" text-anchor="middle">HTTPS downloads</text>
-  <text class="s" x="700" y="438" text-anchor="middle">update · lists · logs</text>
-
-  <!-- the lower three run in the gap between the zones -->
-  <path class="c w" d="M607,448 L828,448 Q838,448 838,458 L838,537 Q838,547 848,547 L866,547" marker-end="url(#aH)"/>
-  <path class="c u" d="M607,458 L813,458 Q823,458 823,468 L823,603 Q823,613 833,613 L866,613" marker-end="url(#aU)"/>
-  <path class="c t" d="M607,468 L798,468 Q808,468 808,478 L808,669 Q808,679 818,679 L866,679" marker-end="url(#aT)"/>
-
-  <!-- LAN -->
-  <rect class="box" x="45" y="600" width="300" height="150" rx="10"/>
-  <text class="h" x="195" y="628" text-anchor="middle">Phones · tablets · browser</text>
-  <text class="s" x="195" y="652" text-anchor="middle">phone page  http://PC:8080/</text>
-  <text class="s" x="195" y="672" text-anchor="middle">tap = QSY + call · F-keys · band</text>
-  <text class="s" x="195" y="692" text-anchor="middle">/summary · /zones · /timeline · /help</text>
-  <text class="s" x="195" y="716" text-anchor="middle">settings change only on the PC</text>
-  <text class="s" x="195" y="734" text-anchor="middle">itself (127.0.0.1)</text>
-
-  <rect class="box" x="400" y="600" width="355" height="160" rx="10"/>
-  <text class="h" x="577" y="626" text-anchor="middle">Other POUNCers (team)</text>
-  <text class="s" x="577" y="648" text-anchor="middle">"hi" every 2 s (cw / paused, band-open counts)</text>
-  <text class="s" x="577" y="667" text-anchor="middle">master → "spot" (only it talks to RBN / cluster)</text>
-  <text class="s" x="577" y="686" text-anchor="middle">master → "self" (SPOTTED) · "update" (all update)</text>
-  <text class="s" x="577" y="705" text-anchor="middle">"rh" run history to all</text>
-  <text class="s" x="577" y="728" text-anchor="middle">joining: GET master:8080/api/runhist</text>
-
-  <line class="w" x1="250" y1="596" x2="445" y2="480" marker-end="url(#aH)"/>
-  <text class="l w" x="310" y="528" text-anchor="middle" transform="rotate(-31 310 528)">HTTP · TCP 8080 (in)</text>
-
-  <line class="u" x1="560" y1="596" x2="540" y2="480" marker-start="url(#aU)" marker-end="url(#aU)"/>
-  <text class="l u" x="560" y="540" text-anchor="start">UDP 12079 · JSON</text>
-
-  <!-- legend -->
-  <rect class="box" x="805" y="730" width="375" height="135" rx="10"/>
-  <text class="h" x="825" y="754">Legend</text>
-  <line class="u" x1="825" y1="776" x2="875" y2="776" marker-end="url(#aU)"/>
-  <text class="s" x="888" y="780">UDP (N1MM 12060 / 13064, team 12079, NTP)</text>
-  <line class="t" x1="825" y1="800" x2="875" y2="800" marker-end="url(#aT)"/>
-  <text class="s" x="888" y="804">TCP (telnet RBN / cluster, MQTT, check)</text>
-  <line class="w" x1="825" y1="824" x2="875" y2="824" marker-end="url(#aH)"/>
-  <text class="s" x="888" y="828">HTTP / HTTPS (phone page, downloads)</text>
-  <line class="p" x1="825" y1="848" x2="875" y2="848" marker-end="url(#aL)"/>
-  <text class="s" x="888" y="852">local: Windows messages, files</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 1250" width="1400" height="1250" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+<title>POUNCer network connections</title>
+<defs>
+<marker id="aU" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#e65100"/></marker>
+<marker id="aT" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1565c0"/></marker>
+<marker id="aH" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2e7d32"/></marker>
+<marker id="aL" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6a1b9a"/></marker>
+<style>
+.box { fill: #ffffff; stroke: #37474f; stroke-width: 1.5; }
+.main { fill: #263238; }
+.zone { fill: #f5f7f8; stroke: #90a4ae; stroke-width: 1.2; stroke-dasharray: 6 4; }
+.zt { font-size: 13px; font-weight: 700; fill: #546e7a; letter-spacing: .5px; }
+.h { font-size: 15px; font-weight: 700; fill: #263238; }
+.hw { font-size: 20px; font-weight: 700; fill: #ffffff; }
+.s { font-size: 12px; fill: #455a64; }
+.sw { font-size: 12px; fill: #cfd8dc; }
+.swb { font-size: 12px; fill: #ffffff; font-weight: 700; }
+.l { font-size: 11.5px; font-weight: 700; }
+.u { stroke: #e65100; fill: #e65100; }
+.t { stroke: #1565c0; fill: #1565c0; }
+.w { stroke: #2e7d32; fill: #2e7d32; }
+.p { stroke: #6a1b9a; fill: #6a1b9a; }
+line { stroke-width: 2.2; fill: none; }
+text.u, text.t, text.w, text.p { stroke: none; }
+</style>
+</defs>
+<rect width="1400" height="1250" fill="#ffffff"/>
+<text class="h" font-size="24" x="700" y="36" text-anchor="middle">POUNCer – network connections (v0.7.164)</text>
+<text class="s" x="700" y="58" text-anchor="middle">ports are the defaults (config.ini) · no passwords: RBN and the clusters get your callsign only · details: docs/NETWORK.md</text>
+<rect class="zone" x="20" y="76" width="680" height="845" rx="14"/>
+<text class="zt" x="36" y="98" text-anchor="start">SHACK PC (Windows)</text>
+<rect class="zone" x="860" y="76" width="520" height="845" rx="14"/>
+<text class="zt" x="876" y="98" text-anchor="start">INTERNET (all outgoing)</text>
+<rect class="zone" x="20" y="945" width="1360" height="200" rx="14"/>
+<text class="zt" x="36" y="967" text-anchor="start">YOUR NETWORK (LAN / ZeroTier)</text>
+<rect class="box" x="32" y="112" width="200" height="320" rx="10"/>
+<text class="h" x="44" y="134" text-anchor="start">N1MM Logger+</text>
+<text class="s" x="44" y="154" text-anchor="start">Entry Window A / B</text>
+<text class="s" x="44" y="170" text-anchor="start">log *.s3db</text>
+<text class="s" x="44" y="186" text-anchor="start">N1MM Logger.ini</text>
+<text class="s" x="44" y="202" text-anchor="start">wl_cty.dat · MASTER.SCP</text>
+<text class="s" x="44" y="218" text-anchor="start"></text>
+<text class="s" x="44" y="234" text-anchor="start">Broadcast Data:</text>
+<text class="s" x="44" y="250" text-anchor="start">Radio + App Info + Spots</text>
+<text class="s" x="44" y="266" text-anchor="start">→ 127.0.0.1:12060</text>
+<text class="s" x="44" y="282" text-anchor="start">control port 13064</text>
+<text class="s" x="44" y="298" text-anchor="start"></text>
+<text class="s" x="44" y="314" text-anchor="start">Telnet window (optional)</text>
+<text class="s" x="44" y="330" text-anchor="start">→ this PC : 10000</text>
+<text class="s" x="44" y="346" text-anchor="start">(POUNCer&#x27;s cluster server)</text>
+<rect class="main" x="440" y="112" width="250" height="790" rx="12"/>
+<text class="hw" x="565.0" y="144" text-anchor="middle">POUNCer</text>
+<text class="swb" x="454" y="172" text-anchor="start">listens:</text>
+<text class="sw" x="454" y="189" text-anchor="start">UDP 12060 (N1MM)</text>
+<text class="sw" x="454" y="206" text-anchor="start">TCP 8080 (phone page)</text>
+<text class="sw" x="454" y="223" text-anchor="start">UDP 12079 (team)</text>
+<text class="sw" x="454" y="240" text-anchor="start">TCP 10000 (cluster server)</text>
+<text class="sw" x="454" y="257" text-anchor="start"></text>
+<text class="swb" x="454" y="274" text-anchor="start">Spots menu (each on/off):</text>
+<text class="sw" x="454" y="291" text-anchor="start">RBN · Telnet · HTTP · Cluster</text>
+<text class="sw" x="454" y="308" text-anchor="start">same spot twice = once</text>
+<text class="sw" x="454" y="325" text-anchor="start">backups: TelBck · HamQTH</text>
+<text class="sw" x="454" y="342" text-anchor="start"></text>
+<text class="sw" x="454" y="359" text-anchor="start">Spotters: who spots</text>
+<text class="sw" x="454" y="376" text-anchor="start">Spotted: which DX</text>
+<text class="sw" x="454" y="393" text-anchor="start">Calls · DXCC · Zones · Cont · WW</text>
+<text class="sw" x="454" y="410" text-anchor="start"></text>
+<text class="sw" x="454" y="427" text-anchor="start">MyCall: spots of my call</text>
+<text class="sw" x="454" y="444" text-anchor="start">Relay: spots out on 10000</text>
+<text class="sw" x="454" y="461" text-anchor="start">CLR BAND · CLR ALL</text>
+<text class="sw" x="454" y="478" text-anchor="start"></text>
+<text class="sw" x="454" y="495" text-anchor="start">cache\</text>
+<text class="sw" x="454" y="512" text-anchor="start">wl_cty.dat (every 5 days)</text>
+<text class="sw" x="454" y="529" text-anchor="start">warm lists · MASTER.SCP</text>
+<text class="sw" x="454" y="546" text-anchor="start">run history · window.json</text>
+<line class="u" x1="234" y1="150" x2="438" y2="150" marker-end="url(#aU)"/>
+<text class="l u" x="336" y="143" text-anchor="middle">UDP 12060</text>
+<text class="s" x="336" y="166" text-anchor="middle">RadioInfo · AppInfo · spots</text>
+<line class="u" x1="438" y1="205" x2="234" y2="205" marker-end="url(#aU)"/>
+<text class="l u" x="336" y="198" text-anchor="middle">UDP 13064</text>
+<text class="s" x="336" y="221" text-anchor="middle">QSY · {WIPE} · CAT</text>
+<line class="p" x1="234" y1="260" x2="438" y2="260" marker-end="url(#aL)" marker-start="url(#aL)"/>
+<text class="l p" x="336" y="253" text-anchor="middle">Windows messages</text>
+<text class="s" x="336" y="276" text-anchor="middle">call · keys · WPM · Ctrl+K</text>
+<line class="p" x1="438" y1="315" x2="234" y2="315" marker-end="url(#aL)"/>
+<text class="l p" x="336" y="308" text-anchor="middle">reads files (read-only)</text>
+<text class="s" x="336" y="331" text-anchor="middle">worked · mults · contest</text>
+<line class="t" x1="234" y1="385" x2="438" y2="385" marker-end="url(#aT)" marker-start="url(#aT)"/>
+<text class="l t" x="336" y="378" text-anchor="middle">TCP 10000</text>
+<text class="s" x="336" y="401" text-anchor="middle">spots out · DX / sh/dx → azure</text>
+<rect class="box" x="32" y="460" width="390" height="92" rx="10"/>
+<text class="h" x="44" y="482" text-anchor="start">Autostart (local, no network)</text>
+<text class="s" x="44" y="502" text-anchor="start">POUNCer starts your programs (N1MM first).</text>
+<text class="s" x="44" y="518" text-anchor="start">N1MMautostarter.exe on PCs without POUNCer:</text>
+<text class="s" x="44" y="534" text-anchor="start">listens briefly on UDP 12060 for N1MM.</text>
+<rect class="box" x="876" y="112" width="490" height="62" rx="10"/>
+<text class="h" x="888" y="134" text-anchor="start">Reverse Beacon Network</text>
+<text class="s" x="888" y="154" text-anchor="start">telnet.reversebeacon.net :7000 / :7001</text>
+<text class="s" x="888" y="170" text-anchor="start">Spots &gt; RBN · login = your call</text>
+<line class="t" x1="692" y1="134" x2="874" y2="134" marker-end="url(#aT)"/>
+<text class="l t" x="782.0" y="127" text-anchor="middle">telnet 7000/7001</text>
+<rect class="box" x="876" y="184" width="490" height="136" rx="10"/>
+<text class="h" x="888" y="206" text-anchor="start">azure.s53m.com :8000 (S53ZO, node S50DXS)</text>
+<text class="s" x="888" y="226" text-anchor="start">Spots &gt; Telnet: skimmer spots (-#, SNR)</text>
+<text class="s" x="888" y="242" text-anchor="start">Spots &gt; Cluster: spots of people</text>
+<text class="s" x="888" y="258" text-anchor="start">Telnet + Cluster = ONE login (your call); N1MM&#x27;s</text>
+<text class="s" x="888" y="274" text-anchor="start">DX / commands go over it (Relay)</text>
+<text class="s" x="888" y="290" text-anchor="start">TelBck: this server while RBN is down</text>
+<text class="s" x="888" y="306" text-anchor="start">MyCall: login &lt;call&gt;-77, only spots of you</text>
+<line class="t" x1="692" y1="206" x2="874" y2="206" marker-end="url(#aT)"/>
+<text class="l t" x="782.0" y="199" text-anchor="middle">telnet 8000</text>
+<rect class="box" x="876" y="330" width="490" height="62" rx="10"/>
+<text class="h" x="888" y="352" text-anchor="start">azure.s53m.com  HTTPS /cors/rbn/live</text>
+<text class="s" x="888" y="372" text-anchor="start">Spots &gt; HTTP: RBN skimmer spots as JSON</text>
+<line class="w" x1="692" y1="352" x2="874" y2="352" marker-end="url(#aH)"/>
+<text class="l w" x="782.0" y="345" text-anchor="middle">HTTPS</text>
+<rect class="box" x="876" y="402" width="490" height="78" rx="10"/>
+<text class="h" x="888" y="424" text-anchor="start">www.hamqth.com /api/v2  (HTTPS)</text>
+<text class="s" x="888" y="444" text-anchor="start">/rbn + /spots every 20 s, no login</text>
+<text class="s" x="888" y="460" text-anchor="start">HamQTH: while the telnet is down (or alone)</text>
+<line class="w" x1="692" y1="424" x2="874" y2="424" marker-end="url(#aH)"/>
+<text class="l w" x="782.0" y="417" text-anchor="middle">HTTPS JSON</text>
+<rect class="box" x="876" y="490" width="490" height="62" rx="10"/>
+<text class="h" x="888" y="512" text-anchor="start">mqtt.pskreporter.info :1883</text>
+<text class="s" x="888" y="532" text-anchor="start">one call: FT8 or SSB / CW? (FT8 windows)</text>
+<line class="t" x1="692" y1="512" x2="874" y2="512" marker-end="url(#aT)"/>
+<text class="l t" x="782.0" y="505" text-anchor="middle">MQTT 1883</text>
+<rect class="box" x="876" y="562" width="490" height="78" rx="10"/>
+<text class="h" x="888" y="584" text-anchor="start">GitHub  (HTTPS)</text>
+<text class="s" x="888" y="604" text-anchor="start">updates (2 x SHA-256) · warm-up lists</text>
+<text class="s" x="888" y="620" text-anchor="start">S53ZO contest-log archive (run history)</text>
+<line class="w" x1="692" y1="584" x2="874" y2="584" marker-end="url(#aH)"/>
+<text class="l w" x="782.0" y="577" text-anchor="middle">HTTPS</text>
+<rect class="box" x="876" y="650" width="490" height="62" rx="10"/>
+<text class="h" x="888" y="672" text-anchor="start">www.country-files.com  (HTTPS)</text>
+<text class="s" x="888" y="692" text-anchor="start">wl_cty.dat every 5 days (304 = current)</text>
+<line class="w" x1="692" y1="672" x2="874" y2="672" marker-end="url(#aH)"/>
+<text class="l w" x="782.0" y="665" text-anchor="middle">HTTPS</text>
+<rect class="box" x="876" y="722" width="490" height="62" rx="10"/>
+<text class="h" x="888" y="744" text-anchor="start">supercheckpartial.com  (HTTPS)</text>
+<text class="s" x="888" y="764" text-anchor="start">MASTER.SCP if newer</text>
+<line class="w" x1="692" y1="744" x2="874" y2="744" marker-end="url(#aH)"/>
+<text class="l w" x="782.0" y="737" text-anchor="middle">HTTPS</text>
+<rect class="box" x="876" y="794" width="490" height="62" rx="10"/>
+<text class="h" x="888" y="816" text-anchor="start">pool.ntp.org · time.windows.com</text>
+<text class="s" x="888" y="836" text-anchor="start">PC clock check every 30 min</text>
+<line class="u" x1="692" y1="816" x2="874" y2="816" marker-end="url(#aU)"/>
+<text class="l u" x="782.0" y="809" text-anchor="middle">NTP UDP 123</text>
+<rect class="box" x="876" y="866" width="490" height="62" rx="10"/>
+<text class="h" x="888" y="888" text-anchor="start">1.1.1.1 · 8.8.8.8 · 9.9.9.9</text>
+<text class="s" x="888" y="908" text-anchor="start">internet check every 30 s · nothing sent</text>
+<line class="t" x1="692" y1="888" x2="874" y2="888" marker-end="url(#aT)"/>
+<text class="l t" x="782.0" y="881" text-anchor="middle">TCP 53</text>
+<rect class="box" x="32" y="985" width="420" height="145" rx="10"/>
+<text class="h" x="44" y="1007" text-anchor="start">Phones · tablets · browser</text>
+<text class="s" x="44" y="1027" text-anchor="start">phone page  http://PC:8080/</text>
+<text class="s" x="44" y="1043" text-anchor="start">tap = QSY + call · F-keys · band</text>
+<text class="s" x="44" y="1059" text-anchor="start">/summary · /zones · /timeline · /help</text>
+<text class="s" x="44" y="1075" text-anchor="start">settings change only on the PC itself</text>
+<text class="s" x="44" y="1091" text-anchor="start">QR code: View &gt; Phone page QR code</text>
+<rect class="box" x="470" y="985" width="420" height="145" rx="10"/>
+<text class="h" x="482" y="1007" text-anchor="start">Other POUNCers (team)</text>
+<text class="s" x="482" y="1027" text-anchor="start">&quot;hi&quot; every 2 s (cw / ssb / paused, bands)</text>
+<text class="s" x="482" y="1043" text-anchor="start">master → &quot;spot&quot; (only it is connected)</text>
+<text class="s" x="482" y="1059" text-anchor="start">master → &quot;self&quot; (SPOTTED) · &quot;update&quot;</text>
+<text class="s" x="482" y="1075" text-anchor="start">&quot;src&quot; = the Spots choice · &quot;rh&quot; run history</text>
+<text class="s" x="482" y="1091" text-anchor="start">optional team password (HMAC)</text>
+<rect class="box" x="908" y="985" width="458" height="145" rx="10"/>
+<text class="h" x="920" y="1007" text-anchor="start">Other PCs&#x27; N1MM Telnet window (optional)</text>
+<text class="s" x="920" y="1027" text-anchor="start">→ this PC, TCP 10000 (cluster server)</text>
+<text class="s" x="920" y="1043" text-anchor="start">gets the spots of the switched-on sources (Relay)</text>
+<text class="s" x="920" y="1059" text-anchor="start">its DX / commands go over POUNCer&#x27;s azure login</text>
+<text class="s" x="920" y="1075" text-anchor="start">File &gt; Allow POUNCer in Windows Firewall…</text>
+<line class="w" x1="330" y1="983" x2="470" y2="904" marker-end="url(#aH)" marker-start="url(#aH)"/>
+<text class="l w" x="250" y="935" text-anchor="start">HTTP 8080 (in)</text>
+<line class="u" x1="565" y1="983" x2="565" y2="904" marker-end="url(#aU)" marker-start="url(#aU)"/>
+<text class="l u" x="575" y="935" text-anchor="start">UDP 12079 · JSON</text>
+<line class="t" x1="1000" y1="983" x2="660" y2="904" marker-end="url(#aT)" marker-start="url(#aT)"/>
+<text class="l t" x="820" y="935" text-anchor="start">TCP 10000 (in)</text>
+<text class="h" x="36" y="1170" text-anchor="start">Legend</text>
+<line class="u" x1="36" y1="1188" x2="76" y2="1188" marker-end="url(#aU)"/>
+<text class="s" x="84" y="1192" text-anchor="start">UDP (N1MM 12060 / 13064, team 12079, NTP)</text>
+<line class="t" x1="556" y1="1188" x2="596" y2="1188" marker-end="url(#aT)"/>
+<text class="s" x="604" y="1192" text-anchor="start">TCP (telnet RBN / cluster, server 10000, MQTT, check)</text>
+<line class="w" x1="36" y1="1210" x2="76" y2="1210" marker-end="url(#aH)"/>
+<text class="s" x="84" y="1214" text-anchor="start">HTTP / HTTPS (phone page, APIs, downloads)</text>
+<line class="p" x1="556" y1="1210" x2="596" y2="1210" marker-end="url(#aL)"/>
+<text class="s" x="604" y="1214" text-anchor="start">local: Windows messages, files</text>
 </svg>

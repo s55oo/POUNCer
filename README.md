@@ -33,7 +33,7 @@ SPOTit); WPM / ±25 Hz / NEXT at the bottom.*
 ## How it works
 
 <p align="center"><a href="docs/NETWORK.md"><img src="docs/network-diagram.svg" width="760"
-  alt="POUNCer network connections: N1MM UDP 12060 / 13064, RBN telnet, Azure backup, DX cluster and my-call feed, HTTP RBN feed, PSK Reporter MQTT, GitHub, Super Check Partial, NTP, internet check, phone page on HTTP 8080, team on UDP 12079"></a></p>
+  alt="POUNCer network connections (v0.7.164): on the shack PC N1MM (UDP 12060 / 13064, Windows messages, files, optional Telnet window on TCP 10000) and POUNCer; to the internet RBN telnet, azure.s53m.com (Telnet + Cluster on one login, TelBck, MyCall, HTTP), HamQTH, PSK Reporter, GitHub, country-files.com, Super Check Partial, NTP and the internet check; on your network phones on HTTP 8080, other POUNCers on UDP 12079 and other PCs\' N1MM on TCP 10000"></a></p>
 
 ### All network traffic, in and out
 
