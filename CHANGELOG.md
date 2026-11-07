@@ -1,5 +1,18 @@
 # POUNCer — Changelog
 
+## v0.7.137 — 2026-11-07 — Spots: RBN | Telnet button
+
+- **Spots: [RBN] [Telnet]** next to Min SNR: one click switches where the CW
+  spots come from - RBN (telnet.reversebeacon.net) or the telnet backup
+  (azure.s53m.com:8000, the same skimmer spots) - **at once**, and it is
+  saved (`[rbn] source`, also in Settings > RBN). The other one still takes
+  over automatically while the chosen one is down ("using Telnet - RBN down"
+  beside the buttons) and the chosen one is tried again every 10 minutes.
+- In a team only the master is connected: a slave's click asks the master
+  (team message `src`), and every POUNCer's buttons show the master's choice
+  ("master's choice").
+- Hidden when no telnet server is set (`[rbn] backup_host` empty).
+
 ## v0.7.136 — 2026-11-05 — No sorting by WPM
 
 - The **WPM** column is still shown, but clicking its heading no longer sorts
