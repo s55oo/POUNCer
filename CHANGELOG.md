@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.146 — 2026-11-07 — No 5-minute empty list when the own skimmer is off
+
+- At start, if your skimmer (`[rbn] spotter`, S53WW) hasn't spotted at all,
+  the backup skimmers (your continent / `backup_spotters`) are used after
+  **90 s** instead of 5 minutes. Once it has spotted, a quiet spell still
+  waits `backup_after_minutes` as before. (Found on TK0C's G4 PC: S53WW
+  silent, the list stayed empty for 5 minutes after a restart.)
+
 ## v0.7.145 — 2026-11-07 — FT8 / FT4 out of the CW list (PSK Reporter)
 
 - A **CW spot in an FT8 / FT4 window** (3573, 3575.5, 7047.5, 14074, 14080,

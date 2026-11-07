@@ -115,6 +115,22 @@ class SpotterFilterTests(unittest.TestCase):
         self.assertFalse(f.backup_active())
         self.assertFalse(f.accept("S50ARX-#"))
 
+    def test_backups_after_90_s_at_start_if_own_skimmer_is_silent(self) -> None:
+        from pouncer.rbn import SpotterFilter
+        now = [0.0]
+        f = SpotterFilter("S53WW", continent_of=lambda c: "EU", quiet_s=300,
+                          clock=lambda: now[0])
+        now[0] = 60
+        self.assertFalse(f.accept("S50ARX-#"))
+        now[0] = 91                                    # never heard S53WW: backups now
+        self.assertTrue(f.accept("S50ARX-#"))
+        self.assertTrue(f.accept("S53WW-#"))           # there it is: only S53WW again
+        self.assertFalse(f.accept("S50ARX-#"))
+        now[0] = 91 + 120                              # once heard, quiet 2 min: still waits
+        self.assertFalse(f.accept("S50ARX-#"))
+        now[0] = 91 + 301
+        self.assertTrue(f.accept("S50ARX-#"))
+
     def test_listed_backups_only(self) -> None:
         from pouncer.rbn import SpotterFilter
         now = [0.0]

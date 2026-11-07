@@ -1001,7 +1001,9 @@ All phone keys and marks: **[docs/SYMBOLS.md](docs/SYMBOLS.md#phone-page)**.
 A **darker** tile (text still white) = not re-spotted for 5 min (probably gone). When a rare CQ
 (⚡) that is also a **new multiplier** appears, the phone shows it and beeps
 (*Alert pop-up* / *Alert sound* in the band menu, each on its own). If S53WW goes quiet for 5 min, other skimmers on your
-continent are used ("⚠ backup skimmers") until it is back.
+continent are used ("⚠ backup skimmers") until it is back. At start they come
+after **90 s** already if S53WW hasn't spotted at all (offline skimmer = no
+5 minutes of an empty list).
 
 Tap = QSY + call into N1MM (no TX; the callsign box is always emptied first); hold 2 s = **Remove** or **Debug**.
 
