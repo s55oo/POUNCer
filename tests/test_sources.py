@@ -48,12 +48,14 @@ def fake_app(sources):
         _ensure_self_feed=lambda: None, own_call=lambda: "S55OO",
         SOURCE_NAMES=P.SOURCE_NAMES, CONN_KEYS=P.CONN_KEYS, N1MM_SPOT_BREAK_S=P.N1MM_SPOT_BREAK_S,
         N1MM_SPOT_QUIET_S=P.N1MM_SPOT_QUIET_S, N1MM_SPOT_QUIET_X=P.N1MM_SPOT_QUIET_X,
-        MERGE_S=P.MERGE_S)
+        MERGE_S=P.MERGE_S, BACKUP_AFTER_S=P.BACKUP_AFTER_S, BACKUP_BACK_S=P.BACKUP_BACK_S,
+        _rbn_bad_since=None, _rbn_good_since=None)
     for n in ("_ensure_rbn_clients", "_ensure_telnet_client", "_ensure_ssb_client",
               "_ensure_http_feed", "_stop_http_feed", "_start_http_feed", "_ssb_wanted",
               "_cluster_merged", "_people_filter", "_desired_rbn_ports", "_n1mm_spots_ok",
               "_n1mm_quiet_limit", "_ssb_status_put", "_source_tip", "_merged_dup", "_conn_tip",
-              "_toggle_conn", "_set_source", "_cluster_upstream"):
+              "_toggle_conn", "_set_source", "_cluster_upstream", "_telnet_backup_due",
+              "_rbn_healthy", "_ensure_telnet_client"):
         setattr(f, n, getattr(P, n).__get__(f))
     return app, f, made, FakeClient
 
@@ -122,6 +124,30 @@ class SourceTests(unittest.TestCase):
         self.assertEqual(saved[-1], ("ui.self_spot_alert", not on))
         f._set_source("relay")
         self.assertEqual(saved[-1][0], "cluster.relay")
+
+    def test_telnet_bck_takes_over_while_rbn_is_down(self) -> None:
+        app, f, made, Fake = fake_app("rbn")
+        f.cfg.rbn_telnet_backup = True
+        now = [1000.0]
+        f.rbn_status = "disconnected, reconnecting"
+        with mock.patch.object(app, "RBNClient", Fake), \
+                mock.patch.object(app.time, "time", side_effect=lambda: now[0]):
+            f._ensure_rbn_clients()
+            self.assertEqual([c.host for c in made], ["telnet.reversebeacon.net"])
+            now[0] += 61                                    # RBN down a minute
+            f._ensure_rbn_clients()
+            self.assertEqual(made[-1].host, "azure.s53m.com")   # the telnet server meanwhile
+            self.assertIn("ACTIVE", f._source_tip("telnetbck"))
+            f.rbn_status = "logged in as S55OO"           # RBN back ...
+            f._rbn_clients[7000]._last_dx = app.time.monotonic()
+            f._ensure_rbn_clients()
+            self.assertFalse(made[-1].stopped)              # ... not closed at once
+            now[0] += 61
+            f._rbn_clients[7000]._last_dx = app.time.monotonic()
+            f._ensure_rbn_clients()
+            self.assertTrue(made[-1].stopped)               # a minute later: closed
+        f.cfg.rbn_telnet_backup = False
+        self.assertIn("off", f._source_tip("telnetbck"))
 
     def test_same_spot_from_two_sources_once(self) -> None:
         f, made = self.run_with("rbn")

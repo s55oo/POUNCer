@@ -79,6 +79,7 @@ class Config:
     # separated: rbn (reversebeacon.net), telnet (backup_host: its skimmer
     # spots), http (http_backup), cluster (the DX cluster's spots of people)
     rbn_source: str = "rbn,cluster"
+    rbn_telnet_backup: bool = False  # Telnet-bck: the telnet server while RBN is down
     rbn_backup_port: int = 8000
     rbn_backup_commands: tuple = ()     # at start ask RBN for the last spots (SH/DX); 0 = off
     # RBN over HTTP (S53ZO's Azure feed) while the telnet feed is down / silent
@@ -290,6 +291,7 @@ def load_config(path: str) -> Config:
     cfg.rbn_spotter = s("rbn", "spotter", cfg.rbn_spotter)
     cfg.rbn_history = max(0, i("rbn", "history", cfg.rbn_history))
     cfg.rbn_backup_host = s("rbn", "backup_host", cfg.rbn_backup_host).strip()
+    cfg.rbn_telnet_backup = b("rbn", "telnet_backup", cfg.rbn_telnet_backup)
     if parser.has_option("rbn", "sources"):
         cfg.rbn_source = parse_sources(s("rbn", "sources", cfg.rbn_source))
     else:    # older config.ini: one source (+ the SSB cluster, unless it was off)

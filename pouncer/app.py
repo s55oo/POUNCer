@@ -513,8 +513,9 @@ class PouncerApp:
         ttk.Label(src, text="Spots", style="Muted.TLabel").pack(side="left", padx=(0, 4))
         self._src_buttons = {}
         for key, label in (("rbn", "RBN"), ("telnet", "Telnet"), ("http", "HTTP"),
-                           ("cluster", "Cluster"), ("mycall", "MyCall"), ("relay", "Relay")):
-            if key == "mycall":
+                           ("cluster", "Cluster"), ("telnetbck", "Telnet-bck"),
+                           ("mycall", "MyCall"), ("relay", "Relay")):
+            if key == "telnetbck":
                 ttk.Label(src, text="", width=1).pack(side="left")    # a small gap
             b = ttk.Button(src, text=label, style="Sort.TButton", takefocus=False,
                            command=lambda k=key: self._set_source(k))
@@ -2225,6 +2226,8 @@ class PouncerApp:
                      if paused else "on: a radio is on CW")
             self.rbn_status = "paused: SSB, not needed" if paused else "starting"
         telnet = has_source(self.cfg, "telnet") and bool(self.cfg.rbn_backup_host)
+        if not telnet and desired and self._telnet_backup_due():
+            telnet = True                     # Telnet-bck: RBN down, the telnet server meanwhile
         if paused:
             desired, telnet = set(), False
         if self.team is not None:
@@ -2256,6 +2259,35 @@ class PouncerApp:
             client.start()
             self._rbn_clients[port] = client
             log.info("RBN client started on %s:%s", self.cfg.rbn_host, port)
+
+    BACKUP_AFTER_S = 60      # Telnet-bck: RBN down / silent this long -> the telnet server
+    BACKUP_BACK_S = 60       # ... and RBN working this long -> telnet closed again
+
+    def _telnet_backup_due(self) -> bool:
+        """Telnet-bck on, RBN on, Telnet off: RBN down or silent for a minute
+        -> True (until RBN has worked for a minute again)."""
+        if not (getattr(self.cfg, "rbn_telnet_backup", False) and self.cfg.rbn_backup_host
+                and has_source(self.cfg, "rbn")):
+            self._rbn_bad_since = self._rbn_good_since = None
+            self._bck_active = False
+            return False
+        now = time.time()
+        active = getattr(self, "_bck_active", False)
+        if self._rbn_healthy():
+            self._rbn_bad_since = None
+            self._rbn_good_since = self._rbn_good_since or now
+            if active and now - self._rbn_good_since > self.BACKUP_BACK_S:
+                active = False
+                log.info("Telnet-bck: RBN works again - telnet server closed")
+        else:
+            self._rbn_good_since = None
+            self._rbn_bad_since = self._rbn_bad_since or now
+            if not active and now - self._rbn_bad_since > self.BACKUP_AFTER_S:
+                active = True
+                log.info("Telnet-bck: RBN down / silent - %s:%s meanwhile",
+                         self.cfg.rbn_backup_host, self.cfg.rbn_backup_port)
+        self._bck_active = active
+        return active
 
     def _ensure_telnet_client(self, want: bool) -> None:
         """The 'Telnet' source: the skimmer spots of the telnet server
@@ -2320,7 +2352,8 @@ class PouncerApp:
         self._src_last = None
 
     # the other spot connections on the Spots line: own settings, this PC only
-    CONN_KEYS = {"mycall": ("ui.self_spot_alert", "self_spot_alert", "MyCall"),
+    CONN_KEYS = {"telnetbck": ("rbn.telnet_backup", "rbn_telnet_backup", "Telnet-bck"),
+                 "mycall": ("ui.self_spot_alert", "self_spot_alert", "MyCall"),
                  "relay": ("cluster.relay", "cluster_relay", "Relay")}
 
     def _toggle_conn(self, key: str) -> None:
@@ -2352,6 +2385,8 @@ class PouncerApp:
         chosen = (team.master_src() or self.cfg.rbn_source) if slave else self.cfg.rbn_source
         on = set(filter(None, str(chosen or "").split(",")))
         note = "master's choice" if slave else ("nothing on - no spots" if not on else "")
+        if not slave and getattr(self, "_bck_active", False):
+            note = "Telnet-bck: RBN down, telnet server meanwhile"
         for key, (_s, attr, _n) in self.CONN_KEYS.items():
             if getattr(self.cfg, attr, False):
                 on.add(key)
@@ -2415,6 +2450,25 @@ class PouncerApp:
         _s, attr, name = self.CONN_KEYS[key]
         on = bool(getattr(c, attr, False))
         head = f"{name} - {'ON' if on else 'off'} (click = switch {'off' if on else 'on'})"
+        if key == "telnetbck":
+            tc = getattr(self, "_telnet_client", None)
+            if not on:
+                now = "off - nothing takes over when RBN is down"
+            elif has_source(c, "telnet"):
+                now = "not needed - Telnet is on anyway"
+            elif not has_source(c, "rbn"):
+                now = "not used - RBN is off"
+            elif getattr(self, "_bck_active", False):
+                now = ("ACTIVE - RBN down / silent; " +
+                       ((getattr(tc, "status_text", "") or "connecting") if tc else "starting"))
+            else:
+                bad = getattr(self, "_rbn_bad_since", None)
+                now = (f"RBN not working for {time.time() - bad:.0f} s (takes over after "
+                       f"{self.BACKUP_AFTER_S} s)" if bad else "standby - RBN works")
+            return (f"{head}\n{c.rbn_backup_host}:{c.rbn_backup_port} (telnet), login "
+                    f"{c.rbn_callsign or '?'} - its skimmer spots\nTakes over when RBN has been "
+                    f"down or silent for {self.BACKUP_AFTER_S} s, closes after RBN works "
+                    f"{self.BACKUP_BACK_S} s again\nNow: {now}")
         if key == "mycall":
             feed = getattr(self, "_self_feed", None)
             team = getattr(self, "team", None)

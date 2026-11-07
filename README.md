@@ -727,6 +727,12 @@ list **and** out to N1MM / any client of the cluster server (port 10000):
 | **HTTP** | RBN's skimmer spots over HTTP - no login, works where telnet is blocked, catches up after a dropout | `[rbn] http_backup` (azure.s53m.com) |
 | **Cluster** | the DX cluster's spots **of people** (no `-#`, every mode; spotters `[ssb] spotters`, EU) | `[ssb] host` (azure.s53m.com:8000) |
 
+- **Telnet-bck** (after them, `[rbn] telnet_backup`, off by default): with
+  RBN on and Telnet off, when RBN has been down or silent for a minute
+  POUNCer connects to the telnet server (azure.s53m.com:8000 = S50DXS, its
+  skimmer spots) until RBN has worked for a minute again ("Telnet-bck: RBN
+  down, telnet server meanwhile" next to the buttons). Off = nothing takes
+  over.
 - Two more buttons after them for the other spot connections:
   **MyCall** (azure, login `<call>-77`, only spots of your own call - the
   SPOTTED pop-up; `[ui] self_spot_alert`) and **Relay** (N1MM's Telnet
@@ -738,8 +744,8 @@ list **and** out to N1MM / any client of the cluster server (port 10000):
   connection", spots and the last HTTP answer ...).
 - **The same spot from two sources counts once** (same call, frequency and
   skimmer within a minute) - e.g. RBN and HTTP both on.
-- **Only what you switched on**: nothing takes over when a source is down
-  (for now). All off = no spots ("nothing on - no spots" next to the
+- **Only what you switched on**: nothing takes over when a source is down -
+  except RBN with **Telnet-bck** on. All off = no spots ("nothing on - no spots" next to the
   buttons, light "RBN: no skimmer source on").
 - **Telnet + Cluster on the same node** (both azure.s53m.com:8000) use
   **one** connection and one login. And while N1MM is connected through

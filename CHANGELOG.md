@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.154 — 2026-11-07 — Telnet-bck button
+
+- **Telnet-bck** on the Spots line (`[rbn] telnet_backup`, off by default):
+  with RBN on and Telnet off, the telnet server (azure.s53m.com:8000,
+  S50DXS) takes over when RBN has been down or silent for a minute, and
+  closes again after RBN has worked for a minute. Hover = standby / active
+  and why; the note next to the buttons says when it is active.
+
 ## v0.7.153 — 2026-11-07 — MyCall and Relay buttons
 
 - Two more buttons on the Spots line for the other spot connections:
