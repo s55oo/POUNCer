@@ -353,6 +353,18 @@ def spot_from_n1mm(pkt: dict, now: float | None = None) -> Spot:
                 received=time.time() if now is None else now, source="n1mm")
 
 
+class PeopleFilter:
+    """People's spots through the one spotter filter (``SpotterFilter.people_accept``)."""
+
+    primary = ""
+
+    def __init__(self, spotter_filter) -> None:
+        self.sf = spotter_filter
+
+    def accept(self, spotter: str) -> bool:
+        return self.sf.people_accept(spotter)
+
+
 class ContinentFilter:
     """Human cluster spots: keep spotters on our continent (or all)."""
 
@@ -418,12 +430,87 @@ class SpotterFilter:
         self.start_s = min(start_s, quiet_s)   # ... but not 5 minutes
         self.heard_primary = False
         self._zcache: dict[str, int | None] = {}
+        self.mode = ""                   # "" = from ``primary`` (calls + zones together)
+        self.dxcc: tuple[str, ...] = ()
+        self.conts: tuple[str, ...] = ()
+        self.entity_of = None            # call -> cty Entity (DXCC filter)
+        self._dxcc_names: set | None = None
+
+    # ---- the one filter for every source (the Spotters buttons) ---------------------
+    MODES = ("calls", "dxcc", "zones", "cont", "ww")
+
+    def configure(self, mode: str, calls=(), dxcc=(), zones=(), conts=()) -> None:
+        """calls: skimmer / spotter call prefixes; dxcc: countries (prefix or
+        name: S5, 9A, Slovenia); zones: CQ zones; cont: continents; ww: all."""
+        mode = mode if mode in self.MODES else "calls"
+        self.mode = mode
+        self.calls = tuple(c.upper() for c in calls) if mode == "calls" else ()
+        self.zones = frozenset(int(z) for z in zones) if mode == "zones" else frozenset()
+        self.dxcc = tuple(d.strip() for d in dxcc if d.strip()) if mode == "dxcc" else ()
+        self.conts = tuple(c.upper() for c in conts) if mode == "cont" else ()
+        self._dxcc_names = None
+        self.primary = self.calls[0] if self.calls else ""
+        self.multi = not (mode == "calls" and len(self.calls) == 1)
+        self.last_primary = self.clock()
+        self.heard_primary = False
 
     def label(self) -> str:
+        if self.mode == "ww":
+            return "worldwide (all)"
+        if self.mode == "dxcc":
+            return "DXCC " + ", ".join(self.dxcc)
+        if self.mode == "cont":
+            return "continent " + ", ".join(self.conts)
         return ", ".join(list(self.calls) + [f"zone {z}" for z in sorted(self.zones)])
 
     def active(self) -> bool:
-        return bool(self.calls or self.zones)
+        return bool(self.calls or self.zones or self.dxcc or self.conts)
+
+    def _names(self) -> set:
+        """The DXCC list as cty country names (S5 -> Slovenia)."""
+        if self._dxcc_names is None:
+            names = set()
+            for item in self.dxcc:
+                ent = None
+                if self.entity_of is not None:
+                    try:
+                        ent = self.entity_of(item.upper())
+                    except Exception:  # noqa: BLE001
+                        ent = None
+                names.add(ent.name.lower() if ent is not None else item.lower())
+            if self.entity_of is None:
+                return names             # cty not there yet: try again next time
+            self._dxcc_names = names
+        return self._dxcc_names
+
+    def _area(self, base: str) -> bool:
+        """DXCC / continent of a spotter (zones: ``_zone``)."""
+        if self.dxcc:
+            ent = None
+            if self.entity_of is not None:
+                try:
+                    ent = self.entity_of(base)
+                except Exception:  # noqa: BLE001
+                    ent = None
+            return ent is not None and ent.name.lower() in self._names()
+        if self.conts:
+            return self.continent_of is not None and self.continent_of(base) in self.conts
+        return False
+
+    def people_accept(self, spotter: str) -> bool:
+        """A person's cluster spot (Cluster, HamQTH): the same filter - with
+        Calls (skimmers, no person is S53WW) their continent."""
+        if not self.active():
+            return True
+        base = (spotter or "").upper().split("-")[0]
+        if self.calls and not (self.zones or self.dxcc or self.conts):
+            if self.continent_of is None:
+                return True
+            want = {self.continent_of(c.split("-")[0]) for c in self.calls} - {None}
+            return self.continent_of(base) in (want or {self.home_cont()})
+        if self.zones:
+            return self._zone(base) in self.zones
+        return self._area(base)
 
     def backup_active(self) -> bool:
         wait = self.quiet_s if self.heard_primary else self.start_s
@@ -447,6 +534,8 @@ class SpotterFilter:
         sp = (spotter or "").upper()
         if any(sp.startswith(c) for c in self.calls):
             return True
+        if self.dxcc or self.conts:
+            return self._area(sp.split("-")[0])
         return bool(self.zones) and self._zone(sp.split("-")[0]) in self.zones
 
     def accept(self, spotter: str) -> bool:

@@ -169,16 +169,16 @@ class TkSettingsWindowTests(unittest.TestCase):
         self.assertEqual(w.pending, {})
         # a restart setting shows the Restart button after Save
         self.assertFalse(w.restart_btn.winfo_ismapped())
-        w.vars["rbn.spotter"].set("S50R")
+        w.vars["rbn.backup_host"].set("dxc.example.org")
         w.save_all()
         self.root.update()
-        self.assertEqual(w.state["rbn.spotter"].cget("text"), "Saved - used after a restart")
+        self.assertEqual(w.state["rbn.backup_host"].cget("text"), "Saved - used after a restart")
         self.assertTrue(w.restart_btn.winfo_ismapped())
         w.restart_btn.invoke()
         self.assertEqual(restarted, [1])
         # typing back the saved value: nothing pending
         n = len(saved)
-        w.vars["rbn.spotter"].set("S50R")
+        w.vars["rbn.backup_host"].set("dxc.example.org")
         w.save_all()
         self.assertEqual(len(saved), n)
         w.open()                                   # second open: same window

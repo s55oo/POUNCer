@@ -1,5 +1,19 @@
 # POUNCer — Changelog
 
+## v0.7.159 — 2026-11-07 — One Spotters filter for every source
+
+- **Spotters: Calls | DXCC | Zones | Cont | WW** buttons in the window: one
+  filter for every source - RBN, Telnet, HTTP, HamQTH and Cluster, skimmer
+  spots and people's spots alike. Calls = the listed skimmers / spotters
+  (S53WW; backups on your continent while they are quiet; people's spots:
+  those calls' continent), DXCC = spotters in the listed countries (prefix
+  or name: S5, 9A, OE), Zones = CQ zones (14, 15), Cont = continents (EU),
+  WW = everyone. Hover = the list and what passes.
+- **Settings > Spotters**: the mode and the lists (Calls, DXCC, Zones,
+  Continents - one or many each), `[filter]` in config.ini. An older
+  config.ini is taken over (calls / zones from `[rbn] spotter`, continents
+  from `[ssb] spotters`).
+
 ## v0.7.158 — 2026-11-07 — Country file every 5 days
 
 - POUNCer checks **country-files.com every 5 days** for a newer

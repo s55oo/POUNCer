@@ -761,8 +761,14 @@ list **and** out to N1MM / any client of the cluster server (port 10000):
 - **Telnet + Cluster on the same node** (both azure.s53m.com:8000) use
   **one** connection and one login - also for what N1MM sends through the
   Relay.
-- Skimmer choice (`[rbn] spotter`, S53WW, backups while it is quiet) applies
-  to RBN, Telnet and HTTP alike.
+- **Spotters** (the buttons after them, `[filter]`): **one filter for every
+  source**, skimmers and people alike - **Calls** (the listed skimmers /
+  spotters, `[rbn] spotter`, S53WW; while all of them are quiet the other
+  skimmers on your continent; people's spots: those calls' continent) |
+  **DXCC** (spotters in the listed countries: `S5, 9A, OE`) | **Zones** (CQ
+  zones: `14, 15`) | **Cont** (continents: `EU`) | **WW** (everyone). One is
+  active; hover = its list and what passes; the lists in Settings >
+  Spotters (one or many each).
 - RBN and Telnet pause while every radio is on SSB (`pause_on_phone`); a
   team slave connects nothing (the master passes the spots on).
 - Older config.ini with `source = rbn / telnet / http`: that one + Cluster

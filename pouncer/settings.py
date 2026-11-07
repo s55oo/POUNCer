@@ -118,11 +118,27 @@ SETTINGS: list[dict] = [
      "min": 1, "max": 60, "live": False, "group": "RBN", "label": "Skimmer quiet warning (min)",
      "help": "Check line warns when a listed skimmer (S53WW, TK0C) has sent nothing this "
              "long while RBN works: offline or its connection down."},
-    {"key": "rbn.spotter", "attr": "rbn_spotter", "kind": "text", "live": False,
-     "group": "RBN", "label": "Skimmers",
-     "help": "Only spots of these, all together, comma separated: calls (prefix: TK0C = "
-             "TK0C-1, TK0C-2 ...) and whole CQ zones (ZONE14). E.g. TK0C, IT9ABC, ZONE15. "
-             "Empty = all."},
+    {"key": "filter.mode", "attr": "filter_mode", "kind": "choice",
+     "choices": ["calls", "dxcc", "zones", "cont", "ww"], "live": True,
+     "group": "Spotters", "label": "Spots from these spotters",
+     "help": "One filter for every source (RBN, Telnet, HTTP, HamQTH, Cluster): calls = the "
+             "listed skimmers / spotters, dxcc = spotters in the listed countries, zones = in "
+             "the listed CQ zones, cont = on the listed continents, ww = all. Also the "
+             "Spotters buttons in the window."},
+    {"key": "rbn.spotter", "attr": "rbn_spotter", "kind": "text", "live": True,
+     "group": "Spotters", "label": "  Calls",
+     "help": "Skimmers / spotters, comma separated (prefix: TK0C = TK0C-1, TK0C-2 ...), "
+             "e.g. S53WW, TK0C. While all of them are quiet: the other skimmers on your "
+             "continent. Spots of people then: the continent of these calls."},
+    {"key": "filter.dxcc", "attr": "filter_dxcc", "kind": "text", "live": True,
+     "group": "Spotters", "label": "  DXCC",
+     "help": "Countries, comma separated - a prefix or the name: S5, 9A, OE or Slovenia."},
+    {"key": "filter.zones", "attr": "filter_zones", "kind": "text", "live": True,
+     "group": "Spotters", "label": "  Zones",
+     "help": "CQ zones, comma separated: 14, 15."},
+    {"key": "filter.conts", "attr": "filter_conts", "kind": "text", "live": True,
+     "group": "Spotters", "label": "  Continents",
+     "help": "EU, NA, SA, AS, AF, OC, comma separated."},
     {"key": "rbn.history", "attr": "rbn_history", "kind": "int", "min": 0, "max": 500,
      "live": False, "group": "RBN", "label": "Last spots at start (SH/DX)",
      "help": "0 = off."},
@@ -213,8 +229,6 @@ SETTINGS: list[dict] = [
     {"key": "ssb.self_spot_ssid", "attr": "self_spot_ssid", "kind": "text", "live": False,
      "group": "SSB", "label": "Spots of my call: SSID",
      "help": "Login <call>-77 - its own SSID, never N1MM's. In a team only the master logs in."},
-    {"key": "ssb.spotters", "attr": "ssb_spotters", "kind": "text", "live": False,
-     "group": "SSB", "label": "Spotters from", "help": "EU, NA, AS, ... or ALL."},
     {"key": "ssb.host", "attr": "ssb_host", "kind": "text", "live": False,
      "group": "SSB", "label": "DX cluster", "help": ""},
     {"key": "ssb.port", "attr": "ssb_port", "kind": "int", "min": 1, "max": 65535,
@@ -379,7 +393,7 @@ def parse(item: dict, text: str):
         raise ValueError(f"{item['label']}: an http(s):// address, or empty")
     if any(ch in text for ch in "\r\n[]"):
         raise ValueError(f"{item['label']}: no line breaks or brackets")
-    if item["attr"] in ("rbn_spotter", "ssb_spotters", "ssb_login"):
+    if item["attr"] in ("rbn_spotter", "ssb_spotters", "ssb_login", "filter_conts"):
         text = text.upper()
     return text, text
 

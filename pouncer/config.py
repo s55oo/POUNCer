@@ -72,6 +72,12 @@ class Config:
     rbn_port: int = 7000
     rbn_callsign: str = ""  # empty: taken from N1MM (see app)
     rbn_spotter: str = "S53WW"
+    # the one spotter filter for every source (the Spotters buttons):
+    # calls (rbn_spotter) / dxcc / zones / cont / ww
+    filter_mode: str = "calls"
+    filter_dxcc: str = ""
+    filter_zones: str = ""
+    filter_conts: str = "EU"
     rbn_history: int = 30
     # backup telnet server when RBN's own telnet is down (CW feed)
     rbn_backup_host: str = "azure.s53m.com"
@@ -438,6 +444,19 @@ def load_config(path: str) -> Config:
     cfg.ssb_host = s("ssb", "host", cfg.ssb_host).strip()
     cfg.ssb_port = i("ssb", "port", cfg.ssb_port)
     cfg.ssb_spotters = s("ssb", "spotters", cfg.ssb_spotters).strip().upper() or "EU"
+    # the Spotters filter; older config.ini: calls / zones from [rbn] spotter,
+    # continents from [ssb] spotters
+    from .rbn import parse_spotters
+    old_calls, old_zones = parse_spotters(cfg.rbn_spotter)
+    if parser.has_option("filter", "mode"):
+        mode = s("filter", "mode", "calls").strip().lower()
+    else:
+        mode = "calls" if old_calls else ("zones" if old_zones else "ww")
+    cfg.filter_mode = mode if mode in ("calls", "dxcc", "zones", "cont", "ww") else "calls"
+    cfg.filter_dxcc = s("filter", "dxcc", cfg.filter_dxcc).strip()
+    cfg.filter_zones = s("filter", "zones", ", ".join(str(z) for z in sorted(old_zones))).strip()
+    old_cont = cfg.ssb_spotters if cfg.ssb_spotters not in ("ALL", "*", "HOME", "OWN") else "EU"
+    cfg.filter_conts = s("filter", "conts", old_cont).strip().upper() or "EU"
     cfg.ssb_history = max(0, i("ssb", "history", cfg.ssb_history))
     cfg.ssb_login = s("ssb", "login", "").strip()
     cfg.ssb_commands = tuple(c.strip() for c in s("ssb", "commands", "").split(",") if c.strip())

@@ -23,7 +23,8 @@ from .n1mm import (
     N1MMController, RadioListener, RadioState, cat_macro, next_tune_khz,
 )
 from .rbn import (
-    ContinentFilter, OnFreqTracker, RBNClient, Spot, SpotterFilter, is_beacon, is_phone_contest,
+    ContinentFilter, OnFreqTracker, PeopleFilter, RBNClient, Spot, SpotterFilter, is_beacon,
+    is_phone_contest,
     ports_for_modes, spot_from_n1mm, digital_sure, digital_overlap, digital_mode,
 )
 from .runhist import RARE_HOURS, RARE_RUN_PCT, RunHistory
@@ -263,6 +264,8 @@ class PouncerApp:
             quiet_s=config.backup_after_minutes * 60,
             zone_of=lambda call: getattr(self._entity(call), "cq", None),
         )
+        self.spotter_filter.entity_of = self._entity
+        self._apply_filter(log_it=False)
         # our own skimmer(s) still spotting? (S53WW, TK0C-1 / -2 ...)
         self.skimwatch = SkimmerWatch(self.spotter_filter.calls,
                                       quiet_s=config.skimmer_quiet_minutes * 60)
@@ -536,8 +539,20 @@ class PouncerApp:
             self._source_hover(b, key)
         self._src_note = ttk.Label(src, text="", style="Muted.TLabel")
         self._src_note.pack(side="left", padx=(6, 0))
+        # the one spotter filter for every source
+        flt = ttk.Frame(flow)
+        ttk.Label(flt, text="Spotters", style="Muted.TLabel").pack(side="left", padx=(0, 4))
+        self._flt_buttons = {}
+        for key in ("calls", "dxcc", "zones", "cont", "ww"):
+            b = ttk.Button(flt, text=self.FILTER_NAMES[key], style="Sort.TButton",
+                           takefocus=False, command=lambda k=key: self._set_spotter_filter(k))
+            b.pack(side="left")
+            self._flt_buttons[key] = b
+            self._source_hover(b, "flt:" + key)
+        self._flt_last = None
         self._src_box = src
         flow.add(src, gap=16)
+        flow.add(flt, gap=16)
         self._src_last = None
         # clean layout: the rate, short (the full rate line in the detailed layout)
         self.rate_short = ttk.Label(flow, text="", style="Muted.TLabel")
@@ -1961,8 +1976,7 @@ class PouncerApp:
         if (spot.spotter or "").endswith("-#"):
             return                       # skimmers come from RBN / Telnet / HTTP
         if self._n1mm_filter is None:
-            self._n1mm_filter = ContinentFilter(lambda call: self._continent(call),
-                                                lambda: self.home_cont, self.cfg.ssb_spotters)
+            self._n1mm_filter = PeopleFilter(self.spotter_filter)
         try:
             self._on_raw_spot(spot)
         except Exception:  # noqa: BLE001
@@ -2000,8 +2014,7 @@ class PouncerApp:
                 == (str(c.ssb_host).lower(), int(c.ssb_port)))
 
     def _people_filter(self):
-        return ContinentFilter(lambda call: self._continent(call), lambda: self.home_cont,
-                               self.cfg.ssb_spotters)
+        return PeopleFilter(self.spotter_filter)     # the Spotters filter, live
 
     def _ensure_ssb_client(self) -> None:
         """The 'Cluster' source: spots of people from the DX cluster - on the
@@ -2392,6 +2405,77 @@ class PouncerApp:
         log.info("Telnet client started on %s:%s", self.cfg.rbn_backup_host,
                  self.cfg.rbn_backup_port)
 
+    FILTER_NAMES = {"calls": "Calls", "dxcc": "DXCC", "zones": "Zones", "cont": "Cont",
+                    "ww": "WW"}
+
+    @staticmethod
+    def _list(text: str) -> list[str]:
+        return [t.strip() for t in str(text or "").replace(";", ",").split(",") if t.strip()]
+
+    def _apply_filter(self, log_it: bool = True) -> None:
+        """The Spotters filter ([filter] mode + its list) -> the one
+        SpotterFilter every source uses (skimmers and people)."""
+        from .rbn import parse_spotters
+        c = self.cfg
+        calls, zones_in_calls = parse_spotters(getattr(c, "rbn_spotter", ""))
+        zones = set(zones_in_calls)
+        for t in self._list(getattr(c, "filter_zones", "")):
+            digits = "".join(ch for ch in t if ch.isdigit())
+            if digits and 1 <= int(digits) <= 40:
+                zones.add(int(digits))
+        conts = [t.upper() for t in self._list(getattr(c, "filter_conts", ""))]
+        self.spotter_filter.configure(getattr(c, "filter_mode", "calls"), calls=calls,
+                                      dxcc=self._list(getattr(c, "filter_dxcc", "")),
+                                      zones=sorted(zones), conts=conts)
+        sw = getattr(self, "skimwatch", None)
+        if sw is not None:
+            sw.calls = tuple(self.spotter_filter.calls)
+        self._flt_last = None
+        if log_it:
+            log.info("spotters filter: %s", self.spotter_filter.label() or "all")
+
+    def _set_spotter_filter(self, mode: str) -> None:
+        """A Spotters button: that filter from now on (saved)."""
+        if mode not in self.FILTER_NAMES:
+            return
+        empty = {"calls": "rbn_spotter", "dxcc": "filter_dxcc", "zones": "filter_zones",
+                 "cont": "filter_conts"}
+        if mode in empty and not self._list(getattr(self.cfg, empty[mode], "")):
+            self.status_label.configure(text=f"Spotters {self.FILTER_NAMES[mode]}: the list is "
+                                             "empty - fill it in Settings > Spotters")
+            return
+        self._save_setting("filter.mode", mode)      # applies it (_apply_filter)
+        self.status_label.configure(text=f"Spots from: {self.spotter_filter.label()}")
+
+    def _update_filter_buttons(self) -> None:
+        btns = getattr(self, "_flt_buttons", None)
+        if not btns:
+            return
+        mode = getattr(self.cfg, "filter_mode", "calls")
+        if mode == getattr(self, "_flt_last", None):
+            return
+        self._flt_last = mode
+        for key, b in btns.items():
+            b.configure(style="SortOn.TButton" if key == mode else "Sort.TButton")
+
+    def _filter_tip(self, mode: str) -> str:
+        c = self.cfg
+        on = getattr(c, "filter_mode", "calls") == mode
+        lists = {"calls": getattr(c, "rbn_spotter", ""), "dxcc": getattr(c, "filter_dxcc", ""),
+                 "zones": getattr(c, "filter_zones", ""), "cont": getattr(c, "filter_conts", "")}
+        what = {"calls": "only these skimmers / spotters (prefix); while all are quiet: the "
+                         "other skimmers on your continent; people's spots: these calls' continent",
+                "dxcc": "spotters in these countries", "zones": "spotters in these CQ zones",
+                "cont": "spotters on these continents", "ww": "every spotter, worldwide"}[mode]
+        head = f"Spotters: {self.FILTER_NAMES[mode]} - {'ON' if on else 'click = use this'}"
+        body = f"{lists.get(mode) or ('-' if mode != 'ww' else 'all')}\n{what}\n" \
+               "For every source: RBN, Telnet, HTTP, HamQTH, Cluster. Lists: Settings > Spotters"
+        if on and mode != "ww":
+            sf = self.spotter_filter
+            body += "\nNow: " + ("backup skimmers (the listed ones are quiet)"
+                                  if sf.backup_active() else "the listed ones")
+        return head + "\n" + body
+
     SOURCE_NAMES = {"rbn": "RBN", "telnet": "Telnet", "http": "HTTP", "cluster": "Cluster"}
 
     def _set_source(self, src: str, from_team: bool = False) -> None:
@@ -2483,6 +2567,8 @@ class PouncerApp:
     def _source_tip(self, key: str) -> str:
         """Hover over a Spots button: the connection behind it, now."""
         c = self.cfg
+        if key.startswith("flt:"):
+            return self._filter_tip(key[4:])
         if key in self.CONN_KEYS:
             return self._conn_tip(key)
         on = has_source(c, key)
@@ -2988,6 +3074,7 @@ class PouncerApp:
         self._check_self_feed_filter()
         self._update_net_bar()
         self._update_source_buttons()
+        self._update_filter_buttons()
         self._check_late_qsy()
         self._drain_spots()
         self._drain_wpm()
@@ -4637,6 +4724,8 @@ class PouncerApp:
             if old != new:
                 log.info("setting changed: %s (%s): %s -> %s%s", item.get("label", key), key,
                          show(old), show(new), "" if res.get("live") else "  [after a restart]")
+            if key.startswith("filter.") or key == "rbn.spotter":
+                self._apply_filter()
             if key == "rbn.sources":
                 self._apply_source()
                 self._src_last = None

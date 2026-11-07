@@ -74,6 +74,7 @@ class SwitchTests(unittest.TestCase):
             _continent=lambda call: "EU", home_cont="EU", raw=[])
         f._on_raw_spot = f.raw.append
         f._ssb_wanted = lambda: want
+        f.spotter_filter = types.SimpleNamespace(people_accept=lambda sp: True)
         f._cluster_merged = lambda: False
         f._dxc = None
         f._people_filter = lambda: None

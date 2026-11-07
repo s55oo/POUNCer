@@ -175,6 +175,7 @@ Marks in the call and Mult columns:
 | **HamQTH** after them | blue = HamQTH.com's RBN / cluster APIs stand in while POUNCer's telnet connections are down; hover = standby / active per part |
 | **Telnet-bck** after them | blue = the telnet server (azure) takes over while RBN is down; hover = standby / active and why |
 | **MyCall** / **Relay** after them | MyCall = the connection for spots of your own call (azure, `<call>-77`, SPOTTED pop-up); Relay = hand the spots out on port 10000 (N1MM's Telnet window) - no connection of its own, N1MM's commands go over POUNCer's Telnet / Cluster connection; blue = on, hover = details |
+| **Spotters: Calls DXCC Zones Cont WW** (blue = the one in use) | the one filter for every source: only the listed skimmers / spotters, countries, CQ zones, continents - or WW = all; hover = its list (Settings > Spotters) |
 | "nothing on - no spots" next to them | every source is off |
 | "master's choice" next to them | team slave: the master's sources; a click asks the master |
 | **ENTER** (green) | logs the QSO in N1MM |
