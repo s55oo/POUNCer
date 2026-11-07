@@ -9,8 +9,8 @@ POUNCer is a search-and-pounce helper for contesters who log in **N1MM Logger+**
 ## How it works
 
 - **From N1MM** (UDP 12060): the radio frequency, mode and which Entry Window is active - so POUNCer always shows the band you are on, for radio A and B (SO2R / SO2V).
-- **From the RBN** (telnet, with an HTTP backup): every skimmer spot. POUNCer keeps the ones from your chosen skimmers (one, several, or whole CQ zones), or from others on your continent when they go quiet. In an SSB contest RBN isn't connected at all.
-- **SSB spots from N1MM** (its Telnet window's spots on 12060), with POUNCer's own DX-cluster connection only as a backup. On 40 m 7074 - 7077 (FT8 inside the SSB segment) PSK Reporter is asked about that one call before a spot is taken as FT8.
+- **Spots from the sources you switch on** - the Spots buttons **RBN | Telnet | HTTP | Cluster**, each on or off: RBN's skimmer spots over telnet, the telnet server's (azure) skimmer spots, RBN over HTTP, and the DX cluster's spots of people. The same spot from two sources counts once; hover over a button = its connection. POUNCer keeps the skimmer spots from your chosen skimmers (one, several, or whole CQ zones), or from others on your continent when they go quiet. In an SSB contest RBN isn't connected at all.
+- **N1MM as a client** (optional): N1MM's Telnet window connects to POUNCer (TCP 10000) and gets those same spots; with the relay it still gets its own cluster (one login), the cluster's skimmer spots replaced by POUNCer's chosen sources. On 40 m 7074 - 7077 (FT8 inside the SSB segment) PSK Reporter is asked about that one call before a spot is taken as FT8.
 - **Spots of your own call**: N1MM never passes them on, so a small node-filtered connection (`<call>-77`, only spots of your call) catches them for the SPOTTED pop-up.
 - **What it adds**: worked / new multiplier from your N1MM log, a rare CQ mark (⚡) from past contest logs, Super Check Partial (?), how long a station has been calling.
 - **Back to N1MM**: a click tunes the radio (UDP 13064) and types the call; F-keys, ENTER, SPOTit (Alt+P) and the CW speed are sent as keys.

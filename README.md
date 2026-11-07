@@ -386,7 +386,7 @@ its own SSID, never N1MM's; in a team only the master logs in and passes
 spots of your call on to the others), and after login `self_spot_filter` (`accept/spots call
 {call}`) tells the node to send **only spots of your call** - normally not a
 single line arrives on it. Shown as "self-spot" (TELNET) in the traffic console.
-Spots of your call from POUNCer's own SSB cluster or the team master count
+Spots of your call from POUNCer's Cluster source or the team master count
 too. In a team every PC gets it, but the **pop-up only shows on the PC whose
 radio is on the spot's band** (`[ui] self_spot_band_only`, on); the others log
 it and show it in the status line (no radio info yet: pop-up anyway).
@@ -404,11 +404,12 @@ Broadcast Data.
 window of its own - Edge or Chrome "app" mode, no tabs, no address bar.
 
 **Traffic console** (View menu or **Ctrl+Shift+D**): the raw data of every
-source as it arrives or goes out - RBN lines, **TELNET** (the CW feed while
-it comes from the telnet server, *Spots: Telnet*, and the spots-of-my-call
-connection - both azure.s53m.com:8000), SSB cluster lines (and the commands
-sent), N1MM UDP packets in and QSY / call commands out, the HTTP
-backup feed, the team, the phone page's requests (WEB, off at first). Tick
+source as it arrives or goes out - RBN lines, **TELNET** (*Spots: Telnet*,
+the telnet server's skimmer spots, and the spots-of-my-call connection -
+both azure.s53m.com:8000), **SSB** (*Spots: Cluster*, the cluster's spots of
+people, and the commands sent), N1MM UDP packets in and QSY / call commands
+out, the HTTP feed, the team, the cluster server and its relay (**SERVER**),
+the phone page's requests (WEB, off at first). Tick
 sources on / off, type a filter word (a call, `DX de`, `RadioInfo` ...),
 Pause, Clear; outgoing lines are yellow (`>`). **Hover over a source** (its
 switch or its dot): a pop-up says what that source is and what POUNCer is
@@ -518,10 +519,10 @@ now), amber = connecting, red = connection problem, grey = off.
 
 | Light | Green | Yellow (on hold) | Amber | Red | Grey |
 |---|---|---|---|---|---|
-| RBN | logged in / spots coming (slave: via master) | SSB contest / every radio on SSB | connecting | disconnected | - |
-| SSB cluster | logged in, its spots used | N1MM's spots used instead | connecting | disconnected | not needed (no radio on SSB) |
-| HTTP backup | delivers while RBN telnet is down | RBN telnet works | - | started, nothing comes | no URL / team slave |
-| N1MM spots | used for SSB (own cluster closed) | N1MM sends, own cluster still kept (a minute after a fallback) | - | stopped (20 s+) | Broadcast Data > Spots not ticked / off |
+| RBN | skimmer spots coming - from RBN or Telnet (slave: via master; "RBN via HTTP" with only HTTP on; "via N1MM's login" on the relay) | SSB contest / every radio on SSB | connecting | disconnected | no skimmer source on |
+| Cluster | logged in, its spots of people used | N1MM's spots used instead (N1MM on the cluster itself) | connecting | disconnected | *Spots: Cluster* off |
+| HTTP | the HTTP feed delivers | - | starting | running, nothing comes | *Spots: HTTP* off / no URL / team slave |
+| N1MM spots | used for Cluster (own connection closed) | N1MM sends, own cluster still kept (a minute after a fallback) | - | stopped (20 s+) | Broadcast Data > Spots not ticked / off |
 
 | Light | Green | Amber | Red | Grey |
 |---|---|---|---|---|
@@ -889,8 +890,8 @@ enabled`, off by default) makes POUNCer a small telnet cluster on **TCP
 10000** (`port`). In N1MM's **Telnet** window add a cluster with this PC's
 address (`127.0.0.1` on the same PC, its LAN / ZeroTier address from other
 PCs) and port 10000, and connect: N1MM gets `login:`, sends your call, and
-from then on every spot POUNCer collects - RBN or the telnet server, the SSB
-cluster, the HTTP backup, the team master's spots - as standard lines:
+from then on every spot of the sources switched on with the Spots buttons -
+RBN, Telnet, HTTP, Cluster - and the team master's spots, as standard lines:
 
 ```
 DX de S53WW-#:   14025.0  DL1ABC       CW 23 dB 28 WPM CQ             1200Z
@@ -900,7 +901,7 @@ DX de S53WW-#:   14025.0  DL1ABC       CW 23 dB 28 WPM CQ             1200Z
   Broadcast Data > Spots) are never served. And POUNCer recognises its own
   spots coming back from N1MM's broadcast (the same call and frequency within
   10 minutes) and ignores them - otherwise it would take them for N1MM's own
-  SSB spots and close its SSB cluster, its source.
+  spots and close its Cluster connection, its source.
 - **Relay** (`[cluster] relay = true`, the default): N1MM still gets its
   cluster. For each client POUNCer opens a connection to the real cluster
   (`upstream`, empty = the `[ssb]` host:port, azure.s53m.com:8000), logs in
@@ -1334,9 +1335,9 @@ All options live in `config.ini` and are documented there, line by line:
 | `pause_on_phone` | true | No RBN in an SSB contest or while every radio is on SSB (in a team: while no POUNCer needs it). |
 | `backup_spotters`, `backup_after_minutes` | (our continent), 5 | Skimmers used while `spotter` is quiet this long. |
 | `history` | 30 | Last spots asked at login (SH/DX); 0 = off. |
-| `backup_host`, `backup_port`, `backup_commands` | azure.s53m.com, 8000, – | Telnet backup when RBN's telnet is down; commands sent after login. |
-| `source` | rbn | CW spots from `rbn` or `telnet` (the backup server) first - the *Spots: RBN / Telnet* buttons. |
-| `http_backup` | https://azure.s53m.com/cors/rbn/live | RBN over HTTP while telnet is down / silent a minute; empty = off. |
+| `sources` | rbn,cluster | Where the spots come in from, each on / off: `rbn`, `telnet`, `http`, `cluster` - the *Spots* buttons. (Older `source = rbn / telnet / http` is taken over + cluster.) |
+| `backup_host`, `backup_port`, `backup_commands` | azure.s53m.com, 8000, – | The **Telnet** source's server (its skimmer spots); commands sent after login. |
+| `http_backup` | https://azure.s53m.com/cors/rbn/live | The **HTTP** source (RBN over HTTP); empty = none. |
 | `follow_modes` | CW | Modes to show (`CW`, `RTTY`, `FT8`, `FT4`). |
 | `hide_beacons` | true | Hide beacons (type BEACON / NCDXF, calls ending in `/B`). |
 | `cty` | N1MM's wl_cty.dat | Country file for continent / DX / mults. |
@@ -1389,8 +1390,8 @@ All options live in `config.ini` and are documented there, line by line:
 | `remote_settings` | false | Allow settings changes from other devices too (never the autostart ones). |
 | `cw_keyboard` | true | Hold ENTER 1.3 s on the phone = CW keyboard (N1MM Ctrl+K window, transmits). |
 | **[ssb]** | | |
-| `mode` | auto | DX cluster for SSB: `auto` (only while a radio is on USB / LSB in N1MM, + 60 s), `always`, `off`. |
-| `host`, `port` | azure.s53m.com, 8000 | The DX cluster. |
+| `mode` | auto | Only read from an older config.ini without `[rbn] sources` (`off` = no Cluster there). |
+| `host`, `port` | azure.s53m.com, 8000 | The **Cluster** source's DX cluster (spots of people). |
 | `spotters` | EU | Spotters' continent (EU, NA, ... or ALL). |
 | `history`, `login`, `commands` | 30, (your call), – | Last spots at login; login call (e.g. S55OO-2); commands after login. |
 | `use_n1mm_spots` | auto | `auto` = N1MM's spots (Broadcast Data > Spots) replace this cluster connection from N1MM's first spot (20 s without, or 4 x its usual gap = own cluster again, for at least a minute); `off` = always own. |
@@ -1428,5 +1429,5 @@ The dark and light looks use the **Sun Valley ttk theme** by rdbende
 POUNCer is built on **S53ZO's** work: his public
 [contest-log archive](https://github.com/s53zo/Hamradio-Contest-logs-Archives)
 (run % / hours and the ⚡ rare CQ mark), his **RBN over HTTP** feed on Azure
-(the backup when RBN's telnet is down), the **macOS builds**, and the radio B
+(the **HTTP** spot source), the **macOS builds**, and the radio B
 tuning method of his SP_Helper. See the [overview](docs/OVERVIEW.md#built-on-s53zos-work).

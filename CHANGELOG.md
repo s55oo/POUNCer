@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.152 — 2026-11-07 — Docs and lights for the Spots buttons
+
+- Lights: **Cluster** (was "SSB cluster") and **HTTP** (was "HTTP
+  backup") - grey when that Spots button is off; no "on hold" for HTTP.
+- Docs brought up to date with the four Spots buttons: README (lights table,
+  traffic console, cluster server, config tables), docs/SYMBOLS.md (lights,
+  the buttons), docs/OVERVIEW.md, config.ini.
+
 ## v0.7.151 — 2026-11-07 — Spots: RBN | Telnet | HTTP | Cluster, each on / off
 
 - **The Spots buttons are switches now**, each on or off on its own:

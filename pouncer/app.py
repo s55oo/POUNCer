@@ -4328,7 +4328,8 @@ class PouncerApp:
             lights.team_light(role, n, self.team.version_mismatch() if self.team else None),
             lights.web_light(self.cfg.web_enabled, self.web is not None),
             lights.ssb_light(self.ssb_status, role),
-            lights.http_light(bool(getattr(self.cfg, "rbn_http_backup", "")) and role != "slave",
+            lights.http_light(bool(getattr(self.cfg, "rbn_http_backup", "")) and role != "slave"
+                              and has_source(self.cfg, "http"),
                               self._http_feed is not None,
                               self._http_feed is not None and bool(self._http_feed.spots_in)),
             lights.n1mm_spots_light(

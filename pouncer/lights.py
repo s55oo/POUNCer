@@ -72,29 +72,29 @@ def team_light(role: str, pouncers: int,
 
 
 def ssb_light(status: str, role: str = "solo") -> tuple[str, str]:
-    """SSB: the DX cluster for human spots (only while needed)."""
+    """The 'Cluster' source: the DX cluster's spots of people."""
     if role == "slave":
-        return OK, "SSB via master"
+        return OK, "Cluster via master"
     s = (status or "").lower()
     if s in ("", "off"):
-        return OFF, "SSB off"
+        return OFF, "Cluster off"
     if s.startswith("via n1mm"):
-        return HOLD, "SSB cluster on hold (N1MM)"   # N1MM's spots instead
-    if s.startswith("logged in"):
-        return OK, "SSB cluster"
+        return HOLD, "Cluster via N1MM"     # N1MM's spots instead (N1MM on the cluster itself)
+    if s.startswith(("logged in", "via n1mm's")):
+        return OK, "Cluster"
     if s.startswith(("connecting", "starting")):
-        return WAIT, "SSB cluster"
-    return BAD, "SSB cluster"
+        return WAIT, "Cluster"
+    return BAD, "Cluster"
 
 
 def http_light(configured: bool, active: bool, delivering: bool) -> tuple[str, str]:
-    """RBN over HTTP backup: on hold while telnet works, green while it
-    delivers, red when started but nothing comes."""
+    """The 'HTTP' source (RBN over HTTP): off when not switched on, green
+    while it delivers, red when running but nothing comes."""
     if not configured:
-        return OFF, "HTTP backup off"
+        return OFF, "HTTP off"
     if not active:
-        return HOLD, "HTTP backup on hold"
-    return (OK, "HTTP backup") if delivering else (BAD, "HTTP backup")
+        return WAIT, "HTTP"
+    return (OK, "HTTP") if delivering else (BAD, "HTTP")
 
 
 def n1mm_spots_light(use: bool, seen: bool, via: bool, quiet_s: float | None,

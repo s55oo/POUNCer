@@ -33,7 +33,7 @@ colour - green, amber, red - so one red item doesn't colour the whole line:
 | N1MM | radio info arrives | ✗ no radio info for 30 s (N1MM: Config > Broadcast Data > Radio) |
 | Log | a contest log is open | ⚠ N1MM's ini names another contest than today's QSOs · ✗ no log open |
 | Call | your station call is known | ✗ no station call |
-| RBN | spots arrive (directly, through the HTTP backup or from the team master), or "paused - SSB, not needed" | ✗ no spots |
+| RBN | skimmer spots arrive (RBN, Telnet or HTTP - the Spots buttons - or from the team master), or "paused - SSB, not needed" | ✗ no spots / no skimmer source on |
 | Skimmer | your listed skimmers (S53WW, TK0C) send spots | ⚠ one sent nothing for 3 min while RBN works - offline or its connection down |
 | cty | country file loaded, 60 days old or less | ⚠ older · ✗ not loaded (no mults / DX) |
 | SCP | Super Check Partial loaded, 30 days old or less | ⚠ older or not loaded (no **?** marks) |
@@ -49,14 +49,14 @@ One coloured dot per connection, under the top bar:
 | Colour | Meaning |
 | --- | --- |
 | 🟢 green | connected and working - this stream delivers |
-| 🟡 yellow | **on hold**: ready, not needed now - RBN in an SSB contest / every radio on SSB, the SSB cluster while N1MM's spots (or the cluster relayed to N1MM) are used, the HTTP backup while RBN telnet works |
+| 🟡 yellow | **on hold**: ready, not needed now - RBN in an SSB contest / every radio on SSB, the Cluster while N1MM's own spots are used (N1MM connected to the cluster itself) |
 | 🟠 amber | waiting, connecting, or only partly working |
-| 🔴 red | not working - connection problem (N1MM spots stopped, HTTP backup started but nothing comes ...) |
+| 🔴 red | not working - connection problem (N1MM spots stopped, HTTP running but nothing comes ...) |
 | ⚪ grey | switched off / not needed |
 | 🔵 blue | Update only: a new version is downloaded - click it (or **Restart**) |
 
-The lights are RBN, N1MM, Log, Team, Phone, SSB cluster (the DX cluster
-for SSB spots), HTTP backup, N1MM spots, Warm-up and Update. What each colour means per light is in the
+The lights are RBN, N1MM, Log, Team, Phone, Cluster (the DX cluster's
+spots of people), HTTP, N1MM spots, Warm-up and Update. What each colour means per light is in the
 [README](../README.md#connection-lights-windows-window). Click the
 **Update** light to check for a new version now.
 
@@ -171,6 +171,9 @@ Marks in the call and Mult columns:
 | --- | --- |
 | sort key filled **blue** | the list is sorted by this key |
 | **▲** / **▼** in a column heading | sorted up / down by that column |
+| **Spots: RBN Telnet HTTP Cluster**, filled **blue** | that source is **on** (each one on its own); click = on / off; hover = the connection behind it (server, login, state) |
+| "nothing on - no spots" next to them | every source is off |
+| "master's choice" next to them | team slave: the master's sources; a click asks the master |
 | **ENTER** (green) | logs the QSO in N1MM |
 | **F1 ... F12** | send N1MM's function key: they **transmit** (the edge turns red under the mouse) |
 | **Radio A / Radio B** | which radio POUNCer follows. Shown only when N1MM reports two radios / VFOs |
