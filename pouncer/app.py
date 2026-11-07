@@ -52,7 +52,7 @@ from . import settings as settingsmod
 from . import winstate
 from .settings_window import SettingsWindow
 from .team import Team, derive_key
-from .clusterserver import ClusterServer
+from .clusterserver import ClusterServer, parse_dx
 from .winfw import add_firewall_rules, firewall_rule_exists
 from .settings import set_ini_value
 from .update import Updater
@@ -1779,6 +1779,8 @@ class PouncerApp:
             return ("SSB",)
         return tuple(self.cfg.follow_modes)
 
+    SSB_GRACE_S = 60           # SSB cluster stays this long after the last radio left USB/LSB
+
     def _ssb_wanted(self) -> bool:
         mode = getattr(self.cfg, "ssb_mode", "off")
         if mode == "off" or not getattr(self.cfg, "ssb_host", ""):
@@ -1791,10 +1793,12 @@ class PouncerApp:
         if any(self._phone_radio(nr) for nr in self.state.radio_numbers()):
             self._ssb_last_needed = time.time()
             return True
-        if self.team is not None and self.team.role() == "master":
-            return True             # for the team's SSB stations
-        # keep it a while after the radio went back to CW
-        return time.time() - getattr(self, "_ssb_last_needed", 0) < 15 * 60
+        if (self.team is not None and self.team.role() == "master"
+                and self.team.peers_on_phone()):
+            self._ssb_last_needed = time.time()
+            return True             # for the team's stations on USB/LSB
+        # only on USB/LSB: a minute's grace for a quick mode flip (no login storm)
+        return time.time() - getattr(self, "_ssb_last_needed", 0) < self.SSB_GRACE_S
 
     N1MM_SPOT_START_S = 0      # N1MM's first spot: our cluster closes at once
     N1MM_SPOT_START_N = 1
@@ -1809,12 +1813,23 @@ class PouncerApp:
         gap = getattr(self, "_n1mm_gap", None) or 0.0
         return min(self.N1MM_SPOT_BREAK_S, max(self.N1MM_SPOT_QUIET_S, self.N1MM_SPOT_QUIET_X * gap))
 
-    def _on_n1mm_spot(self, pkt: dict) -> None:
-        """A <spot> packet from N1MM (listener thread). Any spot shows N1MM's
-        telnet is alive; SSB ones go to the list while N1MM is the SSB source."""
+    def _on_relay_line(self, line: str) -> None:
+        """A 'DX de' line from the cluster relayed to N1MM (relay thread):
+        the same use as N1MM's spot packets, read at the source."""
+        pkt = parse_dx(line)
+        if pkt is not None:
+            self._on_n1mm_spot(pkt, via="relay")
+
+    def _on_n1mm_spot(self, pkt: dict, via: str = "n1mm") -> None:
+        """A <spot> packet from N1MM (listener thread) - or a cluster line from
+        the relay. Any spot shows the telnet is alive; SSB ones go to the list
+        while N1MM / the relay is the SSB source."""
         dxc = getattr(self, "_dxc", None)
-        if dxc is not None and dxc.echo(str(pkt.get("call") or ""), float(pkt.get("freq_khz") or 0)):
-            return      # our own spot back from N1MM's telnet (connected to us): not N1MM's
+        if via == "n1mm" and dxc is not None:
+            if dxc.relay_connected():
+                return  # N1MM's telnet runs through us: its broadcast is the same stream
+            if dxc.echo(str(pkt.get("call") or ""), float(pkt.get("freq_khz") or 0)):
+                return  # our own spot back from N1MM's telnet (connected to us): not N1MM's
         now = time.time()
         if self._n1mm_spot_first is None or now - self._n1mm_spot_last > self.N1MM_SPOT_BREAK_S:
             self._n1mm_spot_first = now
@@ -3178,6 +3193,7 @@ class PouncerApp:
                 peers=list(self.cfg.team_peers),
                 get_bands=self.bandact.summary,
                 needs_rbn=self._rbn_needed_here,
+                on_phone=lambda: any(self._phone_radio(nr) for nr in self.state.radio_numbers()),
                 on_update=lambda: self._web_queue.put(("team-update",)),
                 on_self=lambda d: self._note_self_spot(
                     str(d.get("call", "")), str(d.get("spotter", "")),
@@ -4835,11 +4851,29 @@ class PouncerApp:
             rules.append((self.FW_CLUSTER_RULE, "TCP", int(self.cfg.cluster_port)))
         return rules
 
+    def _cluster_upstream(self) -> tuple[str, int] | None:
+        """The cluster relayed to N1MM: [cluster] upstream, else the [ssb]
+        host:port; None with relay off."""
+        if not getattr(self.cfg, "cluster_relay", True):
+            return None
+        text = (getattr(self.cfg, "cluster_upstream", "") or "").strip()
+        if text:
+            host, _, port = text.rpartition(":")
+            if not host:
+                host, port = text, "8000"
+            try:
+                return host.strip(), int(port)
+            except ValueError:
+                return None
+        host = (getattr(self.cfg, "ssb_host", "") or "").strip()
+        return (host, int(getattr(self.cfg, "ssb_port", 8000))) if host else None
+
     def _apply_cluster_server(self) -> None:
         """Start / stop / move POUNCer's DX cluster server ([cluster])."""
         old = getattr(self, "_dxc", None)
         want = bool(getattr(self.cfg, "cluster_server", False))
-        if old is not None and want and old.port == int(self.cfg.cluster_port):
+        if (old is not None and want and old.port == int(self.cfg.cluster_port)
+                and old.upstream == self._cluster_upstream()):
             return
         if old is not None:
             old.stop()
@@ -4847,7 +4881,8 @@ class PouncerApp:
             log.info("cluster server stopped")
         if not want:
             return
-        srv = ClusterServer(port=self.cfg.cluster_port, node="POUNCER", version=__version__)
+        srv = ClusterServer(port=self.cfg.cluster_port, node="POUNCER", version=__version__,
+                            upstream=self._cluster_upstream(), on_upstream_line=self._on_relay_line)
         if srv.start():
             self._dxc = srv
             self.status_label.configure(text=f"Cluster server on TCP {srv.port}: in N1MM's "

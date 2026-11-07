@@ -1,5 +1,26 @@
 # POUNCer — Changelog
 
+## v0.7.142 — 2026-11-07 — Cluster relay for N1MM; SSB cluster only on USB / LSB
+
+- **Cluster relay** (*Settings > Cluster server*, `[cluster] relay = true`,
+  the default while the server is on): N1MM's Telnet window connects to
+  POUNCer and still gets its real cluster. POUNCer connects through to
+  `[cluster] upstream` (empty = the `[ssb]` host:port, azure.s53m.com:8000)
+  in N1MM's call and passes everything both ways - the cluster's spots,
+  announcements and prompts to N1MM, N1MM's `DX` spots and commands to the
+  cluster - and adds POUNCer's own spots in between (never one N1MM just got
+  from the cluster, never in the middle of a cluster line). Cluster
+  unreachable: a `*** POUNCer:` note, POUNCer's spots only, retried every
+  minute. `relay = false` = POUNCer's spots only, read-only (v0.7.141).
+- **N1MM's spot broadcast is ignored while N1MM is connected through the
+  relay**: POUNCer reads the same cluster stream straight from the relay and
+  uses it as its SSB source (one login on the cluster, as before).
+- **SSB cluster only while a radio is on USB / LSB** in N1MM (`[ssb] mode =
+  auto`): a team master no longer keeps it open for nothing - only while
+  another station's radio is on USB / LSB (each POUNCer now says so in its
+  team hello) - and it closes a minute after the last radio leaves USB / LSB
+  (was 15 minutes).
+
 ## v0.7.141 — 2026-11-07 — POUNCer as a DX cluster; Runs explained
 
 - **POUNCer as a DX cluster** (*Settings > Cluster server*, off by default):

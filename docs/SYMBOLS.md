@@ -49,7 +49,7 @@ One coloured dot per connection, under the top bar:
 | Colour | Meaning |
 | --- | --- |
 | 🟢 green | connected and working - this stream delivers |
-| 🟡 yellow | **on hold**: ready, not needed now - RBN in an SSB contest / every radio on SSB, the SSB cluster while N1MM's spots are used, the HTTP backup while RBN telnet works |
+| 🟡 yellow | **on hold**: ready, not needed now - RBN in an SSB contest / every radio on SSB, the SSB cluster while N1MM's spots (or the cluster relayed to N1MM) are used, the HTTP backup while RBN telnet works |
 | 🟠 amber | waiting, connecting, or only partly working |
 | 🔴 red | not working - connection problem (N1MM spots stopped, HTTP backup started but nothing comes ...) |
 | ⚪ grey | switched off / not needed |
