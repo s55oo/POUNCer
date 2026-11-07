@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## v0.7.147 — 2026-11-07 — One login on the cluster for N1MM and POUNCer
+
+- With N1MM connected through the relay, POUNCer's own connection to the
+  same node with the same call (the CW feed on *Spots: Telnet*, the SSB
+  cluster) threw N1MM out and back ("Reconnected as S55OO ..., this instance
+  is disconnected" / "the connection to azure.s53m.com:8000 was lost"). Now
+  POUNCer closes its own and reads the relay's lines - one connection for
+  both. When N1MM disconnects, POUNCer connects itself again. The
+  spots-of-my-call feed (`<call>-77`, its own login) is not affected.
+
 ## v0.7.146 — 2026-11-07 — No 5-minute empty list when the own skimmer is off
 
 - At start, if your skimmer (`[rbn] spotter`, S53WW) hasn't spotted at all,

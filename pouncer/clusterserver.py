@@ -130,11 +130,13 @@ class _Client:
 class ClusterServer:
     def __init__(self, port: int = 10000, host: str = "0.0.0.0", node: str = "POUNCER",
                  version: str = "", upstream: tuple[str, int] | None = None,
-                 on_upstream_line=None, retry_s: float = 60.0) -> None:
+                 on_upstream_line=None, retry_s: float = 60.0, on_relay_state=None) -> None:
         self.port, self.host = int(port), host
         self.upstream = upstream if upstream and upstream[0] else None
         self.on_upstream_line = on_upstream_line
+        self.on_relay_state = on_relay_state   # (host, port, call) / None: one login per node
         self.retry_s = retry_s
+        self._relay_calls: dict[str, int] = {}
         self.node = node
         self.version = version
         self.clients: list[_Client] = []
@@ -252,6 +254,10 @@ class ClusterServer:
             for s in (sock, c.up):
                 if s is not None:
                     try:
+                        s.shutdown(socket.SHUT_RDWR)     # wakes the relay's recv at once
+                    except OSError:
+                        pass
+                    try:
                         s.close()
                     except OSError:
                         pass
@@ -310,6 +316,7 @@ class ClusterServer:
                     return
                 continue
             c.up = up
+            self._relay_state(c.call, +1)        # POUNCer's own login there steps aside
             traffic.emit("relay", f"{c.call} -> {host}:{port}")
             log.info("cluster relay: %s connected to %s:%d", c.call, host, port)
             logged_in, started, buf = False, time.monotonic(), b""
@@ -340,6 +347,7 @@ class ClusterServer:
                     up.close()
                 except OSError:
                     pass
+                self._relay_state(c.call, -1)
             if c.closed or self._stop.is_set():
                 return
             c.send_raw(f"*** POUNCer: the connection to {host}:{port} was lost - connecting "
@@ -347,6 +355,19 @@ class ClusterServer:
             traffic.emit("relay", f"{host}:{port} lost")
             if self._wait(c, 10):
                 return
+
+    def _relay_state(self, call: str, step: int) -> None:
+        """Tell the app which logins the relay holds on the node (first one
+        up / last one down per call)."""
+        with self._lock:
+            n = self._relay_calls.get(call, 0) + step
+            self._relay_calls[call] = max(0, n)
+        if self.on_relay_state is None or n not in (0, 1) or (n == 1 and step < 0):
+            return
+        try:
+            self.on_relay_state(self.upstream[0], self.upstream[1], call, n == 1)
+        except Exception:  # noqa: BLE001
+            log.exception("relay state")
 
     def _wait(self, c: _Client, seconds: float) -> bool:
         """Sleep, but True at once when the client or the server is gone."""

@@ -897,7 +897,14 @@ DX de S53WW-#:   14025.0  DL1ABC       CW 23 dB 28 WPM CQ             1200Z
   5 minutes; never in the middle of a cluster line). While N1MM is connected
   this way **POUNCer ignores N1MM's spot broadcast** (Broadcast Data >
   Spots) and reads the same cluster stream straight from the relay: that is
-  its SSB source (one login on the cluster, as before). If the cluster can't
+  its SSB source (one login on the cluster, as before). **One login per
+  call:** a node allows each call once ("Reconnected as S55OO ..., this
+  instance is disconnected" - the two would throw each other out). So while
+  the relay holds N1MM's login on that node, POUNCer's own connection there
+  with the same call (the CW feed on *Spots: Telnet*, the SSB cluster) closes
+  and POUNCer reads the relay's lines instead; when N1MM disconnects,
+  POUNCer connects itself again. The spots-of-my-call feed (`<call>-77`) has
+  its own login and stays. If the cluster can't
   be reached N1MM gets a `*** POUNCer: ...` note and POUNCer's spots only;
   POUNCer tries again every minute.
 - `relay = false`: only POUNCer's spots, read-only. The same call /
