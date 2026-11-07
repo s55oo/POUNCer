@@ -73,6 +73,16 @@ def shot(out_dir: str, layout: str, look: str) -> str:
     w, h = app.root.winfo_width(), app.root.winfo_height()
     from PIL import ImageGrab
     ImageGrab.grab(bbox=(x, y, x + w, y + h), all_screens=True).save(path)
+    if layout == "clean" and look == "dark":          # the phone page QR window too
+        appmod.phone_addresses = lambda host: [("LAN", "192.168.1.20"), ("ZeroTier", "10.66.66.5")]
+        app._show_phone_qr()
+        win = app._qr_window
+        for _ in range(5):
+            app.root.update()
+            time.sleep(0.2)
+        qx, qy = win.winfo_rootx(), win.winfo_rooty()
+        ImageGrab.grab(bbox=(qx, qy, qx + win.winfo_width(), qy + win.winfo_height()),
+                       all_screens=True).save(os.path.join(out_dir, "phone-qr.png"))
     app.root.destroy()
     return path
 

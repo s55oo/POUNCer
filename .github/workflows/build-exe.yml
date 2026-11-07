@@ -27,7 +27,24 @@ env:
   PYINSTALLER_VERSION: "6.22.2"
 
 jobs:
+  # The phone page's QR code, decoded by a real QR reader (OpenCV): it must
+  # read back exactly the address, or nothing is built / released.
+  qr-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: QR code decodes back to the address
+        env:
+          POUNCER_QR_DECODE: "1"
+        run: |
+          python -m pip install opencv-python-headless numpy
+          python -m unittest -v tests.test_qr
+
   build:
+    needs: qr-check
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6

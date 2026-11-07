@@ -123,7 +123,11 @@ team) and UDP 12079 (team); everything else is outgoing.
   enters the call on this PC. Open
   `http://<pc-ip>:8080` - the exact address is shown in the top bar next to
   the frequency and on the **Phone view** line of the main window: the ZeroTier address if ZeroTier is running, otherwise the
-  LAN address, plus the port it listens on.
+  LAN address, plus the port it listens on. **Easier: a QR code** - click
+  that address in the top bar (or *View > Phone page QR code…*): a window with
+  one QR code per address (**LAN**, and **ZeroTier** when this PC is on
+  ZeroTier). Scan it with the phone's camera and the page opens, no typing.
+  Click a code to open the page in this PC's browser; Esc closes.
   Binds to all interfaces, so it works over your LAN and over ZeroTier/VPN for
   remote access. LAN/VPN only, no password (see *Security*). **Sort: Time / Freq / SNR** buttons (**CLR** in front clears all spots, with Undo)
   in the top header row reorder the tiles (the choice is remembered in the
@@ -281,7 +285,7 @@ The window has two layouts (*View > Detailed layout*, `[ui] layout`).
 - a **dark top bar**: the radio frequency **large**, then band · mode · CW
   speed (and the other radio in SO2R / SO2V); on the right this PC's
   address with the phone page's port - **ZeroTier 10.66.66.5:8080**, or
-  **LAN 192.168.1.20:8080** without ZeroTier (click: open the page) - the
+  **LAN 192.168.1.20:8080** without ZeroTier (click: the QR codes for the phone) - the
   **READY / CHECK / NOT READY** badge and the team badge;
 - **one row of lights** - only the connections that are on (a light that is
   simply off isn't shown) - and, when something is wrong, **one sentence**
