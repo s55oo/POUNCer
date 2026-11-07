@@ -108,6 +108,28 @@ class RowListTkTests(unittest.TestCase):
         self.assertEqual(w.selected, 0)
         w._tap_selected()
         self.assertEqual(taps, [1, 0])
+        # hover over Runs of row 0: the explanation; elsewhere: gone
+        w.items[0]["run_tip"] = "R12% - test"
+        x_run = next(x0 + 5 for k, x0, x1 in w._xs if k == "run")
+        ev = type("E", (), {"x": x_run, "y": 5, "x_root": 100, "y_root": 100})()
+        w._hover(ev)
+        self.assertIsNotNone(w._tip)
+        ev.x = 5                                    # the kHz column
+        w._hover(ev)
+        self.assertIsNone(w._tip)
+
+
+class RunTipTests(unittest.TestCase):
+    def test_text(self) -> None:
+        P = _import_app().PouncerApp
+        t = P.run_explain("DL1ABC", {"run": 26, "hours": 18.4, "rec": False, "run_band": "20m"}, True)
+        self.assertIn("26 % of the QSOs on 20m were made running", t)
+        self.assertIn("about 18 hours", t)
+        self.assertIn("Rare runner", t)
+        t2 = P.run_explain("K1ABC", {"run": 88, "hours": 30, "rec": True}, False)
+        self.assertIn("reconstructed log", t2)
+        self.assertIn("regular runner", t2)
+        self.assertEqual(P.run_explain("X", {}, False), "")
 
 
 class NoWpmSortTests(unittest.TestCase):

@@ -83,6 +83,7 @@ class Spot:
     spotter: str
     time_utc: str
     received: float
+    source: str = ""          # "n1mm" = came from N1MM (never served back to it)
 
     @property
     def key(self) -> tuple[str, int]:
@@ -349,7 +350,7 @@ def spot_from_n1mm(pkt: dict, now: float | None = None) -> Spot:
     return Spot(dxcall=pkt["call"], freq_khz=float(pkt["freq_khz"]), mode=mode, snr=snr,
                 wpm=wpm, spot_type=spot_type, spotter=pkt.get("spotter", ""),
                 time_utc=time.strftime("%H%MZ", time.gmtime(time.time() if now is None else now)),
-                received=time.time() if now is None else now)
+                received=time.time() if now is None else now, source="n1mm")
 
 
 class ContinentFilter:

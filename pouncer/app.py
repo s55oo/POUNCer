@@ -52,6 +52,7 @@ from . import settings as settingsmod
 from . import winstate
 from .settings_window import SettingsWindow
 from .team import Team, derive_key
+from .clusterserver import ClusterServer
 from .winfw import add_firewall_rules, firewall_rule_exists
 from .settings import set_ini_value
 from .update import Updater
@@ -167,6 +168,7 @@ class PouncerApp:
         self.cfg = config
         self._tap_async = True      # taps run as steps between window updates
         self._tap_gen = None
+        self._dxc = None              # POUNCer's own DX cluster server ([cluster] enabled)
         self._app_started = time.time()
         self._fw_ok = None            # POUNCer's firewall rules there: True / False / None
         # internet up / down: one clear red bar instead of every feed failing alone
@@ -1534,6 +1536,12 @@ class PouncerApp:
                             else "paused - every radio on SSB")
         elif not self._rbn_clients:
             notes["RBN"] = "not connected"
+        dxc = getattr(self, "_dxc", None)
+        if dxc is None:
+            notes["SERVER"] = ("off - Settings > Cluster server" if not getattr(
+                self.cfg, "cluster_server", False) else "not running - port busy?")
+        elif not dxc.client_count():
+            notes["SERVER"] = f"TCP {dxc.port}: no client connected"
         if role != "slave" and not any(getattr(c, "backup", None) and c.on_backup
                                        for c in self._rbn_clients.values()):
             notes["TELNET"] = ("CW spots from RBN now (Spots: Telnet to switch)"
@@ -1804,6 +1812,9 @@ class PouncerApp:
     def _on_n1mm_spot(self, pkt: dict) -> None:
         """A <spot> packet from N1MM (listener thread). Any spot shows N1MM's
         telnet is alive; SSB ones go to the list while N1MM is the SSB source."""
+        dxc = getattr(self, "_dxc", None)
+        if dxc is not None and dxc.echo(str(pkt.get("call") or ""), float(pkt.get("freq_khz") or 0)):
+            return      # our own spot back from N1MM's telnet (connected to us): not N1MM's
         now = time.time()
         if self._n1mm_spot_first is None or now - self._n1mm_spot_last > self.N1MM_SPOT_BREAK_S:
             self._n1mm_spot_first = now
@@ -3026,6 +3037,9 @@ class PouncerApp:
             self._last_own_spot = time.time()
             if self.team is not None and self.team.is_master():
                 self.team.send_spot(self._spot_dict(spot))
+            dxc = getattr(self, "_dxc", None)
+            if dxc is not None:
+                dxc.publish(spot)             # N1MM's telnet clients (never N1MM's own)
         # spots passed on by the team master (slave): use, don't pass on
         while got < 1000:
             try:
@@ -3036,6 +3050,9 @@ class PouncerApp:
                 spot.time_utc = time.strftime("%H%MZ", time.gmtime(spot.received))
             if self._is_my_call(spot):
                 continue                  # (the pop-up came with it: _team_spot)
+            dxc = getattr(self, "_dxc", None)
+            if dxc is not None:
+                dxc.publish(spot)
             self._note_own(spot)
             self._check_overlap(spot)
             self.spots[spot.key] = spot
@@ -4107,6 +4124,8 @@ class PouncerApp:
             if key == "rbn.source":
                 self._apply_source()
                 self._src_last = None
+            if key.startswith("cluster."):
+                self._apply_cluster_server()
         else:
             log.info("setting NOT saved: %s = %r: %s", key, value, res.get("error"))
         return res
@@ -4483,6 +4502,32 @@ class PouncerApp:
             return f"{m} min"
         return f"{m // 60} h {m % 60:02d}"
 
+    @staticmethod
+    def run_explain(call: str, run: dict, rare: bool) -> str:
+        """The hover text of Runs: what 'R26% ~18h' means for this station."""
+        pct, hours = run.get("run"), run.get("hours")
+        if pct is None and hours is None:
+            return ""
+        lines = []
+        band = f" on {run['run_band']}" if run.get("run_band") else ""
+        if pct is not None:
+            lines.append(f"R{pct}%{'*' if run.get('rec') else ''} - in {call}'s past logs of this "
+                         f"contest, {pct} % of the QSOs{band} were made running (calling CQ); "
+                         f"the rest searching & pouncing.")
+        if hours is not None:
+            lines.append(f"~{round(hours)}h - on the air about {round(hours)} hours in those "
+                         "contests.")
+        if run.get("rec"):
+            lines.append("* - a reconstructed log (put together from other stations' logs), "
+                         "not its own.")
+        if rare:
+            lines.append(f"\u26a1 Rare runner (runs under {RARE_RUN_PCT} % or on the air under "
+                         f"{RARE_HOURS} h): it may not stay on this frequency - work it now.")
+        elif pct is not None and pct >= 70:
+            lines.append("A regular runner: it usually stays - it can wait if you are busy.")
+        lines.append("From the public contest-log archive (S53ZO).")
+        return "\n".join(lines)
+
     def _row_item(self, s, onfreq, mults, worked, run, rare, busted, tried, stale, offline,
                   now) -> dict:
         """What one row of the clean list shows (rowlist.RowList)."""
@@ -4496,6 +4541,7 @@ class PouncerApp:
                 "snr": "" if s.snr is None else str(s.snr),
                 "wpm": "" if s.wpm is None else str(s.wpm),
                 "mult": int(mults or 0), "run": runs, "rare": bool(rare),
+                "run_tip": self.run_explain(s.dxcall, run, bool(rare)) if runs else "",
                 "age": self._age_text(now - s.received),
                 "spotter": f"\u2605 {own}" if own else s.spotter,
                 "mode": s.mode or "", "type": s.spot_type or "",
@@ -4776,6 +4822,7 @@ class PouncerApp:
 
     FW_TCP_RULE = "POUNCer phone page TCP"
     FW_UDP_RULE = "POUNCer team UDP"
+    FW_CLUSTER_RULE = "POUNCer cluster TCP"
 
     def _fw_rules(self) -> list[tuple[str, str, int]]:
         """(rule name, protocol, port): the phone page (TCP) and the team (UDP)."""
@@ -4784,7 +4831,29 @@ class PouncerApp:
             rules.append((self.FW_TCP_RULE, "TCP", int(self.cfg.web_port)))
         if self.cfg.team:
             rules.append((self.FW_UDP_RULE, "UDP", int(self.cfg.team_port)))
+        if getattr(self.cfg, "cluster_server", False):
+            rules.append((self.FW_CLUSTER_RULE, "TCP", int(self.cfg.cluster_port)))
         return rules
+
+    def _apply_cluster_server(self) -> None:
+        """Start / stop / move POUNCer's DX cluster server ([cluster])."""
+        old = getattr(self, "_dxc", None)
+        want = bool(getattr(self.cfg, "cluster_server", False))
+        if old is not None and want and old.port == int(self.cfg.cluster_port):
+            return
+        if old is not None:
+            old.stop()
+            self._dxc = None
+            log.info("cluster server stopped")
+        if not want:
+            return
+        srv = ClusterServer(port=self.cfg.cluster_port, node="POUNCER", version=__version__)
+        if srv.start():
+            self._dxc = srv
+            self.status_label.configure(text=f"Cluster server on TCP {srv.port}: in N1MM's "
+                                             f"Telnet window add this PC, port {srv.port}")
+        else:
+            self.status_label.configure(text=f"Cluster server: {srv.error}")
 
     def _check_firewall(self) -> None:
         """In the background: are POUNCer's rules there? -> self._fw_ok and
@@ -4820,8 +4889,8 @@ class PouncerApp:
             messagebox.showinfo("POUNCer", "Phone page and team are both off - nothing to allow.",
                                 parent=self.root)
             return
-        what = ", ".join(f"{p} {n} ({'phone page' if p == 'TCP' else 'team'})"
-                         for _name, p, n in rules)
+        what = ", ".join(f"{p} {n} ({'team' if p == 'UDP' else 'cluster server' if name == self.FW_CLUSTER_RULE else 'phone page'})"
+                         for name, p, n in rules)
         if not messagebox.askyesno(
                 "POUNCer - Windows Firewall",
                 f"Allow incoming {what} on private and domain networks?\n\nWindows asks for "
@@ -4979,6 +5048,7 @@ class PouncerApp:
         if getattr(self, "_services_started", False):
             return
         self._services_started = True
+        self._apply_cluster_server()           # [cluster] enabled: N1MM's telnet connects here
         self._check_firewall()                 # are POUNCer's firewall rules there?
         if getattr(self, "net", None) is not None:
             self.net.start()
@@ -5082,6 +5152,8 @@ class PouncerApp:
             self.perf.stop()
         if getattr(self, "net", None) is not None:
             self.net.stop()
+        if getattr(self, "_dxc", None) is not None:
+            self._dxc.stop()
         rh = getattr(self, "runhist", None)
         if rh is not None and hasattr(rh, "flush"):
             try:

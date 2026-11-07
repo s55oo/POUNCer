@@ -73,6 +73,20 @@ def shot(out_dir: str, layout: str, look: str) -> str:
     w, h = app.root.winfo_width(), app.root.winfo_height()
     from PIL import ImageGrab
     ImageGrab.grab(bbox=(x, y, x + w, y + h), all_screens=True).save(path)
+    if layout == "clean" and look == "dark":          # hover over Runs: the explanation
+        rows = app.rows
+        xr = next(x0 + 10 for k, x0, x1 in rows._xs if k == "run")
+        ev = types.SimpleNamespace(x=xr, y=8, x_root=rows.c.winfo_rootx() + xr,
+                                   y_root=rows.c.winfo_rooty() + 8)
+        rows.items[0]["run_tip"] = rows.items[0].get("run_tip") or app.run_explain(
+            rows.items[0]["call"], {"run": 26, "hours": 18, "rec": False}, True)
+        rows._hover(ev)
+        for _ in range(5):
+            app.root.update()
+            time.sleep(0.2)
+        ImageGrab.grab(bbox=(x, y, x + w, y + h), all_screens=True).save(
+            os.path.join(out_dir, "runs-tip.png"))
+        rows._hide_tip()
     if layout == "clean" and look == "dark":          # the phone page QR window too
         appmod.phone_addresses = lambda host: [("LAN", "192.168.1.20"), ("ZeroTier", "10.66.66.5")]
         app._show_phone_qr()

@@ -226,6 +226,8 @@ class Config:
     config_path: str = ""              # the config.ini that was read (settings page writes it)
     web_host: str = "0.0.0.0"
     web_port: int = 8080
+    cluster_server: bool = False    # serve POUNCer's spots as a telnet DX cluster
+    cluster_port: int = 10000
     touch_view: bool = False  # open the phone page in the default browser at start
 
 
@@ -413,6 +415,8 @@ def load_config(path: str) -> Config:
     cfg.web_cw_keyboard = b("web", "cw_keyboard", cfg.web_cw_keyboard)
     cfg.web_host = s("web", "host", cfg.web_host).strip()
     cfg.web_port = i("web", "port", cfg.web_port)
+    cfg.cluster_server = b("cluster", "enabled", cfg.cluster_server)
+    cfg.cluster_port = i("cluster", "port", cfg.cluster_port)
 
     if cfg.sort not in ("time", "freq", "snr", "call", "cont", "mult", "mode", "type", "spotter"):
         cfg.sort = "snr"
