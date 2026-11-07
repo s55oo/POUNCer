@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.7.157 — 2026-11-07 — HamQTH alone gives spots
+
+- **HamQTH with the telnet sources switched off** is now the source itself,
+  at once: HamQTH alone on = skimmer spots (through your skimmer choice) and
+  cluster spots from HamQTH.com. With RBN / Telnet or Cluster on it stays
+  their backup (only while that telnet is down a minute), as in v0.7.156.
+
 ## v0.7.156 — 2026-11-07 — HamQTH backup button
 
 - **HamQTH** on the Spots line (`[rbn] hamqth_backup`, off by default): the
