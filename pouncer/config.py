@@ -148,6 +148,7 @@ class Config:
     team: bool = True       # work together with other POUNCers on the network
     team_port: int = 12079
     team_peers: tuple[str, ...] = ()  # extra POUNCer IPs (networks without broadcast)
+    team_key: str = ""                # team password key (hex, never the password); "" = off
     sort: str = "snr"
     min_snr: int = 0             # list (window + phone): hide spots weaker than this (0 = all)
     min_snr_keep_mults: bool = True  # ... but never hide a new multiplier
@@ -375,6 +376,8 @@ def load_config(path: str) -> Config:
     cfg.team_peers = tuple(
         p for p in s("team", "peers", "").replace(";", ",").replace(" ", ",").split(",") if p
     )
+    key = s("team", "key", "").strip().lower()
+    cfg.team_key = key if len(key) == 64 and all(c in "0123456789abcdef" for c in key) else ""
     cfg.trigger = s("ui", "trigger", cfg.trigger).strip().lower()
     cfg.touch_view = b("ui", "touch_view", cfg.touch_view)
     default_keys = cfg.fkeys

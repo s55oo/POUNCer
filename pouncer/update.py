@@ -34,7 +34,9 @@ import urllib.request
 log = logging.getLogger(__name__)
 
 LATEST_URL = "https://api.github.com/repos/s55oo/POUNCer/releases/latest"
+RELEASES_URL = "https://api.github.com/repos/s55oo/POUNCer/releases?per_page=15"
 ASSET = "POUNCer.exe"
+SUMS_ASSET = "SHA256SUMS.txt"
 CHECK_EVERY_S = 6 * 3600
 
 # states (for the light in the main window)
@@ -60,6 +62,47 @@ def expected_sha256(release: dict, asset: dict) -> str | None:
         return digest.split(":", 1)[1].lower()
     m = re.search(r"SHA-256[^0-9A-Fa-f]{0,40}([0-9A-Fa-f]{64})", release.get("body") or "")
     return m.group(1).lower() if m else None
+
+
+def parse_sums(text: str) -> dict[str, str]:
+    """``<sha256>  <file>`` lines (sha256sum format) -> {file: sha256}."""
+    out = {}
+    for line in (text or "").splitlines():
+        m = re.match(r"\s*([0-9A-Fa-f]{64})\s+\*?(\S.*?)\s*$", line)
+        if m:
+            out[m.group(2)] = m.group(1).lower()
+    return out
+
+
+def expected_hashes(release: dict, asset: dict, sums_text: str | None) -> dict[str, str]:
+    """Every published SHA-256 of the asset: GitHub's own record ('github')
+    and the release's SHA256SUMS.txt ('sums'); the release notes ('notes')
+    only for older releases that have neither."""
+    out = {}
+    digest = str(asset.get("digest") or "")
+    if digest.lower().startswith("sha256:"):
+        out["github"] = digest.split(":", 1)[1].lower()
+    if sums_text is not None:
+        h = parse_sums(sums_text).get(asset.get("name") or "")
+        if h:
+            out["sums"] = h
+    if not out:
+        m = re.search(r"SHA-256[^0-9A-Fa-f]{0,40}([0-9A-Fa-f]{64})", release.get("body") or "")
+        if m:
+            out["notes"] = m.group(1).lower()
+    return out
+
+
+def check_hashes(data: bytes, hashes: dict[str, str], tag: str = "") -> None:
+    """Raise unless the published checksums agree with each other and with
+    the file (two sources from v0.7.140 on: GitHub + SHA256SUMS.txt)."""
+    if not hashes:
+        raise ValueError(f"{tag}: no SHA-256 published")
+    if len(set(hashes.values())) > 1:
+        raise ValueError(f"{tag}: the published SHA-256 sums disagree ({', '.join(hashes)})")
+    got = hashlib.sha256(data).hexdigest()
+    if got != next(iter(hashes.values())):
+        raise ValueError(f"{tag}: SHA-256 mismatch")
 
 
 KEEP_VERSIONS = 3
@@ -143,20 +186,9 @@ class Updater:
                 self.new_version = tag
                 self.state = AVAILABLE
                 return
-            asset = next((a for a in release.get("assets") or []
-                          if a.get("name") == ASSET), None)
-            if asset is None:
-                raise ValueError(f"{tag} has no {ASSET}")
-            want = expected_sha256(release, asset)
-            if not want:
-                raise ValueError(f"{tag}: no SHA-256 published")
             self.new_version = tag
             self.state = DOWNLOADING
-            data = self._fetch(asset["browser_download_url"],
-                               accept="application/octet-stream", timeout=300)
-            got = hashlib.sha256(data).hexdigest()
-            if got != want:
-                raise ValueError(f"{tag}: SHA-256 mismatch")
+            data = self.download_verified(release)
             self._install(data)
             self.state = READY
             log.info("update %s installed, used from the next start", tag)
@@ -166,6 +198,67 @@ class Updater:
             log.info("update check failed: %s", exc)
         finally:
             self._busy.release()
+
+    def download_verified(self, release: dict) -> bytes:
+        """POUNCer.exe of a release, checked against every published
+        SHA-256 (GitHub's record + SHA256SUMS.txt must agree with the file)."""
+        tag = str(release.get("tag_name") or "")
+        assets = release.get("assets") or []
+        asset = next((a for a in assets if a.get("name") == ASSET), None)
+        if asset is None:
+            raise ValueError(f"{tag} has no {ASSET}")
+        sums_asset = next((a for a in assets if a.get("name") == SUMS_ASSET), None)
+        sums_text = None
+        if sums_asset is not None:
+            sums_text = self._fetch(sums_asset["browser_download_url"],
+                                    accept="application/octet-stream", timeout=60).decode(
+                                        "utf-8", "replace")
+        hashes = expected_hashes(release, asset, sums_text)
+        if sums_asset is not None and "sums" not in hashes:
+            raise ValueError(f"{tag}: {ASSET} missing from {SUMS_ASSET}")
+        data = self._fetch(asset["browser_download_url"], accept="application/octet-stream",
+                           timeout=300)
+        check_hashes(data, hashes, tag)
+        log.info("update %s: SHA-256 checked against %s", tag, " + ".join(hashes))
+        return data
+
+    # --- any released version (Help > Switch version...) ----------------------
+    def list_releases(self) -> list[dict]:
+        """The published versions with a POUNCer.exe, newest first:
+        [{"tag", "date", "release"}] (no pre-releases)."""
+        out = []
+        for rel in json.loads(self._fetch(RELEASES_URL).decode()):
+            if rel.get("draft") or rel.get("prerelease"):
+                continue
+            if not any(a.get("name") == ASSET for a in rel.get("assets") or []):
+                continue
+            out.append({"tag": str(rel.get("tag_name") or ""),
+                        "date": str(rel.get("published_at") or "")[:10], "release": rel})
+        out.sort(key=lambda r: parse_version(r["tag"]) or (0,), reverse=True)
+        return out
+
+    def install_release(self, release: dict) -> None:
+        """Switch to that version (newer or older), in the background; state
+        READY when it is in place (the running one is kept in versions\\)."""
+        if not self.exe or not self._busy.acquire(blocking=False):
+            return
+
+        def work():
+            tag = str(release.get("tag_name") or "")
+            try:
+                self.new_version = tag
+                self.state = DOWNLOADING
+                self._install(self.download_verified(release))
+                self.state = READY
+                log.info("switched to %s, used from the next start", tag)
+            except Exception as exc:  # noqa: BLE001
+                self.error = str(exc)
+                self.state = FAILED
+                log.info("switch to %s failed: %s", tag, exc)
+            finally:
+                self._busy.release()
+
+        threading.Thread(target=work, name="switch-version", daemon=True).start()
 
     # --- previous versions ------------------------------------------------
     def versions_dir(self) -> str:

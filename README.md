@@ -541,6 +541,44 @@ itself; the master does the same. A slave says "Only the team master…".
 *Help > Go back to the previous version* installs the newest kept one and
 restarts. The first copy appears with the first update after v0.7.127.
 
+**Switch version…** (*Help*, v0.7.140): the published versions, newest
+first; pick any one - newer or older - and POUNCer installs it (checked like
+an update), keeps the running one in `versions\` and restarts.
+
+**Two checksums** (v0.7.140): every release has a `SHA256SUMS.txt`; an update
+or a switch is installed only if GitHub's own record of POUNCer.exe and
+`SHA256SUMS.txt` **agree with each other and with the downloaded file**.
+Older releases without that file are checked against the one checksum they
+have.
+
+## Windows Firewall and team password
+
+**File > Allow POUNCer in Windows Firewall…** adds the inbound rules
+`POUNCer phone page TCP` (TCP 8080, phones) and `POUNCer team UDP` (UDP
+12079, the team) on **private and domain** networks - Windows asks for
+administrator rights; older rules with the same names are replaced. POUNCer
+checks at start whether they are there: then the menu item reads **Windows
+Firewall: POUNCer allowed ✔** (click it to add them again, e.g. after a port
+change). The rules don't apply to networks Windows calls **Public** - set
+the LAN / VPN adapter to **Private**.
+
+When the team should be there (`[team] peers` set, or another POUNCer was
+heard earlier) but none is heard for 30 s, the check line says
+**Team: no other POUNCer heard – firewall?** (rules missing) or **– check
+that PC's POUNCer and its firewall**.
+
+**File > Team password…** (optional): typed twice, the same on every POUNCer
+of the team. Every team message then carries a time stamp and an
+**HMAC-SHA256** signature; messages without one, with another password,
+changed on the way, or **older than 5 minutes** (a recorded message played
+back) are ignored - so nobody else on the network can pretend to be the
+master. The PC clocks must agree within 5 minutes (the clock check shows
+it). Only a key made from the password is stored (`[team] key`), never the
+password. The check line names what is ignored (`10.0.0.3: wrong team
+password - ignored`), and a POUNCer without the password says when the
+others use one. Empty = off (the default). Same scheme as N1MMPingPong's
+network password.
+
 ## Two radios (SO2R / SO2V)
 
 When N1MM runs two radios (it then has Entry Windows **A** and **B**), the
@@ -1030,8 +1068,10 @@ network every device that can reach the PC is trusted - there is no login:
   transmit**. Settings can be changed only from the PC itself (unless
   `[web] remote_settings = true`), and **autostart never** from the web page -
   only in POUNCer's own Settings window.
-- **Team (UDP 12079):** messages are not signed. A device on the network
-  could pretend to be the master (spots, SPOTTED pop-ups, "update all").
+- **Team (UDP 12079):** without a team password messages are not signed - a
+  device on the network could pretend to be the master (spots, SPOTTED
+  pop-ups, "update all"). With **File > Team password…** (v0.7.140) every
+  message is signed and anything else is ignored (see below).
 - **N1MM port (UDP 12060):** listens on all adapters, so a device on the
   network could send fake radio / spot packets.
 

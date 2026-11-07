@@ -61,6 +61,71 @@ def elect(nodes: dict[str, dict], now: float) -> str | None:
     return min(pool, key=lambda i: (pool[i]["started"], i))
 
 
+
+# ---- team password (optional): signed messages --------------------------------
+#
+# With a password set on every PC, each team message ends in
+# "\n#PCS1 <unix time> <HMAC-SHA256>" over the time and the message. Without a
+# valid signature, or more than AUTH_WINDOW s old (a recorded message played
+# back later), it is dropped. Without a password nothing is added - exactly as
+# before. Same scheme as N1MMPingPong's network password.
+
+AUTH_MARK = b"\n#PCS1 "
+AUTH_WINDOW = 300.0      # s: the PC clocks must agree within 5 minutes
+
+
+def derive_key(password: str) -> bytes:
+    """The key from the password - only this is stored, never the password."""
+    import hashlib
+    if not password:
+        return b""
+    return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), b"POUNCer-team-12079", 20000)
+
+
+def _mac(key: bytes, ts: bytes, payload: bytes) -> bytes:
+    import hashlib
+    import hmac
+    return hmac.new(key, ts + b" " + payload, hashlib.sha256).hexdigest()[:32].encode("ascii")
+
+
+def seal(payload: bytes, now: float | None = None, key: bytes = b"") -> bytes:
+    """Add the signature (only with a password)."""
+    if not key:
+        return payload
+    ts = str(int(now if now is not None else time.time())).encode("ascii")
+    return payload + AUTH_MARK + ts + b" " + _mac(key, ts, payload)
+
+
+def unseal(data: bytes, now: float | None = None, key: bytes = b"") -> tuple[bytes, str]:
+    """(payload, status): "ok" valid signature, "none" unsigned, "bad" wrong
+    password / changed, "old" outside AUTH_WINDOW, "foreign" signed but this
+    PC has no password."""
+    now = time.time() if now is None else now
+    i = data.rfind(AUTH_MARK)
+    if i < 0:
+        return data, "none"
+    payload = data[:i]
+    parts = data[i + len(AUTH_MARK):].strip().split(b" ")
+    if not key:
+        return payload, "foreign"
+    if len(parts) != 2:
+        return payload, "bad"
+    import hmac
+    ts, mac = parts
+    if not hmac.compare_digest(mac, _mac(key, ts, payload)):
+        return payload, "bad"
+    try:
+        age = abs(now - int(ts))
+    except ValueError:
+        return payload, "old"
+    return payload, ("ok" if age <= AUTH_WINDOW else "old")
+
+
+def accepted(status: str, key: bytes) -> bool:
+    """With a password only valid signed messages; without one only unsigned."""
+    return status == "ok" if key else status == "none"
+
+
 class Team:
     """Discovery, master election and data sharing between POUNCers."""
 
@@ -74,6 +139,7 @@ class Team:
         port: int = TEAM_PORT,
         send_to: list[tuple[str, int]] | None = None,
         version: str = "",
+        key: bytes = b"",
         peers: list[str] | None = None,
         get_bands=None,       # -> band-open counts (master sends them to the slaves)
         needs_rbn=None,       # -> bool: this POUNCer needs RBN (a radio on CW, not an SSB contest)
@@ -88,6 +154,8 @@ class Team:
         self.web_port = web_port
         self.port = port
         self.version = version
+        self.key = key or b""         # team password key (b"" = none): signed messages
+        self.auth_seen: dict[str, tuple[float, str]] = {}   # status -> (when, ip)
         self._on_spot = on_spot
         self._on_runhist = on_runhist
         self._get_runhist = get_runhist
@@ -167,6 +235,21 @@ class Team:
         return sorted((p["ip"], p.get("ver") or "?") for p in self.alive_peers()
                       if _ver(p.get("ver") or "") != mine)
 
+    def auth_problem(self, within: float = 60.0) -> str:
+        """The team password in one sentence when something doesn't fit, else ''."""
+        now = time.time()
+        recent = {st: ip for st, (t, ip) in self.auth_seen.items() if now - t <= within}
+        if self.key:
+            for st, text in (("bad", "wrong team password"), ("old", "wrong time (check the PC "
+                             "clock)"), ("none", "no team password")):
+                if st in recent:
+                    return f"{recent[st]}: {text} - ignored"
+            return ""
+        if "foreign" in recent:
+            return ("the other POUNCers use a team password - set it: File > Team password\u2026 "
+                    f"({recent['foreign']})")
+        return ""
+
     def role(self) -> str:
         """'solo' (no other POUNCer), 'master' or 'slave'."""
         if not self.alive_peers():
@@ -206,7 +289,7 @@ class Team:
 
     def _send(self, msg: dict, broadcast: bool = True) -> None:
         msg["id"] = self.id
-        data = json.dumps(msg, separators=(",", ":")).encode()
+        data = seal(json.dumps(msg, separators=(",", ":")).encode(), key=self.key)
         if traffic._sink is not None:
             traffic.emit("TEAM >", traffic.squeeze(data.decode(), 300))
         if len(data) > MAX_DATAGRAM:
@@ -321,11 +404,15 @@ class Team:
                 if self._stop.is_set():
                     return
                 continue
+            payload, status = unseal(data, key=self.key)
             try:
-                msg = json.loads(data.decode())
+                msg = json.loads(payload.decode())
             except (ValueError, UnicodeDecodeError):
                 continue
             if not isinstance(msg, dict) or msg.get("id") in (None, self.id):
+                continue
+            self.auth_seen[status] = (time.time(), ip)
+            if not accepted(status, self.key):
                 continue
             if traffic._sink is not None:
                 traffic.emit(f"TEAM {ip}", traffic.squeeze(data.decode("utf-8", "replace"), 300))
