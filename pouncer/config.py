@@ -99,6 +99,10 @@ class Config:
     backup_after_minutes: int = 5
     skimmer_quiet_minutes: int = 3   # own skimmer silent this long = warning
     cty_file: str = ""
+    cty_auto_update: bool = True     # check country-files.com for a newer wl_cty.dat
+    cty_check_days: int = 5          # ... this often
+    cty_url: str = "https://www.country-files.com/cty/wl_cty.dat"
+    cty_update_n1mm: bool = False    # also copy it into N1MM's SupportFiles
     hide_beacons: bool = True
     follow_modes: tuple[str, ...] = ("CW",)
     rbn_ft8_port: int = 7001
@@ -315,6 +319,10 @@ def load_config(path: str) -> Config:
     cfg.backup_after_minutes = max(1, i("rbn", "backup_after_minutes", cfg.backup_after_minutes))
     cfg.skimmer_quiet_minutes = max(1, i("rbn", "skimmer_quiet_minutes", cfg.skimmer_quiet_minutes))
     cfg.cty_file = s("rbn", "cty", cfg.cty_file).strip()
+    cfg.cty_auto_update = b("cty", "auto_update", cfg.cty_auto_update)
+    cfg.cty_check_days = max(1, i("cty", "check_days", cfg.cty_check_days))
+    cfg.cty_url = s("cty", "url", cfg.cty_url).strip() or cfg.cty_url
+    cfg.cty_update_n1mm = b("cty", "update_n1mm", cfg.cty_update_n1mm)
     cfg.hide_beacons = b("rbn", "hide_beacons", cfg.hide_beacons)
     cfg.follow_modes = parse_modes(
         s("rbn", "follow_modes", ",".join(cfg.follow_modes))

@@ -17,7 +17,8 @@ from .bands import CONTEST_BANDS, DEFAULT_BAND_KHZ, band_from_khz
 from .config import Config
 from .flow import flow_positions
 from . import lights
-from .cty import Entity, load_cty, wpx_prefix
+from .cty import CtyDB, Entity, default_cty_paths, load_cty, wpx_prefix
+from .ctyupdate import CtyUpdater, newest as newest_file
 from .n1mm import (
     N1MMController, RadioListener, RadioState, cat_macro, next_tune_khz,
 )
@@ -242,6 +243,16 @@ class PouncerApp:
             self.runhist.warm_up()  # CQWW / ARRL DX / WPX: CW list + separate SSB list
         # Callsign -> continent (N1MM's wl_cty.dat) for EU / DX marking.
         self.cty = load_cty(config.cty_file, config.n1mm_ini)
+        # a newer copy downloaded by POUNCer (cache/wl_cty.dat) wins
+        cache_cty = os.path.join(config.run_history_dir or "cache", "wl_cty.dat")
+        if (getattr(config, "cty_auto_update", False) and not config.cty_file
+                and newest_file([cache_cty, getattr(self.cty, "path", "")]) == cache_cty):
+            try:
+                self.cty = CtyDB.load(cache_cty)
+                log.info("loaded %d cty entries from %s (POUNCer's newer copy)",
+                         len(self.cty), cache_cty)
+            except Exception as exc:  # noqa: BLE001
+                log.warning("cty file %s unreadable: %s", cache_cty, exc)
         self._home_call: str | None = None
         self._home_cont = "EU"
         # S53WW, or skimmers on our continent while S53WW is quiet (backup)
@@ -3326,6 +3337,16 @@ class PouncerApp:
             if item[0] == "net":
                 self._on_net_change(item[1])
                 continue
+            if item[0] == "cty":                  # a new wl_cty.dat downloaded: use it now
+                try:
+                    self.cty = CtyDB.load(item[1])
+                    self._cty_cache.clear()
+                    self._dirty = True
+                    self.status_label.configure(text=f"New country file: {len(self.cty)} entries "
+                                                     "(country-files.com)")
+                except Exception as exc:  # noqa: BLE001
+                    log.warning("new cty file unreadable: %s", exc)
+                continue
             if item[0] == "fw":                   # the firewall check is done
                 self._update_fw_menu()
                 continue
@@ -5564,6 +5585,16 @@ class PouncerApp:
             self.cwspeed.start()        # N1MM's CW speed box, read once a second
         if self.scp is not None:
             self.scp.start()            # load MASTER.SCP, ask the server for a newer one (304 = current)
+        if getattr(self.cfg, "cty_auto_update", False) and not self.cfg.cty_file:
+            n1mm_cty = next((p for p in ([os.path.join(os.path.dirname(self.cfg.n1mm_ini),
+                                                       "SupportFiles", "wl_cty.dat")]
+                                         if self.cfg.n1mm_ini else []) + default_cty_paths()
+                             if p.endswith("wl_cty.dat") and os.path.exists(p)), "")
+            self._cty_up = CtyUpdater(self.cfg.run_history_dir or "cache", n1mm_path=n1mm_cty,
+                                      url=self.cfg.cty_url, check_days=self.cfg.cty_check_days,
+                                      update_n1mm=self.cfg.cty_update_n1mm,
+                                      on_new=lambda p: self._web_queue.put(("cty", p)))
+            self._cty_up.start()        # country-files.com every 5 days (If-Modified-Since)
         self.perf.start()             # cache/perf.csv: CPU / memory / disk, a row a minute
         self.root.after(REFRESH_MS, self._tick)
 

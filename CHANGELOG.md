@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## v0.7.158 — 2026-11-07 — Country file every 5 days
+
+- POUNCer checks **country-files.com every 5 days** for a newer
+  `wl_cty.dat` (AD1C's country file; If-Modified-Since, a few bytes when it
+  is current). A newer, good file is saved in the cache folder and used at
+  once; the newer of N1MM's and POUNCer's copy is used at start.
+  `[cty] update_n1mm = true` also copies it into N1MM's SupportFiles.
+  Settings > Country file.
+
 ## v0.7.157 — 2026-11-07 — HamQTH alone gives spots
 
 - **HamQTH with the telnet sources switched off** is now the source itself,

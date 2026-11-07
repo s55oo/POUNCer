@@ -163,6 +163,16 @@ SETTINGS: list[dict] = [
      "group": "RBN", "label": "HTTP backup (URL)",
      "help": "RBN over HTTP (S53ZO's Azure feed, no login) while the telnet feed is down or "
              "silent for a minute. Empty = off."},
+    {"key": "cty.auto_update", "attr": "cty_auto_update", "kind": "bool", "live": False,
+     "group": "Country file", "label": "Check country-files.com for a new wl_cty.dat",
+     "help": "Every few days (below) POUNCer asks country-files.com (AD1C) whether wl_cty.dat "
+             "is newer than its copy (a few bytes when it isn't) and uses a newer one at once."},
+    {"key": "cty.check_days", "attr": "cty_check_days", "kind": "int", "min": 1, "max": 60,
+     "live": False, "group": "Country file", "label": "  ... every (days)",
+     "help": "How often to check (default 5)."},
+    {"key": "cty.update_n1mm", "attr": "cty_update_n1mm", "kind": "bool", "live": False,
+     "group": "Country file", "label": "  ... also copy it into N1MM's SupportFiles",
+     "help": "Then N1MM uses the new wl_cty.dat from its next start too."},
     {"key": "scp.enabled", "attr": "scp_enabled", "kind": "bool", "live": False,
      "group": "RBN", "label": "Mark calls not in Super Check Partial (?)",
      "help": "A '?' after a spotted call that is not in MASTER.SCP - maybe a skimmer error."},

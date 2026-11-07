@@ -768,6 +768,18 @@ list **and** out to N1MM / any client of the cluster server (port 10000):
 - Older config.ini with `source = rbn / telnet / http`: that one + Cluster
   (unless `[ssb] mode = off`).
 
+## Country file (wl_cty.dat)
+
+POUNCer uses N1MM's country file (AD1C's `wl_cty.dat`: continent, country
+and zones of every call - DX marks, mults, skimmer and spotter filters) and
+checks **country-files.com every 5 days** for a newer one (`[cty]
+check_days`; If-Modified-Since, so only a few bytes when it is current). A
+newer file is checked (a few hundred countries), saved as
+`cache/wl_cty.dat` and used **at once**; at the next start the newer of
+N1MM's and POUNCer's copy is used. `[cty] update_n1mm = true` also copies it
+into N1MM's `SupportFiles`. Off: `[cty] auto_update = false`
+(Settings > Country file).
+
 ## Busted calls (Super Check Partial)
 
 A spotted call that is not in the **Super Check Partial** list
