@@ -15,7 +15,7 @@ import time
 
 MAX_LINES = 5000          # kept between two console refreshes at most
 _sink: "collections.deque | None" = None
-GROUPS = ("RBN", "SSB", "HTTP", "N1MM", "TEAM", "WEB", "PSKR")
+GROUPS = ("RBN", "TELNET", "SSB", "HTTP", "N1MM", "TEAM", "WEB", "PSKR")
 
 
 def active() -> bool:
@@ -65,8 +65,10 @@ def group_of(source: str) -> str:
         return "N1MM"
     if s.startswith("TEAM"):
         return "TEAM"
-    if s.startswith("SELF"):            # the spots-of-my-call connection: a cluster
-        return "SSB"
+    if s.startswith("TELNET"):          # the CW feed from the telnet server (azure)
+        return "TELNET"
+    if s.startswith("SELF"):            # the spots-of-my-call connection: same server
+        return "TELNET"
     if s.startswith("WEB"):
         return "WEB"
     if s.startswith("HTTP"):

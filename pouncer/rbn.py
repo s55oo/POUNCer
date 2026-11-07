@@ -523,6 +523,13 @@ class RBNClient(threading.Thread):
         self._stop = threading.Event()
         self._sock: socket.socket | None = None
 
+    def _traffic_name(self) -> str:
+        """The traffic console's source: 'telnet' while the CW feed comes from
+        the telnet server (backup_host), else the connection's own name."""
+        if self.kind == "rbn" and self.on_backup and self.backup:
+            return "telnet"
+        return self.name or self.kind
+
     def prefer(self, backup: bool) -> None:
         """Use RBN (False) or the telnet backup (True) from now on - switches
         at once (the connection is closed and the other one opened); if it
@@ -657,7 +664,7 @@ class RBNClient(threading.Thread):
                 for cmd in self.backup_commands:     # e.g. set/skimmer
                     try:
                         sock.sendall((cmd.strip() + "\r\n").encode("ascii", "ignore"))
-                        traffic.emit(f"{self.name or self.kind} >", cmd.strip())
+                        traffic.emit(f"{self._traffic_name()} >", cmd.strip())
                     except OSError:
                         pass
                 if self.backup_commands:
@@ -701,7 +708,7 @@ class RBNClient(threading.Thread):
         while "\n" in buf:
             line, buf = buf.split("\n", 1)
             if traffic._sink is not None:            # console open: show the raw line
-                traffic.emit(self.name or self.kind, line.rstrip("\r"))
+                traffic.emit(self._traffic_name(), line.rstrip("\r"))
             at = line.find("DX de ")
             if at > 0:            # a prompt without a newline in front of it
                 line = line[at:]
@@ -758,7 +765,7 @@ class RBNClient(threading.Thread):
             cmd = f"sh/dx/{self.history}"
         try:
             sock.sendall((cmd + "\r\n").encode("ascii", "ignore"))
-            traffic.emit(f"{self.name or self.kind} >", cmd)
+            traffic.emit(f"{self._traffic_name()} >", cmd)
             log.info("RBN: %s", cmd)
         except OSError as exc:
             log.warning("RBN %s failed: %s", cmd, exc)
@@ -770,7 +777,7 @@ class RBNClient(threading.Thread):
             return
         try:
             sock.sendall((self.callsign + "\r\n").encode("ascii", "ignore"))
-            traffic.emit(f"{self.name or self.kind} >", self.callsign)
+            traffic.emit(f"{self._traffic_name()} >", self.callsign)
             self._status(f"logged in as {self.callsign}" +
                          (f" (backup {self.backup[0]})" if self.on_backup and self.backup else ""))
         except OSError as exc:

@@ -31,7 +31,7 @@ DEAD_S = 30          # this long = red dot (unless the app says why: grey)
 DOT = {"live": "#43a047", "quiet": "#f9a825", "dead": "#e53935", "why": "#78909c"}
 GROUPS = traffic.GROUPS
 group_of = traffic.group_of
-COLORS = {"RBN": "#81c784", "SSB": "#ffb74d", "HTTP": "#4fc3f7", "N1MM": "#ce93d8",
+COLORS = {"RBN": "#81c784", "TELNET": "#80cbc4", "SSB": "#ffb74d", "HTTP": "#4fc3f7", "N1MM": "#ce93d8",
           "TEAM": "#90caf9", "WEB": "#b0bec5", "PSKR": "#f48fb1", "OUT": "#ffeb3b"}
 
 
