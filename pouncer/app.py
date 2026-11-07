@@ -501,6 +501,20 @@ class PouncerApp:
         ttk.Label(box, text="dB").pack(side="left")
         flow.add(box, gap=12)
         self._min_snr_save = None
+        # where the CW spots come from: RBN or the telnet backup - one click
+        src = ttk.Frame(flow)
+        ttk.Label(src, text="Spots", style="Muted.TLabel").pack(side="left", padx=(0, 4))
+        self._src_buttons = {}
+        for key, label in (("rbn", "RBN"), ("telnet", "Telnet")):
+            b = ttk.Button(src, text=label, style="Sort.TButton", takefocus=False,
+                           command=lambda k=key: self._set_source(k))
+            b.pack(side="left")
+            self._src_buttons[key] = b
+        self._src_note = ttk.Label(src, text="", style="Muted.TLabel")
+        self._src_note.pack(side="left", padx=(6, 0))
+        self._src_box = src
+        flow.add(src, gap=16)
+        self._src_last = None
         # clean layout: the rate, short (the full rate line in the detailed layout)
         self.rate_short = ttk.Label(flow, text="", style="Muted.TLabel")
 
@@ -2059,9 +2073,63 @@ class PouncerApp:
                 backup_commands=self.cfg.rbn_backup_commands,
                 on_raw=self._on_raw_spot,
             )
+            client.prefer(getattr(self.cfg, "rbn_source", "rbn") == "telnet")
             client.start()
             self._rbn_clients[port] = client
             log.info("RBN client started on %s:%s", self.cfg.rbn_host, port)
+
+    def _set_source(self, src: str, from_team: bool = False) -> None:
+        """'Spots: RBN | Telnet': where the CW spots come from. A team slave
+        asks the master (only it is connected); otherwise switch now, save."""
+        if src not in ("rbn", "telnet"):
+            return
+        team = getattr(self, "team", None)
+        if team is not None and not from_team and team.alive_peers() and not team.is_master():
+            team.send_src(src)
+            self.status_label.configure(
+                text=f"Asked the team master to take the CW spots from "
+                     f"{'RBN' if src == 'rbn' else self.cfg.rbn_backup_host}")
+            return
+        if not self.cfg.rbn_backup_host and src == "telnet":
+            self.status_label.configure(text="No telnet server set ([rbn] backup_host)")
+            return
+        self._save_setting("rbn.source", src)       # applies it too (_apply_source)
+        where = "RBN" if src == "rbn" else f"{self.cfg.rbn_backup_host}:{self.cfg.rbn_backup_port}"
+        self.status_label.configure(text=f"CW spots now from {where}"
+                                         + (" (asked by a team member)" if from_team else ""))
+        self._src_last = None
+
+    def _apply_source(self) -> None:
+        """Every RBN connection with a backup: the chosen server, now."""
+        for c in list(getattr(self, "_rbn_clients", {}).values()):
+            if getattr(c, "backup", None):
+                c.prefer(self.cfg.rbn_source == "telnet")
+
+    def _update_source_buttons(self) -> None:
+        """The chosen one filled blue; in a team slave the master's choice;
+        a note when the other one is in use because the chosen one is down."""
+        box = getattr(self, "_src_box", None)
+        if box is None:
+            return
+        team = getattr(self, "team", None)
+        slave = team is not None and team.alive_peers() and not team.is_master()
+        chosen = (team.master_src() or self.cfg.rbn_source) if slave else self.cfg.rbn_source
+        note = ""
+        if not slave:
+            for c in getattr(self, "_rbn_clients", {}).values():
+                if getattr(c, "backup", None) and c.on_backup != c.prefer_backup:
+                    note = ("using Telnet - RBN down" if c.on_backup
+                            else "using RBN - Telnet down")
+        elif slave:
+            note = "master's choice"
+        sig = (chosen, note, bool(self.cfg.rbn_backup_host))
+        if sig == self._src_last:
+            return
+        self._src_last = sig
+        self._flow.set_visible(box, bool(self.cfg.rbn_backup_host))
+        for key, b in self._src_buttons.items():
+            b.configure(style="SortOn.TButton" if key == chosen else "Sort.TButton")
+        self._src_note.configure(text=note)
 
     def _on_qsy(self, event) -> None:
         item = self.tree.identify_row(event.y)
@@ -2419,6 +2487,7 @@ class PouncerApp:
             self._drain_self_spots()
         self._check_self_feed_filter()
         self._update_net_bar()
+        self._update_source_buttons()
         self._check_late_qsy()
         self._drain_spots()
         self._drain_wpm()
@@ -2768,6 +2837,9 @@ class PouncerApp:
             if item[0] == "net":
                 self._on_net_change(item[1])
                 continue
+            if item[0] == "src":                  # a slave's Spots button (team)
+                self._set_source(item[1], from_team=True)
+                continue
             if item[0] == "minsnr":
                 self._set_min_snr(item[1])
                 continue
@@ -3070,6 +3142,8 @@ class PouncerApp:
                     str(d.get("call", "")), str(d.get("spotter", "")),
                     float(d.get("khz") or 0), str(d.get("comment", "")), from_team=True),
                 rbn_paused=lambda: bool(getattr(self, "_rbn_pause_on", False)),
+                get_src=lambda: self.cfg.rbn_source,
+                on_src=lambda v: self._web_queue.put(("src", v)),
             )
             self.team.start()
         except OSError as exc:
@@ -3979,6 +4053,9 @@ class PouncerApp:
             if old != new:
                 log.info("setting changed: %s (%s): %s -> %s%s", item.get("label", key), key,
                          show(old), show(new), "" if res.get("live") else "  [after a restart]")
+            if key == "rbn.source":
+                self._apply_source()
+                self._src_last = None
         else:
             log.info("setting NOT saved: %s = %r: %s", key, value, res.get("error"))
         return res

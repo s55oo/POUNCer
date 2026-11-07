@@ -498,6 +498,10 @@ class RBNClient(threading.Thread):
         self.silent_s = silent_s
         self.retry_primary_s = retry_primary_s
         self.on_backup = False
+        # the preferred server: RBN (False) or the telnet backup (True) - the
+        # window's "Spots: RBN | Telnet" button; the other one stays the fallback
+        self.prefer_backup = False
+        self._switch_now = False
         self._last_dx = time.monotonic()
         self._login_at = 0.0
         # "cluster": human DX-cluster spots (SSB); only ``modes`` are kept
@@ -518,6 +522,25 @@ class RBNClient(threading.Thread):
         self.on_status = on_status
         self._stop = threading.Event()
         self._sock: socket.socket | None = None
+
+    def prefer(self, backup: bool) -> None:
+        """Use RBN (False) or the telnet backup (True) from now on - switches
+        at once (the connection is closed and the other one opened); if it
+        fails, the other one is used meanwhile, as before."""
+        backup = bool(backup) and self.backup is not None
+        if backup == self.prefer_backup and backup == self.on_backup:
+            return
+        self.prefer_backup = backup
+        self.on_backup = backup
+        if self.is_alive():
+            self._switch_now = True
+            sock = getattr(self, "_sock", None)
+            if sock is not None:
+                try:
+                    sock.close()
+                except OSError:
+                    pass
+            self._wake.set()
 
     def kick(self) -> None:
         """The internet is back: try again now instead of after the backoff."""
@@ -562,7 +585,7 @@ class RBNClient(threading.Thread):
             except _BackToPrimary:
                 back_to_rbn = True
             except Exception as exc:  # noqa: BLE001 - keep the thread alive
-                if not self._stop.is_set():
+                if not self._stop.is_set() and not self._switch_now:
                     self._errs += 1
                     # the 1st, then every 10th: an outage doesn't fill the log
                     if self._errs == 1 or self._errs % 10 == 0:
@@ -572,17 +595,28 @@ class RBNClient(threading.Thread):
                                     f" ({self._errs} in a row)" if self._errs > 1 else "")
             if self._stop.is_set():
                 break
-            if self.on_backup:
-                # time to try RBN again, or the backup failed too
-                self.on_backup = False
+            if self._switch_now:              # the button: the other server, now
+                self._switch_now = False
+                self._wake.clear()
+                fails, backoff = 0, 2
+                self._status("switching to " + (f"{self.backup[0]}:{self.backup[1]}"
+                                                if self.on_backup else f"{self.host}:{self.port}"))
+                continue
+            if self.on_backup != self.prefer_backup:
+                # on the fallback: time to try the preferred one again, or it failed too
+                self.on_backup = self.prefer_backup
                 fails = 0
-                self._status("trying RBN again")
+                self._status("trying " + ("the telnet backup" if self.prefer_backup else "RBN")
+                             + " again")
                 self._pause(1)
                 continue
             fails += 1
             if self.backup and fails >= 2:
-                self.on_backup = True
-                self._status(f"RBN down - switching to backup {self.backup[0]}:{self.backup[1]}")
+                self.on_backup = not self.prefer_backup
+                if self.on_backup:
+                    self._status(f"RBN down - switching to backup {self.backup[0]}:{self.backup[1]}")
+                else:
+                    self._status(f"backup {self.backup[0]} down - using RBN meanwhile")
                 self._pause(1)
                 continue
             self._status("disconnected, reconnecting")
@@ -614,9 +648,10 @@ class RBNClient(threading.Thread):
         cmds_sent = not (backup or self.kind == "cluster")
         while not self._stop.is_set():
             now = time.monotonic()
-            if backup and now - started > self.retry_primary_s:
-                raise _BackToPrimary()
-            if not backup and self.backup and logged_in and now - self._last_dx > self.silent_s:
+            if backup != self.prefer_backup and now - started > self.retry_primary_s:
+                raise _BackToPrimary()          # on the fallback long enough: try the preferred
+            if not backup and not self.prefer_backup and self.backup and logged_in and \
+                    now - self._last_dx > self.silent_s:
                 raise ConnectionError(f"RBN sent no spots for {int(self.silent_s)} s")
             if logged_in and not cmds_sent and now > self._login_at + 1:
                 for cmd in self.backup_commands:     # e.g. set/skimmer

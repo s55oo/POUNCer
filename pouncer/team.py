@@ -80,6 +80,8 @@ class Team:
         rbn_paused=None,      # -> bool: (master) RBN closed - nobody needs it
         on_self=None,         # slave: called with {call, spotter, khz, comment} - my call spotted
         on_update=None,       # called when the master says: update now
+        get_src=None,         # -> "rbn" / "telnet": (master) where the CW spots come from
+        on_src=None,          # (master) a slave's button: called with "rbn" / "telnet"
     ) -> None:
         self.id = uuid.uuid4().hex[:12]
         self.started = time.time()
@@ -95,6 +97,8 @@ class Team:
         self._rbn_paused = rbn_paused
         self._on_self = on_self
         self._on_update = on_update
+        self._get_src = get_src
+        self._on_src = on_src
         self._fixed_targets = send_to  # tests: only these
         self._manual_peers = [p.strip() for p in (peers or []) if p.strip()]
         self._if_socks: dict[str, socket.socket] = {}  # local IP -> socket bound to it
@@ -246,6 +250,11 @@ class Team:
                     hi["bands"] = self._get_bands()
                 except Exception:  # noqa: BLE001
                     pass
+            if self._get_src is not None and self.is_master():
+                try:
+                    hi["src"] = str(self._get_src())
+                except Exception:  # noqa: BLE001
+                    pass
             self._send(hi)
             self._maybe_sync()
             self._stop.wait(ANNOUNCE_S)
@@ -272,6 +281,19 @@ class Team:
         """Master: pass one RBN spot on to the slaves."""
         if self.alive_peers():
             self._send({"t": "spot", "s": spot}, broadcast=False)
+
+    def master_src(self) -> str | None:
+        """Slave: where the master takes the CW spots from ('rbn' / 'telnet')."""
+        mid = self.master_id()
+        with self._lock:
+            p = self.peers.get(mid or "")
+            return p.get("src") if p else None
+
+    def send_src(self, src: str) -> None:
+        """Slave's button: ask the master to take the CW spots from 'rbn' /
+        'telnet' (only the master acts on it)."""
+        if src in ("rbn", "telnet") and self.alive_peers():
+            self._send({"t": "src", "v": src}, broadcast=False)
 
     def send_update(self) -> None:
         """Master: every POUNCer of the team - update to the newest version."""
@@ -323,6 +345,7 @@ class Team:
                     "bands": msg.get("bands") if isinstance(msg.get("bands"), dict) else None,
                     # needs RBN? (older POUNCers don't say: yes, to be safe)
                     "cw": bool(msg.get("cw", True)), "paused": bool(msg.get("paused", False)),
+                    "src": msg.get("src") if msg.get("src") in ("rbn", "telnet") else None,
                 }
             if new:
                 log.info("team: POUNCer %s at %s joined", pid, ip)
@@ -331,6 +354,9 @@ class Team:
                 self._on_spot(msg["s"])
         elif kind == "update" and self._on_update and pid == self.master_id():
             self._on_update()
+        elif kind == "src" and self._on_src and self.is_master() \
+                and msg.get("v") in ("rbn", "telnet"):
+            self._on_src(msg["v"])
         elif kind == "self" and self._on_self and isinstance(msg.get("d"), dict) \
                 and pid == self.master_id():
             self._on_self(msg["d"])

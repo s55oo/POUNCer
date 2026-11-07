@@ -109,6 +109,12 @@ SETTINGS: list[dict] = [
     {"key": "rbn.history", "attr": "rbn_history", "kind": "int", "min": 0, "max": 500,
      "live": False, "group": "RBN", "label": "Last spots at start (SH/DX)",
      "help": "0 = off."},
+    {"key": "rbn.source", "attr": "rbn_source", "kind": "choice", "choices": ["rbn", "telnet"],
+     "live": True, "group": "RBN", "label": "CW spots from",
+     "help": "rbn = telnet.reversebeacon.net (default); telnet = the backup telnet server "
+             "below (azure.s53m.com:8000, the same skimmer spots). The other one takes over "
+             "when the chosen one is down. Also the 'Spots: RBN | Telnet' buttons next to "
+             "Min SNR (in a team: the master's choice)."},
     {"key": "rbn.backup_host", "attr": "rbn_backup_host", "kind": "text", "live": False,
      "group": "RBN", "label": "Backup telnet server",
      "help": "Used when RBN's telnet is down. Empty = no backup."},

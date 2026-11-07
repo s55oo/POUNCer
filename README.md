@@ -287,7 +287,10 @@ The window has two layouts (*View > Detailed layout*, `[ui] layout`).
   simply off isn't shown) - and, when something is wrong, **one sentence**
   after them: *"✗ Log: N1MM Logger.ini not found (+1 more) – click: details"*.
   A click on it (or on the badge) shows every check item; click again to hide;
-- **one row of controls**: Sort (Time / Freq / SNR / Mult), Min SNR, the
+- **one row of controls**: Sort (Time / Freq / SNR / Mult), Min SNR,
+  **Spots: RBN | Telnet** (where the CW spots come from - one click switches at
+  once; the other one still takes over while the chosen one is down; in a team
+  the master's choice, a slave's click asks the master), the
   **band chips** (`20 · 7M` = 7 new mults spotted on 20 m; colour = band
   open; click = list that band) and the **rate** (`Rate 84/h · 1234 Q 345 M`);
 - the F-keys (ENTER green);
@@ -654,7 +657,9 @@ the answer. `[ssb] pskreporter`
 If RBN's telnet fails twice in a row or sends nothing for 2 minutes,
 POUNCer switches to the backup telnet server **azure.s53m.com:8000** (light:
 "RBN via backup") and tries RBN again every 10 minutes. `[rbn] backup_host`
-/ `backup_port` / `backup_commands`; empty `backup_host` = off.
+/ `backup_port` / `backup_commands`; empty `backup_host` = off. To use the
+telnet server **first** (and RBN only while it is down), click **Spots:
+Telnet** next to Min SNR, or `[rbn] source = telnet`.
 
 ## RBN over HTTP (second backup)
 
@@ -1172,6 +1177,7 @@ All options live in `config.ini` and are documented there, line by line:
 | `backup_spotters`, `backup_after_minutes` | (our continent), 5 | Skimmers used while `spotter` is quiet this long. |
 | `history` | 30 | Last spots asked at login (SH/DX); 0 = off. |
 | `backup_host`, `backup_port`, `backup_commands` | azure.s53m.com, 8000, – | Telnet backup when RBN's telnet is down; commands sent after login. |
+| `source` | rbn | CW spots from `rbn` or `telnet` (the backup server) first - the *Spots: RBN / Telnet* buttons. |
 | `http_backup` | https://azure.s53m.com/cors/rbn/live | RBN over HTTP while telnet is down / silent a minute; empty = off. |
 | `follow_modes` | CW | Modes to show (`CW`, `RTTY`, `FT8`, `FT4`). |
 | `hide_beacons` | true | Hide beacons (type BEACON / NCDXF, calls ending in `/B`). |
