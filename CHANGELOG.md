@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.7.163 — 2026-11-07 — CLR BAND / CLR ALL in the top bar
+
+- Two buttons in the top bar next to the team badge: **CLR BAND** forgets
+  the spots of the band in the list (the radio's band, or the band chip
+  you clicked), **CLR ALL** the spots of every band. The status line says
+  how many; the phone's Undo brings them back.
+
 ## v0.7.162 — 2026-11-07 — Spotted filter (the DX)
 
 - New menu **Spotted** next to Spotters, with the same choices but for the

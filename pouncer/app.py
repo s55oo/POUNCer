@@ -436,6 +436,15 @@ class PouncerApp:
         # Team role: MASTER (talks to RBN) / SLAVE / alone - a coloured badge
         self.team_label = tk.Label(top, text="", font=(theme.FONT, 9, "bold"), padx=8, pady=2)
         self.team_label.pack(side="right", padx=(8, 0))
+        # clear the spots: of the band in the list / of every band (like the badges)
+        for text, cmd in (("CLR ALL", self._clear_spots), ("CLR BAND", self._clear_band)):
+            b = tk.Label(top, text=text, font=(theme.FONT, 9, "bold"), padx=8, pady=2,
+                         bg="#455a64", fg="#ffffff", cursor="hand2")
+            b.pack(side="right", padx=(8, 0))
+            b.bind("<Button-1>", lambda _e, c=cmd: c())
+            b.bind("<Enter>", lambda _e, w=b: w.configure(bg="#607d8b"))
+            b.bind("<Leave>", lambda _e, w=b: w.configure(bg="#455a64"))
+        self._clr_band_hint = None
         # Pre-contest check: READY / CHECK / NOT READY (click: details on / off)
         self.ready_badge = tk.Label(top, text="", font=(theme.FONT, 10, "bold"), padx=10,
                                     pady=3, cursor="hand2")
@@ -1872,6 +1881,24 @@ class PouncerApp:
         self._cleared = dict(self.spots)
         self.spots.clear()
         self._dirty = True
+        sl = getattr(self, "status_label", None)
+        if sl is not None:
+            sl.configure(text=f"{len(self._cleared)} spots cleared (every band)")
+
+    def _clear_band(self) -> None:
+        """CLR BAND: forget the spots of the band in the list (the radio's,
+        or the band chip clicked); the others stay. Undo brings them back."""
+        band = self._view_band_now() if hasattr(self, "_view_band_now") else None
+        band = band or self._current_band()
+        if not band:
+            self.status_label.configure(text="CLR BAND: no band yet (N1MM sends no frequency)")
+            return
+        gone = {k: s for k, s in self.spots.items() if band_from_khz(s.freq_khz) == band}
+        for k in gone:
+            del self.spots[k]
+        self._cleared = gone
+        self._dirty = True
+        self.status_label.configure(text=f"{len(gone)} spots of {band} cleared")
 
     def _unclear_spots(self) -> None:
         """Undo a clear: bring the cleared spots back (newer ones win)."""

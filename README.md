@@ -292,6 +292,9 @@ The window has two layouts (*View > Detailed layout*, `[ui] layout`).
   simply off isn't shown) - and, when something is wrong, **one sentence**
   after them: *"✗ Log: N1MM Logger.ini not found (+1 more) – click: details"*.
   A click on it (or on the badge) shows every check item; click again to hide;
+- **CLR BAND** / **CLR ALL** in the top bar, next to the team badge: forget
+  the spots of the band in the list (the radio's, or the band chip clicked) /
+  of every band.
 - **one row of controls**: Sort (Time / Freq / SNR / Mult), Min SNR,
   **MyCall | Relay** (every button the same width, room for six letters),
   then one short line **"Spots: RBN + Cluster   Spotters: S53WW"** - what is

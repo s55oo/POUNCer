@@ -23,6 +23,7 @@ them in the window (or long-press on the phone) for a short explanation.
 | **TEAM: ALONE** (grey) | team is on, but no other POUNCer is on the network |
 | **TEAM OFF** (dark) | team is switched off |
 | team badge **orange** | a team POUNCer runs a different version (the tooltip says which IP and version) |
+| **CLR BAND** / **CLR ALL** (grey, next to the team badge) | forget the spots of the band in the list (the radio's, or the band chip clicked) / of every band; View > Clear spots does CLR ALL too; the phone's Undo brings them back |
 
 Click the READY badge for the list of checks. Each one is shown with
 **✓** (good), **⚠** (look at it) or **✗** (not working), each in its own
