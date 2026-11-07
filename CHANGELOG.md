@@ -1,5 +1,16 @@
 # POUNCer — Changelog
 
+## v0.7.139 — 2026-11-07 — QR code for the phone page
+
+- **Phone page QR code**: click the address in the top bar (or *View > Phone
+  page QR code…*) - a window with one QR code per address, **LAN** and
+  **ZeroTier** (when this PC is on ZeroTier). Scan it with the phone's camera
+  and the page opens, no typing. Click a code to open the page in this PC's
+  browser; Esc closes. The same approach as N1MMPingPong's phone lamp (same
+  small QR encoder, standard library only).
+- Every build checks the codes with a real QR reader (OpenCV): each must read
+  back exactly its address, or nothing is built or released.
+
 ## v0.7.138 — 2026-11-07 — TELNET in the traffic console
 
 - The traffic console has a **TELNET** group (own switch, dot, counter and

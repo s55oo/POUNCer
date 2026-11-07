@@ -53,7 +53,7 @@ from . import winstate
 from .settings_window import SettingsWindow
 from .team import Team
 from .update import Updater
-from .web import WebServer, pick_web_address
+from .web import phone_addresses, WebServer, pick_web_address
 from .win32 import (
     decimal_separator, focus_snapshot, focused_edit_text, force_foreground, is_n1mm_running, restore_focus,
     send_cw_speed, set_focused_edit_text,
@@ -407,7 +407,7 @@ class PouncerApp:
         self.addr_label = tk.Label(top, text="", bg=theme.TOP_BG, fg=theme.TOP_MUTED,
                                    font=(theme.FONT, 11), padx=6, cursor="hand2")
         self.addr_label.pack(side="left", pady=(6, 0))
-        self.addr_label.bind("<Button-1>", lambda _e: self._open_browser())
+        self.addr_label.bind("<Button-1>", lambda _e: self._show_phone_qr())
         # Team role: MASTER (talks to RBN) / SLAVE / alone - a coloured badge
         self.team_label = tk.Label(top, text="", font=(theme.FONT, 9, "bold"), padx=8, pady=2)
         self.team_label.pack(side="right", padx=(8, 0))
@@ -663,6 +663,8 @@ class PouncerApp:
         view.add_command(label="CQ zones: who hears me", command=lambda: self._zones_win.open())
         view.add_command(label="Band opening timeline", command=lambda: self._timeline_win.open())
         view.add_command(label="Phone page in the browser", command=self._open_browser)
+        view.add_command(label="Phone page QR code\u2026 (scan with the phone)",
+                         command=self._show_phone_qr)
         view.add_command(label="Phone page as an app window", command=self._open_app_window)
         view.add_command(label="Traffic console (raw data in / out)", accelerator="Ctrl+Shift+D",
                          command=lambda: self._console.open())
@@ -4635,6 +4637,72 @@ class PouncerApp:
         except OSError as exc:
             log.info("app window: %s", exc)
             self._open_browser()
+
+    def _phone_urls(self) -> list[tuple[str, str]]:
+        """[(label, url)] of the phone page: LAN, plus ZeroTier if present."""
+        web = getattr(self, "web", None)
+        if web is None:
+            return []
+        try:
+            addrs = phone_addresses(getattr(self.cfg, "web_host", "0.0.0.0"))
+        except Exception:  # noqa: BLE001
+            addrs = []
+        return [(label, f"http://{ip}:{web.port}/") for label, ip in addrs]
+
+    def _show_phone_qr(self) -> None:
+        """A window with a QR code per address (LAN, ZeroTier): scan it with
+        the phone's camera and the page opens - no typing. Click a code to
+        open it in this PC's browser. Like N1MMPingPong's phone lamp."""
+        from tkinter import messagebox
+        from . import qr
+        if getattr(self, "web", None) is None:
+            messagebox.showinfo("POUNCer", "The phone page is off ([web] enabled = false, "
+                                "or its port is busy).", parent=self.root)
+            return
+        urls = self._phone_urls()
+        if not urls:
+            messagebox.showinfo("POUNCer", "No network address found yet - try again in a "
+                                "minute.", parent=self.root)
+            return
+        old = getattr(self, "_qr_window", None)
+        if old is not None:
+            try:
+                old.destroy()
+            except tk.TclError:
+                pass
+        win = tk.Toplevel(self.root, bg="white")
+        self._qr_window = win
+        win.title("POUNCer \u2013 phone page")
+        win.attributes("-topmost", True)
+        win.resizable(False, False)
+        tk.Label(win, text="Scan with the phone's camera to open the POUNCer page",
+                 bg="white", font=(theme.FONT, 10, "bold")).pack(padx=12, pady=(10, 4))
+        row = tk.Frame(win, bg="white")
+        row.pack(padx=8)
+        import webbrowser
+        for label, url in urls:
+            cell = tk.Frame(row, bg="white")
+            cell.pack(side="left", padx=8, pady=4)
+            matrix = qr.qr_matrix(url)
+            box, quiet = theme.px(6), 4
+            side = (len(matrix) + 2 * quiet) * box
+            canvas = tk.Canvas(cell, width=side, height=side, bg="white", highlightthickness=0,
+                               cursor="hand2")
+            canvas.pack()
+            for r, line in enumerate(matrix):
+                for c, dark in enumerate(line):
+                    if dark:
+                        x, y = (c + quiet) * box, (r + quiet) * box
+                        canvas.create_rectangle(x, y, x + box, y + box, fill="black", width=0)
+            canvas.bind("<Button-1>", lambda _e, u=url: webbrowser.open(u, new=2))
+            tk.Label(cell, text=f"{label}\n{url[7:].rstrip('/')}", bg="white",
+                     font=(theme.FONT, 9)).pack()
+        tk.Label(win, text="The phone must be on the same network (or ZeroTier).\n"
+                           "Click a code to open the page here. Other devices need TCP "
+                           f"{self.web.port} allowed in the Windows Firewall.",
+                 bg="white", fg="#555555", font=(theme.FONT, 8), justify="center").pack(pady=(2, 4))
+        tk.Button(win, text="Close", command=win.destroy).pack(pady=(0, 10))
+        win.bind("<Escape>", lambda _e: win.destroy())
 
     def _open_browser(self, page: str = "") -> None:
         """Touch / big-button view = the phone page in the default browser."""

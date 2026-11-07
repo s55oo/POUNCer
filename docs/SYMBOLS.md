@@ -13,7 +13,7 @@ them in the window (or long-press on the phone) for a short explanation.
 | What you see | Meaning |
 | --- | --- |
 | **14025.3** (big) | the frequency of the radio POUNCer follows, in kHz, with its band, mode and CW speed |
-| **ZeroTier 10.66.66.5:8080** / **LAN 192.168.1.20:8080** (grey, after the mode) | this PC's address and the port of the phone page - the ZeroTier address when ZeroTier runs, else the LAN address; *(phone page off)* when `[web] enabled = false`. Click = open the phone page here. Re-checked every minute |
+| **ZeroTier 10.66.66.5:8080** / **LAN 192.168.1.20:8080** (grey, after the mode) | this PC's address and the port of the phone page - the ZeroTier address when ZeroTier runs, else the LAN address; *(phone page off)* when `[web] enabled = false`. Click = a window with a **QR code** per address (LAN, ZeroTier) - scan it with the phone; click a code to open the page here. Re-checked every minute |
 | **▶ list: 20m** | you clicked a band chip: the list shows that band, not the radio's band. It goes back by itself when the radio changes band; click the chip again to go back now |
 | **✓ READY** (green) | the pre-contest check is all good |
 | **⚠ CHECK** (amber) | something should be looked at (an old country file, the clock a few seconds off, ...) |

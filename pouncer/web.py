@@ -2181,6 +2181,32 @@ def pick_web_address(
     return "localhost", "local only"
 
 
+def phone_addresses(
+    bind_host: str = "0.0.0.0",
+    adapters: list[tuple[str, str]] | None = None,
+    lan_ip: str | None = None,
+) -> list[tuple[str, str]]:
+    """Every address a phone can use: ``[("LAN", ip), ("ZeroTier", ip)]`` -
+    the LAN one, plus the ZeroTier one when this PC is on ZeroTier (for the
+    QR code window, one code each). A fixed ``[web] host``: just that one."""
+    if bind_host not in ("", "0.0.0.0"):
+        return [("Address", bind_host)]
+    if adapters is None:
+        adapters = adapter_ipv4s()
+    zt = next((ip for name, ip in adapters
+               if "zerotier" in name.lower() and not ip.startswith("169.254.")), None)
+    if lan_ip is None:
+        lan_ip = default_route_ipv4()
+    if not lan_ip or lan_ip.startswith("127.") or lan_ip == zt:
+        lan_ip = next((ip for ip in local_ipv4s() if ip != zt), None)
+    out = []
+    if lan_ip:
+        out.append(("LAN", lan_ip))
+    if zt:
+        out.append(("ZeroTier", zt))
+    return out
+
+
 ZONES_HTML = """<!doctype html>
 <html lang="en">
 <head>
