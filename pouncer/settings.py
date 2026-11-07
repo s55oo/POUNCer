@@ -178,7 +178,9 @@ SETTINGS: list[dict] = [
     {"key": "ssb.pskreporter", "attr": "ssb_pskreporter", "kind": "bool", "live": False,
      "group": "SSB", "label": "FT8 check with PSK Reporter",
      "help": "A spot on 7074 - 7077 / 1840 - 1843 (inside the SSB segment) without a mode: PSK Reporter "
-             "is asked about that one call; FT8 / FT4 reports there = not SSB (in an SSB contest too)."},
+             "is asked about that one call; FT8 / FT4 reports there = not SSB (in an SSB contest too). "
+             "Also a CW spot in any FT8 / FT4 window (14074, 14080, 7047.5 ...): FT8 / FT4 reports "
+             "= not CW; none = a real CW station, it stays."},
     {"key": "ssb.self_spot_host", "attr": "self_spot_host", "kind": "text", "live": False,
      "group": "SSB", "label": "Spots of my call: cluster",
      "help": "N1MM never passes on spots of your own call: a small connection of its own, "

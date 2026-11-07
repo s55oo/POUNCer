@@ -145,6 +145,52 @@ class AppTests(unittest.TestCase):
         f2._check_overlap(self.spot(7150.0))
         self.assertEqual((c.asked, c2.asked), (["K1ABC"], []))
 
+    def cw(self, khz):
+        return Spot(dxcall="K1ABC", freq_khz=khz, mode="CW", snr=20, wpm=28, spot_type="CQ",
+                    spotter="S53WW-#", time_utc="1200Z", received=time.time())
+
+    def test_cw_in_ft8_ft4_windows_asked(self) -> None:
+        for khz in (3574.0, 7048.5, 14075.0, 14081.0, 21075.0, 28075.0):
+            f, c = self._fake()
+            f._check_overlap(self.cw(khz))
+            self.assertEqual(c.asked, ["K1ABC"], khz)
+        for khz in (3525.0, 7025.0, 14030.0, 21071.0, 28030.0):     # normal CW: not asked
+            f, c = self._fake()
+            f._check_overlap(self.cw(khz))
+            self.assertEqual(c.asked, [], khz)
+
+    def test_cw_ft8_confirmed_leaves_cw_real_cw_stays(self) -> None:
+        f, c = self._fake()
+        s = self.cw(14075.0)
+        f._check_overlap(s)
+        f.spots[s.key] = s
+        f._relabel_overlap()
+        self.assertEqual(s.mode, "CW")
+        c.known["K1ABC"] = "FT8"
+        f._relabel_overlap()
+        self.assertEqual(s.mode, "FT8")
+        f2, c2 = self._fake()
+        s2 = self.cw(14081.0)
+        s2.received -= 200                              # watched 2 min, no FT4 report
+        f2._check_overlap(s2)
+        f2.spots[s2.key] = s2
+        f2._relabel_overlap()
+        self.assertEqual((s2.mode, f2._overlap_keys), ("CW", set()))
+
+    def test_cw_alert_not_held(self) -> None:
+        from tests.test_so2r import _import_app
+        P = _import_app().PouncerApp
+        from pouncer.alerts import AlertWatch
+        s = self.cw(14081.0)
+        shown = []
+        f = types.SimpleNamespace(_overlap_keys={s.key}, _overlap_since={},
+                                  ALERT_HOLD_S=30, _alerts=AlertWatch(warmup_s=0),
+                                  _row_key=lambda x: x.key,
+                                  cfg=types.SimpleNamespace(alert_popup=True, alert_sound=False),
+                                  _show_alert=lambda sp, text: shown.append(sp))
+        P._check_alerts(f, [s])
+        self.assertEqual(shown, [s])
+
     def test_alert_waits_for_the_answer(self) -> None:
         from tests.test_so2r import _import_app
         P = _import_app().PouncerApp

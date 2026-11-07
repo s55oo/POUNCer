@@ -41,7 +41,7 @@ in the examples are private example addresses.
 | 16 | local | process start | – | your own programs (.exe / .bat / shortcuts) | autostart with POUNCer – no network | `[autostart]` |
 | 16b | **in** (briefly) | UDP | 12060 | N1MM (same PC) | **N1MMautostarter.exe** only (PCs without POUNCer): listens for N1MM's first RadioInfo / AppInfo while waiting for N1MM to start, then closes the port; an exclusive bind, so a port used by another program is never taken | `N1MMautostarter.ini` `[autostarter] n1mm_port` (0 = off) |
 | 17 | **out** | UDP (NTP) | 123 | pool.ntp.org, then time.windows.com | PC clock check every 30 min (SNTP, 48 bytes, no data of yours) | `[ui] check_line` |
-| 18 | **out** | MQTT (TCP) | 1883 | mqtt.pskreporter.info | FT8 or SSB? one call's PSK Reporter reports for up to 2 min (only for a spot on 7074 - 7077 / 1840 - 1843 without a mode) | `[ssb] pskreporter` |
+| 18 | **out** | MQTT (TCP) | 1883 | mqtt.pskreporter.info | FT8 or SSB? one call's PSK Reporter reports for up to 2 min (only for an SSB spot on 7074 - 7077 / 1840 - 1843 without a mode, or a CW spot in an FT8 / FT4 window) | `[ssb] pskreporter` |
 
 Firewall: inbound **UDP 12060** (only from N1MM on the same PC), **TCP 8080**
 (phones on the LAN) and **UDP 12079** (team) must be allowed; everything
@@ -443,7 +443,8 @@ SNTP request (48 bytes) to `pool.ntp.org`, else `time.windows.com`, and its
 ## 18. PSK Reporter (MQTT, TCP 1883, out)
 
 Only for an SSB spot in an FT8 / FT4 window **inside** the SSB segment (7074 -
-7077 on 40 m, 1840 - 1843 on 160 m) without "FT8" / "SSB" in it (in an SSB contest too): POUNCer connects to `mqtt.pskreporter.info:1883`
+7077 on 40 m, 1840 - 1843 on 160 m) without "FT8" / "SSB" in it (in an SSB contest too),
+or a **CW** spot in any FT8 / FT4 window (3573, 7047.5, 14074, 14080, 21074, 28074 ... + 3 kHz): POUNCer connects to `mqtt.pskreporter.info:1883`
 (MQTT 3.1.1, no login, client id `pouncer-<random>`), subscribes to
 `pskr/filter/v2/+/+/<CALL>/#` - **that one station transmitting**, never the
 whole feed - for 2 minutes, or until the first FT8 / FT4 report near the
