@@ -36,9 +36,11 @@ COLORS = {"RBN": "#81c784", "TELNET": "#80cbc4", "SSB": "#ffb74d", "HTTP": "#4fc
 
 
 class TrafficConsole:
-    def __init__(self, root, notes=None) -> None:
+    def __init__(self, root, notes=None, info=None) -> None:
         self.root = root
         self.notes = notes            # () -> {group: "paused - radio on SSB", ...}
+        self.info_text = info         # (group) -> what it is + its settings (hover)
+        self._tip: tk.Toplevel | None = None
         self.win: tk.Toplevel | None = None
         self._after = None
         self.counts: dict[str, int] = {g: 0 for g in GROUPS}
@@ -69,8 +71,10 @@ class TrafficConsole:
         bar.pack(fill="x")
         self.show = {g: tk.BooleanVar(value=g != "WEB") for g in GROUPS}
         for g in GROUPS:
-            ttk.Checkbutton(bar, text=g, variable=self.show[g],
-                            command=lambda g=g: self._switched(g)).pack(side="left", padx=(0, 6))
+            cb = ttk.Checkbutton(bar, text=g, variable=self.show[g],
+                                 command=lambda g=g: self._switched(g))
+            cb.pack(side="left", padx=(0, 6))
+            self._hoverable(cb, g)
         ttk.Label(bar, text="  filter").pack(side="left")
         self.filter = tk.StringVar()
         ttk.Entry(bar, textvariable=self.filter, width=14).pack(side="left", padx=(4, 8))
@@ -95,6 +99,8 @@ class TrafficConsole:
             lbl = ttk.Label(box, text=g, font=(theme.FONT, 9))
             lbl.pack(side="left")
             self.chips[g] = (dot, lbl)
+            for w in (dot, lbl):
+                self._hoverable(w, g)
         for col in range(3):
             self.info.columnconfigure(col, weight=1)
         self.paused_lbl = ttk.Label(self.info, text="", font=(theme.FONT, 9, "bold"))
@@ -121,6 +127,68 @@ class TrafficConsole:
         self.text.tag_configure("mark", foreground="#607d8b", font=("Consolas", 9, "italic"))
         self._tick()
 
+    # ---- hover: what a source is and its settings ---------------------------------
+    def tip_text(self, g: str) -> str:
+        """The hover text of a source: the app's description + settings, and
+        why it is quiet now (notes)."""
+        text = ""
+        if self.info_text is not None:
+            try:
+                text = self.info_text(g) or ""
+            except Exception:  # noqa: BLE001 - a tooltip never breaks the console
+                text = ""
+        note = ""
+        if self.notes is not None:
+            try:
+                note = (self.notes() or {}).get(g, "")
+            except Exception:  # noqa: BLE001
+                note = ""
+        n = self.counts.get(g, 0)
+        last = self.last.get(g)
+        seen = (f"{n} lines, the last {time.time() - last:.0f} s ago" if last
+                else f"{n} lines since the console opened")
+        return "\n".join(x for x in (text, f"Now: {note}" if note else "", seen) if x)
+
+    def _hoverable(self, widget, g: str) -> None:
+        widget.bind("<Enter>", lambda e, g=g: self._show_tip(e, g), add="+")
+        widget.bind("<Leave>", lambda e: self._hide_tip(), add="+")
+        widget.bind("<ButtonPress>", lambda e: self._hide_tip(), add="+")
+
+    def _show_tip(self, event, g: str) -> None:
+        self._hide_tip()
+        text = self.tip_text(g)
+        if not text or self.win is None:
+            return
+        tip = tk.Toplevel(self.win)
+        tip.wm_overrideredirect(True)
+        try:
+            tip.attributes("-topmost", True)
+        except tk.TclError:
+            pass
+        head, _, body = text.partition("\n")
+        frame = tk.Frame(tip, bg="#263238", bd=1, relief="solid", padx=8, pady=6)
+        frame.pack()
+        tk.Label(frame, text=head, bg="#263238", fg=COLORS.get(g, "#ffffff"), justify="left",
+                 font=(theme.FONT, 9, "bold"), wraplength=theme.px(460)).pack(anchor="w")
+        if body:
+            tk.Label(frame, text=body, bg="#263238", fg="#eceff1", justify="left",
+                     font=(theme.FONT, 9), wraplength=theme.px(460)).pack(anchor="w")
+        tip.update_idletasks()
+        x, y = event.x_root + 12, event.y_root + 18
+        sw = tip.winfo_screenwidth()
+        if x + tip.winfo_width() > sw:
+            x = max(0, sw - tip.winfo_width() - 4)
+        tip.geometry(f"+{x}+{y}")
+        self._tip = tip
+
+    def _hide_tip(self) -> None:
+        if self._tip is not None:
+            try:
+                self._tip.destroy()
+            except tk.TclError:
+                pass
+            self._tip = None
+
     def _switched(self, g: str) -> None:
         """A source ticked on / off: say so in the view (else it looks stuck)."""
         on = self.show[g].get()
@@ -133,6 +201,7 @@ class TrafficConsole:
         self._draw_chips()
 
     def close(self) -> None:
+        self._hide_tip()
         traffic.stop()                     # the taps go quiet again
         if self._after is not None:
             try:

@@ -87,6 +87,29 @@ def shot(out_dir: str, layout: str, look: str) -> str:
         ImageGrab.grab(bbox=(x, y, x + w, y + h), all_screens=True).save(
             os.path.join(out_dir, "runs-tip.png"))
         rows._hide_tip()
+    if layout == "clean" and look == "dark":          # traffic console: hover over RBN
+        try:
+            con = app._console
+            con.open()
+            con.counts["RBN"] = 42
+            for _ in range(3):
+                app.root.update()
+            dot, lbl = con.chips["RBN"]
+            ev = types.SimpleNamespace(x_root=lbl.winfo_rootx() + 5, y_root=lbl.winfo_rooty() + 5)
+            con._show_tip(ev, "RBN")
+            for _ in range(5):
+                app.root.update()
+                time.sleep(0.2)
+            cw = con.win
+            cx, cy = cw.winfo_rootx(), cw.winfo_rooty()
+            tw = con._tip
+            right = max(cx + cw.winfo_width(), tw.winfo_rootx() + tw.winfo_width())
+            bottom = max(cy + cw.winfo_height(), tw.winfo_rooty() + tw.winfo_height())
+            ImageGrab.grab(bbox=(cx, cy, right, bottom), all_screens=True).save(
+                os.path.join(out_dir, "console-tip.png"))
+            con.close()
+        except Exception as exc:  # noqa: BLE001
+            print(f"console tip screenshot failed: {exc!r}")
     if layout == "clean" and look == "dark":          # the phone page QR window too
         appmod.phone_addresses = lambda host: [("LAN", "192.168.1.20"), ("ZeroTier", "10.66.66.5")]
         app._show_phone_qr()

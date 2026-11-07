@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## v0.7.143 — 2026-11-07 — Traffic console: hover explains each source
+
+- **Hover over RBN, TELNET, SSB, HTTP, N1MM, TEAM, WEB, PSKR or SERVER** in
+  the traffic console (the switch or its dot): a pop-up says what that
+  source is and what POUNCer monitors with which settings now - server and
+  port, login call, CW source, own skimmer, min SNR, SSB mode / spotters,
+  N1MM listen address, team role / peers / password set or off (never the
+  key), phone page address, cluster server port, clients and relay target -
+  plus why it is quiet and how many lines came.
+
 ## v0.7.142 — 2026-11-07 — Cluster relay for N1MM; SSB cluster only on USB / LSB
 
 - **Cluster relay** (*Settings > Cluster server*, `[cluster] relay = true`,
