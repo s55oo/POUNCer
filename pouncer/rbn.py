@@ -397,10 +397,13 @@ class SpotterFilter:
     together) - and, while every one of them has been quiet for ``quiet_s``
     (offline?), backup skimmers: the listed ``backups`` (call prefixes) or,
     if none are listed, every skimmer on our own continent. Switches back as
-    soon as a chosen one spots again."""
+    soon as a chosen one spots again. At start the backups come after
+    ``start_s`` already if no chosen one has spotted yet (an offline own
+    skimmer shouldn't mean 5 minutes of an empty list)."""
 
     def __init__(self, primary: str, backups=(), continent_of=None, home_cont=None,
-                 quiet_s: float = 300, clock=time.time, zone_of=None) -> None:
+                 quiet_s: float = 300, clock=time.time, zone_of=None,
+                 start_s: float = 90) -> None:
         self.calls, self.zones = parse_spotters(primary)
         # the first call: SH/DX spotter= at start (one skimmer only), the label
         self.primary = self.calls[0] if self.calls else ""
@@ -411,7 +414,9 @@ class SpotterFilter:
         self.home_cont = home_cont or (lambda: "EU")
         self.quiet_s = quiet_s
         self.clock = clock
-        self.last_primary = clock()  # start: give the chosen ones time to speak
+        self.last_primary = clock()  # start: give the chosen ones time to speak ...
+        self.start_s = min(start_s, quiet_s)   # ... but not 5 minutes
+        self.heard_primary = False
         self._zcache: dict[str, int | None] = {}
 
     def label(self) -> str:
@@ -421,7 +426,8 @@ class SpotterFilter:
         return bool(self.calls or self.zones)
 
     def backup_active(self) -> bool:
-        return self.active() and self.clock() - self.last_primary > self.quiet_s
+        wait = self.quiet_s if self.heard_primary else self.start_s
+        return self.active() and self.clock() - self.last_primary > wait
 
     def _zone(self, base: str) -> int | None:
         if self.zone_of is None:
@@ -449,6 +455,7 @@ class SpotterFilter:
             return True
         if self.chosen(sp):
             self.last_primary = self.clock()
+            self.heard_primary = True
             return True
         if not self.backup_active():
             return False
