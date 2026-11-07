@@ -46,6 +46,22 @@ class AddressTests(unittest.TestCase):
         self.assertEqual(phone_addresses("10.0.0.9"), [("Address", "10.0.0.9")])
 
 
+@unittest.skipUnless(__import__("sys").platform == "win32", "Windows only")
+class WindowsAdapterTests(unittest.TestCase):
+    """The build's Windows runner: the addresses straight from Windows."""
+
+    def test_windows_adapters(self) -> None:
+        import socket
+        from pouncer.web import adapter_ipv4s, windows_adapters
+        found = windows_adapters()
+        self.assertTrue(found, "no IPv4 address from GetIpAddrTable")
+        for descr, ip in found:
+            self.assertIsInstance(descr, str)
+            socket.inet_aton(ip)                       # a valid IPv4
+            self.assertFalse(ip.startswith(("127.", "169.254.")))
+        self.assertEqual(adapter_ipv4s(), found)
+
+
 class DecodeTests(unittest.TestCase):
     """Decoded by OpenCV's QR reader - run in the build (POUNCER_QR_DECODE=1,
     OpenCV installed there); skipped elsewhere."""

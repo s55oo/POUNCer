@@ -148,7 +148,14 @@ jobs:
           $a = (Get-FileHash dist\N1MMautostarter.exe -Algorithm SHA256).Hash
           $tk = if (Select-String -Path tk-test.txt -Pattern "skipped" -Quiet) { "skipped (no Tk display on the runner)" } else { "passed on a real Tk window" }
           $notes = "POUNCer $env:TAG - built by GitHub Actions run $env:GITHUB_RUN_ID with the PyInstaller bootloader compiled from source.`n`n**POUNCer.exe** SHA-256: ``$h```n`n**N1MMautostarter.exe** SHA-256: ``$a`` (for PCs without POUNCer: starts N1MM and your other programs)`n`nWindow layout test: $tk.`n`nPut POUNCer.exe and config.ini in the same folder; see CHANGELOG.md for what's new."
-          gh release create "$env:TAG" dist\POUNCer.exe dist\config.ini dist\N1MMautostarter.exe --target "$env:GITHUB_SHA" --title "POUNCer $env:TAG" --notes "$notes"
+          # SHA256SUMS.txt: the updater installs only if this and GitHub's own
+          # record of the file agree with the download (two checksums).
+          $sums = foreach ($f in "POUNCer.exe", "N1MMautostarter.exe", "config.ini") {
+            "{0}  {1}" -f (Get-FileHash "dist\$f" -Algorithm SHA256).Hash.ToLower(), $f
+          }
+          [IO.File]::WriteAllText("dist\SHA256SUMS.txt", (($sums -join "`n") + "`n"))
+          Get-Content dist\SHA256SUMS.txt
+          gh release create "$env:TAG" dist\POUNCer.exe dist\config.ini dist\N1MMautostarter.exe dist\SHA256SUMS.txt --target "$env:GITHUB_SHA" --title "POUNCer $env:TAG" --notes "$notes"
 
       - uses: actions/upload-artifact@v6
         with:

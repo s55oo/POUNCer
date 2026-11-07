@@ -1,5 +1,26 @@
 # POUNCer — Changelog
 
+## v0.7.140 — 2026-11-07 — Firewall button, team password, safer updates
+
+From N1MMPingPong (same author):
+
+- **File > Allow POUNCer in Windows Firewall…**: adds the inbound rules for
+  the phone page (TCP 8080) and the team (UDP 12079), private and domain
+  networks, with one administrator prompt. Checked at start - the menu then
+  reads "Windows Firewall: POUNCer allowed ✔".
+- **Firewall hint**: when the team should be there but no other POUNCer is
+  heard for 30 s, the check line says "Team: no other POUNCer heard –
+  firewall?".
+- **File > Team password…** (optional): team messages signed with
+  HMAC-SHA256 and a time stamp; unsigned, wrong, changed or over 5 min old
+  ones are ignored. Only a key from the password is stored. Off by default.
+- **Two checksums for updates**: each release has a `SHA256SUMS.txt`; an
+  update is installed only if it and GitHub's own record agree with the file.
+- **Help > Switch version…**: install any published version, newer or
+  older, checked the same way; the running one is kept in `versions\`.
+- The network addresses (top bar, QR codes) come straight from Windows
+  instead of running `ipconfig` every minute (`ipconfig` stays the fallback).
+
 ## v0.7.139 — 2026-11-07 — QR code for the phone page
 
 - **Phone page QR code**: click the address in the top bar (or *View > Phone

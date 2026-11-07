@@ -305,6 +305,16 @@ connection error is logged the first time and then every 10th time in a row.
 
 ## 9. Team (UDP 12079, in and out)
 
+**Team password** (optional, File > Team password…, v0.7.140): every message
+then ends in `\n#PCS1 <unix time> <HMAC-SHA256>` over the time and the JSON
+(key: PBKDF2-SHA256 of the password, 20000 rounds; only the key is stored in
+`[team] key`). Unsigned, wrongly signed, changed or more than 300 s old
+messages are dropped; without a password nothing is added (as before).
+
+**Firewall:** File > Allow POUNCer in Windows Firewall… adds `POUNCer team
+UDP` (this port) and `POUNCer phone page TCP` (8080), private + domain
+networks.
+
 Several POUNCers on one network. Compact JSON datagrams, each with `id` (a
 random id of that POUNCer) and `t` (type):
 

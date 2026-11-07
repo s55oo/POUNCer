@@ -2126,10 +2126,74 @@ def parse_ipconfig(text: str) -> list[tuple[str, str]]:
     return out
 
 
+def windows_adapters() -> list[tuple[str, str]]:
+    """``(adapter description, ipv4)`` straight from Windows (GetIpAddrTable +
+    GetIfEntry - no ``ipconfig`` process, same in every Windows language),
+    e.g. ``("ZeroTier Virtual Port", "10.66.66.5")``. Same as N1MMPingPong's."""
+    import ctypes
+    import struct
+    from ctypes import wintypes
+
+    class MIB_IPADDRROW(ctypes.Structure):
+        _fields_ = [("dwAddr", wintypes.DWORD), ("dwIndex", wintypes.DWORD),
+                    ("dwMask", wintypes.DWORD), ("dwBCastAddr", wintypes.DWORD),
+                    ("dwReasmSize", wintypes.DWORD), ("unused1", ctypes.c_ushort),
+                    ("wType", ctypes.c_ushort)]
+
+    class MIB_IFROW(ctypes.Structure):
+        _fields_ = [("wszName", ctypes.c_wchar * 256), ("dwIndex", wintypes.DWORD),
+                    ("dwType", wintypes.DWORD), ("dwMtu", wintypes.DWORD),
+                    ("dwSpeed", wintypes.DWORD), ("dwPhysAddrLen", wintypes.DWORD),
+                    ("bPhysAddr", ctypes.c_ubyte * 8), ("dwAdminStatus", wintypes.DWORD),
+                    ("dwOperStatus", wintypes.DWORD), ("dwLastChange", wintypes.DWORD),
+                    ("dwInOctets", wintypes.DWORD), ("dwInUcastPkts", wintypes.DWORD),
+                    ("dwInNUcastPkts", wintypes.DWORD), ("dwInDiscards", wintypes.DWORD),
+                    ("dwInErrors", wintypes.DWORD), ("dwInUnknownProtos", wintypes.DWORD),
+                    ("dwOutOctets", wintypes.DWORD), ("dwOutUcastPkts", wintypes.DWORD),
+                    ("dwOutNUcastPkts", wintypes.DWORD), ("dwOutDiscards", wintypes.DWORD),
+                    ("dwOutErrors", wintypes.DWORD), ("dwOutQLen", wintypes.DWORD),
+                    ("dwDescrLen", wintypes.DWORD), ("bDescr", ctypes.c_ubyte * 256)]
+
+    iphlpapi = ctypes.windll.iphlpapi
+    size = wintypes.ULONG(0)
+    iphlpapi.GetIpAddrTable(None, ctypes.byref(size), False)
+    if not size.value:
+        return []
+    buf = ctypes.create_string_buffer(size.value)
+    if iphlpapi.GetIpAddrTable(buf, ctypes.byref(size), False) != 0:
+        return []
+    count = ctypes.cast(buf, ctypes.POINTER(wintypes.DWORD))[0]
+    rows = ctypes.cast(ctypes.addressof(buf) + ctypes.sizeof(wintypes.DWORD),
+                       ctypes.POINTER(MIB_IPADDRROW))
+    out = []
+    for i in range(count):
+        row = rows[i]
+        if row.wType & (0x0008 | 0x0040):          # disconnected / deleted
+            continue
+        ip = socket.inet_ntoa(struct.pack("<I", row.dwAddr))
+        if ip.startswith(("0.", "127.", "169.254.")):
+            continue
+        descr = ""
+        ifrow = MIB_IFROW()
+        ifrow.dwIndex = row.dwIndex
+        if iphlpapi.GetIfEntry(ctypes.byref(ifrow)) == 0:
+            n = min(ifrow.dwDescrLen, 256)
+            descr = bytes(ifrow.bDescr[:n]).split(b"\0")[0].decode("latin-1", "replace")
+        out.append((descr, ip))
+    return out
+
+
 def adapter_ipv4s() -> list[tuple[str, str]]:
-    """``(adapter, ipv4)`` for this PC (Windows ``ipconfig``); [] elsewhere."""
+    """``(adapter, ipv4)`` for this PC: straight from Windows, else parsed
+    from ``ipconfig``; [] elsewhere."""
     if sys.platform != "win32":
         return []
+    try:
+        found = windows_adapters()
+        if found:
+            return found
+    except Exception as exc:  # noqa: BLE001 - fall back to ipconfig
+        log.debug("adapters from Windows failed: %s", exc)
     try:
         res = subprocess.run(
             ["ipconfig"], capture_output=True, timeout=5,

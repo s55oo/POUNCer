@@ -51,7 +51,9 @@ from . import summary as summarymod
 from . import settings as settingsmod
 from . import winstate
 from .settings_window import SettingsWindow
-from .team import Team
+from .team import Team, derive_key
+from .winfw import add_firewall_rules, firewall_rule_exists
+from .settings import set_ini_value
 from .update import Updater
 from .web import phone_addresses, WebServer, pick_web_address
 from .win32 import (
@@ -165,6 +167,8 @@ class PouncerApp:
         self.cfg = config
         self._tap_async = True      # taps run as steps between window updates
         self._tap_gen = None
+        self._app_started = time.time()
+        self._fw_ok = None            # POUNCer's firewall rules there: True / False / None
         # internet up / down: one clear red bar instead of every feed failing alone
         self.net = (NetWatch(on_change=lambda up: self._web_queue.put(("net", up)))
                     if getattr(config, "internet_check", True) else None)
@@ -627,6 +631,12 @@ class PouncerApp:
         file.add_command(label="Open the autostart folder",
                          command=lambda: self._open_path(self._autostart_folder()))
         file.add_separator()
+        file.add_command(label="Allow POUNCer in Windows Firewall\u2026", command=self._allow_firewall,
+                         state="normal" if sys.platform == "win32" else "disabled")
+        self._fw_menu = (file, file.index("end"))
+        file.add_command(label=self._team_pw_label(), command=self._team_password)
+        self._pw_menu = (file, file.index("end"))
+        file.add_separator()
         file.add_command(label="Restart POUNCer", command=self._restart_now,
                          state="normal" if self.updater.exe else "disabled")
         file.add_command(label="Exit", command=self._shutdown_and_quit)
@@ -686,6 +696,8 @@ class PouncerApp:
         helpm.add_command(label="Update all POUNCers in the team (from the master)",
                           command=self._update_team)
         helpm.add_command(label="Go back to the previous version", command=self._rollback)
+        helpm.add_command(label="Switch version\u2026 (any released version)",
+                          command=self._switch_version)
         helpm.add_command(label="POUNCer on GitHub", command=lambda: self._open_url(GITHUB_URL))
         helpm.add_command(label="Save diagnostics (zip)", command=self._save_diagnostics)
         helpm.add_command(label="Open the log file", command=lambda: self._open_path(
@@ -2845,6 +2857,9 @@ class PouncerApp:
             if item[0] == "net":
                 self._on_net_change(item[1])
                 continue
+            if item[0] == "fw":                   # the firewall check is done
+                self._update_fw_menu()
+                continue
             if item[0] == "src":                  # a slave's Spots button (team)
                 self._set_source(item[1], from_team=True)
                 continue
@@ -3136,6 +3151,7 @@ class PouncerApp:
     def _start_team(self) -> None:
         try:
             self.team = Team(
+                key=bytes.fromhex(self.cfg.team_key) if self.cfg.team_key else b"",
                 web_port=self.cfg.web_port if self.cfg.web_enabled else 0,
                 on_spot=self._team_spot,
                 on_runhist=(self.runhist.merge if self.runhist else None),
@@ -3696,7 +3712,34 @@ class PouncerApp:
             "web": ("ok" if self.web is not None else "bad") if self.cfg.web_enabled else "off",
             "clock_offset": self.clock.offset,
             "clock_source": self.clock.source,
+            "team_note": self._team_note(role),
         }
+
+    TEAM_SILENT_S = 30     # after start: no other POUNCer heard - say so (when one is expected)
+
+    def _team_note(self, role: str) -> str | None:
+        """The check item 'Team': a team password that doesn't fit, or no
+        other POUNCer heard although one is expected (peers set, or one was
+        here before) - then probably the firewall."""
+        team = getattr(self, "team", None)
+        if team is None:
+            return None
+        auth = team.auth_problem()
+        if auth:
+            return auth
+        if role != "solo":
+            self._team_seen = True
+            return None
+        expected = bool(self.cfg.team_peers) or getattr(self, "_team_seen", False)
+        started = getattr(self, "_app_started", None)
+        if started is None:
+            started = self._app_started = time.time()
+        if not expected or time.time() - started < self.TEAM_SILENT_S:
+            return None
+        if getattr(self, "_fw_ok", None) is False:
+            return ("no other POUNCer heard - firewall? File > Allow POUNCer in Windows "
+                    "Firewall\u2026")
+        return "no other POUNCer heard - check that PC's POUNCer and its firewall"
 
     def _update_check_line(self) -> None:
         self._checks = checksmod.build(self._check_facts())
@@ -4138,12 +4181,92 @@ class PouncerApp:
         st = self.updater.state
         if st == "ready":
             self._auto_restart = False
-            log.info("team update: restarting with %s", self.updater.new_version)
+            log.info("update: restarting with %s", self.updater.new_version)
             self._restart_for_update()
         elif st in ("current", "failed") and time.time() - self._auto_restart_at > 5:
             self._auto_restart = False
-            self.status_label.configure(text="Team update: " + (
-                "already the newest version" if st == "current" else "failed - see the log"))
+            self.status_label.configure(text="Update: " + (
+                "already the newest version" if st == "current" else
+                f"failed - {self.updater.error or 'see the log'}"))
+
+    def _switch_version(self) -> None:
+        """Help > Switch version...: the published versions (newest first);
+        install the one picked - newer or older - checked like an update
+        (two SHA-256 sums), the running one kept in versions\\, then restart."""
+        from tkinter import messagebox
+        if not self.updater.exe:
+            messagebox.showinfo("POUNCer", "Switching versions works in POUNCer.exe only.",
+                                parent=self.root)
+            return
+        old = getattr(self, "_switch_win", None)
+        if old is not None:
+            try:
+                old.destroy()
+            except tk.TclError:
+                pass
+        win = tk.Toplevel(self.root)
+        self._switch_win = win
+        win.title("POUNCer - switch version")
+        win.transient(self.root)
+        ttk.Label(win, text=f"This one: v{__version__}. Pick a version to install "
+                            "(newer or older):").pack(padx=12, pady=(10, 4), anchor="w")
+        lb = tk.Listbox(win, height=12, width=44, font=(theme.FONT, 10), activestyle="dotbox")
+        lb.pack(padx=12, fill="both", expand=True)
+        lb.insert("end", "loading the list from GitHub ...")
+        note = ttk.Label(win, text="", style="Muted.TLabel")
+        note.pack(padx=12, pady=(4, 0), anchor="w")
+        bar = ttk.Frame(win)
+        bar.pack(padx=12, pady=10, fill="x")
+        releases: list[dict] = []
+
+        def install() -> None:
+            sel = lb.curselection()
+            if not sel or not releases:
+                return
+            r = releases[sel[0]]
+            if r["tag"].lstrip("v") == __version__:
+                note.configure(text="That is the version running now.")
+                return
+            if not messagebox.askyesno("POUNCer", f"Install {r['tag']} ({r['date']}) and restart "
+                                       "POUNCer?\n\nThe running version is kept in versions\\ "
+                                       "(Help > Go back to the previous version).", parent=win):
+                return
+            self.updater.install_release(r["release"])
+            self._auto_restart = True                    # _check_auto_restart restarts it
+            self._auto_restart_at = time.time()
+            self.status_label.configure(text=f"Switching to {r['tag']} ...")
+            win.destroy()
+
+        ttk.Button(bar, text="Install and restart", command=install).pack(side="left")
+        ttk.Button(bar, text="Close", command=win.destroy).pack(side="right")
+        lb.bind("<Double-Button-1>", lambda _e: install())
+        win.bind("<Escape>", lambda _e: win.destroy())
+
+        def load() -> None:
+            try:
+                got = self.updater.list_releases()
+                err = ""
+            except Exception as exc:  # noqa: BLE001 - offline, GitHub down
+                got, err = [], str(exc)
+            self.root.after(0, lambda: show(got, err))
+
+        def show(got: list[dict], err: str) -> None:
+            try:
+                lb.delete(0, "end")
+                if err or not got:
+                    lb.insert("end", "no list - offline?" if err else "no versions found")
+                    note.configure(text=err[:80])
+                    return
+                releases.extend(got)
+                for r in got:
+                    mark = "   \u2190 running now" if r["tag"].lstrip("v") == __version__ else ""
+                    lb.insert("end", f"{r['tag']}   {r['date']}{mark}")
+                note.configure(text="Checked like an update: GitHub's SHA-256 and "
+                                    "SHA256SUMS.txt must agree.")
+            except tk.TclError:
+                pass                                      # the window was closed
+
+        threading.Thread(target=load, name="release-list", daemon=True).start()
 
     def _rollback(self) -> None:
         """Help > Go back to the previous version (kept in versions\\)."""
@@ -4649,6 +4772,115 @@ class PouncerApp:
             addrs = []
         return [(label, f"http://{ip}:{web.port}/") for label, ip in addrs]
 
+    # ---- Windows Firewall (File > Allow POUNCer in Windows Firewall...) ------
+
+    FW_TCP_RULE = "POUNCer phone page TCP"
+    FW_UDP_RULE = "POUNCer team UDP"
+
+    def _fw_rules(self) -> list[tuple[str, str, int]]:
+        """(rule name, protocol, port): the phone page (TCP) and the team (UDP)."""
+        rules = []
+        if self.cfg.web_enabled:
+            rules.append((self.FW_TCP_RULE, "TCP", int(self.cfg.web_port)))
+        if self.cfg.team:
+            rules.append((self.FW_UDP_RULE, "UDP", int(self.cfg.team_port)))
+        return rules
+
+    def _check_firewall(self) -> None:
+        """In the background: are POUNCer's rules there? -> self._fw_ok and
+        the menu item ('Windows Firewall: POUNCer allowed ✔')."""
+        if sys.platform != "win32":
+            return
+
+        def work():
+            found = [firewall_rule_exists(name) for name, _p, _n in self._fw_rules()]
+            self._fw_ok = None if None in found else all(found)
+            self._web_queue.put(("fw",))
+
+        threading.Thread(target=work, name="firewall-check", daemon=True).start()
+
+    def _update_fw_menu(self) -> None:
+        menu, idx = getattr(self, "_fw_menu", (None, None))
+        if menu is None:
+            return
+        label = ("Windows Firewall: POUNCer allowed \u2714  (add the rules again\u2026)"
+                 if getattr(self, "_fw_ok", None) else "Allow POUNCer in Windows Firewall\u2026")
+        try:
+            menu.entryconfigure(idx, label=label)
+        except tk.TclError:
+            pass
+
+    def _allow_firewall(self) -> None:
+        """Add the inbound rules (Windows asks for administrator rights):
+        TCP phone page + UDP team, private and domain networks only; an older
+        rule with the same name is replaced."""
+        from tkinter import messagebox
+        rules = self._fw_rules()
+        if not rules:
+            messagebox.showinfo("POUNCer", "Phone page and team are both off - nothing to allow.",
+                                parent=self.root)
+            return
+        what = ", ".join(f"{p} {n} ({'phone page' if p == 'TCP' else 'team'})"
+                         for _name, p, n in rules)
+        if not messagebox.askyesno(
+                "POUNCer - Windows Firewall",
+                f"Allow incoming {what} on private and domain networks?\n\nWindows asks for "
+                "administrator rights. Older rules with the same names are replaced.",
+                parent=self.root):
+            return
+        ok, detail = add_firewall_rules(rules)
+        if ok:
+            self.root.after(3000, self._check_firewall)
+            messagebox.showinfo("POUNCer - Windows Firewall",
+                                "Firewall rules added: " + ", ".join(n for n, _p, _q in rules)
+                                + ".\n\nIf the VPN / network adapter is set to Public in "
+                                "Windows, set it to Private - the rules don't apply to Public.",
+                                parent=self.root)
+            log.info("firewall rules added: %s", what)
+        else:
+            messagebox.showwarning("POUNCer - Windows Firewall",
+                                   f"The rules were not added ({detail}).", parent=self.root)
+
+    # ---- team password (File > Team password...) -----------------------------
+
+    def _team_pw_label(self) -> str:
+        return "Team password\u2026  (" + ("ON \u2714" if self.cfg.team_key else "off") + ")"
+
+    def _team_password(self) -> None:
+        """Set / change / remove the team password: typed twice; only a key
+        made from it is saved ([team] key), never the password itself. Every
+        POUNCer of the team needs the same one."""
+        from tkinter import messagebox, simpledialog
+        pw = simpledialog.askstring(
+            "POUNCer - team password",
+            "Team password (the same on every POUNCer of the team).\n"
+            "Empty = no password (off).", show="*", parent=self.root)
+        if pw is None:
+            return
+        if pw:
+            again = simpledialog.askstring("POUNCer - team password", "Once more:", show="*",
+                                           parent=self.root)
+            if again != pw:
+                messagebox.showwarning("POUNCer", "The two passwords differ - nothing changed.",
+                                       parent=self.root)
+                return
+        key = derive_key(pw)
+        self.cfg.team_key = key.hex()
+        try:
+            set_ini_value(self.cfg.config_path, "team", "key", key.hex())
+        except OSError as exc:
+            messagebox.showwarning("POUNCer", f"Not saved: {exc}", parent=self.root)
+        if self.team is not None:
+            self.team.key = key
+        log.info("team password %s", "set" if key else "removed")
+        menu, idx = getattr(self, "_pw_menu", (None, None))
+        if menu is not None:
+            menu.entryconfigure(idx, label=self._team_pw_label())
+        messagebox.showinfo(
+            "POUNCer", ("Team password set. Set the same one on every POUNCer of the team - "
+                        "until then they don't hear each other (the check line says so)."
+                        if key else "Team password off."), parent=self.root)
+
     def _show_phone_qr(self) -> None:
         """A window with a QR code per address (LAN, ZeroTier): scan it with
         the phone's camera and the page opens - no typing. Click a code to
@@ -4747,6 +4979,7 @@ class PouncerApp:
         if getattr(self, "_services_started", False):
             return
         self._services_started = True
+        self._check_firewall()                 # are POUNCer's firewall rules there?
         if getattr(self, "net", None) is not None:
             self.net.start()
         if self.cfg.web_enabled:

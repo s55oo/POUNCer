@@ -95,6 +95,10 @@ def build(f: dict) -> list[dict]:
         add("SCP", "warn" if days is not None and days > SCP_OLD_DAYS else "ok",
             "" if days is None else f"{days:.0f} d" + (" old" if days > SCP_OLD_DAYS else ""))
 
+    team = f.get("team_note")     # None = nothing to say; text = warn
+    if team:
+        add("Team", "warn", team)
+
     web = f.get("web")            # "ok" / "off" / "bad"
     add("Phone", web or "off", "" if web == "ok" else ("off" if web in (None, "off") else "web page not running"))
 

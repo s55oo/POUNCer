@@ -198,14 +198,16 @@ class TkSettingsWindowTests(unittest.TestCase):
             _settings_win=types.SimpleNamespace(open=lambda: None),
             _console=types.SimpleNamespace(open=lambda: None),
             cfg=types.SimpleNamespace(config_path="C:/x/config.ini", alert_popup=True, rate_line=True,
-                                      alert_sound=False, look="dark"),
+                                      alert_sound=False, look="dark", team_key=""),
             _start_autostart=lambda: None, _stop_waiting_n1mm=lambda: None, _save_diagnostics=lambda: None, _open_path=lambda p: None,
             _autostart_folder=lambda: "",
         )
         for name in ("_open_config_folder", "_reconnect_log", "_restart_now", "_shutdown_and_quit",
                      "_on_toggle_worked", "_clear_spots", "_open_browser", "_on_update_click",
-                     "_open_url", "_about", "_apply_compact", "_apply_topmost", "_set_alert", "_open_app_window", "_set_look", "_toggle_tiles", "_toggle_layout", "_show_phone_qr", "_station_test", "_toggle_rate_line", "_update_team", "_rollback"):
+                     "_open_url", "_about", "_apply_compact", "_apply_topmost", "_set_alert", "_open_app_window", "_set_look", "_toggle_tiles", "_toggle_layout", "_show_phone_qr", "_allow_firewall",
+                     "_team_password", "_switch_version", "_station_test", "_toggle_rate_line", "_update_team", "_rollback"):
             setattr(f, name, lambda *a, **k: None)
+        f._team_pw_label = PouncerApp._team_pw_label.__get__(f)
         PouncerApp._build_menu(f)
         bar = f.menubar
         labels = [bar.entrycget(i, "label") for i in range(bar.index("end") + 1)]
