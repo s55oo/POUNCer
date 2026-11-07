@@ -1580,10 +1580,19 @@ class PouncerApp:
                     f"Settings from other devices: {onoff(g(c, 'web_remote_settings', False))}; "
                     f"CW keyboard: {onoff(g(c, 'web_cw_keyboard', True))}")
         if group == "PSKR":
+            on = g(c, "ssb_pskreporter", True)
             return ("PSKR - PSK Reporter (MQTT): is a 40 / 160 m spot in the FT8 window "
                     "really FT8?\n"
-                    "Server: mqtt.pskreporter.info:1883\n"
-                    f"Asked: {onoff(g(c, 'ssb_pskreporter', True))} ([ssb] pskreporter)")
+                    f"Server: mqtt.pskreporter.info:1883, asked: {onoff(on)} ([ssb] pskreporter)\n"
+                    "Asked only for an SSB spot on 7074 - 7077 or 1840 - 1843 kHz (FT8 inside "
+                    "the SSB segment) with no mode word: that one call is watched for 2 min "
+                    "(max 8 at once). A FT8 / FT4 report of him within 3.5 kHz (5 min) = the "
+                    "spot becomes FT8 / FT4 and leaves the SSB list; none = stays SSB.\n"
+                    "Never asked - FT8 at once: 14074, 21074, 28074, 3573 ... (FT8 / FT4 "
+                    "windows below the SSB segment, dial + 3 kHz), or FT8 / FT4 / DIGI / "
+                    "JT65 / PSK ... in the comment.\n"
+                    "Your radio on USB at 7074 - 7077: SSB only while an SSB contest is open "
+                    "in N1MM; at 14074 etc. never SSB.")
         if group == "SERVER":
             dxc = g(self, "_dxc", None)
             up = self._cluster_upstream() if hasattr(self, "_cluster_upstream") else None
