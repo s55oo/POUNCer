@@ -1512,6 +1512,7 @@ class PouncerApp:
         role = self.team.role() if self.team is not None else "off"
         if role == "slave":
             notes["RBN"] = notes["SSB"] = "via the team master"
+            notes["TELNET"] = "via the team master"
             if self.team.master_paused():
                 notes["RBN"] = "paused - the whole team on SSB"
         elif getattr(self, "_rbn_pause_on", False):
@@ -1519,6 +1520,11 @@ class PouncerApp:
                             else "paused - every radio on SSB")
         elif not self._rbn_clients:
             notes["RBN"] = "not connected"
+        if role != "slave" and not any(getattr(c, "backup", None) and c.on_backup
+                                       for c in self._rbn_clients.values()):
+            notes["TELNET"] = ("CW spots from RBN now (Spots: Telnet to switch)"
+                               + ("; the spots-of-my-call feed is here"
+                                  if getattr(self, "_self_feed", None) else ""))
         if role != "slave":
             ssb = (self.ssb_status or "").lower()
             if ssb.startswith("via n1mm"):

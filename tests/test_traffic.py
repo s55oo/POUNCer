@@ -40,6 +40,9 @@ class TapTests(unittest.TestCase):
         self.assertEqual(traffic.group_of("ssb"), "SSB")
         self.assertEqual(traffic.group_of("ssb >"), "SSB")
         self.assertEqual(traffic.group_of("rbn"), "RBN")
+        self.assertEqual(traffic.group_of("telnet"), "TELNET")
+        self.assertEqual(traffic.group_of("telnet >"), "TELNET")
+        self.assertEqual(traffic.group_of("self-spot"), "TELNET")
         self.assertEqual(traffic.group_of("N1MM 127.0.0.1"), "N1MM")
         self.assertEqual(traffic.group_of("TEAM >"), "TEAM")
         self.assertEqual(traffic.group_of("WEB 10.0.0.2"), "WEB")
@@ -165,6 +168,21 @@ class ConsoleTests(unittest.TestCase):
         lines = self.body().strip().splitlines()
         self.assertLessEqual(len(lines), 50)
         self.assertTrue(lines[-1].endswith("n199"))
+
+
+
+class TelnetNameTests(unittest.TestCase):
+    def test_cw_feed_on_the_telnet_server(self) -> None:
+        import queue
+        from pouncer.rbn import RBNClient
+        c = RBNClient("rbn.example", 7000, "S55OO", "", queue.Queue(),
+                      backup=("telnet.example", 8000))
+        self.assertEqual(c._traffic_name(), "rbn")
+        c.prefer(True)
+        self.assertEqual(c._traffic_name(), "telnet")
+        self.assertEqual(traffic.group_of(c._traffic_name()), "TELNET")
+        ssb = RBNClient("cl.example", 8000, "S55OO", "", queue.Queue(), kind="cluster", name="ssb")
+        self.assertEqual(traffic.group_of(ssb._traffic_name()), "SSB")
 
 
 if __name__ == "__main__":

@@ -717,7 +717,7 @@ Treeview is compact (`rowheight=px(22)`, 9 pt, headings 8 pt bold). `pouncer/tra
 is the tap: `_sink` None while closed (each hook checks `traffic._sink is not None`
 before formatting anything), `start()` = a `deque(maxlen=5000)`, `emit(source, text)`
 (thread-safe append), `drain()`, `squeeze()` (one line, cut at 400 chars),
-`group_of(source)` → RBN / SSB / HTTP / N1MM / TEAM / WEB. Hooks: `rbn._consume` (each
+`group_of(source)` → RBN / TELNET / SSB / HTTP / N1MM / TEAM / WEB / PSKR (TELNET = `RBNClient._traffic_name()` 'telnet' while the CW feed is on the backup server, and the 'self-spot' feed; v0.7.138). Hooks: `rbn._consume` (each
 line, source = client name; commands as `name >`), `n1mm` listener (`N1MM <ip>`) and
 `_send` (`N1MM >`), `rbnhttp` (`HTTP`), `team` (`TEAM <ip>` / `TEAM >`), `web.do_GET`
 (`WEB <ip>`, path). `console.TrafficConsole(root)`: `open()` → `traffic.start()` and a

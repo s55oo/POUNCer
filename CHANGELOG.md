@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## v0.7.138 — 2026-11-07 — TELNET in the traffic console
+
+- The traffic console has a **TELNET** group (own switch, dot, counter and
+  colour): the CW spots while they come from the telnet server (*Spots:
+  Telnet*, or RBN down), with the login and commands sent, and the
+  spots-of-my-call connection (before: under RBN / SSB). When the CW feed is
+  on RBN the group says why it is quiet: "CW spots from RBN now (Spots:
+  Telnet to switch)".
+
 ## v0.7.137 — 2026-11-07 — Spots: RBN | Telnet button
 
 - **Spots: [RBN] [Telnet]** next to Min SNR: one click switches where the CW

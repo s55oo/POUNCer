@@ -378,7 +378,7 @@ azure.s53m.com:8000, the node N1MM uses), login `<call>-77` (`self_spot_ssid`:
 its own SSID, never N1MM's; in a team only the master logs in and passes
 spots of your call on to the others), and after login `self_spot_filter` (`accept/spots call
 {call}`) tells the node to send **only spots of your call** - normally not a
-single line arrives on it. Shown as "self-spot" (SSB) in the traffic console.
+single line arrives on it. Shown as "self-spot" (TELNET) in the traffic console.
 Spots of your call from POUNCer's own SSB cluster or the team master count
 too. In a team every PC gets it, but the **pop-up only shows on the PC whose
 radio is on the spot's band** (`[ui] self_spot_band_only`, on); the others log
@@ -397,8 +397,10 @@ Broadcast Data.
 window of its own - Edge or Chrome "app" mode, no tabs, no address bar.
 
 **Traffic console** (View menu or **Ctrl+Shift+D**): the raw data of every
-source as it arrives or goes out - RBN and SSB cluster lines (and the
-commands sent), N1MM UDP packets in and QSY / call commands out, the HTTP
+source as it arrives or goes out - RBN lines, **TELNET** (the CW feed while
+it comes from the telnet server, *Spots: Telnet*, and the spots-of-my-call
+connection - both azure.s53m.com:8000), SSB cluster lines (and the commands
+sent), N1MM UDP packets in and QSY / call commands out, the HTTP
 backup feed, the team, the phone page's requests (WEB, off at first). Tick
 sources on / off, type a filter word (a call, `DX de`, `RadioInfo` ...),
 Pause, Clear; outgoing lines are yellow (`>`). Under the switches each
