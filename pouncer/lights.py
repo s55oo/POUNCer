@@ -34,6 +34,10 @@ def rbn_light(status: str, last_spot_age: float | None, role: str,
         return OK, name
     if s.startswith("logged in"):
         return OK, name
+    if s.startswith("via n1mm"):
+        return OK, "RBN via N1MM's login"     # one login on the node, shared with N1MM
+    if s.startswith("standby"):
+        return (OK if http else HOLD), ("RBN via HTTP" if http else "RBN standby (HTTP)")
     if s.startswith(("starting", "connecting")):
         return WAIT, "RBN"
     return BAD, "RBN"

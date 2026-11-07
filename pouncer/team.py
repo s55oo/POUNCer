@@ -382,7 +382,7 @@ class Team:
     def send_src(self, src: str) -> None:
         """Slave's button: ask the master to take the CW spots from 'rbn' /
         'telnet' (only the master acts on it)."""
-        if src in ("rbn", "telnet") and self.alive_peers():
+        if src in ("rbn", "telnet", "http") and self.alive_peers():
             self._send({"t": "src", "v": src}, broadcast=False)
 
     def send_update(self) -> None:
@@ -440,7 +440,7 @@ class Team:
                     # needs RBN? (older POUNCers don't say: yes, to be safe)
                     "cw": bool(msg.get("cw", True)),
                     "ssb": bool(msg.get("ssb", not msg.get("cw", True))), "paused": bool(msg.get("paused", False)),
-                    "src": msg.get("src") if msg.get("src") in ("rbn", "telnet") else None,
+                    "src": msg.get("src") if msg.get("src") in ("rbn", "telnet", "http") else None,
                 }
             if new:
                 log.info("team: POUNCer %s at %s joined", pid, ip)
@@ -450,7 +450,7 @@ class Team:
         elif kind == "update" and self._on_update and pid == self.master_id():
             self._on_update()
         elif kind == "src" and self._on_src and self.is_master() \
-                and msg.get("v") in ("rbn", "telnet"):
+                and msg.get("v") in ("rbn", "telnet", "http"):
             self._on_src(msg["v"])
         elif kind == "self" and self._on_self and isinstance(msg.get("d"), dict) \
                 and pid == self.master_id():

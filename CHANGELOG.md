@@ -1,5 +1,17 @@
 # POUNCer — Changelog
 
+## v0.7.148 — 2026-11-07 — Spots: RBN | Telnet | HTTP
+
+- **Fix (v0.7.147):** while the CW feed shared N1MM's login through the relay,
+  POUNCer took it for "telnet down" and started the HTTP backup after a
+  minute. The shared login now counts as working (light "RBN via N1MM's
+  login").
+- **HTTP button** next to RBN and Telnet (`[rbn] source = http`): the HTTP
+  feed is the first choice and runs all the time; the telnet connection
+  waits on standby (no login) and connects only while HTTP doesn't answer
+  for 2 minutes ("using RBN - HTTP down"). The note "using HTTP - telnet
+  down" shows when HTTP stands in for RBN / Telnet.
+
 ## v0.7.147 — 2026-11-07 — One login on the cluster for N1MM and POUNCer
 
 - With N1MM connected through the relay, POUNCer's own connection to the
