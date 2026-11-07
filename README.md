@@ -293,7 +293,9 @@ The window has two layouts (*View > Detailed layout*, `[ui] layout`).
   after them: *"✗ Log: N1MM Logger.ini not found (+1 more) – click: details"*.
   A click on it (or on the badge) shows every check item; click again to hide;
 - **one row of controls**: Sort (Time / Freq / SNR / Mult), Min SNR,
-  **Spots: RBN | Telnet | HTTP | Cluster** (where the spots come in from -
+  **MyCall | Relay**, and on the next row **Spots: RBN | Telnet | HTTP |
+  Cluster  TelBck | HamQTH** and **Spotters: Calls | DXCC | Zones | Cont |
+  WW** - every button the same width, room for six letters (where the spots come in from -
   each one on / off, see *Spots: where they come in from*; hover = the
   connection behind it; in a team the master's choice, a slave's click asks
   the master), the
@@ -727,10 +729,10 @@ list **and** out to N1MM / any client of the cluster server (port 10000):
 | **HTTP** | RBN's skimmer spots over HTTP - no login, works where telnet is blocked, catches up after a dropout | `[rbn] http_backup` (azure.s53m.com) |
 | **Cluster** | the DX cluster's spots **of people** (no `-#`, every mode; spotters `[ssb] spotters`, EU) | `[ssb] host` (azure.s53m.com:8000) |
 
-- **Telnet-bck** (after them, `[rbn] telnet_backup`, off by default): with
+- **TelBck** (after them, `[rbn] telnet_backup`, off by default): with
   RBN on and Telnet off, when RBN has been down or silent for a minute
   POUNCer connects to the telnet server (azure.s53m.com:8000 = S50DXS, its
-  skimmer spots) until RBN has worked for a minute again ("Telnet-bck: RBN
+  skimmer spots) until RBN has worked for a minute again ("TelBck: RBN
   down, telnet server meanwhile" next to the buttons). Off = nothing takes
   over.
 - **HamQTH** (`[rbn] hamqth_backup`, off by default): the backup when
@@ -744,7 +746,7 @@ list **and** out to N1MM / any client of the cluster server (port 10000):
   Cluster) **switched off**, HamQTH is that source itself, at once - HamQTH
   alone on = skimmer + cluster spots from HamQTH. No WPM or CQ in those spots.
   *Data provided by [HamQTH.com](https://www.hamqth.com/).*
-- Two more buttons after them for the other spot connections:
+- Two more buttons, on the **first row** (after Min SNR), for the other spot connections:
   **MyCall** (azure, login `<call>-77`, only spots of your own call - the
   SPOTTED pop-up; `[ui] self_spot_alert`) and **Relay** (`[cluster] relay`,
   needs the cluster server on): the switch that hands the
@@ -756,7 +758,7 @@ list **and** out to N1MM / any client of the cluster server (port 10000):
 - **The same spot from two sources counts once** (same call, frequency and
   skimmer within a minute) - e.g. RBN and HTTP both on.
 - **Only what you switched on**: nothing takes over when a source is down -
-  except RBN with **Telnet-bck** on. All off = no spots ("nothing on - no spots" next to the
+  except RBN with **TelBck** on. All off = no spots ("nothing on - no spots" next to the
   buttons, light "RBN: no skimmer source on").
 - **Telnet + Cluster on the same node** (both azure.s53m.com:8000) use
   **one** connection and one login - also for what N1MM sends through the

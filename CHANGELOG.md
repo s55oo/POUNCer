@@ -1,5 +1,11 @@
 # POUNCer — Changelog
 
+## v0.7.160 — 2026-11-07 — Buttons: MyCall / Relay on the first row, one width
+
+- **MyCall** and **Relay** moved to the first row, after Min SNR.
+- Every Sort, Spots and Spotters button has the same width, room for six
+  letters; "Telnet-bck" is now **TelBck**.
+
 ## v0.7.159 — 2026-11-07 — One Spotters filter for every source
 
 - **Spotters: Calls | DXCC | Zones | Cont | WW** buttons in the window: one

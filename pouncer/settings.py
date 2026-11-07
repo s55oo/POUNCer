@@ -151,10 +151,10 @@ SETTINGS: list[dict] = [
              "two sources counts once. Nothing takes over when they are down. Also the Spots "
              "buttons next to Min SNR (in a team: the master's choice)."},
     {"key": "rbn.telnet_backup", "attr": "rbn_telnet_backup", "kind": "bool", "live": True,
-     "group": "RBN", "label": "Telnet-bck: the telnet server while RBN is down",
+     "group": "RBN", "label": "TelBck: the telnet server while RBN is down",
      "help": "With RBN on and Telnet off: when RBN has been down or silent for a minute, "
              "connect to the telnet server below (its skimmer spots) until RBN works again "
-             "for a minute. Also the Telnet-bck button on the Spots line."},
+             "for a minute. Also the TelBck button on the Spots line."},
     {"key": "rbn.hamqth_backup", "attr": "rbn_hamqth_backup", "kind": "bool", "live": True,
      "group": "RBN", "label": "HamQTH: backup while the telnet connections are down",
      "help": "When the skimmer telnet connections (RBN / Telnet) have been down for a minute, "

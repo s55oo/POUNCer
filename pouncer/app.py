@@ -504,7 +504,7 @@ class PouncerApp:
         flow.add(ttk.Label(flow, text="Sort", style="Muted.TLabel"))
         for col in ("time", "freq", "snr", "mult"):
             btn = flow.add(ttk.Button(
-                flow, text=self._sort_labels[col], style="Sort.TButton",
+                flow, text=self._sort_labels[col], style="Sort.TButton", width=self.BTN_W,
                 command=lambda c=col: self._set_sort(c),
             ))
             self._sort_buttons[col] = btn
@@ -523,17 +523,26 @@ class PouncerApp:
         ttk.Label(box, text="dB").pack(side="left")
         flow.add(box, gap=12)
         self._min_snr_save = None
+        self._src_buttons = {}
+        # the other spot connections, on the first row
+        cn = ttk.Frame(flow)
+        for key, label in (("mycall", "MyCall"), ("relay", "Relay")):
+            b = ttk.Button(cn, text=label, style="Sort.TButton", takefocus=False,
+                           width=self.BTN_W, command=lambda k=key: self._set_source(k))
+            b.pack(side="left")
+            self._src_buttons[key] = b
+            self._source_hover(b, key)
+        flow.add(cn, gap=16)
         # where the CW spots come from: RBN or the telnet backup - one click
         src = ttk.Frame(flow)
         ttk.Label(src, text="Spots", style="Muted.TLabel").pack(side="left", padx=(0, 4))
-        self._src_buttons = {}
         for key, label in (("rbn", "RBN"), ("telnet", "Telnet"), ("http", "HTTP"),
-                           ("cluster", "Cluster"), ("telnetbck", "Telnet-bck"),
-                           ("hamqth", "HamQTH"), ("mycall", "MyCall"), ("relay", "Relay")):
+                           ("cluster", "Cluster"), ("telnetbck", "TelBck"),
+                           ("hamqth", "HamQTH")):
             if key == "telnetbck":
                 ttk.Label(src, text="", width=1).pack(side="left")    # a small gap
             b = ttk.Button(src, text=label, style="Sort.TButton", takefocus=False,
-                           command=lambda k=key: self._set_source(k))
+                           width=self.BTN_W, command=lambda k=key: self._set_source(k))
             b.pack(side="left")
             self._src_buttons[key] = b
             self._source_hover(b, key)
@@ -545,7 +554,8 @@ class PouncerApp:
         self._flt_buttons = {}
         for key in ("calls", "dxcc", "zones", "cont", "ww"):
             b = ttk.Button(flt, text=self.FILTER_NAMES[key], style="Sort.TButton",
-                           takefocus=False, command=lambda k=key: self._set_spotter_filter(k))
+                           takefocus=False, width=self.BTN_W,
+                           command=lambda k=key: self._set_spotter_filter(k))
             b.pack(side="left")
             self._flt_buttons[key] = b
             self._source_hover(b, "flt:" + key)
@@ -2240,7 +2250,7 @@ class PouncerApp:
             self.rbn_status = "paused: SSB, not needed" if paused else "starting"
         telnet = has_source(self.cfg, "telnet") and bool(self.cfg.rbn_backup_host)
         if not telnet and desired and self._telnet_backup_due():
-            telnet = True                     # Telnet-bck: RBN down, the telnet server meanwhile
+            telnet = True                     # TelBck: RBN down, the telnet server meanwhile
         if paused:
             desired, telnet = set(), False
         if self.team is not None:
@@ -2275,11 +2285,11 @@ class PouncerApp:
             self._rbn_clients[port] = client
             log.info("RBN client started on %s:%s", self.cfg.rbn_host, port)
 
-    BACKUP_AFTER_S = 60      # Telnet-bck: RBN down / silent this long -> the telnet server
+    BACKUP_AFTER_S = 60      # TelBck: RBN down / silent this long -> the telnet server
     BACKUP_BACK_S = 60       # ... and RBN working this long -> telnet closed again
 
     def _telnet_backup_due(self) -> bool:
-        """Telnet-bck on, RBN on, Telnet off: RBN down or silent for a minute
+        """TelBck on, RBN on, Telnet off: RBN down or silent for a minute
         -> True (until RBN has worked for a minute again)."""
         if not (getattr(self.cfg, "rbn_telnet_backup", False) and self.cfg.rbn_backup_host
                 and has_source(self.cfg, "rbn")):
@@ -2293,13 +2303,13 @@ class PouncerApp:
             self._rbn_good_since = self._rbn_good_since or now
             if active and now - self._rbn_good_since > self.BACKUP_BACK_S:
                 active = False
-                log.info("Telnet-bck: RBN works again - telnet server closed")
+                log.info("TelBck: RBN works again - telnet server closed")
         else:
             self._rbn_good_since = None
             self._rbn_bad_since = self._rbn_bad_since or now
             if not active and now - self._rbn_bad_since > self.BACKUP_AFTER_S:
                 active = True
-                log.info("Telnet-bck: RBN down / silent - %s:%s meanwhile",
+                log.info("TelBck: RBN down / silent - %s:%s meanwhile",
                          self.cfg.rbn_backup_host, self.cfg.rbn_backup_port)
         self._bck_active = active
         return active
@@ -2407,6 +2417,7 @@ class PouncerApp:
 
     FILTER_NAMES = {"calls": "Calls", "dxcc": "DXCC", "zones": "Zones", "cont": "Cont",
                     "ww": "WW"}
+    BTN_W = 7          # every Sort / Spots / Spotters button: room for six letters (HamQTH)
 
     @staticmethod
     def _list(text: str) -> list[str]:
@@ -2508,7 +2519,7 @@ class PouncerApp:
         self._src_last = None
 
     # the other spot connections on the Spots line: own settings, this PC only
-    CONN_KEYS = {"telnetbck": ("rbn.telnet_backup", "rbn_telnet_backup", "Telnet-bck"),
+    CONN_KEYS = {"telnetbck": ("rbn.telnet_backup", "rbn_telnet_backup", "TelBck"),
                  "hamqth": ("rbn.hamqth_backup", "rbn_hamqth_backup", "HamQTH"),
                  "mycall": ("ui.self_spot_alert", "self_spot_alert", "MyCall"),
                  "relay": ("cluster.relay", "cluster_relay", "Relay")}
@@ -2545,7 +2556,7 @@ class PouncerApp:
             "nothing on - no spots" if not on and not getattr(self.cfg, "rbn_hamqth_backup", False)
             else "")
         if not slave and getattr(self, "_bck_active", False):
-            note = "Telnet-bck: RBN down, telnet server meanwhile"
+            note = "TelBck: RBN down, telnet server meanwhile"
         hq = [n for n, k in (("skimmers", "rbn"), ("cluster", "spots"))
               if getattr(self, "_hq_feeds", {}).get(k) is not None]
         if not slave and hq:
