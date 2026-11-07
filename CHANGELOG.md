@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## v0.7.145 — 2026-11-07 — FT8 / FT4 out of the CW list (PSK Reporter)
+
+- A **CW spot in an FT8 / FT4 window** (3573, 3575.5, 7047.5, 14074, 14080,
+  21074, 21140, 28074, 28180 ... dial + 3 kHz) - a skimmer's false decode or
+  an FT8 spot with "CW" in its comment - is checked with PSK Reporter (MQTT,
+  that one call, 2 minutes), like the 40 / 160 m SSB check. FT8 / FT4 reports
+  of him there = the spot leaves the CW list; none = a real CW station (those
+  windows are busy in a CW contest), it stays, and its alert is not delayed.
+
 ## v0.7.144 — 2026-11-07 — PSKR hover: when FT8 is excluded
 
 - The **PSKR** hover in the traffic console lists when POUNCer asks PSK

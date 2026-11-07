@@ -64,7 +64,7 @@ examples: [docs/NETWORK.md](docs/NETWORK.md).
 | azure.s53m.com | TCP **8000** (telnet) | DX cluster → SSB spots (closed while N1MM sends its own spots) | while a radio is on SSB |
 | azure.s53m.com | TCP **8000** (telnet) | login `<call>-77` + `accept/spots call <call>` → spots of **your** call only (SPOTTED pop-up) | always (`[ui] self_spot_alert`); team: the master only |
 | azure.s53m.com | HTTPS **443** | `GET /cors/rbn/live` → RBN spots as JSON pages | only while the telnet feeds are down |
-| mqtt.pskreporter.info | TCP **1883** (MQTT) | subscribe to one call → its FT8/FT4 reports (is that spot FT8 or SSB?) | only for spots in the 40 m / 160 m FT8 windows, max 2 min |
+| mqtt.pskreporter.info | TCP **1883** (MQTT) | subscribe to one call → its FT8/FT4 reports (is that spot FT8 or SSB?) | only for SSB spots in the 40 m / 160 m FT8 windows and CW spots in an FT8 / FT4 window, max 2 min |
 | api.github.com, github.com | HTTPS **443** | update check → new POUNCer.exe (SHA-256 checked); warm-up lists (CW, SSB) | start + every 6 h; lists every 30 days |
 | raw.githubusercontent.com | HTTPS **443** | S53ZO's public contest-log archive → run history of a call (the call is in the URL) | for spotted calls not in the lists, cached |
 | www.supercheckpartial.com | HTTPS **443** | `MASTER.SCP` (only if newer: 304 otherwise) | at start + every 7 days |
@@ -702,7 +702,15 @@ PSK Reporter has him on FT8 / FT4 within 3 kHz, the spot becomes FT8 / FT4
 and leaves the SSB list (and POUNCer stops watching him at once); otherwise
 it stays SSB. Also in an SSB contest (it only ever confirms FT8, a real SSB
 station is never hidden); the rare-CQ alert for such a spot waits 30 s for
-the answer. `[ssb] pskreporter`
+the answer.
+
+**On CW too:** a **CW** spot in any FT8 / FT4 window (3573, 3575.5, 7047.5,
+14074, 14080, 21074, 21140, 28074, 28180 ... dial + 3 kHz) - a skimmer's
+false decode, or an FT8 spot with "CW" in the comment - is checked the same
+way. PSK Reporter has him on FT8 / FT4 there = the spot leaves the CW list;
+no report = a real CW station (in a CW contest those windows are full of
+them), it stays, and its alert is **not** held back. Cluster spots there
+without a mode word are FT8 / FT4 at once anyway. `[ssb] pskreporter`
 (Settings > SSB). The traffic console shows it as **PSKR**.
 
 ## Backup when RBN is down
@@ -1353,7 +1361,7 @@ All options live in `config.ini` and are documented there, line by line:
 | `spotters` | EU | Spotters' continent (EU, NA, ... or ALL). |
 | `history`, `login`, `commands` | 30, (your call), – | Last spots at login; login call (e.g. S55OO-2); commands after login. |
 | `use_n1mm_spots` | auto | `auto` = N1MM's spots (Broadcast Data > Spots) replace this cluster connection from N1MM's first spot (20 s without, or 4 x its usual gap = own cluster again, for at least a minute); `off` = always own. |
-| `pskreporter` | true | A spot on 7074 - 7077 / 1840 - 1843 without a mode: ask PSK Reporter about that one call; FT8 / FT4 reports there = not SSB. |
+| `pskreporter` | true | A spot on 7074 - 7077 / 1840 - 1843 without a mode, or a CW spot in any FT8 / FT4 window: ask PSK Reporter about that one call; FT8 / FT4 reports there = not SSB / not CW. |
 | `self_spot_host`, `self_spot_port` | azure.s53m.com, 8000 | The small cluster connection for spots of MY call only (N1MM drops them); empty host = off. Team: the master only. |
 | `self_spot_filter`, `self_spot_ssid` | accept/spots call {call}, 77 | Node filter sent after login (only spots of your call come); login `<call>-77`. pouncer.log shows the node's answer and, once, whether the filter works. |
 | `follow_radio_mode` | true | Radio on USB/LSB = SSB spots, CW = RBN CW spots. |

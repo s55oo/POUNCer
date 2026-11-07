@@ -23,7 +23,7 @@ from .n1mm import (
 )
 from .rbn import (
     ContinentFilter, OnFreqTracker, RBNClient, Spot, SpotterFilter, is_beacon, is_phone_contest,
-    ports_for_modes, spot_from_n1mm, digital_sure, digital_overlap,
+    ports_for_modes, spot_from_n1mm, digital_sure, digital_overlap, digital_mode,
 )
 from .runhist import RARE_HOURS, RARE_RUN_PCT, RunHistory
 from .rbnhttp import RBNHttpFeed
@@ -839,8 +839,10 @@ class PouncerApp:
         since = getattr(self, "_overlap_since", {})
         keys = getattr(self, "_overlap_keys", set())
         now = time.time()
+        # (a CW spot asked about isn't held: a CW mult pops up at once)
         candidates = [s for s in candidates
-                      if not (s.key in keys and now - since.get(s.key, now) < self.ALERT_HOLD_S)]
+                      if not (s.key in keys and s.key in since
+                              and now - since[s.key] < self.ALERT_HOLD_S)]
         fresh = self._alerts.fresh([(self._row_key(s), s) for s in candidates])
         if not fresh:
             return
@@ -1588,8 +1590,12 @@ class PouncerApp:
                     "the SSB segment) with no mode word: that one call is watched for 2 min "
                     "(max 8 at once). A FT8 / FT4 report of him within 3.5 kHz (5 min) = the "
                     "spot becomes FT8 / FT4 and leaves the SSB list; none = stays SSB.\n"
-                    "Never asked - FT8 at once: 14074, 21074, 28074, 3573 ... (FT8 / FT4 "
-                    "windows below the SSB segment, dial + 3 kHz), or FT8 / FT4 / DIGI / "
+                    "CW: a CW spot in any FT8 / FT4 window (3573, 3575.5, 7047.5, 14074, "
+                    "14080, 21074, 21140, 28074, 28180 ... + 3 kHz) is asked the same way: "
+                    "FT8 / FT4 report = leaves the CW list; none = real CW, stays (alert not "
+                    "delayed).\n"
+                    "Never asked - FT8 at once: a cluster spot with no mode word in a window "
+                    "below the SSB segment (14074, 21074, 3573 ...), or FT8 / FT4 / DIGI / "
                     "JT65 / PSK ... in the comment.\n"
                     "Your radio on USB at 7074 - 7077: SSB only while an SSB contest is open "
                     "in N1MM; at 14074 etc. never SSB.")
@@ -3160,9 +3166,20 @@ class PouncerApp:
             self._dirty = True
 
     def _check_overlap(self, spot: Spot) -> None:
-        """An SSB spot in 7074 - 7077 or 1840 - 1843: ask PSK Reporter (also in
-        an SSB contest - it only ever confirms FT8, a real SSB station stays)."""
-        if self.pskr is None or spot.mode != "SSB" or not digital_overlap(spot.freq_khz):
+        """Ask PSK Reporter (MQTT) about ONE call when its spot sits in an FT8 /
+        FT4 window and might really be FT8 / FT4:
+        - an SSB spot in 7074 - 7077 or 1840 - 1843 (FT8 inside the SSB
+          segment; also in an SSB contest - it only ever confirms FT8);
+        - a CW spot in any FT8 / FT4 window (3573, 7047.5, 14074, 14080,
+          21074, 28074 ... + 3 kHz): a skimmer's false decode or a "CW" word
+          on an FT8 spot. A real CW station there stays CW (no FT8 report of
+          him), and its alert is not held back."""
+        if self.pskr is None:
+            return
+        if spot.mode == "SSB":
+            if not digital_overlap(spot.freq_khz):
+                return
+        elif spot.mode != "CW" or not digital_mode(spot.freq_khz):
             return
         # PSK Reporter may already know (a re-spot): use that at once
         m = self.pskr.digital(spot.dxcall, spot.freq_khz)
@@ -3172,27 +3189,31 @@ class PouncerApp:
         self.pskr.ask(spot.dxcall, spot.freq_khz)
         self._overlap_keys.add(spot.key)
         since = getattr(self, "_overlap_since", None)
-        if since is not None:
+        if since is not None and spot.mode == "SSB":
             since.setdefault(spot.key, time.time())
 
     def _relabel_overlap(self) -> None:
-        """PSK Reporter has him on FT8 / FT4 there: the spot is FT8 / FT4."""
+        """PSK Reporter has him on FT8 / FT4 there: the spot is FT8 / FT4 (and
+        leaves the SSB / CW list)."""
         if not self._overlap_keys or self.pskr is None:
             return
         for key in list(self._overlap_keys):
             s = self.spots.get(key)
-            if s is None or s.mode != "SSB":
+            if s is None or s.mode not in ("SSB", "CW"):
                 self._overlap_keys.discard(key)
-                self._overlap_since.pop(key, None)
+                getattr(self, "_overlap_since", {}).pop(key, None)
                 continue
             m = self.pskr.digital(s.dxcall, s.freq_khz)
             if m:
+                was = s.mode
                 s.mode = m
                 self._overlap_keys.discard(key)
+                getattr(self, "_overlap_since", {}).pop(key, None)
                 self._dirty = True
-                log.info("PSK Reporter: %s %.1f is on %s, not SSB", s.dxcall, s.freq_khz, m)
+                log.info("PSK Reporter: %s %.1f is on %s, not %s", s.dxcall, s.freq_khz, m, was)
             elif time.time() - s.received > self.pskr.watch_s + 30:
-                self._overlap_keys.discard(key)      # no FT8 report: SSB it is
+                self._overlap_keys.discard(key)      # no FT8 report: SSB / CW it is
+                getattr(self, "_overlap_since", {}).pop(key, None)
 
     OWN_HEARD_S = 600   # ★ = our own skimmer heard him within this time
 
