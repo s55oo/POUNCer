@@ -293,7 +293,7 @@ The window has two layouts (*View > Detailed layout*, `[ui] layout`).
   after them: *"✗ Log: N1MM Logger.ini not found (+1 more) – click: details"*.
   A click on it (or on the badge) shows every check item; click again to hide;
 - **one row of controls**: Sort (Time / Freq / SNR / Mult), Min SNR,
-  **Spots: RBN | Telnet** (where the CW spots come from - one click switches at
+  **Spots: RBN | Telnet | HTTP** (where the CW spots come from - one click switches at
   once; the other one still takes over while the chosen one is down; in a team
   the master's choice, a slave's click asks the master), the
   **band chips** (`20 · 7M` = 7 new mults spotted on 20 m; colour = band
@@ -729,6 +729,14 @@ minute, POUNCer also reads RBN over **HTTP** from S53ZO's Azure server
 (`[rbn] http_backup`): no login, works where telnet is blocked, and after a
 dropout it catches up on the spots it missed. It stops again a minute after
 telnet works. The light then says **RBN via HTTP**.
+
+**Spots: HTTP** (next to RBN and Telnet, `[rbn] source = http`) makes the
+HTTP feed the **first** choice: it runs all the time and the telnet
+connection waits on **standby** (no login, light "RBN via HTTP"). If the HTTP
+feed doesn't answer for 2 minutes, RBN's telnet connects meanwhile ("using
+RBN - HTTP down" next to the buttons) and goes back on standby as soon as
+HTTP answers again. The button note "using HTTP - telnet down" means the
+HTTP feed stands in for RBN / Telnet as described above.
 
 ## Busted calls (Super Check Partial)
 

@@ -274,7 +274,7 @@ def load_config(path: str) -> Config:
     cfg.rbn_history = max(0, i("rbn", "history", cfg.rbn_history))
     cfg.rbn_backup_host = s("rbn", "backup_host", cfg.rbn_backup_host).strip()
     src = s("rbn", "source", cfg.rbn_source).strip().lower()
-    cfg.rbn_source = src if src in ("rbn", "telnet") else "rbn"
+    cfg.rbn_source = src if src in ("rbn", "telnet", "http") else "rbn"
     cfg.rbn_backup_port = i("rbn", "backup_port", cfg.rbn_backup_port)
     cfg.rbn_backup_commands = tuple(
         c.strip() for c in s("rbn", "backup_commands", "").split(",") if c.strip())

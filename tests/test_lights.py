@@ -44,5 +44,15 @@ class LightsTests(unittest.TestCase):
             self.assertTrue(L.COLORS[state].startswith("#"))
 
 
+class SharedAndStandbyTests(unittest.TestCase):
+    def test_via_n1mm_and_standby(self) -> None:
+        self.assertEqual(L.rbn_light("via N1MM's connection to azure.s53m.com:8000", None, "solo"),
+                         (L.OK, "RBN via N1MM's login"))
+        self.assertEqual(L.rbn_light("standby - the HTTP feed delivers", None, "solo", http=True),
+                         (L.OK, "RBN via HTTP"))
+        self.assertEqual(L.rbn_light("standby - the HTTP feed delivers", None, "solo"),
+                         (L.HOLD, "RBN standby (HTTP)"))
+
+
 if __name__ == "__main__":
     unittest.main()

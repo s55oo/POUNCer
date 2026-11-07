@@ -511,7 +511,7 @@ class PouncerApp:
         src = ttk.Frame(flow)
         ttk.Label(src, text="Spots", style="Muted.TLabel").pack(side="left", padx=(0, 4))
         self._src_buttons = {}
-        for key, label in (("rbn", "RBN"), ("telnet", "Telnet")):
+        for key, label in (("rbn", "RBN"), ("telnet", "Telnet"), ("http", "HTTP")):
             b = ttk.Button(src, text=label, style="Sort.TButton", takefocus=False,
                            command=lambda k=key: self._set_source(k))
             b.pack(side="left")
@@ -2038,7 +2038,8 @@ class PouncerApp:
         client = self._rbn_clients.get(self.cfg.rbn_port)
         if client is None:
             return False
-        if not self.rbn_status.lower().startswith("logged in"):
+        st = self.rbn_status.lower()
+        if not (st.startswith("logged in") or st.startswith("via n1mm")):   # (shared login)
             return False
         return time.monotonic() - getattr(client, "_last_dx", 0) < 120
 
@@ -2050,6 +2051,11 @@ class PouncerApp:
             self._stop_http_feed()
             return
         now = time.time()
+        if getattr(self.cfg, "rbn_source", "rbn") == "http":
+            self._http_as_source(url, now)
+            return
+        for c in self._rbn_clients.values():
+            c.set_hold(False)
         if self._rbn_healthy():
             self._rbn_bad_since = None
             self._rbn_good_since = self._rbn_good_since or now
@@ -2060,13 +2066,40 @@ class PouncerApp:
         self._rbn_good_since = None
         self._rbn_bad_since = self._rbn_bad_since or now
         if self._http_feed is None and now - self._rbn_bad_since > 60:
-            self._http_feed = RBNHttpFeed(
-                url, self.spotter_filter, self.spot_queue,
-                on_status=lambda t: log.info("RBN HTTP: %s", t),
-                modes=tuple(m for m in self.cfg.follow_modes if m.upper() in ("CW", "RTTY"))
-                or ("CW",), on_raw=self._on_raw_spot)
-            self._http_feed.start()
+            self._start_http_feed(url)
             log.info("RBN telnet down / silent: HTTP backup %s started", url)
+
+    HTTP_DOWN_S = 120      # 'Spots: HTTP': no answer this long = RBN telnet meanwhile
+
+    def _start_http_feed(self, url: str) -> None:
+        self._http_feed = RBNHttpFeed(
+            url, self.spotter_filter, self.spot_queue,
+            on_status=lambda t: log.info("RBN HTTP: %s", t),
+            modes=tuple(m for m in self.cfg.follow_modes if m.upper() in ("CW", "RTTY"))
+            or ("CW",), on_raw=self._on_raw_spot)
+        self._http_feed._started = time.time()
+        self._http_feed.start()
+
+    def _http_down(self, now: float | None = None) -> bool:
+        """'Spots: HTTP' and the HTTP feed hasn't answered for HTTP_DOWN_S."""
+        f = self._http_feed
+        if f is None:
+            return True
+        now = now or time.time()
+        return now - max(f.last_ok, getattr(f, "_started", now)) > self.HTTP_DOWN_S
+
+    def _http_as_source(self, url: str, now: float) -> None:
+        """'Spots: HTTP': the HTTP feed delivers the CW spots, the telnet
+        connection waits on standby - and takes over while HTTP is down."""
+        if self._http_feed is None:
+            self._start_http_feed(url)
+            log.info("CW spots from the HTTP feed %s (telnet on standby)", url)
+        down = self._http_down(now)
+        for c in self._rbn_clients.values():
+            if c.hold == down:
+                log.info("HTTP feed %s: RBN telnet %s", "down" if down else "back",
+                         "connects meanwhile" if down else "on standby again")
+            c.set_hold(not down)
 
     def _stop_http_feed(self) -> None:
         if self._http_feed is not None:
@@ -2237,7 +2270,7 @@ class PouncerApp:
     def _set_source(self, src: str, from_team: bool = False) -> None:
         """'Spots: RBN | Telnet': where the CW spots come from. A team slave
         asks the master (only it is connected); otherwise switch now, save."""
-        if src not in ("rbn", "telnet"):
+        if src not in ("rbn", "telnet", "http"):
             return
         team = getattr(self, "team", None)
         if team is not None and not from_team and team.alive_peers() and not team.is_master():
@@ -2249,8 +2282,12 @@ class PouncerApp:
         if not self.cfg.rbn_backup_host and src == "telnet":
             self.status_label.configure(text="No telnet server set ([rbn] backup_host)")
             return
+        if not getattr(self.cfg, "rbn_http_backup", "") and src == "http":
+            self.status_label.configure(text="No HTTP feed set ([rbn] http_backup)")
+            return
         self._save_setting("rbn.source", src)       # applies it too (_apply_source)
-        where = "RBN" if src == "rbn" else f"{self.cfg.rbn_backup_host}:{self.cfg.rbn_backup_port}"
+        where = {"rbn": "RBN", "http": f"the HTTP feed {getattr(self.cfg, 'rbn_http_backup', '')}"
+                 }.get(src, f"{self.cfg.rbn_backup_host}:{self.cfg.rbn_backup_port}")
         self.status_label.configure(text=f"CW spots now from {where}"
                                          + (" (asked by a team member)" if from_team else ""))
         self._src_last = None
@@ -2259,7 +2296,15 @@ class PouncerApp:
         """Every RBN connection with a backup: the chosen server, now."""
         for c in list(getattr(self, "_rbn_clients", {}).values()):
             if getattr(c, "backup", None):
-                c.prefer(self.cfg.rbn_source == "telnet")
+                c.prefer(self.cfg.rbn_source == "telnet")   # HTTP: RBN is its fallback
+        if hasattr(self, "_rbn_clients"):
+            if self.cfg.rbn_source != "http":
+                for c in self._rbn_clients.values():
+                    c.set_hold(False)
+                if getattr(self, "_http_feed", None) is not None and self._rbn_healthy():
+                    self._stop_http_feed()          # back to the fallback-only rule
+            if hasattr(self, "_http_feed"):
+                self._ensure_http_feed()
 
     def _update_source_buttons(self) -> None:
         """The chosen one filled blue; in a team slave the master's choice;
@@ -2272,13 +2317,20 @@ class PouncerApp:
         chosen = (team.master_src() or self.cfg.rbn_source) if slave else self.cfg.rbn_source
         note = ""
         if not slave:
+            http_src = self.cfg.rbn_source == "http"
             for c in getattr(self, "_rbn_clients", {}).values():
-                if getattr(c, "backup", None) and c.on_backup != c.prefer_backup:
+                if http_src:
+                    if not c.hold and getattr(self, "_http_feed", None) is not None:
+                        note = "using RBN - HTTP down"
+                elif getattr(c, "backup", None) and c.on_backup != c.prefer_backup:
                     note = ("using Telnet - RBN down" if c.on_backup
                             else "using RBN - Telnet down")
+            if not http_src and getattr(self, "_http_feed", None) is not None:
+                note = "using HTTP - telnet down"
         elif slave:
             note = "master's choice"
-        sig = (chosen, note, bool(self.cfg.rbn_backup_host))
+        sig = (chosen, note, bool(self.cfg.rbn_backup_host),
+               bool(getattr(self.cfg, "rbn_http_backup", "")))
         if sig == self._src_last:
             return
         self._src_last = sig
@@ -3302,7 +3354,7 @@ class PouncerApp:
         """Our own RBN connection works (logged in or spots lately) - or is
         closed on purpose (paused: the master stays master)."""
         return (getattr(self, "_rbn_pause_on", False)
-                or self.rbn_status.startswith("logged in")
+                or self.rbn_status.startswith(("logged in", "via N1MM"))
                 or time.time() - self._last_own_spot < 120)
 
     def _start_team(self) -> None:

@@ -536,6 +536,7 @@ class RBNClient(threading.Thread):
         # open a second one (the node would throw one of the two out); the
         # relay's lines come in through feed_shared()
         self.shared: tuple[str, int, str] | None = None
+        self.hold = False            # standby: the CW spots come from the HTTP feed
 
     # ---- one connection for N1MM and POUNCer ---------------------------------------
     def _server(self) -> tuple[str, int]:
@@ -561,6 +562,20 @@ class RBNClient(threading.Thread):
                     sock.close()
                 except OSError:
                     pass
+        self._wake.set()
+
+    def set_hold(self, on: bool) -> None:
+        """Standby (no connection) while another feed delivers - 'Spots:
+        HTTP'; False = connect again (the fallback)."""
+        on = bool(on)
+        if on == self.hold:
+            return
+        self.hold = on
+        if on and self._sock is not None:
+            try:
+                self._sock.close()
+            except OSError:
+                pass
         self._wake.set()
 
     def feed_shared(self, line: str) -> None:
@@ -629,6 +644,12 @@ class RBNClient(threading.Thread):
         fails = 0               # RBN failures in a row
         while not self._stop.is_set():
             back_to_rbn = False
+            if self.hold:
+                self._status("standby - the HTTP feed delivers")
+                while self.hold and not self._stop.is_set():
+                    self._pause(1)
+                backoff, fails = 2, 0
+                continue
             if self._is_shared():
                 tgt = self._server()
                 self._status(f"via N1MM's connection to {tgt[0]}:{tgt[1]} (one login)")
@@ -646,7 +667,8 @@ class RBNClient(threading.Thread):
             except _BackToPrimary:
                 back_to_rbn = True
             except Exception as exc:  # noqa: BLE001 - keep the thread alive
-                if not self._stop.is_set() and not self._switch_now and not self._is_shared():
+                if (not self._stop.is_set() and not self._switch_now and not self._is_shared()
+                        and not self.hold):
                     self._errs += 1
                     # the 1st, then every 10th: an outage doesn't fill the log
                     if self._errs == 1 or self._errs % 10 == 0:
@@ -656,7 +678,7 @@ class RBNClient(threading.Thread):
                                     f" ({self._errs} in a row)" if self._errs > 1 else "")
             if self._stop.is_set():
                 break
-            if self._is_shared():             # closed for the relay: wait at the top
+            if self._is_shared() or self.hold:   # closed for the relay / HTTP: wait at the top
                 continue
             if self._switch_now:              # the button: the other server, now
                 self._switch_now = False
