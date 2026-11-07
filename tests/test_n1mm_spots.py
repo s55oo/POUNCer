@@ -77,6 +77,7 @@ class SwitchTests(unittest.TestCase):
         f._cluster_merged = lambda: False
         f._dxc = None
         f._people_filter = lambda: None
+        f._relay_back = lambda line: None
         for name in ("_on_n1mm_spot", "_n1mm_spots_ok", "_ensure_ssb_client", "_n1mm_quiet_limit"):
             setattr(f, name, getattr(P, name).__get__(f))
         return f, stopped

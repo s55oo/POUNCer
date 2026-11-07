@@ -19,7 +19,6 @@ class TipTests(unittest.TestCase):
         cfg.team_key = "00ff" * 8
         f = types.SimpleNamespace(cfg=cfg, team=None, _dxc=None, own_call=lambda: "S55OO",
                                   _self_feed_login=lambda: "S55OO-77")
-        f._cluster_upstream = lambda: app.PouncerApp._cluster_upstream(f)
         f._cluster_merged = lambda: app.PouncerApp._cluster_merged(f)
         return app, f
 
@@ -38,7 +37,7 @@ class TipTests(unittest.TestCase):
         team = app.PouncerApp._console_info(f, "TEAM")
         self.assertIn("Password: set", team)
         self.assertNotIn("00ff", team)
-        self.assertIn("azure.s53m.com:8000", app.PouncerApp._console_info(f, "SERVER"))
+        self.assertIn("Relay: on", app.PouncerApp._console_info(f, "SERVER"))
         self.assertIn("spots of people", app.PouncerApp._console_info(f, "SSB"))
 
     def test_tip_text_adds_why_and_counts(self) -> None:

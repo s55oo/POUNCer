@@ -49,12 +49,12 @@ def fake_app(sources):
         SOURCE_NAMES=P.SOURCE_NAMES, CONN_KEYS=P.CONN_KEYS, N1MM_SPOT_BREAK_S=P.N1MM_SPOT_BREAK_S,
         N1MM_SPOT_QUIET_S=P.N1MM_SPOT_QUIET_S, N1MM_SPOT_QUIET_X=P.N1MM_SPOT_QUIET_X,
         MERGE_S=P.MERGE_S, BACKUP_AFTER_S=P.BACKUP_AFTER_S, BACKUP_BACK_S=P.BACKUP_BACK_S,
-        _rbn_bad_since=None, _rbn_good_since=None)
+        _rbn_bad_since=None, _rbn_good_since=None, _relay_back=lambda line: None)
     for n in ("_ensure_rbn_clients", "_ensure_telnet_client", "_ensure_ssb_client",
               "_ensure_http_feed", "_stop_http_feed", "_start_http_feed", "_ssb_wanted",
               "_cluster_merged", "_people_filter", "_desired_rbn_ports", "_n1mm_spots_ok",
               "_n1mm_quiet_limit", "_ssb_status_put", "_source_tip", "_merged_dup", "_conn_tip",
-              "_toggle_conn", "_set_source", "_cluster_upstream", "_telnet_backup_due",
+              "_toggle_conn", "_set_source", "_upstream_client", "_telnet_backup_due",
               "_rbn_healthy", "_ensure_telnet_client"):
         setattr(f, n, getattr(P, n).__get__(f))
     return app, f, made, FakeClient
@@ -119,6 +119,7 @@ class SourceTests(unittest.TestCase):
         self.assertIn("S55OO-77", tip)
         self.assertIn("azure.s53m.com:8000", tip)
         self.assertIn("cluster server is off", f._source_tip("relay"))
+        self.assertIn("Opens no connection", f._source_tip("relay"))
         on = f.cfg.self_spot_alert
         f._set_source("mycall")
         self.assertEqual(saved[-1], ("ui.self_spot_alert", not on))

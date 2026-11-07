@@ -542,6 +542,8 @@ class RBNClient(threading.Thread):
         # cluster's spots of people (one login for both on a DX cluster)
         self.skimmers = True
         self.people = None
+        self.on_line = None          # (line) - its lines that aren't spots (answers, announcements)
+        self._logged_in = False
 
     # ---- one connection for N1MM and POUNCer ---------------------------------------
     def _server(self) -> tuple[str, int]:
@@ -582,6 +584,22 @@ class RBNClient(threading.Thread):
             except OSError:
                 pass
         self._wake.set()
+
+    def connected(self) -> bool:
+        return self._sock is not None and self._logged_in
+
+    def send_line(self, line: str) -> bool:
+        """Send a line to the node over this connection (a port 10000
+        client's command); False = not connected."""
+        sock = self._sock
+        if sock is None or not self._logged_in:
+            return False
+        try:
+            sock.sendall((line.strip() + "\r\n").encode("ascii", "replace"))
+            traffic.emit(f"{self._traffic_name()} >", line.strip())
+            return True
+        except OSError:
+            return False
 
     def feed_shared(self, line: str) -> None:
         """A line from the relay's connection: used as our own while shared."""
@@ -736,6 +754,7 @@ class RBNClient(threading.Thread):
         logged_in = False
         login_deadline = time.monotonic() + 3.0
         self._history_lines = 0
+        self._logged_in = False
         hist_at = None          # when to ask for the last spots
         hist_step = 0           # 0: filtered on our skimmer, 1: plain, 2: done
         started = time.monotonic()
@@ -805,6 +824,11 @@ class RBNClient(threading.Thread):
                 line = line[at:]
             if line.startswith("DX de"):
                 self._last_dx = time.monotonic()   # the feed is alive
+            elif self.on_line is not None and line.strip():
+                try:
+                    self.on_line(line.rstrip("\r"))   # answers / announcements -> port 10000
+                except Exception:  # noqa: BLE001
+                    pass
             elif getattr(self, "_reply_lines", 0) > 0 and line.strip():
                 self._reply_lines -= 1      # e.g. the node's answer to accept/spots
                 log.info("%s: node says: %s", self.name or self.kind, line.strip()[:120])
@@ -896,6 +920,7 @@ class RBNClient(threading.Thread):
 
     def _send_login(self, sock: socket.socket) -> None:
         self._login_at = time.monotonic()
+        self._logged_in = True
         if not self.callsign:
             self._status("no callsign: set [rbn] callsign in config.ini")
             return

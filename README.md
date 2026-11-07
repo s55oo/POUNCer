@@ -50,7 +50,7 @@ examples: [docs/NETWORK.md](docs/NETWORK.md).
 | Phones, tablets, browsers (LAN / ZeroTier) | TCP **8080** (HTTP) | the phone page and its API: list, tap = QSY + call, F-keys, band, settings (changes only from the PC itself) | while a page is open |
 | Other POUNCers (team) | UDP **12079** (broadcast + direct) | `hi` every 2 s, the master's `spot`s, `self` (SPOTTED), `update` (update all), `rh` (run history) | in a team |
 | Other POUNCers (team) | TCP **8080** (HTTP) | `GET /api/runhist` when a POUNCer joins the team | once per join |
-| N1MM's Telnet window, other cluster clients | TCP **10000** (telnet) | login (a call), `sh/dx`, `bye` - POUNCer's spots go out as `DX de` lines; relay: the client's lines go on to the real cluster | only with *Settings > Cluster server* on |
+| N1MM's Telnet window, other cluster clients | TCP **10000** (telnet) | login (a call), `sh/dx`, `bye` - the spots of the switched-on sources go out as `DX de` lines (Relay on); the client's lines go over POUNCer's own telnet connection | only with *Settings > Cluster server* on |
 
 **Going OUT from POUNCer:**
 
@@ -408,13 +408,13 @@ source as it arrives or goes out - RBN lines, **TELNET** (*Spots: Telnet*,
 the telnet server's skimmer spots, and the spots-of-my-call connection -
 both azure.s53m.com:8000), **SSB** (*Spots: Cluster*, the cluster's spots of
 people, and the commands sent), N1MM UDP packets in and QSY / call commands
-out, the HTTP feed, the team, the cluster server and its relay (**SERVER**),
+out, the HTTP feed, the team, the cluster server (**SERVER**),
 the phone page's requests (WEB, off at first). Tick
 sources on / off, type a filter word (a call, `DX de`, `RadioInfo` ...),
 Pause, Clear; outgoing lines are yellow (`>`). **Hover over a source** (its
 switch or its dot): a pop-up says what that source is and what POUNCer is
 monitoring with which settings right now - server and port, login call,
-mode, filters, listen address, team role and peers, relay target (a team
+mode, filters, listen address, team role and peers, Relay on / off (a team
 password only as "set" / "off", never the key) - plus why it is quiet and
 how many lines came. Under the switches each
 source has a **dot**: green = lines now, amber = quiet 5 s+, red = quiet
@@ -519,7 +519,7 @@ now), amber = connecting, red = connection problem, grey = off.
 
 | Light | Green | Yellow (on hold) | Amber | Red | Grey |
 |---|---|---|---|---|---|
-| RBN | skimmer spots coming - from RBN or Telnet (slave: via master; "RBN via HTTP" with only HTTP on; "via N1MM's login" on the relay) | SSB contest / every radio on SSB | connecting | disconnected | no skimmer source on |
+| RBN | skimmer spots coming - from RBN or Telnet (slave: via master; "RBN via HTTP" with only HTTP on) | SSB contest / every radio on SSB | connecting | disconnected | no skimmer source on |
 | Cluster | logged in, its spots of people used | N1MM's spots used instead (N1MM on the cluster itself) | connecting | disconnected | *Spots: Cluster* off |
 | HTTP | the HTTP feed delivers | - | starting | running, nothing comes | *Spots: HTTP* off / no URL / team slave |
 | N1MM spots | used for Cluster (own connection closed) | N1MM sends, own cluster still kept (a minute after a fallback) | - | stopped (20 s+) | Broadcast Data > Spots not ticked / off |
@@ -735,21 +735,21 @@ list **and** out to N1MM / any client of the cluster server (port 10000):
   over.
 - Two more buttons after them for the other spot connections:
   **MyCall** (azure, login `<call>-77`, only spots of your own call - the
-  SPOTTED pop-up; `[ui] self_spot_alert`) and **Relay** (N1MM's Telnet
-  through POUNCer to the cluster - the `relay` lines in the traffic console;
-  `[cluster] relay`, needs the cluster server on). Relay off = N1MM on port
-  10000 gets POUNCer's spots only and no cluster connection is made for it.
+  SPOTTED pop-up; `[ui] self_spot_alert`) and **Relay** (`[cluster] relay`,
+  needs the cluster server on): the switch that hands the
+  spots out on port 10000 (N1MM's Telnet window) - no connection of its own;
+  N1MM's commands go over POUNCer's Telnet / Cluster connection.
 - **Hover** over a button: the connection behind it - server and port,
-  login, filter, and its state now ("logged in as S55OO", "via N1MM's
-  connection", spots and the last HTTP answer ...).
+  login, filter, and its state now ("logged in as S55OO", "standby",
+  spots and the last HTTP answer ...).
 - **The same spot from two sources counts once** (same call, frequency and
   skimmer within a minute) - e.g. RBN and HTTP both on.
 - **Only what you switched on**: nothing takes over when a source is down -
   except RBN with **Telnet-bck** on. All off = no spots ("nothing on - no spots" next to the
   buttons, light "RBN: no skimmer source on").
 - **Telnet + Cluster on the same node** (both azure.s53m.com:8000) use
-  **one** connection and one login. And while N1MM is connected through
-  POUNCer's relay, that one connection is the relay's (one login per call).
+  **one** connection and one login - also for what N1MM sends through the
+  Relay.
 - Skimmer choice (`[rbn] spotter`, S53WW, backups while it is quiet) applies
   to RBN, Telnet and HTTP alike.
 - RBN and Telnet pause while every radio is on SSB (`pause_on_phone`); a
@@ -914,43 +914,25 @@ DX de S53WW-#:   14025.0  DL1ABC       CW 23 dB 28 WPM CQ             1200Z
   spots coming back from N1MM's broadcast (the same call and frequency within
   10 minutes) and ignores them - otherwise it would take them for N1MM's own
   spots and close its Cluster connection, its source.
-- **Relay** (`[cluster] relay = true`, the default): N1MM still gets its
-  cluster. For each client POUNCer opens a connection to the real cluster
-  (`upstream`, empty = the `[ssb]` host:port, azure.s53m.com:8000), logs in
-  with the client's call and passes everything through **both ways** - the
-  cluster's spots, announcements and prompts to N1MM; N1MM's `DX` spots,
-  filters and other commands to the cluster - **except the cluster's skimmer
-  spots** (`DX de S53WW-#:`): N1MM's skimmer spots come from POUNCer, from
-  the sources switched on with **Spots: RBN | Telnet | HTTP** and POUNCer's
-  skimmer choice (S53WW, backups while it is quiet); the cluster's spots of
-  people pass only with **Cluster** on. POUNCer adds its own spots in
-  between (not one N1MM just got from the cluster: same call ±0.3 kHz within
-  5 minutes; never in the middle of a cluster line). While N1MM is connected
-  this way **POUNCer ignores N1MM's spot broadcast** (Broadcast Data >
-  Spots) and reads the same cluster stream straight from the relay: that is
-  its SSB source (one login on the cluster, as before). **One login per
-  call:** a node allows each call once ("Reconnected as S55OO ..., this
-  instance is disconnected" - the two would throw each other out). So while
-  the relay holds N1MM's login on that node, POUNCer's own connection there
-  with the same call (the CW feed on *Spots: Telnet*, the SSB cluster) closes
-  and POUNCer reads the relay's lines instead; when N1MM disconnects,
-  POUNCer connects itself again. The spots-of-my-call feed (`<call>-77`) has
-  its own login and stays. If **another** program logs in with the same call
-  (another N1MM, another POUNCer, a logger on another PC), the node throws
-  the relay out; POUNCer then tells N1MM so (`*** POUNCer: ... another
-  connection logged in as S55OO ...`) and waits 2 minutes instead of
-  throwing the other one out at once (no login war). In the traffic
-  console, cluster skimmer lines that were kept back from N1MM are marked
-  `(not to N1MM)`. If the cluster can't
-  be reached N1MM gets a `*** POUNCer: ...` note and POUNCer's spots only;
-  POUNCer tries again every minute.
-- `relay = false`: only POUNCer's spots, read-only. The same call /
-  frequency / skimmer once a minute; up to 10 clients; `sh/dx` = the last 30
-  spots, `bye` = disconnect; other commands change nothing.
+- **Relay** (the **Relay** button, `[cluster] relay = true`, the default) is
+  the switch for this output - it opens **no connection of its own**:
+  - **on**: every spot of the sources switched on with the Spots buttons
+    (RBN, Telnet, HTTP - with your skimmer choice - and Cluster, the spots of
+    people) goes out to the clients. What a client sends after login - your
+    `DX` spots (Alt+P / Spot It), `sh/dx`, filters - goes over **POUNCer's
+    own telnet connection** to azure (open while **Telnet** or **Cluster**
+    is on), and that connection's answers and announcements come back to
+    the client. With Telnet and Cluster both off, N1MM gets `*** POUNCer:
+    not sent - no telnet connection` and `sh/dx` = POUNCer's last 30 spots.
+  - **off**: nothing goes out (the client stays connected).
+  - One connection to azure, POUNCer's (login = your call); N1MM never logs
+    in there itself, so no "Reconnected as S55OO ..." fights.
+- The same call / frequency / skimmer once a minute; up to 10 clients;
+  `bye` = disconnect.
 - Other PCs need the port open: *File > Allow POUNCer in Windows Firewall…*
   adds `POUNCer cluster TCP` while the server is on.
-- The traffic console shows it as **SERVER** (logins, commands, the relayed
-  cluster lines). On your own network only, like the phone page - no password.
+- The traffic console shows it as **SERVER** (logins, commands). On your own
+  network only, like the phone page - no password.
 
 ## Several POUNCers (team)
 

@@ -1556,16 +1556,13 @@ class PouncerApp:
                     f"filter '{g(c, 'self_spot_filter', '')}'\n"
                     f"SPOTTED pop-up: {onoff(g(c, 'self_spot_alert', True))}")
         if group == "SSB":
-            dxc = g(self, "_dxc", None)
-            relay = dxc is not None and dxc.relay_connected()
             return ("SSB - 'Spots: Cluster': the DX cluster's spots of people (every mode)\n"
                     f"Cluster: {g(c, 'ssb_host', '')}:{g(c, 'ssb_port', '')}, login "
                     f"{g(c, 'ssb_login', '') or call} - "
                     f"{'on' if has_source(c, 'cluster') else 'off'}"
                     f"{' (the same connection as Telnet)' if self._cluster_merged() else ''}\n"
                     f"Spotters: {g(c, 'ssb_spotters', 'EU')}; N1MM's spots instead: "
-                    f"{g(c, 'ssb_use_n1mm', 'auto')}"
-                    + ("\nNow from the cluster relayed to N1MM (Cluster server)" if relay else ""))
+                    f"{g(c, 'ssb_use_n1mm', 'auto')}")
         if group == "HTTP":
             return ("HTTP - RBN's skimmer spots over HTTP ('Spots: HTTP')\n"
                     f"URL: {g(c, 'rbn_http_backup', '') or '(off)'}")
@@ -1608,13 +1605,12 @@ class PouncerApp:
                     "in N1MM; at 14074 etc. never SSB.")
         if group == "SERVER":
             dxc = g(self, "_dxc", None)
-            up = self._cluster_upstream() if hasattr(self, "_cluster_upstream") else None
-            return ("SERVER - POUNCer as a DX cluster for N1MM's Telnet window\n"
+            return ("SERVER - POUNCer as a DX cluster for N1MM's Telnet window (port 10000)\n"
                     f"Server: {onoff(g(c, 'cluster_server', False))}, TCP {g(c, 'cluster_port', 10000)}"
                     + (f", {dxc.client_count()} client(s)" if dxc is not None else "") + "\n"
-                    + (f"Relay to: {up[0]}:{up[1]}" + (" - connected" if dxc is not None
-                                                        and dxc.relay_connected() else "")
-                       if up else "Relay: off (POUNCer's spots only)"))
+                    f"Relay: {onoff(g(c, 'cluster_relay', True))} - on = the spots of the "
+                    "switched-on sources go out; the clients' commands go over POUNCer's "
+                    "telnet connection (Telnet / Cluster)")
         return ""
 
     def _console_notes(self) -> dict:
@@ -1900,40 +1896,35 @@ class PouncerApp:
         gap = getattr(self, "_n1mm_gap", None) or 0.0
         return min(self.N1MM_SPOT_BREAK_S, max(self.N1MM_SPOT_QUIET_S, self.N1MM_SPOT_QUIET_X * gap))
 
-    def _relay_clients(self) -> list:
-        """POUNCer's own connections that may share a login with the relay."""
-        return [c for c in (getattr(self, "_telnet_client", None),
-                            getattr(self, "_ssb_client", None)) if c is not None]
+    def _upstream_client(self):
+        """POUNCer's own telnet connection to the cluster (Telnet, else
+        Cluster) - where the port 10000 clients' commands go."""
+        for c in (getattr(self, "_telnet_client", None), getattr(self, "_ssb_client", None)):
+            if c is not None and c.connected():
+                return c
+        return None
 
-    def _on_relay_state(self, host: str, port: int, call: str, up: bool) -> None:
-        """The relay holds / dropped a login on the node: our own connection
-        with the same login there closes / comes back (one login per call -
-        else the node throws one out: 'Reconnected as ..., this instance is
-        disconnected')."""
-        self._relay_share = (host, int(port), call) if up else None
-        for c in self._relay_clients():
-            c.share(*(self._relay_share or (None,)))
-        log.info("cluster relay %s %s:%d as %s - POUNCer's own login there %s", "holds" if up
-                 else "dropped", host, port, call, "steps aside" if up else "comes back")
+    def _relay_send(self, line: str) -> str:
+        """A port 10000 client's line (DX spot, sh/dx ...) -> over POUNCer's
+        telnet connection; '' = sent, else why not."""
+        c = self._upstream_client()
+        if c is None:
+            return "no telnet connection (switch on Telnet or Cluster)"
+        return "" if c.send_line(line) else "the telnet connection is down"
 
-    def _on_relay_line(self, line: str) -> None:
-        """A 'DX de' line from the cluster relayed to N1MM (relay thread):
-        the same use as N1MM's spot packets, read at the source - and the CW
-        feed's own line while it shares the relay's login."""
-        for c in self._relay_clients():
-            c.feed_shared(line)
-        pkt = parse_dx(line)
-        if pkt is not None:
-            self._on_n1mm_spot(pkt, via="relay")
+    def _relay_back(self, line: str) -> None:
+        """A non-spot line from POUNCer's telnet connection (answers,
+        announcements) -> the port 10000 clients."""
+        dxc = getattr(self, "_dxc", None)
+        if dxc is not None:
+            dxc.to_clients(line)
 
     def _on_n1mm_spot(self, pkt: dict, via: str = "n1mm") -> None:
-        """A <spot> packet from N1MM (listener thread) - or a cluster line from
-        the relay. Any spot shows the telnet is alive; SSB ones go to the list
-        while N1MM / the relay is the SSB source."""
+        """A <spot> packet from N1MM (listener thread). Any spot shows N1MM's
+        telnet is alive; people's spots go to the list while N1MM (connected
+        to the cluster itself) is the Cluster source."""
         dxc = getattr(self, "_dxc", None)
         if via == "n1mm" and dxc is not None:
-            if dxc.relay_connected():
-                return  # N1MM's telnet runs through us: its broadcast is the same stream
             if dxc.echo(str(pkt.get("call") or ""), float(pkt.get("freq_khz") or 0)):
                 return  # our own spot back from N1MM's telnet (connected to us): not N1MM's
         now = time.time()
@@ -2006,9 +1997,7 @@ class PouncerApp:
         of its own; while N1MM (connected to the cluster itself) sends its
         spots, from N1MM's broadcast instead (no second login)."""
         want = self._ssb_wanted()
-        dxc = getattr(self, "_dxc", None)
-        relayed = dxc is not None and dxc.relay_connected()
-        via = want and not relayed and self._n1mm_spots_ok()
+        via = want and self._n1mm_spots_ok()
         if via != getattr(self, "_ssb_via_n1mm", False):
             if not via and want:
                 self._ssb_back_at = time.time()    # N1MM quiet: own cluster for a while
@@ -2049,8 +2038,7 @@ class PouncerApp:
             )
             self._ssb_client.skimmers = False      # people only; skimmers: RBN / Telnet / HTTP
             self._ssb_client.backup_commands = tuple(self.cfg.ssb_commands)
-            if getattr(self, "_relay_share", None):
-                self._ssb_client.share(*self._relay_share)
+            self._ssb_client.on_line = self._relay_back
             self._ssb_client.start()
             log.info("Cluster client started on %s:%s", self.cfg.ssb_host, self.cfg.ssb_port)
 
@@ -2313,8 +2301,7 @@ class PouncerApp:
                        history=self.cfg.rbn_history, name="telnet",
                        backup_commands=self.cfg.rbn_backup_commands, on_raw=self._on_raw_spot)
         tc.backup_commands = tuple(self.cfg.rbn_backup_commands)
-        if getattr(self, "_relay_share", None):
-            tc.share(*self._relay_share)
+        tc.on_line = self._relay_back
         tc.start()
         self._telnet_client = tc
         log.info("Telnet client started on %s:%s", self.cfg.rbn_backup_host,
@@ -2481,20 +2468,20 @@ class PouncerApp:
                     f"Spots of your own call only (node filter '{c.self_spot_filter}') for the "
                     f"SPOTTED pop-up\nNow: {now}")
         dxc = getattr(self, "_dxc", None)
-        up = self._cluster_upstream() if hasattr(self, "_cluster_upstream") else None
+        up = self._upstream_client()
         if not getattr(c, "cluster_server", False):
             now = "the cluster server is off (Settings > Cluster server)"
         elif dxc is None:
             now = "the cluster server is not running"
         elif not on:
-            now = f"off - N1MM on TCP {dxc.port} gets POUNCer's spots only"
+            now = f"off - nothing goes out on TCP {dxc.port}"
         else:
-            now = (f"N1MM connected through to {up[0]}:{up[1]}" if dxc.relay_connected()
-                   else f"no client connected through (N1MM: TCP {dxc.port})")
-        target = f"{up[0]}:{up[1]}" if up else f"{c.ssb_host}:{c.ssb_port}"
-        return (f"{head}\nN1MM's Telnet (POUNCer TCP {c.cluster_port}) -> {target}, login = "
-                f"N1MM's call\nPeople's spots pass with Cluster on; skimmer spots come from "
-                f"POUNCer's sources\nNow: {now}")
+            now = (f"{dxc.client_count()} client(s); commands go over "
+                   + (f"{up.host}:{up.port}" if up else "nothing (Telnet and Cluster off)"))
+        return (f"{head}\nOpens no connection: hands out the spots of the switched-on sources "
+                f"(RBN, Telnet, HTTP, Cluster) to POUNCer's cluster server, TCP "
+                f"{c.cluster_port} (N1MM's Telnet window)\nWhat N1MM sends (DX spots, sh/dx) "
+                f"goes over POUNCer's telnet connection (Telnet / Cluster)\nNow: {now}")
 
     def _source_hover(self, button, key: str) -> None:
         def show(e, key=key):
@@ -5238,29 +5225,11 @@ class PouncerApp:
             rules.append((self.FW_CLUSTER_RULE, "TCP", int(self.cfg.cluster_port)))
         return rules
 
-    def _cluster_upstream(self) -> tuple[str, int] | None:
-        """The cluster relayed to N1MM: [cluster] upstream, else the [ssb]
-        host:port; None with relay off."""
-        if not getattr(self.cfg, "cluster_relay", True):
-            return None
-        text = (getattr(self.cfg, "cluster_upstream", "") or "").strip()
-        if text:
-            host, _, port = text.rpartition(":")
-            if not host:
-                host, port = text, "8000"
-            try:
-                return host.strip(), int(port)
-            except ValueError:
-                return None
-        host = (getattr(self.cfg, "ssb_host", "") or "").strip()
-        return (host, int(getattr(self.cfg, "ssb_port", 8000))) if host else None
-
     def _apply_cluster_server(self) -> None:
         """Start / stop / move POUNCer's DX cluster server ([cluster])."""
         old = getattr(self, "_dxc", None)
         want = bool(getattr(self.cfg, "cluster_server", False))
-        if (old is not None and want and old.port == int(self.cfg.cluster_port)
-                and old.upstream == self._cluster_upstream()):
+        if old is not None and want and old.port == int(self.cfg.cluster_port):
             return
         if old is not None:
             old.stop()
@@ -5269,9 +5238,8 @@ class PouncerApp:
         if not want:
             return
         srv = ClusterServer(port=self.cfg.cluster_port, node="POUNCER", version=__version__,
-                            upstream=self._cluster_upstream(), on_upstream_line=self._on_relay_line,
-                            on_relay_state=self._on_relay_state,
-                            pass_people=lambda: has_source(self.cfg, "cluster"))
+                            relay=lambda: bool(getattr(self.cfg, "cluster_relay", True)),
+                            send_upstream=self._relay_send)
         if srv.start():
             self._dxc = srv
             self.status_label.configure(text=f"Cluster server on TCP {srv.port}: in N1MM's "

@@ -51,16 +51,11 @@ SETTINGS: list[dict] = [
      "help": "In N1MM's Telnet window: add a cluster with this PC's address (127.0.0.1 on "
              "the same PC) and this port. Allow it in the firewall for other PCs."},
     {"key": "cluster.relay", "attr": "cluster_relay", "kind": "bool", "live": True,
-     "group": "Cluster server", "label": "  ... relay the real cluster through POUNCer",
-     "help": "For each client POUNCer connects to the cluster below in the client's call "
-             "and passes everything through both ways (its spots, announcements, your DX "
-             "spots and commands), adding POUNCer's own spots in between. N1MM then gets "
-             "the cluster as before plus POUNCer's spots. While connected this way POUNCer "
-             "ignores N1MM's spot broadcast (the relay is its SSB source). Off = only "
-             "POUNCer's spots, read-only."},
-    {"key": "cluster.upstream", "attr": "cluster_upstream", "kind": "text", "live": True,
-     "group": "Cluster server", "label": "  ... cluster to relay (host:port)",
-     "help": "Empty = the SSB cluster ([ssb] host and port, azure.s53m.com:8000)."},
+     "group": "Cluster server", "label": "  ... Relay: hand out the spots",
+     "help": "On = the spots of the sources switched on with the Spots buttons go out to "
+             "the clients on the port above; what a client sends (DX spots, sh/dx) goes over "
+             "POUNCer's own telnet connection (Telnet / Cluster on), the answers come back. "
+             "Opens no connection of its own. Off = nothing goes out. Also the Relay button."},
     {"key": "n1mm.qsy_wait_ms", "attr": "qsy_wait_ms", "kind": "int", "min": 0, "max": 10000,
      "live": True, "group": "Tap -> N1MM",
      "label": "Wait for N1MM's new frequency (ms)",

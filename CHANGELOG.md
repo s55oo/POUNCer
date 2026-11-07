@@ -1,5 +1,19 @@
 # POUNCer — Changelog
 
+## v0.7.155 — 2026-11-07 — Relay = hand out the spots (no connection of its own)
+
+- **Relay** no longer opens a connection to the cluster for N1MM. It is now
+  the switch for the cluster server's output (port 10000): on = every spot
+  of the sources switched on with the Spots buttons (RBN, Telnet, HTTP,
+  Cluster) goes out; off = nothing goes out.
+- What N1MM sends (your `DX` spots, `sh/dx`, filters) goes over **POUNCer's
+  own telnet connection** (open while Telnet or Cluster is on); its answers
+  and announcements come back to N1MM. Telnet and Cluster both off: N1MM
+  gets "not sent - no telnet connection".
+- So there is only ever **one** connection to azure, POUNCer's - no login
+  fights. The `relay` lines and "(not to N1MM)" in the traffic console are
+  gone; `[cluster] upstream` is no longer used.
+
 ## v0.7.154 — 2026-11-07 — Telnet-bck button
 
 - **Telnet-bck** on the Spots line (`[rbn] telnet_backup`, off by default):

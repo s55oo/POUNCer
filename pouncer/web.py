@@ -1973,10 +1973,9 @@ the numbers. 6 / 12 / 24 / 48 h; kept 48 hours, also over a restart.</p>
 
 <h2>SSB</h2>
 <p>RBN has no SSB, so on SSB the spots come from a <b>DX cluster</b> (human spots, only from
-spotters in Europe): the spots of N1MM&#39;s own Telnet window when N1MM sends them (Broadcast
-Data &gt; Spots) or of the cluster N1MM reaches through POUNCer (Settings &gt; Cluster server,
-relay), else POUNCer&#39;s own cluster connection - while the <b>Cluster</b> source is on (Spots
-buttons in the window). The list follows the radio: radio
+spotters in Europe): POUNCer&#39;s own cluster connection while the <b>Cluster</b> source is on
+(Spots buttons in the window) - or N1MM&#39;s spots (Broadcast Data &gt; Spots) while N1MM is
+connected to the cluster itself. The list follows the radio: radio
 on USB / LSB = SSB spots, on CW = the RBN CW spots - per radio (A / B). In an SSB contest
 RBN is not connected at all. On SSB the WPM keys are hidden. Settings: <b>SSB</b> on the
 Settings page.</p>
