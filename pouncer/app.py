@@ -513,7 +513,9 @@ class PouncerApp:
         ttk.Label(src, text="Spots", style="Muted.TLabel").pack(side="left", padx=(0, 4))
         self._src_buttons = {}
         for key, label in (("rbn", "RBN"), ("telnet", "Telnet"), ("http", "HTTP"),
-                           ("cluster", "Cluster")):
+                           ("cluster", "Cluster"), ("mycall", "MyCall"), ("relay", "Relay")):
+            if key == "mycall":
+                ttk.Label(src, text="", width=1).pack(side="left")    # a small gap
             b = ttk.Button(src, text=label, style="Sort.TButton", takefocus=False,
                            command=lambda k=key: self._set_source(k))
             b.pack(side="left")
@@ -2291,6 +2293,9 @@ class PouncerApp:
     def _set_source(self, src: str, from_team: bool = False) -> None:
         """A Spots button: switch that source on / off. A team slave asks the
         master (only it is connected); otherwise switch now, save."""
+        if src in self.CONN_KEYS:
+            self._toggle_conn(src)
+            return
         if src not in self.SOURCE_NAMES:
             return
         team = getattr(self, "team", None)
@@ -2314,6 +2319,22 @@ class PouncerApp:
                                          + (" (asked by a team member)" if from_team else ""))
         self._src_last = None
 
+    # the other spot connections on the Spots line: own settings, this PC only
+    CONN_KEYS = {"mycall": ("ui.self_spot_alert", "self_spot_alert", "MyCall"),
+                 "relay": ("cluster.relay", "cluster_relay", "Relay")}
+
+    def _toggle_conn(self, key: str) -> None:
+        """MyCall (the spots-of-my-call connection + SPOTTED pop-up) / Relay
+        (N1MM's cluster through POUNCer): on / off, saved."""
+        setting, attr, name = self.CONN_KEYS[key]
+        new = not bool(getattr(self.cfg, attr, False))
+        self._save_setting(setting, new)
+        extra = ""
+        if key == "relay" and new and not getattr(self.cfg, "cluster_server", False):
+            extra = " (the cluster server is off: Settings > Cluster server)"
+        self.status_label.configure(text=f"{name} {'on' if new else 'off'}{extra}")
+        self._src_last = None
+
     def _apply_source(self) -> None:
         """The sources changed: start / stop the connections now."""
         self._src_last = None
@@ -2331,6 +2352,9 @@ class PouncerApp:
         chosen = (team.master_src() or self.cfg.rbn_source) if slave else self.cfg.rbn_source
         on = set(filter(None, str(chosen or "").split(",")))
         note = "master's choice" if slave else ("nothing on - no spots" if not on else "")
+        for key, (_s, attr, _n) in self.CONN_KEYS.items():
+            if getattr(self.cfg, attr, False):
+                on.add(key)
         sig = (tuple(sorted(on)), note)
         if sig == self._src_last:
             return
@@ -2342,6 +2366,8 @@ class PouncerApp:
     def _source_tip(self, key: str) -> str:
         """Hover over a Spots button: the connection behind it, now."""
         c = self.cfg
+        if key in self.CONN_KEYS:
+            return self._conn_tip(key)
         on = has_source(c, key)
         call = c.rbn_callsign or (self.own_call() if hasattr(self, "own_call") else "") or "?"
         head = f"{self.SOURCE_NAMES.get(key, key)} - {'ON' if on else 'off'} (click = switch " \
@@ -2383,6 +2409,38 @@ class PouncerApp:
                     f"{' - the same connection as Telnet' if merged else ''}\n"
                     f"Spots of people (no '-#'), spotters: {c.ssb_spotters}\nNow: {now}")
         return head
+
+    def _conn_tip(self, key: str) -> str:
+        c = self.cfg
+        _s, attr, name = self.CONN_KEYS[key]
+        on = bool(getattr(c, attr, False))
+        head = f"{name} - {'ON' if on else 'off'} (click = switch {'off' if on else 'on'})"
+        if key == "mycall":
+            feed = getattr(self, "_self_feed", None)
+            team = getattr(self, "team", None)
+            slave = team is not None and team.role() == "slave"
+            login = self._self_feed_login() if hasattr(self, "_self_feed_login") else "?"
+            now = ("the team master is connected and passes them on" if slave and on else
+                   (getattr(feed, "status_text", "") or "starting") if feed is not None else
+                   ("not connected" if on else "off"))
+            return (f"{head}\n{c.self_spot_host}:{c.self_spot_port} (telnet), login {login}\n"
+                    f"Spots of your own call only (node filter '{c.self_spot_filter}') for the "
+                    f"SPOTTED pop-up\nNow: {now}")
+        dxc = getattr(self, "_dxc", None)
+        up = self._cluster_upstream() if hasattr(self, "_cluster_upstream") else None
+        if not getattr(c, "cluster_server", False):
+            now = "the cluster server is off (Settings > Cluster server)"
+        elif dxc is None:
+            now = "the cluster server is not running"
+        elif not on:
+            now = f"off - N1MM on TCP {dxc.port} gets POUNCer's spots only"
+        else:
+            now = (f"N1MM connected through to {up[0]}:{up[1]}" if dxc.relay_connected()
+                   else f"no client connected through (N1MM: TCP {dxc.port})")
+        target = f"{up[0]}:{up[1]}" if up else f"{c.ssb_host}:{c.ssb_port}"
+        return (f"{head}\nN1MM's Telnet (POUNCer TCP {c.cluster_port}) -> {target}, login = "
+                f"N1MM's call\nPeople's spots pass with Cluster on; skimmer spots come from "
+                f"POUNCer's sources\nNow: {now}")
 
     def _source_hover(self, button, key: str) -> None:
         def show(e, key=key):

@@ -727,6 +727,12 @@ list **and** out to N1MM / any client of the cluster server (port 10000):
 | **HTTP** | RBN's skimmer spots over HTTP - no login, works where telnet is blocked, catches up after a dropout | `[rbn] http_backup` (azure.s53m.com) |
 | **Cluster** | the DX cluster's spots **of people** (no `-#`, every mode; spotters `[ssb] spotters`, EU) | `[ssb] host` (azure.s53m.com:8000) |
 
+- Two more buttons after them for the other spot connections:
+  **MyCall** (azure, login `<call>-77`, only spots of your own call - the
+  SPOTTED pop-up; `[ui] self_spot_alert`) and **Relay** (N1MM's Telnet
+  through POUNCer to the cluster - the `relay` lines in the traffic console;
+  `[cluster] relay`, needs the cluster server on). Relay off = N1MM on port
+  10000 gets POUNCer's spots only and no cluster connection is made for it.
 - **Hover** over a button: the connection behind it - server and port,
   login, filter, and its state now ("logged in as S55OO", "via N1MM's
   connection", spots and the last HTTP answer ...).

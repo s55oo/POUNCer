@@ -172,6 +172,7 @@ Marks in the call and Mult columns:
 | sort key filled **blue** | the list is sorted by this key |
 | **▲** / **▼** in a column heading | sorted up / down by that column |
 | **Spots: RBN Telnet HTTP Cluster**, filled **blue** | that source is **on** (each one on its own); click = on / off; hover = the connection behind it (server, login, state) |
+| **MyCall** / **Relay** after them | the other spot connections: spots of your own call (azure, `<call>-77`, SPOTTED pop-up) / N1MM's cluster through POUNCer (the `relay` lines in the traffic console); blue = on, hover = the connection |
 | "nothing on - no spots" next to them | every source is off |
 | "master's choice" next to them | team slave: the master's sources; a click asks the master |
 | **ENTER** (green) | logs the QSO in N1MM |

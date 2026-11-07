@@ -112,7 +112,7 @@ class AppButtonTests(unittest.TestCase):
             rbn_http_backup="", ssb_host="azure.s53m.com"),
             status_label=types.SimpleNamespace(configure=lambda **k: None),
             _save_setting=lambda k, v: saved.append((k, v)), _src_last=1,
-            SOURCE_NAMES=app.PouncerApp.SOURCE_NAMES)
+            SOURCE_NAMES=app.PouncerApp.SOURCE_NAMES, CONN_KEYS=app.PouncerApp.CONN_KEYS)
         return app, f, sent, saved
 
     def test_slave_asks_the_master(self) -> None:

@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## v0.7.153 — 2026-11-07 — MyCall and Relay buttons
+
+- Two more buttons on the Spots line for the other spot connections:
+  **MyCall** (the spots-of-my-call connection, azure `<call>-77`, and the
+  SPOTTED pop-up) and **Relay** (N1MM's Telnet through POUNCer to the
+  cluster - the `relay` lines in the traffic console). Click = on / off,
+  saved; hover = the connection behind it and its state. Relay off: N1MM
+  on port 10000 gets POUNCer's spots only, no cluster connection for it.
+
 ## v0.7.152 — 2026-11-07 — Docs and lights for the Spots buttons
 
 - Lights: **Cluster** (was "SSB cluster") and **HTTP** (was "HTTP
