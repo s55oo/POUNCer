@@ -109,6 +109,7 @@ class _Client:
         self.mid_line = False                     # the last bytes sent ended mid-line
         self.recent: dict[tuple[str, int], float] = {}   # spots it got from the cluster
         self.closed = False
+        self.kicked = ""                          # the node's "Reconnected as ..." line
 
     def send(self, text: str) -> bool:
         return self.send_raw(text.encode("ascii", "replace"))
@@ -299,6 +300,8 @@ class ClusterServer:
         return True
 
     # ---- relay: the real cluster behind POUNCer -------------------------------------
+    KICK_WAIT_S = 120          # thrown out by another login with the same call: wait
+
     def _relay(self, c: _Client) -> None:
         """Connect the client through to the cluster (in the client's call)
         and pass its lines on; again after a lost connection."""
@@ -350,6 +353,20 @@ class ClusterServer:
                 self._relay_state(c.call, -1)
             if c.closed or self._stop.is_set():
                 return
+            kicked = getattr(c, "kicked", "")
+            c.kicked = ""
+            if kicked:
+                # someone else logged in with the same call (another N1MM / POUNCer /
+                # logger): reconnecting at once would throw THEM out - a login war
+                c.send_raw(f"*** POUNCer: {host}:{port} - another connection logged in as "
+                           f"{c.call} and took over ({kicked.strip()[:90]}). Another "
+                           f"N1MM / POUNCer / logger uses {c.call} on this node? Trying "
+                           f"again in {int(self.KICK_WAIT_S)} s\r\n".encode("ascii", "replace"),
+                           own_line=True)
+                traffic.emit("relay", f"{host}:{port}: another login as {c.call} took over")
+                if self._wait(c, self.KICK_WAIT_S):
+                    return
+                continue
             c.send_raw(f"*** POUNCer: the connection to {host}:{port} was lost - connecting "
                        "again\r\n".encode("ascii"), own_line=True)
             traffic.emit("relay", f"{host}:{port} lost")
@@ -393,7 +410,9 @@ class ClusterServer:
             if not line:
                 out += raw
                 continue
-            traffic.emit("relay", line[:120])
+            if "reconnected as" in line.lower() and "disconnected" in line.lower():
+                c.kicked = line                  # another login with this call took over
+                log.warning("cluster relay: %s", line[:160])
             at = line.find("DX de ")
             if at > 0:          # after a prompt with no newline ("... >DX de ...")
                 out += raw[:raw.find(b"DX de ")]
@@ -401,6 +420,8 @@ class ClusterServer:
                 line = line[at:]
             pkt = parse_dx(line)
             skimmer = pkt is not None and pkt["spotter"].endswith("-#")
+            # console: what came from the cluster; skimmer lines marked as kept back
+            traffic.emit("relay", ("(not to N1MM) " if skimmer else "") + line[:120])
             if not skimmer:
                 out += raw
             if pkt is None:

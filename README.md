@@ -915,7 +915,13 @@ DX de S53WW-#:   14025.0  DL1ABC       CW 23 dB 28 WPM CQ             1200Z
   with the same call (the CW feed on *Spots: Telnet*, the SSB cluster) closes
   and POUNCer reads the relay's lines instead; when N1MM disconnects,
   POUNCer connects itself again. The spots-of-my-call feed (`<call>-77`) has
-  its own login and stays. If the cluster can't
+  its own login and stays. If **another** program logs in with the same call
+  (another N1MM, another POUNCer, a logger on another PC), the node throws
+  the relay out; POUNCer then tells N1MM so (`*** POUNCer: ... another
+  connection logged in as S55OO ...`) and waits 2 minutes instead of
+  throwing the other one out at once (no login war). In the traffic
+  console, cluster skimmer lines that were kept back from N1MM are marked
+  `(not to N1MM)`. If the cluster can't
   be reached N1MM gets a `*** POUNCer: ...` note and POUNCer's spots only;
   POUNCer tries again every minute.
 - `relay = false`: only POUNCer's spots, read-only. The same call /

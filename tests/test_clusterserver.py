@@ -212,6 +212,15 @@ class RelayTests(unittest.TestCase):
         self.assertTrue(self.srv.publish(spot()))        # POUNCer's own (chosen source) goes
         self.assertIn("DL1ABC", self.c.until("DL1ABC"))
 
+    def test_thrown_out_by_another_login_waits(self) -> None:
+        self.c.until("your call")
+        self.srv.KICK_WAIT_S = 30
+        self.up.conn.sendall(b"Reconnected as S55OO at 192.0.2.7, this instance is disconnected\r\n")
+        self.up.conn.close()
+        out = self.c.until("Trying again")
+        self.assertIn("another connection logged in as S55OO", out)
+        self.assertNotIn("was lost - connecting again", out)
+
     def test_own_line_not_glued_to_a_half_line(self) -> None:
         self.c.until("your call")
         self.up.conn.sendall(b"S55OO de AZURE 7-Nov-2026 1200Z >")

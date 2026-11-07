@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## v0.7.150 — 2026-11-07 — Relay: no login war
+
+- When the node throws the relay out because **another** connection logged
+  in with the same call ("Reconnected as S55OO at ..., this instance is
+  disconnected"), POUNCer tells N1MM so and waits 2 minutes before logging
+  in again, instead of throwing the other one out after 10 s (they kept
+  throwing each other out). The log says it too.
+- Traffic console: cluster skimmer lines the relay keeps back from N1MM
+  are marked `(not to N1MM)`.
+
 ## v0.7.149 — 2026-11-07 — N1MM gets the skimmer spots you chose; HTTP fixed
 
 - **Relay: N1MM's skimmer spots follow Spots: RBN | Telnet | HTTP.** The
