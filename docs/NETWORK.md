@@ -23,10 +23,10 @@ in the examples are private example addresses.
 | 2 | **out** | UDP | 13064 | N1MM Logger+ (127.0.0.1) | QSY, wipe, CAT strings (XML commands) | `[n1mm] control_ip`, `control_port` |
 | 3 | local | files | – | N1MM's log `.s3db` + `-wal`, `N1MM Logger.ini`, `wl_cty.dat`, `MASTER.SCP` | worked stations, mults, contest, callsign, countries | `[n1mm] ini`, `[worked] db` |
 | 4 | local | Windows messages | – | N1MM Entry Windows | bring to front, put the call in, read it back, keys; read the CW speed box (WPM); Ctrl+K + typed text for the phone CW keyboard | `[n1mm] type_mode`, `cw_speed`; `[web] cw_keyboard` |
-| 5 | **out** | TCP (telnet) | 7000 / 7001 | telnet.reversebeacon.net | RBN skimmer spots (CW/RTTY 7000, FT8/FT4 7001) | `[rbn] host`, `port`, `ft8_port` |
-| 6 | **out** | TCP (telnet) | 8000 | azure.s53m.com | RBN backup when RBN's telnet is down | `[rbn] backup_host`, `backup_port` |
-| 7 | **out** | HTTPS | 443 | azure.s53m.com `/cors/rbn/live` | RBN over HTTP, second backup | `[rbn] http_backup` |
-| 8 | **out** | TCP (telnet) | 8000 | azure.s53m.com | DX cluster: SSB spots | `[ssb] host`, `port` |
+| 5 | **out** | TCP (telnet) | 7000 / 7001 | telnet.reversebeacon.net | RBN skimmer spots (CW/RTTY 7000, FT8/FT4 7001) - the **RBN** button | `[rbn] host`, `port`, `ft8_port`, `sources` |
+| 6 | **out** | TCP (telnet) | 8000 | azure.s53m.com | its skimmer spots - the **Telnet** button (with Cluster on the same node: one connection, one login) | `[rbn] backup_host`, `backup_port`, `sources` |
+| 7 | **out** | HTTPS | 443 | azure.s53m.com `/cors/rbn/live` | RBN over HTTP - the **HTTP** button | `[rbn] http_backup`, `sources` |
+| 8 | **out** | TCP (telnet) | 8000 | azure.s53m.com | DX cluster: spots of people (every mode) - the **Cluster** button | `[ssb] host`, `port`, `[rbn] sources` |
 | 8b | **out** | TCP (telnet) | 8000 | azure.s53m.com (`[ssb] self_spot_host`) | spots of MY call only (node filter `accept/spots call <call>`, login `<call>-77`, team: the master only) for the SPOTTED pop-up | `[ssb] self_spot_host`, `self_spot_port`, `self_spot_filter` - the log says once whether the node applies the filter ("self-spot feed: the node filter works" / "does NOT apply") |
 | 8d | **in** | TCP | 10000 | N1MM's Telnet window, other cluster clients (LAN / ZeroTier) | POUNCer as a DX cluster: `login:` -> call, then every spot as a `DX de` line; never N1MM's own spots. Relay: the client's lines go on to 8e, the cluster's back | `[cluster] enabled` (off), `port`, `relay` |
 | 8e | out | TCP | 8000 | the real DX cluster (`[cluster] upstream`, empty = `[ssb]` host:port) | relay only: one connection per cluster client, logged in with the client's call; its `DX de` lines are POUNCer's SSB source while connected (N1MM's broadcast ignored) | `[cluster] relay` (on) |

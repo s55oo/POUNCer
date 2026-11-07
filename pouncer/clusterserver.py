@@ -131,11 +131,13 @@ class _Client:
 class ClusterServer:
     def __init__(self, port: int = 10000, host: str = "0.0.0.0", node: str = "POUNCER",
                  version: str = "", upstream: tuple[str, int] | None = None,
-                 on_upstream_line=None, retry_s: float = 60.0, on_relay_state=None) -> None:
+                 on_upstream_line=None, retry_s: float = 60.0, on_relay_state=None,
+                 pass_people=None) -> None:
         self.port, self.host = int(port), host
         self.upstream = upstream if upstream and upstream[0] else None
         self.on_upstream_line = on_upstream_line
         self.on_relay_state = on_relay_state   # (host, port, call) / None: one login per node
+        self.pass_people = pass_people         # () -> bool: the cluster's spots of people go on
         self.retry_s = retry_s
         self._relay_calls: dict[str, int] = {}
         self.node = node
@@ -420,13 +422,16 @@ class ClusterServer:
                 line = line[at:]
             pkt = parse_dx(line)
             skimmer = pkt is not None and pkt["spotter"].endswith("-#")
-            # console: what came from the cluster; skimmer lines marked as kept back
-            traffic.emit("relay", ("(not to N1MM) " if skimmer else "") + line[:120])
-            if not skimmer:
+            # skimmer spots: POUNCer's own sources; people's: with 'Cluster' on
+            keep_back = skimmer or (pkt is not None and self.pass_people is not None
+                                    and not self.pass_people())
+            # console: what came from the cluster; lines kept back from N1MM marked
+            traffic.emit("relay", ("(not to N1MM) " if keep_back else "") + line[:120])
+            if not keep_back:
                 out += raw
             if pkt is None:
                 continue
-            if not skimmer:
+            if not keep_back:
                 now = time.time()
                 with self._lock:
                     c.recent[(pkt["call"], int(round(pkt["freq_khz"] * 10)))] = now

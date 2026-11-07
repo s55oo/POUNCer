@@ -75,7 +75,10 @@ class Config:
     rbn_history: int = 30
     # backup telnet server when RBN's own telnet is down (CW feed)
     rbn_backup_host: str = "azure.s53m.com"
-    rbn_source: str = "rbn"          # CW spots from: rbn (reversebeacon.net) / telnet (the backup)
+    # where the spots come in from - each on/off (the Spots buttons), comma
+    # separated: rbn (reversebeacon.net), telnet (backup_host: its skimmer
+    # spots), http (http_backup), cluster (the DX cluster's spots of people)
+    rbn_source: str = "rbn,cluster"
     rbn_backup_port: int = 8000
     rbn_backup_commands: tuple = ()     # at start ask RBN for the last spots (SH/DX); 0 = off
     # RBN over HTTP (S53ZO's Azure feed) while the telnet feed is down / silent
@@ -243,6 +246,20 @@ def parse_radio(text: str, fallback: int = 1) -> int:
     return 2 if fallback == 2 else 1
 
 
+SOURCES = ("rbn", "telnet", "http", "cluster")
+
+
+def parse_sources(text) -> str:
+    """'Telnet, RBN,x' -> 'rbn,telnet': the known ones, in a fixed order,
+    each once. Empty = none (no spots - the user's choice)."""
+    want = {w.strip().lower() for w in str(text or "").replace(";", ",").split(",")}
+    return ",".join(x for x in SOURCES if x in want)
+
+
+def has_source(cfg, name: str) -> bool:
+    return name in str(getattr(cfg, "rbn_source", "") or "").split(",")
+
+
 def load_config(path: str) -> Config:
     cfg = Config()
     cfg.config_path = os.path.abspath(path) if path else ""
@@ -273,8 +290,13 @@ def load_config(path: str) -> Config:
     cfg.rbn_spotter = s("rbn", "spotter", cfg.rbn_spotter)
     cfg.rbn_history = max(0, i("rbn", "history", cfg.rbn_history))
     cfg.rbn_backup_host = s("rbn", "backup_host", cfg.rbn_backup_host).strip()
-    src = s("rbn", "source", cfg.rbn_source).strip().lower()
-    cfg.rbn_source = src if src in ("rbn", "telnet", "http") else "rbn"
+    if parser.has_option("rbn", "sources"):
+        cfg.rbn_source = parse_sources(s("rbn", "sources", cfg.rbn_source))
+    else:    # older config.ini: one source (+ the SSB cluster, unless it was off)
+        one = s("rbn", "source", "rbn").strip().lower()
+        one = one if one in ("rbn", "telnet", "http") else "rbn"
+        ssb_off = s("ssb", "mode", "auto").strip().lower() == "off"
+        cfg.rbn_source = parse_sources(one + ("" if ssb_off else ",cluster"))
     cfg.rbn_backup_port = i("rbn", "backup_port", cfg.rbn_backup_port)
     cfg.rbn_backup_commands = tuple(
         c.strip() for c in s("rbn", "backup_commands", "").split(",") if c.strip())

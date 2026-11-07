@@ -576,71 +576,17 @@ class HttpFeedStartTests(unittest.TestCase):
 
 
 class HttpSourceTests(unittest.TestCase):
-    """'Spots: HTTP': the HTTP feed at once, telnet on standby; telnet takes
-    over while HTTP doesn't answer, standby again when it does."""
+    """The 'HTTP' button: the HTTP feed runs while it is on - nothing else
+    starts or stops it (no fallback for now)."""
 
-    def test_http_source(self) -> None:
+    def test_on_off_only(self) -> None:
         app = _import_app()
-        client = types.SimpleNamespace(_last_dx=0.0, hold=False)
-        client.set_hold = lambda on: setattr(client, "hold", bool(on))
-        feeds = []
+        feeds, stopped = [], []
 
         class FakeFeed:
             def __init__(self, url, *a, **k):
                 self.spots_in, self.last_ok = 0, 0.0
-                feeds.append(self)
-
-            def start(self):
-                pass
-
-            def stop(self):
-                pass
-        f = types.SimpleNamespace(
-            cfg=types.SimpleNamespace(rbn_http_backup="https://x/live", rbn_port=7000,
-                                      follow_modes=("CW",), rbn_source="http"),
-            _rbn_clients={7000: client}, rbn_status="logged in as S55OO",
-            _http_feed=None, _rbn_bad_since=None, _rbn_good_since=None,
-            _on_raw_spot=lambda s: None, spotter_filter=None, spot_queue=None,
-            HTTP_DOWN_S=app.PouncerApp.HTTP_DOWN_S)
-        for name in ("_rbn_healthy", "_ensure_http_feed", "_stop_http_feed", "_start_http_feed",
-                     "_http_as_source", "_http_down"):
-            setattr(f, name, getattr(app.PouncerApp, name).__get__(f))
-        now = [1000.0]
-        with mock.patch.object(app, "RBNHttpFeed", FakeFeed), \
-                mock.patch.object(app.time, "time", side_effect=lambda: now[0]):
-            f._ensure_http_feed()
-            self.assertEqual(len(feeds), 1)              # at once, telnet fine or not
-            self.assertTrue(client.hold)                 # telnet on standby
-            feeds[0].last_ok = now[0] + 50
-            now[0] += 100
-            f._ensure_http_feed()
-            self.assertTrue(client.hold)
-            now[0] += 200                                # no answer for 150 s
-            f._ensure_http_feed()
-            self.assertFalse(client.hold)                # telnet meanwhile
-            feeds[0].last_ok = now[0]
-            f._ensure_http_feed()
-            self.assertTrue(client.hold)                 # HTTP back: standby again
-            self.assertEqual(len(feeds), 1)
-            f.cfg.rbn_source = "rbn"                     # the RBN button
-            f._ensure_http_feed()
-            self.assertFalse(client.hold)
-
-
-class HttpBackupSwitchTests(unittest.TestCase):
-    """The HTTP backup starts after a minute of no telnet RBN, stops after a
-    minute of telnet working again."""
-
-    def test_start_and_stop(self) -> None:
-        app = _import_app()
-        client = types.SimpleNamespace(_last_dx=0.0, hold=False)
-        client.set_hold = lambda on: setattr(client, "hold", bool(on))
-        started, stopped = [], []
-
-        class FakeFeed:
-            def __init__(self, url, *a, **k):
-                started.append(url)
-                self.spots_in = 0
+                feeds.append(url)
 
             def start(self):
                 pass
@@ -648,43 +594,23 @@ class HttpBackupSwitchTests(unittest.TestCase):
             def stop(self):
                 stopped.append(1)
         f = types.SimpleNamespace(
-            cfg=types.SimpleNamespace(rbn_http_backup="https://x/live", rbn_port=7000,
-                                      follow_modes=("CW",)),
-            _rbn_clients={7000: client}, rbn_status="disconnected, reconnecting",
-            _http_feed=None, _rbn_bad_since=None, _rbn_good_since=None,
-            bandact=types.SimpleNamespace(add=lambda s: None), _on_raw_spot=lambda s: None,
-            spotter_filter=None, spot_queue=None)
-        for name in ("_rbn_healthy", "_ensure_http_feed", "_stop_http_feed", "_start_http_feed",
-                     "_http_as_source", "_http_down"):
+            cfg=types.SimpleNamespace(rbn_http_backup="https://x/live", follow_modes=("CW",),
+                                      rbn_source="rbn"),
+            team=None, _http_feed=None, _on_raw_spot=lambda s: None, spotter_filter=None,
+            spot_queue=None)
+        for name in ("_ensure_http_feed", "_stop_http_feed", "_start_http_feed"):
             setattr(f, name, getattr(app.PouncerApp, name).__get__(f))
-        f.HTTP_DOWN_S = app.PouncerApp.HTTP_DOWN_S
-        now = [1000.0]
-        with mock.patch.object(app, "RBNHttpFeed", FakeFeed), \
-                mock.patch.object(app.time, "time", side_effect=lambda: now[0]), \
-                mock.patch.object(app.time, "monotonic", side_effect=lambda: now[0]):
+        with mock.patch.object(app, "RBNHttpFeed", FakeFeed):
             f._ensure_http_feed()
-            self.assertEqual(started, [])               # not at once
-            now[0] += 61
+            self.assertEqual(feeds, [])                    # off: never, even if RBN is down
+            f.cfg.rbn_source = "rbn,http"
             f._ensure_http_feed()
-            self.assertEqual(started, ["https://x/live"])
             f._ensure_http_feed()
-            self.assertEqual(len(started), 1)           # only one
-            # telnet back and lines coming
-            f.rbn_status, client._last_dx = "logged in as S55OO", now[0]
-            f._ensure_http_feed()
-            self.assertEqual(stopped, [])               # not at once
-            now[0] += 61
-            client._last_dx = now[0]
+            self.assertEqual(feeds, ["https://x/live"])     # on: once
+            f._rbn_pause_on = True                          # every radio on SSB
             f._ensure_http_feed()
             self.assertEqual(stopped, [1])
-            self.assertIsNone(f._http_feed)
-            # logged in but silent for 2 minutes = down again
-            now[0] += 130
-            f._ensure_http_feed()
-            now[0] += 61
-            f._ensure_http_feed()
-            self.assertEqual(len(started), 2)
-            # off
-            f.cfg.rbn_http_backup = ""
+            f._rbn_pause_on = False
+            f.cfg.rbn_source = "rbn"
             f._ensure_http_feed()
             self.assertIsNone(f._http_feed)

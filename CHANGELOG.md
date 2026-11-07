@@ -1,5 +1,24 @@
 # POUNCer — Changelog
 
+## v0.7.151 — 2026-11-07 — Spots: RBN | Telnet | HTTP | Cluster, each on / off
+
+- **The Spots buttons are switches now**, each on or off on its own:
+  **RBN** (reversebeacon.net), **Telnet** (azure's skimmer spots), **HTTP**
+  (RBN over HTTP) and the new **Cluster** (the DX cluster's spots of people,
+  every mode). Whatever is on goes into POUNCer and out on port 10000; the
+  same spot from two sources counts once. Only what you switched on is
+  used - nothing takes over when a source is down (for now). `[rbn] sources
+  = rbn,cluster` (default; an older `source = ...` is taken over + Cluster).
+- **Hover over a button**: the connection behind it - server and port,
+  login, filter and its state now.
+- Telnet and Cluster on the same node share **one** connection (one login);
+  with N1MM on the relay it is the relay's.
+- Relay: the cluster's spots of people reach N1MM only with Cluster on;
+  skimmer spots always from POUNCer's switched-on sources.
+- The SSB cluster no longer switches by the radio's mode - the Cluster
+  button decides (`[ssb] mode` is only read from an older config.ini).
+- Removed: the automatic RBN <-> telnet backup and the HTTP fallback.
+
 ## v0.7.150 — 2026-11-07 — Relay: no login war
 
 - When the node throws the relay out because **another** connection logged

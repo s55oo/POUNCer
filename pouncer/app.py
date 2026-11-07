@@ -53,6 +53,7 @@ from . import winstate
 from .settings_window import SettingsWindow
 from .team import Team, derive_key
 from .clusterserver import ClusterServer, parse_dx
+from .config import has_source, parse_sources
 from .winfw import add_firewall_rules, firewall_rule_exists
 from .settings import set_ini_value
 from .update import Updater
@@ -511,11 +512,13 @@ class PouncerApp:
         src = ttk.Frame(flow)
         ttk.Label(src, text="Spots", style="Muted.TLabel").pack(side="left", padx=(0, 4))
         self._src_buttons = {}
-        for key, label in (("rbn", "RBN"), ("telnet", "Telnet"), ("http", "HTTP")):
+        for key, label in (("rbn", "RBN"), ("telnet", "Telnet"), ("http", "HTTP"),
+                           ("cluster", "Cluster")):
             b = ttk.Button(src, text=label, style="Sort.TButton", takefocus=False,
                            command=lambda k=key: self._set_source(k))
             b.pack(side="left")
             self._src_buttons[key] = b
+            self._source_hover(b, key)
         self._src_note = ttk.Label(src, text="", style="Muted.TLabel")
         self._src_note.pack(side="left", padx=(6, 0))
         self._src_box = src
@@ -1536,15 +1539,15 @@ class PouncerApp:
         if group == "RBN":
             return ("RBN - CW skimmer spots from the Reverse Beacon Network (telnet)\n"
                     f"Server: {g(c, 'rbn_host', '')}:{g(c, 'rbn_port', '')}, login {call}\n"
-                    f"CW spots from: {g(c, 'rbn_source', 'rbn')} (Spots button: RBN | Telnet)\n"
+                    f"Spots switched on: {g(c, 'rbn_source', '') or 'none'} (Spots buttons)\n"
                     f"Own skimmer: {g(c, 'rbn_spotter', '') or '-'}; min SNR {g(c, 'min_snr', 0)} dB\n"
                     f"Pause while every radio is on SSB: {onoff(g(c, 'rbn_pause_on_phone', True))}\n"
                     f"Team: {role}" + (" - the master talks to RBN" if role == "slave" else ""))
         if group == "TELNET":
-            return ("TELNET - the telnet DX cluster: CW backup / 'Spots: Telnet', and the "
+            return ("TELNET - the telnet server's skimmer spots ('Spots: Telnet') and the "
                     "spots-of-my-call feed\n"
-                    f"Backup: {g(c, 'rbn_backup_host', '')}:{g(c, 'rbn_backup_port', '')}"
-                    f" (used now: {'yes' if g(c, 'rbn_source', 'rbn') == 'telnet' else 'only if RBN fails'})\n"
+                    f"Server: {g(c, 'rbn_backup_host', '')}:{g(c, 'rbn_backup_port', '')} - "
+                    f"{'on' if has_source(c, 'telnet') else 'off'}\n"
                     f"My-call feed: {g(c, 'self_spot_host', '')}:{g(c, 'self_spot_port', '')} as "
                     f"{self._self_feed_login() if hasattr(self, '_self_feed_login') else '-'}, "
                     f"filter '{g(c, 'self_spot_filter', '')}'\n"
@@ -1552,15 +1555,16 @@ class PouncerApp:
         if group == "SSB":
             dxc = g(self, "_dxc", None)
             relay = dxc is not None and dxc.relay_connected()
-            return ("SSB - human DX-cluster spots for USB / LSB (RBN has no SSB)\n"
+            return ("SSB - 'Spots: Cluster': the DX cluster's spots of people (every mode)\n"
                     f"Cluster: {g(c, 'ssb_host', '')}:{g(c, 'ssb_port', '')}, login "
-                    f"{g(c, 'ssb_login', '') or call}\n"
-                    f"Mode: {g(c, 'ssb_mode', 'auto')} (auto = only while a radio is on USB / LSB)\n"
+                    f"{g(c, 'ssb_login', '') or call} - "
+                    f"{'on' if has_source(c, 'cluster') else 'off'}"
+                    f"{' (the same connection as Telnet)' if self._cluster_merged() else ''}\n"
                     f"Spotters: {g(c, 'ssb_spotters', 'EU')}; N1MM's spots instead: "
                     f"{g(c, 'ssb_use_n1mm', 'auto')}"
                     + ("\nNow from the cluster relayed to N1MM (Cluster server)" if relay else ""))
         if group == "HTTP":
-            return ("HTTP - RBN web backup, only while the RBN telnet doesn't work\n"
+            return ("HTTP - RBN's skimmer spots over HTTP ('Spots: HTTP')\n"
                     f"URL: {g(c, 'rbn_http_backup', '') or '(off)'}")
         if group == "N1MM":
             return ("N1MM - UDP from N1MM Logger+ (Config > Broadcast Data): radio, "
@@ -1622,6 +1626,8 @@ class PouncerApp:
         elif getattr(self, "_rbn_pause_on", False):
             notes["RBN"] = ("paused - SSB contest" if self._phone_contest()
                             else "paused - every radio on SSB")
+        elif not has_source(self.cfg, "rbn"):
+            notes["RBN"] = "off - Spots: RBN"
         elif not self._rbn_clients:
             notes["RBN"] = "not connected"
         dxc = getattr(self, "_dxc", None)
@@ -1630,19 +1636,18 @@ class PouncerApp:
                 self.cfg, "cluster_server", False) else "not running - port busy?")
         elif not dxc.client_count():
             notes["SERVER"] = f"TCP {dxc.port}: no client connected"
-        if role != "slave" and not any(getattr(c, "backup", None) and c.on_backup
-                                       for c in self._rbn_clients.values()):
-            notes["TELNET"] = ("CW spots from RBN now (Spots: Telnet to switch)"
+        if role != "slave" and not has_source(self.cfg, "telnet"):
+            notes["TELNET"] = ("off - Spots: Telnet"
                                + ("; the spots-of-my-call feed is here"
                                   if getattr(self, "_self_feed", None) else ""))
         if role != "slave":
             ssb = (self.ssb_status or "").lower()
             if ssb.startswith("via n1mm"):
-                notes["SSB"] = "spots come from N1MM"
+                notes["SSB"] = "Cluster spots come from N1MM"
             elif ssb in ("", "off"):
-                notes["SSB"] = "cluster off - no radio on SSB"
+                notes["SSB"] = "off - Spots: Cluster"
         if self._http_feed is None:
-            notes["HTTP"] = "backup off - RBN telnet works"
+            notes["HTTP"] = "off - Spots: HTTP"
         if not self.cfg.web_enabled:
             notes["WEB"] = "phone page off"
         return notes
@@ -1870,23 +1875,14 @@ class PouncerApp:
     SSB_GRACE_S = 60           # SSB cluster stays this long after the last radio left USB/LSB
 
     def _ssb_wanted(self) -> bool:
-        mode = getattr(self.cfg, "ssb_mode", "off")
-        if mode == "off" or not getattr(self.cfg, "ssb_host", ""):
+        """The 'Cluster' source (spots of people from the DX cluster) is on
+        - not on a team slave (the master passes the spots on)."""
+        if not has_source(self.cfg, "cluster") or not getattr(self.cfg, "ssb_host", ""):
             return False
         if self.team is not None and (time.time() - self.team.started < 3
                                       or self.team.role() == "slave"):
-            return False            # the master passes SSB spots on
-        if mode == "always":
-            return True
-        if any(self._phone_radio(nr) for nr in self.state.radio_numbers()):
-            self._ssb_last_needed = time.time()
-            return True
-        if (self.team is not None and self.team.role() == "master"
-                and self.team.peers_on_phone()):
-            self._ssb_last_needed = time.time()
-            return True             # for the team's stations on USB/LSB
-        # only on USB/LSB: a minute's grace for a quick mode flip (no login storm)
-        return time.time() - getattr(self, "_ssb_last_needed", 0) < self.SSB_GRACE_S
+            return False
+        return True
 
     N1MM_SPOT_START_S = 0      # N1MM's first spot: our cluster closes at once
     N1MM_SPOT_START_N = 1
@@ -1902,8 +1898,9 @@ class PouncerApp:
         return min(self.N1MM_SPOT_BREAK_S, max(self.N1MM_SPOT_QUIET_S, self.N1MM_SPOT_QUIET_X * gap))
 
     def _relay_clients(self) -> list:
-        return [c for c in list(getattr(self, "_rbn_clients", {}).values())
-                + [getattr(self, "_ssb_client", None)] if c is not None]
+        """POUNCer's own connections that may share a login with the relay."""
+        return [c for c in (getattr(self, "_telnet_client", None),
+                            getattr(self, "_ssb_client", None)) if c is not None]
 
     def _on_relay_state(self, host: str, port: int, call: str, up: bool) -> None:
         """The relay holds / dropped a login on the node: our own connection
@@ -1920,7 +1917,7 @@ class PouncerApp:
         """A 'DX de' line from the cluster relayed to N1MM (relay thread):
         the same use as N1MM's spot packets, read at the source - and the CW
         feed's own line while it shares the relay's login."""
-        for c in list(getattr(self, "_rbn_clients", {}).values()):
+        for c in self._relay_clients():
             c.feed_shared(line)
         pkt = parse_dx(line)
         if pkt is not None:
@@ -1955,8 +1952,8 @@ class PouncerApp:
         if not self._ssb_via_n1mm or pkt.get("action") not in ("", "add"):
             return
         spot = spot_from_n1mm(pkt, now)
-        if spot.mode != "SSB":
-            return                       # CW: our RBN feed has every skimmer
+        if (spot.spotter or "").endswith("-#"):
+            return                       # skimmers come from RBN / Telnet / HTTP
         if self._n1mm_filter is None:
             self._n1mm_filter = ContinentFilter(lambda call: self._continent(call),
                                                 lambda: self.home_cont, self.cfg.ssb_spotters)
@@ -1988,46 +1985,71 @@ class PouncerApp:
         return (now - first >= self.N1MM_SPOT_START_S
                 and getattr(self, "_n1mm_streak", 0) >= self.N1MM_SPOT_START_N)
 
+    def _cluster_merged(self) -> bool:
+        """Telnet and Cluster are both on and on the same node: one
+        connection (one login) carries both."""
+        c = self.cfg
+        return (has_source(c, "telnet") and bool(c.rbn_backup_host)
+                and (c.rbn_backup_host.lower(), int(c.rbn_backup_port))
+                == (str(c.ssb_host).lower(), int(c.ssb_port)))
+
+    def _people_filter(self):
+        return ContinentFilter(lambda call: self._continent(call), lambda: self.home_cont,
+                               self.cfg.ssb_spotters)
+
     def _ensure_ssb_client(self) -> None:
+        """The 'Cluster' source: spots of people from the DX cluster - on the
+        Telnet connection when that is on the same node, else a connection
+        of its own; while N1MM (connected to the cluster itself) sends its
+        spots, from N1MM's broadcast instead (no second login)."""
         want = self._ssb_wanted()
-        via = want and self._n1mm_spots_ok()
+        dxc = getattr(self, "_dxc", None)
+        relayed = dxc is not None and dxc.relay_connected()
+        via = want and not relayed and self._n1mm_spots_ok()
         if via != getattr(self, "_ssb_via_n1mm", False):
             if not via and want:
                 self._ssb_back_at = time.time()    # N1MM quiet: own cluster for a while
             self._ssb_via_n1mm = via
-            log.info("SSB spots %s", "from N1MM (own cluster connection closed)" if via
+            log.info("Cluster spots %s", "from N1MM (own cluster connection closed)" if via
                      else (f"from our own cluster (no spot from N1MM for "
                            f"{time.time() - getattr(self, '_n1mm_spot_last', 0.0):.0f} s)")
                      if want else "off")
+        merged = want and not via and self._cluster_merged()
+        tc = getattr(self, "_telnet_client", None)
+        if tc is not None:
+            tc.people = self._people_filter() if merged else None
         client = getattr(self, "_ssb_client", None)
-        if client is not None and (not want or via):
+        if client is not None and (not want or via or merged):
             client.stop()
             self._ssb_client = None
+            client = None
         if via:
             self.ssb_status = "via N1MM"
             return
         if not want:
             self.ssb_status = "off"
             return
-        if client is None and want:
+        if merged:
+            self.ssb_status = getattr(tc, "status_text", "") or "starting"
+            return
+        if client is None:
             self._ssb_client = RBNClient(
                 self.cfg.ssb_host, self.cfg.ssb_port,
                 self.cfg.ssb_login or self.cfg.rbn_callsign,
-                ContinentFilter(lambda call: self._continent(call), lambda: self.home_cont,
-                                self.cfg.ssb_spotters),
+                self._people_filter(),
                 self.spot_queue,
                 on_status=self._ssb_status_put,
                 history=self.cfg.ssb_history,
                 backup_commands=self.cfg.ssb_commands,
-                kind="cluster", modes=("SSB",), name="ssb",
+                kind="cluster", modes=(), name="cluster",
                 on_raw=self._on_raw_spot,
             )
-            # cluster commands are sent like the backup's (after login)
+            self._ssb_client.skimmers = False      # people only; skimmers: RBN / Telnet / HTTP
             self._ssb_client.backup_commands = tuple(self.cfg.ssb_commands)
             if getattr(self, "_relay_share", None):
                 self._ssb_client.share(*self._relay_share)
             self._ssb_client.start()
-            log.info("SSB cluster client started on %s:%s", self.cfg.ssb_host, self.cfg.ssb_port)
+            log.info("Cluster client started on %s:%s", self.cfg.ssb_host, self.cfg.ssb_port)
 
     def _ssb_status_put(self, text: str) -> None:
         self._ssb_status_q.put(text)
@@ -2044,32 +2066,21 @@ class PouncerApp:
         return time.monotonic() - getattr(client, "_last_dx", 0) < 120
 
     def _ensure_http_feed(self) -> None:
-        """Start the HTTP backup after a minute without a working telnet
-        feed; stop it after a minute of telnet working again."""
+        """The 'HTTP' source: the HTTP feed runs while it is switched on
+        (not on a team slave, not while RBN is paused for SSB)."""
         url = getattr(self.cfg, "rbn_http_backup", "")
-        if not url or not self._rbn_clients:    # off, or a team slave
+        team = getattr(self, "team", None)
+        slave = team is not None and (time.time() - team.started < 3 or team.role() == "slave")
+        want = (bool(url) and has_source(self.cfg, "http") and not slave
+                and not getattr(self, "_rbn_pause_on", False))
+        if not want:
+            if self._http_feed is not None:
+                log.info("HTTP feed stopped")
             self._stop_http_feed()
             return
-        now = time.time()
-        if getattr(self.cfg, "rbn_source", "rbn") == "http":
-            self._http_as_source(url, now)
-            return
-        for c in self._rbn_clients.values():
-            c.set_hold(False)
-        if self._rbn_healthy():
-            self._rbn_bad_since = None
-            self._rbn_good_since = self._rbn_good_since or now
-            if self._http_feed is not None and now - self._rbn_good_since > 60:
-                self._stop_http_feed()
-                log.info("RBN telnet works again: HTTP backup stopped")
-            return
-        self._rbn_good_since = None
-        self._rbn_bad_since = self._rbn_bad_since or now
-        if self._http_feed is None and now - self._rbn_bad_since > 60:
+        if self._http_feed is None:
             self._start_http_feed(url)
-            log.info("RBN telnet down / silent: HTTP backup %s started", url)
-
-    HTTP_DOWN_S = 120      # 'Spots: HTTP': no answer this long = RBN telnet meanwhile
+            log.info("HTTP feed %s started", url)
 
     def _start_http_feed(self, url: str) -> None:
         self._http_feed = RBNHttpFeed(
@@ -2079,27 +2090,6 @@ class PouncerApp:
             or ("CW",), on_raw=self._on_raw_spot)
         self._http_feed.began = time.time()
         self._http_feed.start()
-
-    def _http_down(self, now: float | None = None) -> bool:
-        """'Spots: HTTP' and the HTTP feed hasn't answered for HTTP_DOWN_S."""
-        f = self._http_feed
-        if f is None:
-            return True
-        now = now or time.time()
-        return now - max(f.last_ok, getattr(f, "began", now)) > self.HTTP_DOWN_S
-
-    def _http_as_source(self, url: str, now: float) -> None:
-        """'Spots: HTTP': the HTTP feed delivers the CW spots, the telnet
-        connection waits on standby - and takes over while HTTP is down."""
-        if self._http_feed is None:
-            self._start_http_feed(url)
-            log.info("CW spots from the HTTP feed %s (telnet on standby)", url)
-        down = self._http_down(now)
-        for c in self._rbn_clients.values():
-            if c.hold == down:
-                log.info("HTTP feed %s: RBN telnet %s", "down" if down else "back",
-                         "connects meanwhile" if down else "on standby again")
-            c.set_hold(not down)
 
     def _stop_http_feed(self) -> None:
         if self._http_feed is not None:
@@ -2222,9 +2212,8 @@ class PouncerApp:
                  self.cfg.self_spot_port, login, "; ".join(cmds) or "(none)")
 
     def _ensure_rbn_clients(self) -> None:
-        self._ensure_ssb_client()
         self._ensure_self_feed()
-        desired = self._desired_rbn_ports()
+        desired = self._desired_rbn_ports() if has_source(self.cfg, "rbn") else set()
         paused = self._rbn_paused()
         if paused != getattr(self, "_rbn_pause_on", False):
             self._rbn_pause_on = paused
@@ -2233,16 +2222,22 @@ class PouncerApp:
                                  and self.team.alive_peers() else ""))
                      if paused else "on: a radio is on CW")
             self.rbn_status = "paused: SSB, not needed" if paused else "starting"
+        telnet = has_source(self.cfg, "telnet") and bool(self.cfg.rbn_backup_host)
         if paused:
-            desired = set()
+            desired, telnet = set(), False
         if self.team is not None:
             # Team: only the master talks to RBN; give discovery 3 s at start
             # so a later POUNCer doesn't log in just to hand over at once.
             if time.time() - self.team.started < 3 or self.team.role() == "slave":
-                desired = set()
+                desired, telnet = set(), False
         for port in [p for p in self._rbn_clients if p not in desired]:
             self._rbn_clients.pop(port).stop()
+        self._ensure_telnet_client(telnet)
+        self._ensure_ssb_client()
         self._ensure_http_feed()
+        if not paused and not desired and not telnet:
+            self.rbn_status = ("standby - the HTTP feed delivers" if self._http_feed is not None
+                               else "off - no skimmer source on")
         for port in sorted(desired):
             if port in self._rbn_clients:
                 continue
@@ -2254,90 +2249,172 @@ class PouncerApp:
                 self.spot_queue,
                 on_status=self.status_queue.put,
                 history=self.cfg.rbn_history,
-                # the backup server passes on the CW feed only
-                backup=((self.cfg.rbn_backup_host, self.cfg.rbn_backup_port)
-                        if port == self.cfg.rbn_port and self.cfg.rbn_backup_host else None),
-                backup_commands=self.cfg.rbn_backup_commands,
                 on_raw=self._on_raw_spot,
             )
-            client.prefer(getattr(self.cfg, "rbn_source", "rbn") == "telnet")
-            if getattr(self, "_relay_share", None):
-                client.share(*self._relay_share)
             client.start()
             self._rbn_clients[port] = client
             log.info("RBN client started on %s:%s", self.cfg.rbn_host, port)
 
+    def _ensure_telnet_client(self, want: bool) -> None:
+        """The 'Telnet' source: the skimmer spots of the telnet server
+        (backup_host, azure.s53m.com:8000) - and its spots of people when
+        'Cluster' is on too (same node, one login)."""
+        tc = getattr(self, "_telnet_client", None)
+        if not want:
+            if tc is not None:
+                tc.stop()
+                self._telnet_client = None
+                log.info("Telnet client stopped")
+            return
+        if tc is not None:
+            return
+
+        def status(text, self=self):
+            if not has_source(self.cfg, "rbn"):
+                self.status_queue.put(text)       # the RBN light shows this connection
+            if self._cluster_merged() and self._ssb_wanted():
+                self._ssb_status_put(text)
+        tc = RBNClient(self.cfg.rbn_backup_host, self.cfg.rbn_backup_port, self.cfg.rbn_callsign,
+                       self.spotter_filter, self.spot_queue, on_status=status,
+                       history=self.cfg.rbn_history, name="telnet",
+                       backup_commands=self.cfg.rbn_backup_commands, on_raw=self._on_raw_spot)
+        tc.backup_commands = tuple(self.cfg.rbn_backup_commands)
+        if getattr(self, "_relay_share", None):
+            tc.share(*self._relay_share)
+        tc.start()
+        self._telnet_client = tc
+        log.info("Telnet client started on %s:%s", self.cfg.rbn_backup_host,
+                 self.cfg.rbn_backup_port)
+
+    SOURCE_NAMES = {"rbn": "RBN", "telnet": "Telnet", "http": "HTTP", "cluster": "Cluster"}
+
     def _set_source(self, src: str, from_team: bool = False) -> None:
-        """'Spots: RBN | Telnet': where the CW spots come from. A team slave
-        asks the master (only it is connected); otherwise switch now, save."""
-        if src not in ("rbn", "telnet", "http"):
+        """A Spots button: switch that source on / off. A team slave asks the
+        master (only it is connected); otherwise switch now, save."""
+        if src not in self.SOURCE_NAMES:
             return
         team = getattr(self, "team", None)
         if team is not None and not from_team and team.alive_peers() and not team.is_master():
             team.send_src(src)
             self.status_label.configure(
-                text=f"Asked the team master to take the CW spots from "
-                     f"{'RBN' if src == 'rbn' else self.cfg.rbn_backup_host}")
+                text=f"Asked the team master to switch {self.SOURCE_NAMES[src]} on / off")
             return
-        if not self.cfg.rbn_backup_host and src == "telnet":
-            self.status_label.configure(text="No telnet server set ([rbn] backup_host)")
+        need = {"telnet": ("rbn_backup_host", "No telnet server set ([rbn] backup_host)"),
+                "http": ("rbn_http_backup", "No HTTP feed set ([rbn] http_backup)"),
+                "cluster": ("ssb_host", "No DX cluster set ([ssb] host)")}
+        cur = set(filter(None, str(self.cfg.rbn_source or "").split(",")))
+        if src not in cur and src in need and not getattr(self.cfg, need[src][0], ""):
+            self.status_label.configure(text=need[src][1])
             return
-        if not getattr(self.cfg, "rbn_http_backup", "") and src == "http":
-            self.status_label.configure(text="No HTTP feed set ([rbn] http_backup)")
-            return
-        self._save_setting("rbn.source", src)       # applies it too (_apply_source)
-        where = {"rbn": "RBN", "http": f"the HTTP feed {getattr(self.cfg, 'rbn_http_backup', '')}"
-                 }.get(src, f"{self.cfg.rbn_backup_host}:{self.cfg.rbn_backup_port}")
-        self.status_label.configure(text=f"CW spots now from {where}"
+        cur ^= {src}
+        value = parse_sources(",".join(cur))
+        self._save_setting("rbn.sources", value)     # applies it too (_apply_source)
+        names = " + ".join(self.SOURCE_NAMES[x] for x in value.split(",") if x) or "nothing"
+        self.status_label.configure(text=f"Spots come in from: {names}"
                                          + (" (asked by a team member)" if from_team else ""))
         self._src_last = None
 
     def _apply_source(self) -> None:
-        """Every RBN connection with a backup: the chosen server, now."""
-        for c in list(getattr(self, "_rbn_clients", {}).values()):
-            if getattr(c, "backup", None):
-                c.prefer(self.cfg.rbn_source == "telnet")   # HTTP: RBN is its fallback
+        """The sources changed: start / stop the connections now."""
+        self._src_last = None
         if hasattr(self, "_rbn_clients"):
-            if self.cfg.rbn_source != "http":
-                for c in self._rbn_clients.values():
-                    c.set_hold(False)
-                if getattr(self, "_http_feed", None) is not None and self._rbn_healthy():
-                    self._stop_http_feed()          # back to the fallback-only rule
-            if hasattr(self, "_http_feed"):
-                self._ensure_http_feed()
+            self._ensure_rbn_clients()
 
     def _update_source_buttons(self) -> None:
-        """The chosen one filled blue; in a team slave the master's choice;
-        a note when the other one is in use because the chosen one is down."""
+        """Each source that is on filled blue; in a team slave the master's
+        choice."""
         box = getattr(self, "_src_box", None)
         if box is None:
             return
         team = getattr(self, "team", None)
         slave = team is not None and team.alive_peers() and not team.is_master()
         chosen = (team.master_src() or self.cfg.rbn_source) if slave else self.cfg.rbn_source
-        note = ""
-        if not slave:
-            http_src = self.cfg.rbn_source == "http"
-            for c in getattr(self, "_rbn_clients", {}).values():
-                if http_src:
-                    if not c.hold and getattr(self, "_http_feed", None) is not None:
-                        note = "using RBN - HTTP down"
-                elif getattr(c, "backup", None) and c.on_backup != c.prefer_backup:
-                    note = ("using Telnet - RBN down" if c.on_backup
-                            else "using RBN - Telnet down")
-            if not http_src and getattr(self, "_http_feed", None) is not None:
-                note = "using HTTP - telnet down"
-        elif slave:
-            note = "master's choice"
-        sig = (chosen, note, bool(self.cfg.rbn_backup_host),
-               bool(getattr(self.cfg, "rbn_http_backup", "")))
+        on = set(filter(None, str(chosen or "").split(",")))
+        note = "master's choice" if slave else ("nothing on - no spots" if not on else "")
+        sig = (tuple(sorted(on)), note)
         if sig == self._src_last:
             return
         self._src_last = sig
-        self._flow.set_visible(box, bool(self.cfg.rbn_backup_host))
         for key, b in self._src_buttons.items():
-            b.configure(style="SortOn.TButton" if key == chosen else "Sort.TButton")
+            b.configure(style="SortOn.TButton" if key in on else "Sort.TButton")
         self._src_note.configure(text=note)
+
+    def _source_tip(self, key: str) -> str:
+        """Hover over a Spots button: the connection behind it, now."""
+        c = self.cfg
+        on = has_source(c, key)
+        call = c.rbn_callsign or (self.own_call() if hasattr(self, "own_call") else "") or "?"
+        head = f"{self.SOURCE_NAMES.get(key, key)} - {'ON' if on else 'off'} (click = switch " \
+               f"{'off' if on else 'on'})"
+        team = getattr(self, "team", None)
+        if team is not None and team.alive_peers() and not team.is_master():
+            return head + "\nTeam slave: the master is connected; a click asks the master."
+
+        def st(client):
+            if client is None:
+                return "not connected"
+            return getattr(client, "status_text", "") or "starting"
+        if key == "rbn":
+            cl = self._rbn_clients.get(c.rbn_port)
+            return (f"{head}\n{c.rbn_host}:{c.rbn_port} (telnet), login {call}\n"
+                    f"Skimmer spots; skimmers: {self.spotter_filter.label() or 'all'}\n"
+                    f"Now: {st(cl) if on else 'off'}")
+        if key == "telnet":
+            tc = getattr(self, "_telnet_client", None)
+            return (f"{head}\n{c.rbn_backup_host}:{c.rbn_backup_port} (telnet), login {call}\n"
+                    f"Its skimmer spots ('-#'); skimmers: {self.spotter_filter.label() or 'all'}\n"
+                    f"Now: {st(tc) if on else 'off'}")
+        if key == "http":
+            f = self._http_feed
+            if f is None:
+                now = "off" if not on else "not running"
+            else:
+                age = time.time() - f.last_ok if f.last_ok else None
+                now = (f"{f.spots_in} spots, last answer {age:.0f} s ago" if age is not None
+                       else "waiting for the first answer")
+            return f"{head}\n{c.rbn_http_backup or '(no URL)'}\nSkimmer spots over HTTP\nNow: {now}"
+        if key == "cluster":
+            merged = self._cluster_merged()
+            cl = getattr(self, "_telnet_client", None) if merged else getattr(self, "_ssb_client", None)
+            now = ("from N1MM's spots (N1MM is connected to the cluster itself)"
+                   if getattr(self, "_ssb_via_n1mm", False) else (st(cl) if on else "off"))
+            return (f"{head}\n{c.ssb_host}:{c.ssb_port} (telnet), login "
+                    f"{(c.rbn_callsign if merged else c.ssb_login) or call}"
+                    f"{' - the same connection as Telnet' if merged else ''}\n"
+                    f"Spots of people (no '-#'), spotters: {c.ssb_spotters}\nNow: {now}")
+        return head
+
+    def _source_hover(self, button, key: str) -> None:
+        def show(e, key=key):
+            hide()
+            tip = tk.Toplevel(self.root)
+            tip.wm_overrideredirect(True)
+            try:
+                tip.attributes("-topmost", True)
+            except tk.TclError:
+                pass
+            text = self._source_tip(key)
+            head, _, body = text.partition("\n")
+            fr = tk.Frame(tip, bg="#263238", bd=1, relief="solid", padx=8, pady=6)
+            fr.pack()
+            tk.Label(fr, text=head, bg="#263238", fg="#ffffff", justify="left",
+                     font=(theme.FONT, 9, "bold")).pack(anchor="w")
+            tk.Label(fr, text=body, bg="#263238", fg="#eceff1", justify="left",
+                     font=(theme.FONT, 9), wraplength=theme.px(440)).pack(anchor="w")
+            tip.geometry(f"+{e.x_root + 12}+{e.y_root + 18}")
+            self._src_tip = tip
+
+        def hide(_e=None):
+            tip = getattr(self, "_src_tip", None)
+            if tip is not None:
+                try:
+                    tip.destroy()
+                except tk.TclError:
+                    pass
+                self._src_tip = None
+        button.bind("<Enter>", show, add="+")
+        button.bind("<Leave>", hide, add="+")
+        button.bind("<ButtonPress>", hide, add="+")
 
     def _on_qsy(self, event) -> None:
         item = self.tree.identify_row(event.y)
@@ -3188,6 +3265,24 @@ class PouncerApp:
             if not getattr(self, "_ssb_via_n1mm", False):   # a stopped client's last words
                 self.ssb_status = status
 
+    MERGE_S = 60      # the same call / frequency / spotter from two sources within this = once
+
+    def _merged_dup(self, spot) -> bool:
+        """RBN, Telnet and HTTP pass on the same skimmer spots: keep the first."""
+        seen = getattr(self, "_merge_seen", None)
+        if seen is None:
+            seen = self._merge_seen = {}
+        now = time.time()
+        key = (spot.dxcall.upper(), int(round(spot.freq_khz * 10)),
+               (spot.spotter or "").upper().replace("-#", ""))
+        if now - seen.get(key, 0.0) < self.MERGE_S:
+            return True
+        seen[key] = now
+        if len(seen) > 20000:
+            for k in [k for k, t in seen.items() if now - t > self.MERGE_S]:
+                del seen[k]
+        return False
+
     def _drain_spots(self) -> None:
         got = 0
         while got < 500:
@@ -3203,6 +3298,8 @@ class PouncerApp:
                 if time.time() - spot.received < 900:
                     self._note_self_spot(spot.dxcall, spot.spotter, spot.freq_khz)
                 continue
+            if self._merged_dup(spot):
+                continue                  # the same spot from another source: once
             self._note_own(spot)
             self._check_overlap(spot)
             self.spots[spot.key] = spot
@@ -4314,7 +4411,7 @@ class PouncerApp:
             if old != new:
                 log.info("setting changed: %s (%s): %s -> %s%s", item.get("label", key), key,
                          show(old), show(new), "" if res.get("live") else "  [after a restart]")
-            if key == "rbn.source":
+            if key == "rbn.sources":
                 self._apply_source()
                 self._src_last = None
             if key.startswith("cluster."):
@@ -5060,7 +5157,8 @@ class PouncerApp:
             return
         srv = ClusterServer(port=self.cfg.cluster_port, node="POUNCER", version=__version__,
                             upstream=self._cluster_upstream(), on_upstream_line=self._on_relay_line,
-                            on_relay_state=self._on_relay_state)
+                            on_relay_state=self._on_relay_state,
+                            pass_people=lambda: has_source(self.cfg, "cluster"))
         if srv.start():
             self._dxc = srv
             self.status_label.configure(text=f"Cluster server on TCP {srv.port}: in N1MM's "
