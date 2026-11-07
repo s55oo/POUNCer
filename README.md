@@ -409,7 +409,12 @@ connection - both azure.s53m.com:8000), SSB cluster lines (and the commands
 sent), N1MM UDP packets in and QSY / call commands out, the HTTP
 backup feed, the team, the phone page's requests (WEB, off at first). Tick
 sources on / off, type a filter word (a call, `DX de`, `RadioInfo` ...),
-Pause, Clear; outgoing lines are yellow (`>`). Under the switches each
+Pause, Clear; outgoing lines are yellow (`>`). **Hover over a source** (its
+switch or its dot): a pop-up says what that source is and what POUNCer is
+monitoring with which settings right now - server and port, login call,
+mode, filters, listen address, team role and peers, relay target (a team
+password only as "set" / "off", never the key) - plus why it is quiet and
+how many lines came. Under the switches each
 source has a **dot**: green = lines now, amber = quiet 5 s+, red = quiet
 30 s+, grey = quiet for a known reason; next to it how many lines came,
 "hidden", how long it has been quiet and why (RBN paused - every radio on SSB, SSB spots come from N1MM, via the

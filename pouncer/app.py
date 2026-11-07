@@ -367,7 +367,7 @@ class PouncerApp:
         self._timeline_win = TimelineWindow(self.root, self._timeline,
                                             browser=lambda: self._open_browser("timeline"))
         # View > Traffic console: the taps only work while it is open
-        self._console = TrafficConsole(self.root, notes=self._console_notes)
+        self._console = TrafficConsole(self.root, notes=self._console_notes, info=self._console_info)
         self.root.bind_all("<Control-Shift-D>", lambda _e: self._console.open())
         self.root.bind_all("<Control-Shift-d>", lambda _e: self._console.open())
 
@@ -1521,6 +1521,79 @@ class PouncerApp:
         t.configure(state="disabled")
         t.pack(fill="both", expand=True)
         ttk.Button(w, text="Close", command=w.destroy).pack(pady=(0, 10))
+
+    def _console_info(self, group: str) -> str:
+        """Traffic console hover: what a source is (first line) and the
+        settings it runs with - read now, so a change shows at once. Never a
+        password."""
+        c = self.cfg
+        g = getattr
+        role = self.team.role() if self.team is not None else "off"
+        call = g(c, "rbn_callsign", "") or (self.own_call() if hasattr(self, "own_call") else "") or "(from N1MM)"
+        onoff = lambda v: "on" if v else "off"  # noqa: E731
+        if group == "RBN":
+            return ("RBN - CW skimmer spots from the Reverse Beacon Network (telnet)\n"
+                    f"Server: {g(c, 'rbn_host', '')}:{g(c, 'rbn_port', '')}, login {call}\n"
+                    f"CW spots from: {g(c, 'rbn_source', 'rbn')} (Spots button: RBN | Telnet)\n"
+                    f"Own skimmer: {g(c, 'rbn_spotter', '') or '-'}; min SNR {g(c, 'min_snr', 0)} dB\n"
+                    f"Pause while every radio is on SSB: {onoff(g(c, 'rbn_pause_on_phone', True))}\n"
+                    f"Team: {role}" + (" - the master talks to RBN" if role == "slave" else ""))
+        if group == "TELNET":
+            return ("TELNET - the telnet DX cluster: CW backup / 'Spots: Telnet', and the "
+                    "spots-of-my-call feed\n"
+                    f"Backup: {g(c, 'rbn_backup_host', '')}:{g(c, 'rbn_backup_port', '')}"
+                    f" (used now: {'yes' if g(c, 'rbn_source', 'rbn') == 'telnet' else 'only if RBN fails'})\n"
+                    f"My-call feed: {g(c, 'self_spot_host', '')}:{g(c, 'self_spot_port', '')} as "
+                    f"{self._self_feed_login() if hasattr(self, '_self_feed_login') else '-'}, "
+                    f"filter '{g(c, 'self_spot_filter', '')}'\n"
+                    f"SPOTTED pop-up: {onoff(g(c, 'self_spot_alert', True))}")
+        if group == "SSB":
+            dxc = g(self, "_dxc", None)
+            relay = dxc is not None and dxc.relay_connected()
+            return ("SSB - human DX-cluster spots for USB / LSB (RBN has no SSB)\n"
+                    f"Cluster: {g(c, 'ssb_host', '')}:{g(c, 'ssb_port', '')}, login "
+                    f"{g(c, 'ssb_login', '') or call}\n"
+                    f"Mode: {g(c, 'ssb_mode', 'auto')} (auto = only while a radio is on USB / LSB)\n"
+                    f"Spotters: {g(c, 'ssb_spotters', 'EU')}; N1MM's spots instead: "
+                    f"{g(c, 'ssb_use_n1mm', 'auto')}"
+                    + ("\nNow from the cluster relayed to N1MM (Cluster server)" if relay else ""))
+        if group == "HTTP":
+            return ("HTTP - RBN web backup, only while the RBN telnet doesn't work\n"
+                    f"URL: {g(c, 'rbn_http_backup', '') or '(off)'}")
+        if group == "N1MM":
+            return ("N1MM - UDP from N1MM Logger+ (Config > Broadcast Data): radio, "
+                    "frequency, mode, call, spots\n"
+                    f"Listening on: {g(c, 'n1mm_listen_ip', '')}:{g(c, 'n1mm_listen_port', '')} UDP\n"
+                    "To N1MM: UDP 13064 (frequency), keys / text to its Entry Window\n"
+                    f"Log read: {g(c, 'worked_db', '') and 'set' or 'auto (N1MM database)'}, "
+                    f"every {g(c, 'worked_refresh_seconds', 10)} s")
+        if group == "TEAM":
+            peers = ", ".join(g(c, "team_peers", ()) or ()) or "-"
+            return ("TEAM - the other POUNCers on the network (UDP broadcast)\n"
+                    f"Team: {onoff(g(c, 'team', True))}, UDP {g(c, 'team_port', 12079)}, role {role}\n"
+                    f"Extra peers: {peers}\n"
+                    f"Password: {'set' if g(c, 'team_key', '') else 'off'}")
+        if group == "WEB":
+            return ("WEB - the phone page (HTTP server; requests from phones / browsers)\n"
+                    f"Page: {onoff(g(c, 'web_enabled', True))}, "
+                    f"{g(c, 'web_host', '')}:{g(c, 'web_port', 8080)} TCP\n"
+                    f"Settings from other devices: {onoff(g(c, 'web_remote_settings', False))}; "
+                    f"CW keyboard: {onoff(g(c, 'web_cw_keyboard', True))}")
+        if group == "PSKR":
+            return ("PSKR - PSK Reporter (MQTT): is a 40 / 160 m spot in the FT8 window "
+                    "really FT8?\n"
+                    "Server: mqtt.pskreporter.info:1883\n"
+                    f"Asked: {onoff(g(c, 'ssb_pskreporter', True))} ([ssb] pskreporter)")
+        if group == "SERVER":
+            dxc = g(self, "_dxc", None)
+            up = self._cluster_upstream() if hasattr(self, "_cluster_upstream") else None
+            return ("SERVER - POUNCer as a DX cluster for N1MM's Telnet window\n"
+                    f"Server: {onoff(g(c, 'cluster_server', False))}, TCP {g(c, 'cluster_port', 10000)}"
+                    + (f", {dxc.client_count()} client(s)" if dxc is not None else "") + "\n"
+                    + (f"Relay to: {up[0]}:{up[1]}" + (" - connected" if dxc is not None
+                                                        and dxc.relay_connected() else "")
+                       if up else "Relay: off (POUNCer's spots only)"))
+        return ""
 
     def _console_notes(self) -> dict:
         """Why a source may be quiet, for the traffic console's top bar."""

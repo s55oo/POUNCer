@@ -194,6 +194,7 @@ Marks in the call and Mult columns:
 | **PSKR** | PSK Reporter: `subscribe` / `unsubscribe` of one call and its FT8 / FT4 reports (the FT8-or-SSB check on 7074 - 7077) |
 | **self-spot** (under SSB) | the small connection for spots of your call: login `<call>-77`, the node filter, and only spots of your call |
 | blue bar **n new lines below** | you scrolled up; click it to follow the newest lines |
+| hover over a source (switch or dot) | pop-up: what the source is, its settings now (server:port, login, mode, filters, listen address, team role, relay), why it is quiet, line count |
 
 ## Phone page
 
