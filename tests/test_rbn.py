@@ -352,5 +352,23 @@ class SsbClusterTests(unittest.TestCase):
         self.assertEqual([(s.dxcall, s.mode) for s in got], [("K1ABC", "SSB")])
 
 
+
+
+class AzureSkimmerLineTests(unittest.TestCase):
+    def test_snr_glued_to_db(self) -> None:
+        from pouncer.rbn import parse_spot
+        s = parse_spot("DX de EA1DAV-#:  14056.6  K1LT         CW   9dB Q:9* Z:3,4,5,14       2254Z")
+        self.assertEqual((s.dxcall, s.snr, s.wpm, s.spotter, s.time_utc),
+                         ("K1LT", 9, None, "EA1DAV-#", "2254Z"))
+        s = parse_spot("DX de S53WW-#:   7012.0  F5BY         CW  -3dB 28WPM CQ        2254Z")
+        self.assertEqual((s.snr, s.wpm, s.spot_type), (-3, 28, "CQ"))
+
+    def test_relayed_with_snr(self) -> None:
+        from pouncer.clusterserver import dx_line, spot_comment
+        from pouncer.rbn import parse_spot
+        s = parse_spot("DX de EA1DAV-#:  14056.6  K1LT         CW   9dB Q:9* Z:3,4,5,14       2254Z")
+        self.assertIn("CW 9 dB", dx_line(s.spotter, s.freq_khz, s.dxcall, spot_comment(s), s.time_utc))
+
+
 if __name__ == "__main__":
     unittest.main()

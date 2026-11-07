@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.7.164 — 2026-11-07 — SNR from the Telnet (azure) skimmer spots
+
+- azure (S50DXS) writes the skimmer SNR glued to "dB" (`CW   9dB Q:9*
+  Z:3,4,5,14`); POUNCer read only RBN's `9 dB`, so Telnet spots had no SNR.
+  Now `9dB` (and `28WPM`) are read too: the SNR shows in the list, counts
+  for Min SNR and goes out on port 10000 (`CW 9 dB`).
+
 ## v0.7.163 — 2026-11-07 — CLR BAND / CLR ALL in the top bar
 
 - Two buttons in the top bar next to the team badge: **CLR BAND** forgets

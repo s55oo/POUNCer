@@ -118,6 +118,10 @@ def is_beacon(spot: Spot) -> bool:
     )
 
 
+_DB_RE = re.compile(r"^-?\d{1,2}dB$")
+_WPM_RE = re.compile(r"^\d{1,2}WPM$")
+
+
 def parse_spot(line: str) -> Spot | None:
     """Parse one AR-Cluster style RBN spot line, or return None."""
     line = line.rstrip("\r\n")
@@ -142,6 +146,10 @@ def parse_spot(line: str) -> Spot | None:
             snr = _to_int(rest[idx - 1])
         elif tok_s == "WPM" and idx:
             wpm = _to_int(rest[idx - 1])
+        elif snr is None and _DB_RE.match(tok_s):        # "9dB" (DXSpider / azure)
+            snr = _to_int(tok_s[:-2])
+        elif wpm is None and _WPM_RE.match(tok_s):       # "28WPM"
+            wpm = _to_int(tok_s[:-3])
 
     spot_type = ""
     for marker in ("CQ", "NCDXF", "BEACON"):
