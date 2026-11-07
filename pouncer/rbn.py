@@ -530,6 +530,44 @@ class RBNClient(threading.Thread):
         self.on_status = on_status
         self._stop = threading.Event()
         self._sock: socket.socket | None = None
+        self._cur_target: tuple[str, int] | None = None
+        # a connection with the SAME login to the same node is open already
+        # (N1MM's telnet through POUNCer's relay): (host, port, call) - don't
+        # open a second one (the node would throw one of the two out); the
+        # relay's lines come in through feed_shared()
+        self.shared: tuple[str, int, str] | None = None
+
+    # ---- one connection for N1MM and POUNCer ---------------------------------------
+    def _server(self) -> tuple[str, int]:
+        return tuple(self.backup) if self.on_backup and self.backup else (self.host, self.port)
+
+    def _is_shared(self, target: tuple[str, int] | None = None) -> bool:
+        sh = self.shared
+        if not sh or not self.callsign:
+            return False
+        host, port = target or self._server()
+        return (str(host).lower() == str(sh[0]).lower() and int(port) == int(sh[1])
+                and self.callsign.upper() == str(sh[2]).upper())
+
+    def share(self, host: str | None, port: int = 0, call: str = "") -> None:
+        """The relay has (host, port) open as ``call`` (None = not any more).
+        Same node and login as ours: close ours and read the relay's lines;
+        when it goes, connect ourselves again."""
+        self.shared = (host, int(port), call) if host else None
+        if self._is_shared(self._cur_target) if self._cur_target else False:
+            sock = self._sock
+            if sock is not None:
+                try:
+                    sock.close()
+                except OSError:
+                    pass
+        self._wake.set()
+
+    def feed_shared(self, line: str) -> None:
+        """A line from the relay's connection: used as our own while shared."""
+        if self._is_shared():
+            self._last_dx = time.monotonic()
+            self._consume(line.rstrip("\r\n") + "\n", "")
 
     def _traffic_name(self) -> str:
         """The traffic console's source: 'telnet' while the CW feed comes from
@@ -591,6 +629,14 @@ class RBNClient(threading.Thread):
         fails = 0               # RBN failures in a row
         while not self._stop.is_set():
             back_to_rbn = False
+            if self._is_shared():
+                tgt = self._server()
+                self._status(f"via N1MM's connection to {tgt[0]}:{tgt[1]} (one login)")
+                while self._is_shared() and not self._stop.is_set() and not self._switch_now:
+                    self._pause(1)
+                self._switch_now = False
+                backoff, fails = 2, 0
+                continue
             try:
                 if self.on_backup:
                     self._connect_and_read(*self.backup, backup=True)
@@ -600,7 +646,7 @@ class RBNClient(threading.Thread):
             except _BackToPrimary:
                 back_to_rbn = True
             except Exception as exc:  # noqa: BLE001 - keep the thread alive
-                if not self._stop.is_set() and not self._switch_now:
+                if not self._stop.is_set() and not self._switch_now and not self._is_shared():
                     self._errs += 1
                     # the 1st, then every 10th: an outage doesn't fill the log
                     if self._errs == 1 or self._errs % 10 == 0:
@@ -610,6 +656,8 @@ class RBNClient(threading.Thread):
                                     f" ({self._errs} in a row)" if self._errs > 1 else "")
             if self._stop.is_set():
                 break
+            if self._is_shared():             # closed for the relay: wait at the top
+                continue
             if self._switch_now:              # the button: the other server, now
                 self._switch_now = False
                 self._wake.clear()
@@ -645,6 +693,10 @@ class RBNClient(threading.Thread):
         host, port = host or self.host, port or self.port
         self._status(f"connecting to {host}:{port}" + (" (backup)" if backup else ""))
         sock = socket.create_connection((host, port), timeout=30)
+        self._cur_target = (host, port)
+        if self._is_shared((host, port)):          # the relay took it meanwhile
+            sock.close()
+            return
         if self._errs:
             log.info("%s connected again (%s:%s) after %d failed tries", self.name or self.kind,
                      host, port, self._errs)

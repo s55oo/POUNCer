@@ -1901,9 +1901,27 @@ class PouncerApp:
         gap = getattr(self, "_n1mm_gap", None) or 0.0
         return min(self.N1MM_SPOT_BREAK_S, max(self.N1MM_SPOT_QUIET_S, self.N1MM_SPOT_QUIET_X * gap))
 
+    def _relay_clients(self) -> list:
+        return [c for c in list(getattr(self, "_rbn_clients", {}).values())
+                + [getattr(self, "_ssb_client", None)] if c is not None]
+
+    def _on_relay_state(self, host: str, port: int, call: str, up: bool) -> None:
+        """The relay holds / dropped a login on the node: our own connection
+        with the same login there closes / comes back (one login per call -
+        else the node throws one out: 'Reconnected as ..., this instance is
+        disconnected')."""
+        self._relay_share = (host, int(port), call) if up else None
+        for c in self._relay_clients():
+            c.share(*(self._relay_share or (None,)))
+        log.info("cluster relay %s %s:%d as %s - POUNCer's own login there %s", "holds" if up
+                 else "dropped", host, port, call, "steps aside" if up else "comes back")
+
     def _on_relay_line(self, line: str) -> None:
         """A 'DX de' line from the cluster relayed to N1MM (relay thread):
-        the same use as N1MM's spot packets, read at the source."""
+        the same use as N1MM's spot packets, read at the source - and the CW
+        feed's own line while it shares the relay's login."""
+        for c in list(getattr(self, "_rbn_clients", {}).values()):
+            c.feed_shared(line)
         pkt = parse_dx(line)
         if pkt is not None:
             self._on_n1mm_spot(pkt, via="relay")
@@ -2006,6 +2024,8 @@ class PouncerApp:
             )
             # cluster commands are sent like the backup's (after login)
             self._ssb_client.backup_commands = tuple(self.cfg.ssb_commands)
+            if getattr(self, "_relay_share", None):
+                self._ssb_client.share(*self._relay_share)
             self._ssb_client.start()
             log.info("SSB cluster client started on %s:%s", self.cfg.ssb_host, self.cfg.ssb_port)
 
@@ -2208,6 +2228,8 @@ class PouncerApp:
                 on_raw=self._on_raw_spot,
             )
             client.prefer(getattr(self.cfg, "rbn_source", "rbn") == "telnet")
+            if getattr(self, "_relay_share", None):
+                client.share(*self._relay_share)
             client.start()
             self._rbn_clients[port] = client
             log.info("RBN client started on %s:%s", self.cfg.rbn_host, port)
@@ -4985,7 +5007,8 @@ class PouncerApp:
         if not want:
             return
         srv = ClusterServer(port=self.cfg.cluster_port, node="POUNCER", version=__version__,
-                            upstream=self._cluster_upstream(), on_upstream_line=self._on_relay_line)
+                            upstream=self._cluster_upstream(), on_upstream_line=self._on_relay_line,
+                            on_relay_state=self._on_relay_state)
         if srv.start():
             self._dxc = srv
             self.status_label.configure(text=f"Cluster server on TCP {srv.port}: in N1MM's "

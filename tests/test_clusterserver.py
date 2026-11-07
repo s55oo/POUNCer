@@ -311,5 +311,75 @@ class SsbOnlyOnPhoneTests(unittest.TestCase):
         self.assertFalse(fn(f))
 
 
+
+class OneLoginTests(unittest.TestCase):
+    """N1MM through the relay and POUNCer's own telnet, same call, same node:
+    only one connection (else the node throws one out)."""
+
+    def test_own_client_steps_aside_and_reads_the_relay(self) -> None:
+        import queue
+        from pouncer.rbn import RBNClient
+        up = FakeCluster()                       # POUNCer's own client connects first
+        q = queue.Queue()
+        own = RBNClient("127.0.0.1", up.port, "S55OO", "", q, history=0)
+        own.start()
+        try:
+            self.assertIn("S55OO", up.wait_got("S55OO"))
+            states = []
+            srv = ClusterServer(port=0, upstream=("127.0.0.1", up.port),
+                                on_relay_state=lambda h, p, call, on: (
+                                    states.append(on), own.share(h if on else None, p, call)))
+            # the relay's connection: the fake accepts once, so a second fake
+            relay_up = FakeCluster()
+            srv.upstream = ("127.0.0.1", relay_up.port)
+            srv.on_relay_state = lambda h, p, call, on: (
+                states.append(on), own.share("127.0.0.1" if on else None, up.port, call))
+            self.assertTrue(srv.start())
+            c = Client(srv._sock.getsockname()[1])
+            c.until("login:")
+            c.send("S55OO")
+            relay_up.wait_got("S55OO")
+            for _ in range(100):
+                if states and own._is_shared():
+                    break
+                time.sleep(0.02)
+            self.assertEqual(states, [True])
+            for _ in range(100):                 # our own connection was closed
+                try:
+                    if up.conn.recv(1) == b"":
+                        break
+                except OSError:
+                    break
+                time.sleep(0.02)
+            own.feed_shared("DX de S53WW-#:  14025.0  DL1ABC       CW    23 dB  28 WPM  CQ      1200Z")
+            spot = q.get(timeout=2)
+            self.assertEqual(spot.dxcall, "DL1ABC")
+            c.s.close()
+            for _ in range(200):
+                if states == [True, False]:
+                    break
+                time.sleep(0.02)
+            self.assertEqual(states, [True, False])
+            self.assertFalse(own._is_shared())
+            srv.stop()
+            relay_up.close()
+        finally:
+            own.stop()
+            up.close()
+
+    def test_other_login_or_node_not_shared(self) -> None:
+        import queue
+        from pouncer.rbn import RBNClient
+        own = RBNClient("azure.s53m.com", 8000, "S55OO-77", "", queue.Queue())
+        own.share("azure.s53m.com", 8000, "S55OO")
+        self.assertFalse(own._is_shared())            # the my-call feed: its own login
+        own2 = RBNClient("telnet.reversebeacon.net", 7000, "S55OO", "", queue.Queue(),
+                         backup=("azure.s53m.com", 8000))
+        own2.share("AZURE.s53m.com", 8000, "s55oo")
+        self.assertFalse(own2._is_shared())           # on RBN: nothing to share
+        own2.on_backup = True
+        self.assertTrue(own2._is_shared())            # on the telnet backup: shared
+
+
 if __name__ == "__main__":
     unittest.main()
