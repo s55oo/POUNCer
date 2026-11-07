@@ -139,6 +139,13 @@ SETTINGS: list[dict] = [
      "help": "With RBN on and Telnet off: when RBN has been down or silent for a minute, "
              "connect to the telnet server below (its skimmer spots) until RBN works again "
              "for a minute. Also the Telnet-bck button on the Spots line."},
+    {"key": "rbn.hamqth_backup", "attr": "rbn_hamqth_backup", "kind": "bool", "live": True,
+     "group": "RBN", "label": "HamQTH: backup while the telnet connections are down",
+     "help": "When the skimmer telnet connections (RBN / Telnet) have been down for a minute, "
+             "RBN's skimmer spots from HamQTH.com's API (www.hamqth.com/api/v2/rbn); when "
+             "the Cluster connection is down, its DX cluster spots (/api/v2/spots). Every "
+             "20 s, no login. Closed a minute after the telnet works again. Data provided by "
+             "HamQTH.com. Also the HamQTH button on the Spots line."},
     {"key": "rbn.backup_host", "attr": "rbn_backup_host", "kind": "text", "live": False,
      "group": "RBN", "label": "Backup telnet server",
      "help": "Used when RBN's telnet is down. Empty = no backup."},

@@ -73,7 +73,7 @@ def group_of(source: str) -> str:
         return "TELNET"
     if s.startswith("WEB"):
         return "WEB"
-    if s.startswith("HTTP"):
+    if s.startswith(("HTTP", "HAMQTH")):
         return "HTTP"
     if s.startswith("PSKR"):
         return "PSKR"

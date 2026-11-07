@@ -733,6 +733,15 @@ list **and** out to N1MM / any client of the cluster server (port 10000):
   skimmer spots) until RBN has worked for a minute again ("Telnet-bck: RBN
   down, telnet server meanwhile" next to the buttons). Off = nothing takes
   over.
+- **HamQTH** (`[rbn] hamqth_backup`, off by default): the backup when
+  POUNCer's **telnet connections die**. When the skimmer telnet (RBN /
+  Telnet) has been down for a minute, RBN's skimmer spots come from
+  HamQTH.com's API (`https://www.hamqth.com/api/v2/rbn`, through your
+  skimmer choice); when the Cluster telnet is down, its DX cluster spots
+  (`/api/v2/spots`). Every 20 s, no login, nothing to sign up for; stopped a
+  minute after the telnet works again ("HamQTH: telnet down - ... from
+  HamQTH.com meanwhile" next to the buttons). No WPM or CQ in those spots.
+  *Data provided by [HamQTH.com](https://www.hamqth.com/).*
 - Two more buttons after them for the other spot connections:
   **MyCall** (azure, login `<call>-77`, only spots of your own call - the
   SPOTTED pop-up; `[ui] self_spot_alert`) and **Relay** (`[cluster] relay`,

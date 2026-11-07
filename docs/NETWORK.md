@@ -41,6 +41,7 @@ in the examples are private example addresses.
 | 16b | **in** (briefly) | UDP | 12060 | N1MM (same PC) | **N1MMautostarter.exe** only (PCs without POUNCer): listens for N1MM's first RadioInfo / AppInfo while waiting for N1MM to start, then closes the port; an exclusive bind, so a port used by another program is never taken | `N1MMautostarter.ini` `[autostarter] n1mm_port` (0 = off) |
 | 17 | **out** | UDP (NTP) | 123 | pool.ntp.org, then time.windows.com | PC clock check every 30 min (SNTP, 48 bytes, no data of yours) | `[ui] check_line` |
 | 18 | **out** | MQTT (TCP) | 1883 | mqtt.pskreporter.info | FT8 or SSB? one call's PSK Reporter reports for up to 2 min (only for an SSB spot on 7074 - 7077 / 1840 - 1843 without a mode, or a CW spot in an FT8 / FT4 window) | `[ssb] pskreporter` |
+| 19 | **out** | HTTPS | 443 | www.hamqth.com `/api/v2/rbn`, `/api/v2/spots` | the **HamQTH** button: RBN skimmer spots / DX cluster spots every 20 s, only while POUNCer's telnet connections are down (no login; data provided by HamQTH.com) | `[rbn] hamqth_backup` |
 
 Firewall: inbound **UDP 12060** (only from N1MM on the same PC), **TCP 8080**
 (phones on the LAN) and **UDP 12079** (team) must be allowed; everything

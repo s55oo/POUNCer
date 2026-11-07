@@ -1,5 +1,16 @@
 # POUNCer — Changelog
 
+## v0.7.156 — 2026-11-07 — HamQTH backup button
+
+- **HamQTH** on the Spots line (`[rbn] hamqth_backup`, off by default): the
+  backup when POUNCer's telnet connections die. Skimmer telnet (RBN /
+  Telnet) down a minute -> RBN's skimmer spots from HamQTH.com's API
+  (through your skimmer choice); Cluster telnet down -> HamQTH's DX cluster
+  spots. Every 20 s, no login; stopped a minute after the telnet works
+  again. Hover = standby / active per part. Data provided by HamQTH.com.
+- The build fetches HamQTH's real APIs once and publishes the result with
+  the screenshots (`hamqth-check.txt`).
+
 ## v0.7.155 — 2026-11-07 — Relay = hand out the spots (no connection of its own)
 
 - **Relay** no longer opens a connection to the cluster for N1MM. It is now

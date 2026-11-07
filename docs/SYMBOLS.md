@@ -172,6 +172,7 @@ Marks in the call and Mult columns:
 | sort key filled **blue** | the list is sorted by this key |
 | **▲** / **▼** in a column heading | sorted up / down by that column |
 | **Spots: RBN Telnet HTTP Cluster**, filled **blue** | that source is **on** (each one on its own); click = on / off; hover = the connection behind it (server, login, state) |
+| **HamQTH** after them | blue = HamQTH.com's RBN / cluster APIs stand in while POUNCer's telnet connections are down; hover = standby / active per part |
 | **Telnet-bck** after them | blue = the telnet server (azure) takes over while RBN is down; hover = standby / active and why |
 | **MyCall** / **Relay** after them | MyCall = the connection for spots of your own call (azure, `<call>-77`, SPOTTED pop-up); Relay = hand the spots out on port 10000 (N1MM's Telnet window) - no connection of its own, N1MM's commands go over POUNCer's Telnet / Cluster connection; blue = on, hover = details |
 | "nothing on - no spots" next to them | every source is off |
