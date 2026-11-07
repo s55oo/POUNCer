@@ -1,5 +1,11 @@
 # POUNCer — Changelog
 
+## v0.7.144 — 2026-11-07 — PSKR hover: when FT8 is excluded
+
+- The **PSKR** hover in the traffic console lists when POUNCer asks PSK
+  Reporter (MQTT), when a spot is taken for FT8 without asking, and when
+  your own radio on USB counts as SSB.
+
 ## v0.7.143 — 2026-11-07 — Traffic console: hover explains each source
 
 - **Hover over RBN, TELNET, SSB, HTTP, N1MM, TEAM, WEB, PSKR or SERVER** in
