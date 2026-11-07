@@ -120,6 +120,11 @@ class RowList(ttk.Frame):
         self.c.bind("<Prior>", lambda e: self.move(-10))
         self.c.bind("<Next>", lambda e: self.move(10))
         self.c.bind("<space>", lambda e: self._tap_selected())
+        # hover over Runs: what 'R26% ~18h' means (item "run_tip")
+        self._tip: tk.Toplevel | None = None
+        self._tip_at: tuple | None = None
+        self.c.bind("<Motion>", self._hover)
+        self.c.bind("<Leave>", lambda e: self._hide_tip())
 
     # ---- the same interface as TileList -----------------------------------
 
@@ -182,6 +187,44 @@ class RowList(ttk.Frame):
                 if key:
                     self.on_sort(key)
                 return
+
+    # ---- hover help -------------------------------------------------------------
+
+    def _cell_at(self, x: int, y: int) -> tuple[int | None, str | None]:
+        i = int(self.c.canvasy(y) // max(1, theme.px(ROW_H)))
+        col = next((k for k, x0, x1 in getattr(self, "_xs", []) if x0 <= x < x1), None)
+        return (i if 0 <= i < len(self.items) else None), col
+
+    def _hover(self, e) -> None:
+        i, col = self._cell_at(e.x, e.y)
+        text = self.items[i].get("run_tip", "") if i is not None and col == "run" else ""
+        if not text:
+            self._hide_tip()
+            return
+        if self._tip_at == (i, text) and self._tip is not None:
+            self._tip.geometry(f"+{e.x_root + 16}+{e.y_root + 14}")
+            return
+        self._hide_tip()
+        tip = tk.Toplevel(self.c)
+        tip.overrideredirect(True)
+        try:
+            tip.attributes("-topmost", True)
+        except tk.TclError:
+            pass
+        tk.Label(tip, text=text, justify="left", wraplength=theme.px(380),
+                 bg="#fff8e1" if theme.LOOK != "dark" else "#263238",
+                 fg="#1f2933" if theme.LOOK != "dark" else "#eceff1",
+                 font=(theme.FONT, 9), padx=8, pady=6, bd=1, relief="solid").pack()
+        tip.geometry(f"+{e.x_root + 16}+{e.y_root + 14}")
+        self._tip, self._tip_at = tip, (i, text)
+
+    def _hide_tip(self) -> None:
+        if self._tip is not None:
+            try:
+                self._tip.destroy()
+            except tk.TclError:
+                pass
+        self._tip, self._tip_at = None, None
 
     # ---- drawing --------------------------------------------------------------
 

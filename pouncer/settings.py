@@ -39,6 +39,17 @@ _AUTOSTART_APPS = _autostart_apps()
 
 
 SETTINGS: list[dict] = [
+    {"key": "cluster.enabled", "attr": "cluster_server", "kind": "bool", "live": True,
+     "group": "Cluster server", "label": "Serve the spots as a DX cluster (telnet)",
+     "help": "N1MM's Telnet window (or any cluster client) connects to this PC on the port "
+             "below and gets the spots POUNCer collects (RBN / telnet, SSB cluster, HTTP "
+             "backup, team) as 'DX de' lines. Spots from N1MM itself are never served "
+             "back, and POUNCer ignores its own spots coming back from N1MM. Read-only: "
+             "nothing a client sends changes POUNCer."},
+    {"key": "cluster.port", "attr": "cluster_port", "kind": "int", "min": 1, "max": 65535,
+     "live": True, "group": "Cluster server", "label": "  ... TCP port",
+     "help": "In N1MM's Telnet window: add a cluster with this PC's address (127.0.0.1 on "
+             "the same PC) and this port. Allow it in the firewall for other PCs."},
     {"key": "n1mm.qsy_wait_ms", "attr": "qsy_wait_ms", "kind": "int", "min": 0, "max": 10000,
      "live": True, "group": "Tap -> N1MM",
      "label": "Wait for N1MM's new frequency (ms)",

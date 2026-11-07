@@ -110,7 +110,7 @@ them only says what they are.
 | warm (beige / brown) row | DX - another continent than yours |
 | blue frame | the radio is on this station (within 0.5 kHz) |
 | yellow frame | selected (arrow keys); Space = tap it |
-| **R84% ~23h** in *Runs* | that station ran (called CQ) 84 % of its QSOs, ~23 h on the air, in its past logs of this contest; **R12% ⚡** in yellow = a **rare runner** - it won't stay, work it now |
+| **R84% ~23h** in *Runs* (hover = the explanation for that station) | that station ran (called CQ) 84 % of its QSOs, ~23 h on the air, in its past logs of this contest; **R12% ⚡** in yellow = a **rare runner** - it won't stay, work it now |
 | *Age* `now` / `3 min` | since that station's last spot |
 | **?** after the call | not in Super Check Partial (busted?) |
 | **★** / ★ S53WW | your own skimmer heard it |

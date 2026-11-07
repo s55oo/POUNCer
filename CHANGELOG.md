@@ -1,5 +1,20 @@
 # POUNCer — Changelog
 
+## v0.7.141 — 2026-11-07 — POUNCer as a DX cluster; Runs explained
+
+- **POUNCer as a DX cluster** (*Settings > Cluster server*, off by default):
+  N1MM's Telnet window connects to this PC on **TCP 10000** and gets every
+  spot POUNCer collects (RBN / telnet, SSB cluster, HTTP backup, team) as
+  standard `DX de` lines. Spots that came from N1MM are never served back,
+  and POUNCer ignores its own spots coming back through N1MM - so it doesn't
+  mistake them for N1MM's SSB spots and close its own SSB cluster. Read-only,
+  up to 10 clients, `sh/dx` / `bye`; firewall rule with *File > Allow POUNCer
+  in Windows Firewall…*; traffic console group **SERVER**.
+- **Hover over Runs** (clean layout): a pop-up explains `R26% ~18h` for that
+  station - % of its QSOs made running in its past logs of this contest, the
+  hours on the air, a reconstructed log (*), and what it means (⚡ rare runner:
+  work it now; a regular runner usually stays).
+
 ## Docs — 2026-11-07 — which VPN for the team
 
 - README *Several POUNCers (team)*, docs/NETWORK.md and config.ini: which

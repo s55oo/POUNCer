@@ -50,6 +50,7 @@ examples: [docs/NETWORK.md](docs/NETWORK.md).
 | Phones, tablets, browsers (LAN / ZeroTier) | TCP **8080** (HTTP) | the phone page and its API: list, tap = QSY + call, F-keys, band, settings (changes only from the PC itself) | while a page is open |
 | Other POUNCers (team) | UDP **12079** (broadcast + direct) | `hi` every 2 s, the master's `spot`s, `self` (SPOTTED), `update` (update all), `rh` (run history) | in a team |
 | Other POUNCers (team) | TCP **8080** (HTTP) | `GET /api/runhist` when a POUNCer joins the team | once per join |
+| N1MM's Telnet window, other cluster clients | TCP **10000** (telnet) | login (a call), `sh/dx`, `bye` - POUNCer's spots go out as `DX de` lines | only with *Settings > Cluster server* on |
 
 **Going OUT from POUNCer:**
 
@@ -302,7 +303,8 @@ The window has two layouts (*View > Detailed layout*, `[ui] layout`).
   and quiet; colour only where it means something - **new mult**: the call
   red and an **M / MM** tag; **worked**: the row grey; **DX**: a warm row tint;
   the station the radio is on: a blue frame; **Runs** `R84% ~23h` (⚡ yellow =
-  rare runner); **Age** = since its last spot. *Mode* and *Type* appear only
+  rare runner; **hover over it** for what it means for that station);
+  **Age** = since its last spot. *Mode* and *Type* appear only
   when the list has more than one mode or a spot that isn't a CQ. Click a
   heading to sort (not WPM); click a row (or arrows + Space) to QSY and call;
 - a status bar: what the last tap did.
@@ -850,6 +852,33 @@ saved per phone:
   SNR / time update in place. The list is re-sorted every 15 s, never within
   3 s of a touch or scroll; changing the sort, DX / MLT / ⚡, band or radio
   re-sorts at once. "calm" starts the small line while it is on.
+
+## POUNCer as a DX cluster (for N1MM's Telnet)
+
+*Settings > Cluster server > Serve the spots as a DX cluster* (`[cluster]
+enabled`, off by default) makes POUNCer a small telnet cluster on **TCP
+10000** (`port`). In N1MM's **Telnet** window add a cluster with this PC's
+address (`127.0.0.1` on the same PC, its LAN / ZeroTier address from other
+PCs) and port 10000, and connect: N1MM gets `login:`, sends your call, and
+from then on every spot POUNCer collects - RBN or the telnet server, the SSB
+cluster, the HTTP backup, the team master's spots - as standard lines:
+
+```
+DX de S53WW-#:   14025.0  DL1ABC       CW 23 dB 28 WPM CQ             1200Z
+```
+
+- **No loop:** spots that came **from N1MM** (its own telnet, via
+  Broadcast Data > Spots) are never served. And POUNCer recognises its own
+  spots coming back from N1MM's broadcast (the same call and frequency within
+  10 minutes) and ignores them - otherwise it would take them for N1MM's own
+  SSB spots and close its SSB cluster, its source.
+- The same call / frequency / skimmer once a minute; up to 10 clients;
+  `sh/dx` = the last 30 spots, `bye` = disconnect. Other commands (filters,
+  `set/...`) are accepted and change nothing - the server is read-only.
+- Other PCs need the port open: *File > Allow POUNCer in Windows Firewall…*
+  adds `POUNCer cluster TCP` while the server is on.
+- The traffic console shows it as **SERVER** (logins, commands). On your own
+  network only, like the phone page - no password.
 
 ## Several POUNCers (team)
 
