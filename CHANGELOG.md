@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## Docs — 2026-11-07 — which VPN for the team
+
+- README *Several POUNCers (team)*, docs/NETWORK.md and config.ini: which
+  VPNs carry the team's broadcasts (ZeroTier, OpenVPN TAP) and which need
+  `[team] peers` (Tailscale, WireGuard, OpenVPN TUN); WireGuard AllowedIPs;
+  the VPN adapter must be Private for the firewall rules.
+
 ## v0.7.140 — 2026-11-07 — Firewall button, team password, safer updates
 
 From N1MMPingPong (same author):
