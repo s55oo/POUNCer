@@ -2232,6 +2232,7 @@ class PouncerApp:
         self._ensure_hamqth(paused)
         if not paused and not desired and not telnet:
             self.rbn_status = ("standby - the HTTP feed delivers" if self._http_feed is not None
+                               or getattr(self.cfg, "rbn_hamqth_backup", False)
                                else "off - no skimmer source on")
         for port in sorted(desired):
             if port in self._rbn_clients:
@@ -2324,13 +2325,18 @@ class PouncerApp:
         team = getattr(self, "team", None)
         slave = team is not None and (time.time() - team.started < 3 or team.role() == "slave")
         on = bool(getattr(c, "rbn_hamqth_backup", False)) and not slave
-        need = {"rbn": on and not paused and (has_source(c, "rbn") or has_source(c, "telnet")),
-                "spots": on and self._ssb_wanted()}
+        telnet_rbn = has_source(c, "rbn") or has_source(c, "telnet")
+        telnet_cl = self._ssb_wanted()
+        # with its telnet source on: only while that one is down (a minute);
+        # with it off: HamQTH is the source itself, at once
+        need = {"rbn": on and not paused and telnet_rbn,
+                "spots": on and telnet_cl}
         ok = {"rbn": self._skimmer_telnet_ok() if need["rbn"] else True,
               "spots": self._cluster_telnet_ok() if need["spots"] else True}
+        alone = {"rbn": on and not paused and not telnet_rbn, "spots": on and not telnet_cl}
         feeds = self.__dict__.setdefault("_hq_feeds", {"rbn": None, "spots": None})
         for kind in ("rbn", "spots"):
-            want = self._hq_state(kind, need[kind], ok[kind])
+            want = self._hq_state(kind, need[kind], ok[kind]) or alone[kind]
             f = feeds.get(kind)
             if f is not None and not want:
                 f.stop()
@@ -2440,13 +2446,18 @@ class PouncerApp:
         slave = team is not None and team.alive_peers() and not team.is_master()
         chosen = (team.master_src() or self.cfg.rbn_source) if slave else self.cfg.rbn_source
         on = set(filter(None, str(chosen or "").split(",")))
-        note = "master's choice" if slave else ("nothing on - no spots" if not on else "")
+        note = "master's choice" if slave else (
+            "nothing on - no spots" if not on and not getattr(self.cfg, "rbn_hamqth_backup", False)
+            else "")
         if not slave and getattr(self, "_bck_active", False):
             note = "Telnet-bck: RBN down, telnet server meanwhile"
         hq = [n for n, k in (("skimmers", "rbn"), ("cluster", "spots"))
               if getattr(self, "_hq_feeds", {}).get(k) is not None]
         if not slave and hq:
-            note = f"HamQTH: telnet down - {' + '.join(hq)} from HamQTH.com meanwhile"
+            on_telnet = has_source(self.cfg, "rbn") or has_source(self.cfg, "telnet") or \
+                has_source(self.cfg, "cluster")
+            note = (f"HamQTH: telnet down - {' + '.join(hq)} from HamQTH.com meanwhile"
+                    if on_telnet else f"{' + '.join(hq)} from HamQTH.com")
         for key, (_s, attr, _n) in self.CONN_KEYS.items():
             if getattr(self.cfg, attr, False):
                 on.add(key)
@@ -2537,6 +2548,8 @@ class PouncerApp:
                 f = feeds.get(kind)
                 if f is not None:
                     return f"{name}: ACTIVE - {f.status_text}"
+                if kind == "rbn" and getattr(self, "_rbn_pause_on", False):
+                    return f"{name}: paused (every radio on SSB)"
                 bad = (st.get(kind) or {}).get("bad")
                 if bad:
                     return f"{name}: telnet down {time.time() - bad:.0f} s (HamQTH after {self.HQ_AFTER_S} s)"
@@ -2544,9 +2557,10 @@ class PouncerApp:
             now = ("off - nothing takes over" if not on else
                    one("rbn", "skimmers") + "; " + one("spots", "cluster"))
             return (f"{head}\nhttps://www.hamqth.com/api/v2/rbn (skimmers) and /api/v2/spots "
-                    f"(cluster), every 20 s, no login\nOnly while POUNCer's telnet connections "
-                    f"are down ({self.HQ_AFTER_S} s); stops {self.HQ_BACK_S} s after they work "
-                    f"again. Data provided by HamQTH.com\nNow: {now}")
+                    f"(cluster), every 20 s, no login\nWith RBN / Telnet (skimmers) or Cluster "
+                    f"on: only while that telnet is down ({self.HQ_AFTER_S} s), stops "
+                    f"{self.HQ_BACK_S} s after it works again; with them off: the source itself. "
+                    f"Data provided by HamQTH.com\nNow: {now}")
         if key == "mycall":
             feed = getattr(self, "_self_feed", None)
             team = getattr(self, "team", None)

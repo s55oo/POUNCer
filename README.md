@@ -740,7 +740,9 @@ list **and** out to N1MM / any client of the cluster server (port 10000):
   skimmer choice); when the Cluster telnet is down, its DX cluster spots
   (`/api/v2/spots`). Every 20 s, no login, nothing to sign up for; stopped a
   minute after the telnet works again ("HamQTH: telnet down - ... from
-  HamQTH.com meanwhile" next to the buttons). No WPM or CQ in those spots.
+  HamQTH.com meanwhile" next to the buttons). With RBN / Telnet (or
+  Cluster) **switched off**, HamQTH is that source itself, at once - HamQTH
+  alone on = skimmer + cluster spots from HamQTH. No WPM or CQ in those spots.
   *Data provided by [HamQTH.com](https://www.hamqth.com/).*
 - Two more buttons after them for the other spot connections:
   **MyCall** (azure, login `<call>-77`, only spots of your own call - the

@@ -191,6 +191,14 @@ class SourceTests(unittest.TestCase):
             self.assertTrue(all(x.stopped for x in started))      # a minute later
         f2 = fake_app("rbn")[1]
         self.assertIn("off", f2._source_tip("hamqth"))
+        # everything else off: HamQTH is the source itself, at once
+        app3, f3, made3, Fake3 = fake_app("")
+        f3.cfg.rbn_hamqth_backup = True
+        started.clear()
+        with mock.patch.object(app3, "RBNClient", Fake3), mock.patch.object(app3, "HamQTHFeed", FakeHQ):
+            f3._ensure_rbn_clients()
+        self.assertEqual(sorted(x.kind for x in started), ["rbn", "spots"])
+        self.assertEqual(made3, [])
 
     def test_same_spot_from_two_sources_once(self) -> None:
         f, made = self.run_with("rbn")
