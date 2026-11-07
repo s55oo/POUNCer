@@ -209,7 +209,7 @@ class Config:
     trigger: str = "single"
 
     # SSB: human DX-cluster spots (RBN has no SSB) - auto = when a radio is
-    # on USB/LSB (and on a team master), always, off
+    # on USB/LSB (a team master: any team radio; 60 s grace), always, off
     ssb_mode: str = "auto"
     ssb_host: str = "azure.s53m.com"
     ssb_port: int = 8000
@@ -228,6 +228,8 @@ class Config:
     web_port: int = 8080
     cluster_server: bool = False    # serve POUNCer's spots as a telnet DX cluster
     cluster_port: int = 10000
+    cluster_relay: bool = True      # pass the real cluster through to the client (N1MM)
+    cluster_upstream: str = ""      # host:port of that cluster; empty = the [ssb] host:port
     touch_view: bool = False  # open the phone page in the default browser at start
 
 
@@ -417,6 +419,8 @@ def load_config(path: str) -> Config:
     cfg.web_port = i("web", "port", cfg.web_port)
     cfg.cluster_server = b("cluster", "enabled", cfg.cluster_server)
     cfg.cluster_port = i("cluster", "port", cfg.cluster_port)
+    cfg.cluster_relay = b("cluster", "relay", cfg.cluster_relay)
+    cfg.cluster_upstream = s("cluster", "upstream", cfg.cluster_upstream).strip()
 
     if cfg.sort not in ("time", "freq", "snr", "call", "cont", "mult", "mode", "type", "spotter"):
         cfg.sort = "snr"

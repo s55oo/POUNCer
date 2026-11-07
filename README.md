@@ -50,7 +50,7 @@ examples: [docs/NETWORK.md](docs/NETWORK.md).
 | Phones, tablets, browsers (LAN / ZeroTier) | TCP **8080** (HTTP) | the phone page and its API: list, tap = QSY + call, F-keys, band, settings (changes only from the PC itself) | while a page is open |
 | Other POUNCers (team) | UDP **12079** (broadcast + direct) | `hi` every 2 s, the master's `spot`s, `self` (SPOTTED), `update` (update all), `rh` (run history) | in a team |
 | Other POUNCers (team) | TCP **8080** (HTTP) | `GET /api/runhist` when a POUNCer joins the team | once per join |
-| N1MM's Telnet window, other cluster clients | TCP **10000** (telnet) | login (a call), `sh/dx`, `bye` - POUNCer's spots go out as `DX de` lines | only with *Settings > Cluster server* on |
+| N1MM's Telnet window, other cluster clients | TCP **10000** (telnet) | login (a call), `sh/dx`, `bye` - POUNCer's spots go out as `DX de` lines; relay: the client's lines go on to the real cluster | only with *Settings > Cluster server* on |
 
 **Going OUT from POUNCer:**
 
@@ -659,7 +659,9 @@ RBN has no SSB, so for SSB POUNCer uses a **DX cluster** (human spots,
 default azure.s53m.com:8000, only spotters in Europe). The list follows the
 radio: on USB / LSB it shows SSB spots, on CW the RBN CW spots - per radio,
 so SO2R with one radio on CW and one on SSB works. The cluster is connected
-only while needed (light "SSB cluster"). `[ssb]` in config.ini or the
+**only while a radio is on USB / LSB in N1MM** (light "SSB cluster"; a team
+master also while another station's radio is - each POUNCer tells the team)
+and closed a minute after the last one leaves USB / LSB. `[ssb]` in config.ini or the
 Settings page.
 
 The other way round: RBN isn't needed in an **SSB contest** open in N1MM
@@ -872,13 +874,26 @@ DX de S53WW-#:   14025.0  DL1ABC       CW 23 dB 28 WPM CQ             1200Z
   spots coming back from N1MM's broadcast (the same call and frequency within
   10 minutes) and ignores them - otherwise it would take them for N1MM's own
   SSB spots and close its SSB cluster, its source.
-- The same call / frequency / skimmer once a minute; up to 10 clients;
-  `sh/dx` = the last 30 spots, `bye` = disconnect. Other commands (filters,
-  `set/...`) are accepted and change nothing - the server is read-only.
+- **Relay** (`[cluster] relay = true`, the default): N1MM still gets its
+  cluster. For each client POUNCer opens a connection to the real cluster
+  (`upstream`, empty = the `[ssb]` host:port, azure.s53m.com:8000), logs in
+  with the client's call and passes everything through **both ways** - the
+  cluster's spots, announcements and prompts to N1MM; N1MM's `DX` spots,
+  filters and other commands to the cluster - and adds POUNCer's own spots in
+  between (not one N1MM just got from the cluster: same call ±0.3 kHz within
+  5 minutes; never in the middle of a cluster line). While N1MM is connected
+  this way **POUNCer ignores N1MM's spot broadcast** (Broadcast Data >
+  Spots) and reads the same cluster stream straight from the relay: that is
+  its SSB source (one login on the cluster, as before). If the cluster can't
+  be reached N1MM gets a `*** POUNCer: ...` note and POUNCer's spots only;
+  POUNCer tries again every minute.
+- `relay = false`: only POUNCer's spots, read-only. The same call /
+  frequency / skimmer once a minute; up to 10 clients; `sh/dx` = the last 30
+  spots, `bye` = disconnect; other commands change nothing.
 - Other PCs need the port open: *File > Allow POUNCer in Windows Firewall…*
   adds `POUNCer cluster TCP` while the server is on.
-- The traffic console shows it as **SERVER** (logins, commands). On your own
-  network only, like the phone page - no password.
+- The traffic console shows it as **SERVER** (logins, commands, the relayed
+  cluster lines). On your own network only, like the phone page - no password.
 
 ## Several POUNCers (team)
 
@@ -1328,7 +1343,7 @@ All options live in `config.ini` and are documented there, line by line:
 | `remote_settings` | false | Allow settings changes from other devices too (never the autostart ones). |
 | `cw_keyboard` | true | Hold ENTER 1.3 s on the phone = CW keyboard (N1MM Ctrl+K window, transmits). |
 | **[ssb]** | | |
-| `mode` | auto | DX cluster for SSB: `auto` (while a radio is on SSB), `always`, `off`. |
+| `mode` | auto | DX cluster for SSB: `auto` (only while a radio is on USB / LSB in N1MM, + 60 s), `always`, `off`. |
 | `host`, `port` | azure.s53m.com, 8000 | The DX cluster. |
 | `spotters` | EU | Spotters' continent (EU, NA, ... or ALL). |
 | `history`, `login`, `commands` | 30, (your call), – | Last spots at login; login call (e.g. S55OO-2); commands after login. |

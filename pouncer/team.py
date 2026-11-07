@@ -144,6 +144,7 @@ class Team:
         get_bands=None,       # -> band-open counts (master sends them to the slaves)
         needs_rbn=None,       # -> bool: this POUNCer needs RBN (a radio on CW, not an SSB contest)
         rbn_paused=None,      # -> bool: (master) RBN closed - nobody needs it
+        on_phone=None,        # -> bool: a radio here is on USB/LSB (wants SSB spots)
         on_self=None,         # slave: called with {call, spotter, khz, comment} - my call spotted
         on_update=None,       # called when the master says: update now
         get_src=None,         # -> "rbn" / "telnet": (master) where the CW spots come from
@@ -163,6 +164,7 @@ class Team:
         self._get_bands = get_bands
         self._needs_rbn = needs_rbn
         self._rbn_paused = rbn_paused
+        self._on_phone = on_phone
         self._on_self = on_self
         self._on_update = on_update
         self._get_src = get_src
@@ -322,7 +324,8 @@ class Team:
             self._last_healthy = self._healthy(now)
             hi = {"t": "hi", "started": self.started, "web": self.web_port,
                   "healthy": self._last_healthy, "ver": self.version}
-            for key, fn in (("cw", self._needs_rbn), ("paused", self._rbn_paused)):
+            for key, fn in (("cw", self._needs_rbn), ("paused", self._rbn_paused),
+                            ("ssb", getattr(self, "_on_phone", None))):
                 if fn is not None:
                     try:
                         hi[key] = bool(fn())
@@ -345,6 +348,10 @@ class Team:
     def peers_need_rbn(self) -> bool:
         """Any other POUNCer of the team needs RBN (a radio on CW, ...)."""
         return any(p.get("cw", True) for p in self.alive_peers())
+
+    def peers_on_phone(self) -> bool:
+        """Any other POUNCer of the team has a radio on USB/LSB."""
+        return any(p.get("ssb", False) for p in self.alive_peers())
 
     def master_paused(self) -> bool:
         """Slave: the master has closed RBN (no one in the team needs it)."""
@@ -431,7 +438,8 @@ class Team:
                     "seen": time.time(), "ver": str(msg.get("ver") or ""),
                     "bands": msg.get("bands") if isinstance(msg.get("bands"), dict) else None,
                     # needs RBN? (older POUNCers don't say: yes, to be safe)
-                    "cw": bool(msg.get("cw", True)), "paused": bool(msg.get("paused", False)),
+                    "cw": bool(msg.get("cw", True)),
+                    "ssb": bool(msg.get("ssb", not msg.get("cw", True))), "paused": bool(msg.get("paused", False)),
                     "src": msg.get("src") if msg.get("src") in ("rbn", "telnet") else None,
                 }
             if new:

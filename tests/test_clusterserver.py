@@ -107,5 +107,209 @@ class AppEchoTests(unittest.TestCase):
         app.PouncerApp._on_n1mm_spot(f, {"call": "EA6RJU", "freq_khz": 14032.0, "action": "add"})
 
 
+
+class FakeCluster:
+    """The real cluster (azure) in a test: asks for the call, logs what it
+    gets, sends what the test tells it to."""
+
+    def __init__(self):
+        self.ls = socket.socket()
+        self.ls.bind(("127.0.0.1", 0))
+        self.ls.listen(2)
+        self.port = self.ls.getsockname()[1]
+        self.conn = None
+        self.got = b""
+        import threading
+        threading.Thread(target=self._run, daemon=True).start()
+
+    def _run(self):
+        try:
+            self.conn, _ = self.ls.accept()
+            self.conn.sendall(b"Please enter your call: ")
+            self.conn.settimeout(0.2)
+            while True:
+                try:
+                    d = self.conn.recv(4096)
+                    if not d:
+                        return
+                    self.got += d
+                except socket.timeout:
+                    continue
+        except OSError:
+            return
+
+    def wait_got(self, text, timeout=3.0):
+        end = time.time() + timeout
+        while text.encode() not in self.got and time.time() < end:
+            time.sleep(0.02)
+        return self.got.decode()
+
+    def close(self):
+        for s in (self.conn, self.ls):
+            try:
+                if s is not None:
+                    s.close()
+            except OSError:
+                pass
+
+
+class RelayTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.up = FakeCluster()
+        self.lines = []
+        self.srv = ClusterServer(port=0, version="0.7.142", upstream=("127.0.0.1", self.up.port),
+                                 on_upstream_line=self.lines.append, retry_s=1)
+        self.assertTrue(self.srv.start())
+        self.port = self.srv._sock.getsockname()[1]
+        self.c = Client(self.port)
+        self.c.until("login:")
+        self.c.send("S55OO")
+        self.assertIn("S55OO", self.up.wait_got("S55OO"))       # logged in to the cluster
+        for _ in range(100):
+            if self.srv.relay_connected():
+                break
+            time.sleep(0.02)
+        self.assertTrue(self.srv.relay_connected())
+
+    def tearDown(self) -> None:
+        self.c.s.close()
+        self.srv.stop()
+        self.up.close()
+
+    def test_both_ways_and_no_double_spot(self) -> None:
+        self.assertIn("Please enter your call", self.c.until("your call"))
+        self.up.conn.sendall(b"DX de OH6BG:     14025.0  DL1ABC       CQ                  1200Z\r\n")
+        self.assertIn("DL1ABC", self.c.until("1200Z"))
+        for _ in range(50):
+            if self.lines:
+                break
+            time.sleep(0.02)
+        self.assertTrue(self.lines and "DL1ABC" in self.lines[0])
+        # the same spot from POUNCer: the client already has it from the cluster
+        self.c.buf = b""
+        self.srv.publish(spot(khz=14025.1))
+        # a new one from POUNCer goes in between
+        self.assertTrue(self.srv.publish(spot(call="F5BY", khz=7012.0)))
+        out = self.c.until("F5BY")
+        self.assertIn("F5BY", out)
+        self.assertNotIn("14025.1", out)
+        # the client's DX spot goes to the cluster
+        self.c.send("DX 14030.0 K2BWC tnx")
+        self.assertIn("DX 14030.0 K2BWC tnx", self.up.wait_got("K2BWC"))
+
+    def test_own_line_not_glued_to_a_half_line(self) -> None:
+        self.c.until("your call")
+        self.up.conn.sendall(b"S55OO de AZURE 7-Nov-2026 1200Z >")
+        self.c.until("1200Z >")
+        time.sleep(0.2)
+        self.c.buf = b""
+        self.srv.publish(spot(call="G2VSR", khz=3525.0))
+        out = self.c.until("G2VSR")
+        self.assertTrue(out.startswith("\r\nDX de"), out[:30])
+
+    def test_parse_dx(self) -> None:
+        from pouncer.clusterserver import parse_dx
+        p = parse_dx("DX de S50ARX:    14205.0  EA6RJU       59 tnx QSO           1201Z JN76")
+        self.assertEqual((p["call"], p["freq_khz"], p["spotter"]), ("EA6RJU", 14205.0, "S50ARX"))
+        self.assertIn("tnx", p["comment"])
+        self.assertIsNone(parse_dx("WWV de VE7CC: SFI=150"))
+
+
+class NoUpstreamTests(unittest.TestCase):
+    def test_unreachable_cluster_note(self) -> None:
+        s = socket.socket()
+        s.bind(("127.0.0.1", 0))
+        dead = s.getsockname()[1]
+        s.close()
+        srv = ClusterServer(port=0, upstream=("127.0.0.1", dead), retry_s=30)
+        self.assertTrue(srv.start())
+        try:
+            c = Client(srv._sock.getsockname()[1])
+            c.until("login:")
+            c.send("S55OO")
+            self.assertIn("POUNCer's spots only", c.until("spots only"))
+            self.assertFalse(srv.relay_connected())
+            for _ in range(50):
+                if srv.client_count():
+                    break
+                time.sleep(0.02)
+            self.assertTrue(srv.publish(spot()))
+            self.assertIn("DL1ABC", c.until("DL1ABC"))
+            c.s.close()
+        finally:
+            srv.stop()
+
+
+class AppRelayTests(unittest.TestCase):
+    def test_n1mm_broadcast_ignored_while_relayed(self) -> None:
+        import types
+        from tests.test_so2r import _import_app
+        app = _import_app()
+        srv = types.SimpleNamespace(relay_connected=lambda: True,
+                                    echo=lambda *a: self.fail("not reached"))
+        f = types.SimpleNamespace(_dxc=srv)
+        # returns at once (the bare fake has nothing else)
+        app.PouncerApp._on_n1mm_spot(f, {"call": "EA6RJU", "freq_khz": 14205.0, "action": "add"})
+
+    def test_relay_line_goes_the_n1mm_way(self) -> None:
+        import types
+        from tests.test_so2r import _import_app
+        app = _import_app()
+        got = []
+        f = types.SimpleNamespace(_on_n1mm_spot=lambda pkt, via: got.append((pkt["call"], via)))
+        app.PouncerApp._on_relay_line(f, "DX de S50ARX:    14205.0  EA6RJU   59        1201Z")
+        app.PouncerApp._on_relay_line(f, "S55OO de AZURE >")
+        self.assertEqual(got, [("EA6RJU", "relay")])
+
+    def test_upstream_default_is_the_ssb_cluster(self) -> None:
+        import types
+        from tests.test_so2r import _import_app
+        app = _import_app()
+        cfg = types.SimpleNamespace(cluster_relay=True, cluster_upstream="", ssb_host="azure.s53m.com",
+                                    ssb_port=8000)
+        f = types.SimpleNamespace(cfg=cfg)
+        up = app.PouncerApp._cluster_upstream
+        self.assertEqual(up(f), ("azure.s53m.com", 8000))
+        cfg.cluster_upstream = "dxc.example.org:7300"
+        self.assertEqual(up(f), ("dxc.example.org", 7300))
+        cfg.cluster_relay = False
+        self.assertIsNone(up(f))
+
+
+class SsbOnlyOnPhoneTests(unittest.TestCase):
+    def _fake(self, phone, role="alone", peers_phone=False, last=0.0):
+        import types
+        from tests.test_so2r import _import_app
+        app = _import_app()
+        team = None if role == "alone" else types.SimpleNamespace(
+            started=0.0, role=lambda: role, peers_on_phone=lambda: peers_phone)
+        f = types.SimpleNamespace(
+            cfg=types.SimpleNamespace(ssb_mode="auto", ssb_host="azure.s53m.com"), team=team,
+            state=types.SimpleNamespace(radio_numbers=lambda: [1]),
+            _phone_radio=lambda nr: phone, _ssb_last_needed=last,
+            SSB_GRACE_S=app.PouncerApp.SSB_GRACE_S)
+        return app.PouncerApp._ssb_wanted, f
+
+    def test_cw_alone_no_cluster(self) -> None:
+        fn, f = self._fake(False)
+        self.assertFalse(fn(f))
+
+    def test_usb_cluster(self) -> None:
+        fn, f = self._fake(True)
+        self.assertTrue(fn(f))
+
+    def test_master_only_for_a_peer_on_phone(self) -> None:
+        fn, f = self._fake(False, role="master")
+        self.assertFalse(fn(f))
+        fn, f = self._fake(False, role="master", peers_phone=True)
+        self.assertTrue(fn(f))
+
+    def test_a_minute_grace(self) -> None:
+        fn, f = self._fake(False, last=time.time() - 30)
+        self.assertTrue(fn(f))
+        fn, f = self._fake(False, last=time.time() - 120)
+        self.assertFalse(fn(f))
+
+
 if __name__ == "__main__":
     unittest.main()
