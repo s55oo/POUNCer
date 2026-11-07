@@ -197,6 +197,21 @@ class RelayTests(unittest.TestCase):
         self.c.send("DX 14030.0 K2BWC tnx")
         self.assertIn("DX 14030.0 K2BWC tnx", self.up.wait_got("K2BWC"))
 
+    def test_skimmer_spots_come_from_pouncer_not_the_cluster(self) -> None:
+        self.c.until("your call")
+        self.up.conn.sendall(b"DX de S53WW-#:   14025.0  DL1ABC       CW    23 dB  28 WPM  CQ      1200Z\r\n"
+                             b"DX de S50ARX:    14205.0  EA6RJU       59 tnx                  1201Z\r\n")
+        out = self.c.until("EA6RJU")
+        self.assertIn("EA6RJU", out)                     # a person's spot passes
+        self.assertNotIn("DL1ABC", out)                  # the skimmer's doesn't ...
+        for _ in range(50):
+            if len(self.lines) >= 2:
+                break
+            time.sleep(0.02)
+        self.assertEqual(len(self.lines), 2)             # ... but POUNCer reads both
+        self.assertTrue(self.srv.publish(spot()))        # POUNCer's own (chosen source) goes
+        self.assertIn("DL1ABC", self.c.until("DL1ABC"))
+
     def test_own_line_not_glued_to_a_half_line(self) -> None:
         self.c.until("your call")
         self.up.conn.sendall(b"S55OO de AZURE 7-Nov-2026 1200Z >")
