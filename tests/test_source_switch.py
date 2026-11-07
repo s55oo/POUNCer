@@ -108,9 +108,11 @@ class AppButtonTests(unittest.TestCase):
         team = types.SimpleNamespace(alive_peers=lambda: [1], is_master=lambda: not slave,
                                      send_src=sent.append)
         f = types.SimpleNamespace(team=team, cfg=types.SimpleNamespace(
-            rbn_backup_host="telnet.example", rbn_backup_port=8000, rbn_source="rbn"),
+            rbn_backup_host="telnet.example", rbn_backup_port=8000, rbn_source="rbn",
+            rbn_http_backup="", ssb_host="azure.s53m.com"),
             status_label=types.SimpleNamespace(configure=lambda **k: None),
-            _save_setting=lambda k, v: saved.append((k, v)), _src_last=1)
+            _save_setting=lambda k, v: saved.append((k, v)), _src_last=1,
+            SOURCE_NAMES=app.PouncerApp.SOURCE_NAMES)
         return app, f, sent, saved
 
     def test_slave_asks_the_master(self) -> None:
@@ -120,8 +122,13 @@ class AppButtonTests(unittest.TestCase):
 
     def test_master_switches_and_saves(self) -> None:
         app, f, sent, saved = self._fake(slave=False)
-        app.PouncerApp._set_source(f, "telnet")
-        self.assertEqual((sent, saved), ([], [("rbn.source", "telnet")]))
+        app.PouncerApp._set_source(f, "telnet")              # on, next to RBN
+        self.assertEqual((sent, saved), ([], [("rbn.sources", "rbn,telnet")]))
+        f.cfg.rbn_source = "rbn,telnet"
+        app.PouncerApp._set_source(f, "rbn")                 # RBN off
+        self.assertEqual(saved[-1], ("rbn.sources", "telnet"))
+        app.PouncerApp._set_source(f, "http")                # no URL: refused
+        self.assertEqual(len(saved), 2)
 
     def test_config(self) -> None:
         import os
@@ -129,9 +136,18 @@ class AppButtonTests(unittest.TestCase):
         from pouncer.config import load_config
         d = tempfile.mkdtemp()
         p = os.path.join(d, "c.ini")
-        for val, want in (("telnet", "telnet"), ("RBN", "rbn"), ("xyz", "rbn")):
+        # older config.ini: one source + the SSB cluster (unless it was off)
+        for val, want in (("telnet", "telnet,cluster"), ("RBN", "rbn,cluster"),
+                          ("xyz", "rbn,cluster")):
             with open(p, "w") as fh:
                 fh.write(f"[rbn]\nsource = {val}\n")
+            self.assertEqual(load_config(p).rbn_source, want)
+        with open(p, "w") as fh:
+            fh.write("[rbn]\nsource = http\n[ssb]\nmode = off\n")
+        self.assertEqual(load_config(p).rbn_source, "http")
+        for val, want in (("Cluster, http,RBN", "rbn,http,cluster"), ("", ""), ("x", "")):
+            with open(p, "w") as fh:
+                fh.write(f"[rbn]\nsources = {val}\n")
             self.assertEqual(load_config(p).rbn_source, want)
 
 

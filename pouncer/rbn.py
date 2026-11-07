@@ -537,6 +537,11 @@ class RBNClient(threading.Thread):
         # relay's lines come in through feed_shared()
         self.shared: tuple[str, int, str] | None = None
         self.hold = False            # standby: the CW spots come from the HTTP feed
+        # what this connection passes on: skimmer spots ('DX de S53WW-#: ...
+        # dB ... WPM') and/or - a filter object with accept(spotter) - the
+        # cluster's spots of people (one login for both on a DX cluster)
+        self.skimmers = True
+        self.people = None
 
     # ---- one connection for N1MM and POUNCer ---------------------------------------
     def _server(self) -> tuple[str, int]:
@@ -633,6 +638,7 @@ class RBNClient(threading.Thread):
                 pass
 
     def _status(self, text: str) -> None:
+        self.status_text = text              # (hover over its Spots button)
         if self.on_status is not None:
             try:
                 self.on_status(text)
@@ -804,8 +810,22 @@ class RBNClient(threading.Thread):
                 log.info("%s: node says: %s", self.name or self.kind, line.strip()[:120])
             if self.kind == "cluster":
                 spot = parse_cluster_spot(line)
+                if spot is not None and not self.skimmers and spot.spotter.endswith("-#"):
+                    continue                     # people only: skimmers come from RBN / Telnet / HTTP
             else:
                 spot = parse_spot(line)
+                person = line.startswith("DX de") and not (
+                    spot is not None and spot.spotter.endswith("-#"))
+                if person and self.people is not None:
+                    self._person_spot(line)          # a person's spot (no '-#')
+                    continue
+                if spot is not None and not self.skimmers:
+                    if self.on_raw is not None:
+                        try:
+                            self.on_raw(spot)
+                        except Exception:  # noqa: BLE001
+                            pass
+                    continue
             if spot is not None and self.on_raw is not None:
                 try:
                     self.on_raw(spot)
@@ -830,6 +850,25 @@ class RBNClient(threading.Thread):
             except queue.Full:
                 pass
         return buf
+
+    def _person_spot(self, line: str) -> None:
+        """A DX cluster spot of a person (no '-#' skimmer): its own filter
+        (spotter continent), the mode from the comment / band plan."""
+        spot = parse_cluster_spot(line)
+        if spot is None or spot.spotter.endswith("-#"):
+            return
+        spot.source = "cluster"
+        if self.on_raw is not None:
+            try:
+                self.on_raw(spot)
+            except Exception:  # noqa: BLE001
+                pass
+        if not self.people.accept(spot.spotter):
+            return
+        try:
+            self.queue.put_nowait(spot)
+        except queue.Full:
+            pass
 
     def _primary(self) -> str:
         """The skimmer for SH/DX spotter= - none (plain SH/DX, filtered here)

@@ -293,9 +293,10 @@ The window has two layouts (*View > Detailed layout*, `[ui] layout`).
   after them: *"✗ Log: N1MM Logger.ini not found (+1 more) – click: details"*.
   A click on it (or on the badge) shows every check item; click again to hide;
 - **one row of controls**: Sort (Time / Freq / SNR / Mult), Min SNR,
-  **Spots: RBN | Telnet | HTTP** (where the CW spots come from - one click switches at
-  once; the other one still takes over while the chosen one is down; in a team
-  the master's choice, a slave's click asks the master), the
+  **Spots: RBN | Telnet | HTTP | Cluster** (where the spots come in from -
+  each one on / off, see *Spots: where they come in from*; hover = the
+  connection behind it; in a team the master's choice, a slave's click asks
+  the master), the
   **band chips** (`20 · 7M` = 7 new mults spotted on 20 m; colour = band
   open; click = list that band) and the **rate** (`Rate 84/h · 1234 Q 345 M`);
 - the F-keys (ENTER green);
@@ -661,13 +662,11 @@ keyboard. `[web] cw_keyboard = false` turns it off.
 ## SSB
 
 RBN has no SSB, so for SSB POUNCer uses a **DX cluster** (human spots,
-default azure.s53m.com:8000, only spotters in Europe). The list follows the
-radio: on USB / LSB it shows SSB spots, on CW the RBN CW spots - per radio,
-so SO2R with one radio on CW and one on SSB works. The cluster is connected
-**only while a radio is on USB / LSB in N1MM** (light "SSB cluster"; a team
-master also while another station's radio is - each POUNCer tells the team)
-and closed a minute after the last one leaves USB / LSB. `[ssb]` in config.ini or the
-Settings page.
+default azure.s53m.com:8000, only spotters in Europe) - the **Cluster**
+button (see *Spots: where they come in from*). The list follows the
+radio: on USB / LSB it shows SSB spots, on CW the CW spots - per radio,
+so SO2R with one radio on CW and one on SSB works. `[ssb]` in config.ini or
+the Settings page.
 
 The other way round: RBN isn't needed in an **SSB contest** open in N1MM
 (CQWWSSB, CQWPXSSB, ARRLDXSSB ... - RBN isn't even started) or while **every
@@ -688,7 +687,8 @@ sending (its telnet dropped, Spots unticked, N1MM closed) POUNCer's own
 cluster is back after **20 seconds** without a spot from N1MM (on a slow
 band, where N1MM's spots are usually more than 5 s apart: 4 x the usual
 gap), and stays for at least a minute before N1MM takes over again. You then see what N1MM's cluster and filters
-pass. CW keeps the RBN feed (a cluster doesn't pass every skimmer spot).
+pass - people's spots only (skimmers come from RBN / Telnet / HTTP).
+Only while N1MM is connected to the cluster itself, not through POUNCer.
 `[ssb] use_n1mm_spots = off` (Settings > SSB) always uses POUNCer's own.
 
 **FT8 or SSB?** On 20 / 15 / 10 / 80 m the FT8 / FT4 frequencies (14074,
@@ -713,30 +713,36 @@ them), it stays, and its alert is **not** held back. Cluster spots there
 without a mode word are FT8 / FT4 at once anyway. `[ssb] pskreporter`
 (Settings > SSB). The traffic console shows it as **PSKR**.
 
-## Backup when RBN is down
+## Spots: where they come in from
 
-If RBN's telnet fails twice in a row or sends nothing for 2 minutes,
-POUNCer switches to the backup telnet server **azure.s53m.com:8000** (light:
-"RBN via backup") and tries RBN again every 10 minutes. `[rbn] backup_host`
-/ `backup_port` / `backup_commands`; empty `backup_host` = off. To use the
-telnet server **first** (and RBN only while it is down), click **Spots:
-Telnet** next to Min SNR, or `[rbn] source = telnet`.
+Four buttons next to Min SNR, **each one on or off** (blue = on; `[rbn]
+sources = rbn,cluster`, the default). Whatever is on goes into POUNCer's
+list **and** out to N1MM / any client of the cluster server (port 10000):
 
-## RBN over HTTP (second backup)
+| Button | What | Connection |
+| --- | --- | --- |
+| **RBN** | skimmer spots | telnet.reversebeacon.net:7000, login = your call |
+| **Telnet** | the telnet server's skimmer spots (`-#`) | `[rbn] backup_host` (azure.s53m.com:8000) |
+| **HTTP** | RBN's skimmer spots over HTTP - no login, works where telnet is blocked, catches up after a dropout | `[rbn] http_backup` (azure.s53m.com) |
+| **Cluster** | the DX cluster's spots **of people** (no `-#`, every mode; spotters `[ssb] spotters`, EU) | `[ssb] host` (azure.s53m.com:8000) |
 
-If RBN's telnet (and its telnet backup) has been down or silent for a
-minute, POUNCer also reads RBN over **HTTP** from S53ZO's Azure server
-(`[rbn] http_backup`): no login, works where telnet is blocked, and after a
-dropout it catches up on the spots it missed. It stops again a minute after
-telnet works. The light then says **RBN via HTTP**.
-
-**Spots: HTTP** (next to RBN and Telnet, `[rbn] source = http`) makes the
-HTTP feed the **first** choice: it runs all the time and the telnet
-connection waits on **standby** (no login, light "RBN via HTTP"). If the HTTP
-feed doesn't answer for 2 minutes, RBN's telnet connects meanwhile ("using
-RBN - HTTP down" next to the buttons) and goes back on standby as soon as
-HTTP answers again. The button note "using HTTP - telnet down" means the
-HTTP feed stands in for RBN / Telnet as described above.
+- **Hover** over a button: the connection behind it - server and port,
+  login, filter, and its state now ("logged in as S55OO", "via N1MM's
+  connection", spots and the last HTTP answer ...).
+- **The same spot from two sources counts once** (same call, frequency and
+  skimmer within a minute) - e.g. RBN and HTTP both on.
+- **Only what you switched on**: nothing takes over when a source is down
+  (for now). All off = no spots ("nothing on - no spots" next to the
+  buttons, light "RBN: no skimmer source on").
+- **Telnet + Cluster on the same node** (both azure.s53m.com:8000) use
+  **one** connection and one login. And while N1MM is connected through
+  POUNCer's relay, that one connection is the relay's (one login per call).
+- Skimmer choice (`[rbn] spotter`, S53WW, backups while it is quiet) applies
+  to RBN, Telnet and HTTP alike.
+- RBN and Telnet pause while every radio is on SSB (`pause_on_phone`); a
+  team slave connects nothing (the master passes the spots on).
+- Older config.ini with `source = rbn / telnet / http`: that one + Cluster
+  (unless `[ssb] mode = off`).
 
 ## Busted calls (Super Check Partial)
 
@@ -902,8 +908,9 @@ DX de S53WW-#:   14025.0  DL1ABC       CW 23 dB 28 WPM CQ             1200Z
   cluster's spots, announcements and prompts to N1MM; N1MM's `DX` spots,
   filters and other commands to the cluster - **except the cluster's skimmer
   spots** (`DX de S53WW-#:`): N1MM's skimmer spots come from POUNCer, from
-  the source chosen with **Spots: RBN | Telnet | HTTP** and POUNCer's skimmer
-  choice (S53WW, backups while it is quiet). POUNCer adds its own spots in
+  the sources switched on with **Spots: RBN | Telnet | HTTP** and POUNCer's
+  skimmer choice (S53WW, backups while it is quiet); the cluster's spots of
+  people pass only with **Cluster** on. POUNCer adds its own spots in
   between (not one N1MM just got from the cluster: same call ±0.3 kHz within
   5 minutes; never in the middle of a cluster line). While N1MM is connected
   this way **POUNCer ignores N1MM's spot broadcast** (Broadcast Data >

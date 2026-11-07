@@ -131,14 +131,14 @@ SETTINGS: list[dict] = [
     {"key": "rbn.history", "attr": "rbn_history", "kind": "int", "min": 0, "max": 500,
      "live": False, "group": "RBN", "label": "Last spots at start (SH/DX)",
      "help": "0 = off."},
-    {"key": "rbn.source", "attr": "rbn_source", "kind": "choice", "choices": ["rbn", "telnet", "http"],
-     "live": True, "group": "RBN", "label": "CW spots from",
-     "help": "rbn = telnet.reversebeacon.net (default); telnet = the backup telnet server "
-             "below (azure.s53m.com:8000, the same skimmer spots); http = the HTTP feed "
-             "(http_backup) all the time, telnet on standby until HTTP doesn't answer for "
-             "2 minutes. The other one takes over "
-             "when the chosen one is down. Also the 'Spots: RBN | Telnet | HTTP' buttons next to "
-             "Min SNR (in a team: the master's choice)."},
+    {"key": "rbn.sources", "attr": "rbn_source", "kind": "text", "live": True,
+     "group": "RBN", "label": "Spots come in from",
+     "help": "Comma separated, each one on or off: rbn (telnet.reversebeacon.net), telnet "
+             "(the telnet server below, azure.s53m.com:8000: its skimmer spots), http (the "
+             "HTTP feed), cluster (the DX cluster's spots of people, [ssb] host). What is on "
+             "goes into POUNCer and out to the cluster server (port 10000); the same spot from "
+             "two sources counts once. Nothing takes over when they are down. Also the Spots "
+             "buttons next to Min SNR (in a team: the master's choice)."},
     {"key": "rbn.backup_host", "attr": "rbn_backup_host", "kind": "text", "live": False,
      "group": "RBN", "label": "Backup telnet server",
      "help": "Used when RBN's telnet is down. Empty = no backup."},
@@ -169,9 +169,9 @@ SETTINGS: list[dict] = [
      "help": "Radio on USB / LSB = SSB spots (DX cluster), on CW = RBN CW spots."},
     {"key": "ssb.mode", "attr": "ssb_mode", "kind": "choice", "choices": ["auto", "always", "off"],
      "live": True, "group": "SSB", "label": "DX cluster for SSB",
-     "help": "auto = connected only while a radio is on USB / LSB in N1MM (a team master: "
-             "also while another team station's radio is), closed a minute after the last "
-             "one leaves USB / LSB."},
+     "help": "No longer used: the Cluster button (Spots, [rbn] sources) switches the DX "
+             "cluster on / off. Only read from an older config.ini without [rbn] sources "
+             "(off = no cluster)."},
     {"key": "ssb.use_n1mm_spots", "attr": "ssb_use_n1mm", "kind": "choice",
      "choices": ["auto", "off"], "live": True, "group": "SSB",
      "label": "SSB spots from N1MM",

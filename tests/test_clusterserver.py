@@ -221,6 +221,15 @@ class RelayTests(unittest.TestCase):
         self.assertIn("another connection logged in as S55OO", out)
         self.assertNotIn("was lost - connecting again", out)
 
+    def test_people_spots_only_with_cluster_on(self) -> None:
+        self.c.until("your call")
+        self.srv.pass_people = lambda: False                 # Cluster off
+        self.up.conn.sendall(b"DX de S50ARX:    14205.0  EA6RJU       59 tnx                  1201Z\r\n"
+                             b"WWV de VE7CC: SFI=150\r\n")
+        out = self.c.until("SFI")
+        self.assertIn("SFI=150", out)                       # announcements pass
+        self.assertNotIn("EA6RJU", out)
+
     def test_own_line_not_glued_to_a_half_line(self) -> None:
         self.c.until("your call")
         self.up.conn.sendall(b"S55OO de AZURE 7-Nov-2026 1200Z >")
@@ -280,7 +289,8 @@ class AppRelayTests(unittest.TestCase):
         from tests.test_so2r import _import_app
         app = _import_app()
         got = []
-        f = types.SimpleNamespace(_on_n1mm_spot=lambda pkt, via: got.append((pkt["call"], via)))
+        f = types.SimpleNamespace(_on_n1mm_spot=lambda pkt, via: got.append((pkt["call"], via)),
+                                  _relay_clients=lambda: [])
         app.PouncerApp._on_relay_line(f, "DX de S50ARX:    14205.0  EA6RJU   59        1201Z")
         app.PouncerApp._on_relay_line(f, "S55OO de AZURE >")
         self.assertEqual(got, [("EA6RJU", "relay")])
@@ -300,40 +310,30 @@ class AppRelayTests(unittest.TestCase):
         self.assertIsNone(up(f))
 
 
-class SsbOnlyOnPhoneTests(unittest.TestCase):
-    def _fake(self, phone, role="alone", peers_phone=False, last=0.0):
+class ClusterButtonTests(unittest.TestCase):
+    """The 'Cluster' source: spots of people only when switched on (not on
+    a team slave)."""
+
+    def _fake(self, sources, role="alone"):
         import types
         from tests.test_so2r import _import_app
         app = _import_app()
-        team = None if role == "alone" else types.SimpleNamespace(
-            started=0.0, role=lambda: role, peers_on_phone=lambda: peers_phone)
-        f = types.SimpleNamespace(
-            cfg=types.SimpleNamespace(ssb_mode="auto", ssb_host="azure.s53m.com"), team=team,
-            state=types.SimpleNamespace(radio_numbers=lambda: [1]),
-            _phone_radio=lambda nr: phone, _ssb_last_needed=last,
-            SSB_GRACE_S=app.PouncerApp.SSB_GRACE_S)
+        team = None if role == "alone" else types.SimpleNamespace(started=0.0, role=lambda: role)
+        f = types.SimpleNamespace(cfg=types.SimpleNamespace(rbn_source=sources,
+                                                            ssb_host="azure.s53m.com"), team=team)
         return app.PouncerApp._ssb_wanted, f
 
-    def test_cw_alone_no_cluster(self) -> None:
-        fn, f = self._fake(False)
+    def test_on_off(self) -> None:
+        fn, f = self._fake("rbn,cluster")
+        self.assertTrue(fn(f))
+        fn, f = self._fake("rbn")
         self.assertFalse(fn(f))
 
-    def test_usb_cluster(self) -> None:
-        fn, f = self._fake(True)
-        self.assertTrue(fn(f))
-
-    def test_master_only_for_a_peer_on_phone(self) -> None:
-        fn, f = self._fake(False, role="master")
+    def test_slave_never(self) -> None:
+        fn, f = self._fake("rbn,cluster", role="slave")
         self.assertFalse(fn(f))
-        fn, f = self._fake(False, role="master", peers_phone=True)
+        fn, f = self._fake("rbn,cluster", role="master")
         self.assertTrue(fn(f))
-
-    def test_a_minute_grace(self) -> None:
-        fn, f = self._fake(False, last=time.time() - 30)
-        self.assertTrue(fn(f))
-        fn, f = self._fake(False, last=time.time() - 120)
-        self.assertFalse(fn(f))
-
 
 
 class OneLoginTests(unittest.TestCase):

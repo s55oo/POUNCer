@@ -1,5 +1,7 @@
 """SSB spots from N1MM's own <spot> packets instead of a second cluster connection."""
 
+import re
+
 import queue
 import types
 import unittest
@@ -72,6 +74,9 @@ class SwitchTests(unittest.TestCase):
             _continent=lambda call: "EU", home_cont="EU", raw=[])
         f._on_raw_spot = f.raw.append
         f._ssb_wanted = lambda: want
+        f._cluster_merged = lambda: False
+        f._dxc = None
+        f._people_filter = lambda: None
         for name in ("_on_n1mm_spot", "_n1mm_spots_ok", "_ensure_ssb_client", "_n1mm_quiet_limit"):
             setattr(f, name, getattr(P, name).__get__(f))
         return f, stopped
@@ -88,8 +93,13 @@ class SwitchTests(unittest.TestCase):
         f._on_n1mm_spot(parse_spot_packet(PKT))
         self.assertEqual(f.spot_queue.get_nowait().dxcall, "K1ABC")
         self.assertEqual(len(f.raw), 1)
-        # CW skimmer spots from N1MM are not used (RBN has them all)
+        # a person's CW spot from N1MM is used too; a skimmer's ('-#') is not
+        # (skimmers come from RBN / Telnet / HTTP)
         f._on_n1mm_spot(parse_spot_packet(PKT.replace(b"<mode>USB</mode>", b"<mode>CW</mode>")))
+        self.assertEqual(f.spot_queue.get_nowait().dxcall, "K1ABC")
+        sk = PKT.replace(b"<mode>USB</mode>", b"<mode>CW</mode>")
+        sk = re.sub(rb"<spottercall>([^<]*)</spottercall>", rb"<spottercall>\1-#</spottercall>", sk)
+        f._on_n1mm_spot(parse_spot_packet(sk))
         self.assertTrue(f.spot_queue.empty())
         # 5 minutes without a spot from N1MM: our own cluster again
         f._n1mm_spot_last -= 21

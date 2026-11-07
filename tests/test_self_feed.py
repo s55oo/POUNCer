@@ -138,6 +138,7 @@ class MasterListTests(unittest.TestCase):
         for n in ("_drain_spots", "_is_my_call"):
             setattr(f, n, getattr(P, n).__get__(f))
         f._note_own = f._check_overlap = f._track_on_freq = lambda s: None
+        f._merged_dup = lambda s: False
         f._relabel_overlap = lambda: None
         f._spot_dict = lambda s: {"dxcall": s.dxcall}
         # the last spots after a cluster login: received = the spot's own time
