@@ -900,7 +900,10 @@ DX de S53WW-#:   14025.0  DL1ABC       CW 23 dB 28 WPM CQ             1200Z
   (`upstream`, empty = the `[ssb]` host:port, azure.s53m.com:8000), logs in
   with the client's call and passes everything through **both ways** - the
   cluster's spots, announcements and prompts to N1MM; N1MM's `DX` spots,
-  filters and other commands to the cluster - and adds POUNCer's own spots in
+  filters and other commands to the cluster - **except the cluster's skimmer
+  spots** (`DX de S53WW-#:`): N1MM's skimmer spots come from POUNCer, from
+  the source chosen with **Spots: RBN | Telnet | HTTP** and POUNCer's skimmer
+  choice (S53WW, backups while it is quiet). POUNCer adds its own spots in
   between (not one N1MM just got from the cluster: same call ±0.3 kHz within
   5 minutes; never in the middle of a cluster line). While N1MM is connected
   this way **POUNCer ignores N1MM's spot broadcast** (Broadcast Data >

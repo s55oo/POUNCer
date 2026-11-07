@@ -716,7 +716,7 @@ class RBNClient(threading.Thread):
         self._status(f"connecting to {host}:{port}" + (" (backup)" if backup else ""))
         sock = socket.create_connection((host, port), timeout=30)
         self._cur_target = (host, port)
-        if self._is_shared((host, port)):          # the relay took it meanwhile
+        if self._is_shared((host, port)) or self.hold:   # relay / HTTP took it meanwhile
             sock.close()
             return
         if self._errs:
@@ -736,6 +736,9 @@ class RBNClient(threading.Thread):
         self._last_dx = started
         cmds_sent = not (backup or self.kind == "cluster")
         while not self._stop.is_set():
+            if self.hold or self._is_shared((host, port)):
+                sock.close()                    # standby / the relay's login now
+                return
             now = time.monotonic()
             if backup != self.prefer_backup and now - started > self.retry_primary_s:
                 raise _BackToPrimary()          # on the fallback long enough: try the preferred

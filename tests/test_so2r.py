@@ -1,5 +1,6 @@
 """SO2R / SO2V: radio A / B selection (QSY packet, Entry Window, band follow)."""
 
+import time
 import socket
 import sys
 import types
@@ -551,6 +552,27 @@ class FocusBackToATests(unittest.TestCase):
         f = AppRadioTests._fake(AppRadioTests(), app, radio=1)
         f.cfg.focus_back_to_a = True
         self.assertEqual(app.PouncerApp._after_radio(f, 1, None, 1111), "")
+
+
+class HttpFeedStartTests(unittest.TestCase):
+    def test_real_feed_starts(self) -> None:
+        """The real RBNHttpFeed (a Thread) really starts - no Thread
+        attribute overwritten (v0.7.148 broke start())."""
+        import queue as _q
+        app = _import_app()
+        f = types.SimpleNamespace(
+            cfg=types.SimpleNamespace(follow_modes=("CW",)), spotter_filter=None,
+            spot_queue=_q.Queue(), _on_raw_spot=lambda s: None, _http_feed=None)
+        with mock.patch.object(app.RBNHttpFeed, "_http_get",
+                               staticmethod(lambda url: b'{"spots": [], "cursor": "1"}')):
+            app.PouncerApp._start_http_feed(f, "https://x/live")
+            for _ in range(100):
+                if f._http_feed.last_ok:
+                    break
+                time.sleep(0.02)
+            self.assertTrue(f._http_feed.is_alive())
+            self.assertTrue(f._http_feed.last_ok)
+            f._http_feed.stop()
 
 
 class HttpSourceTests(unittest.TestCase):

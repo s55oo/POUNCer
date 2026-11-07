@@ -2077,7 +2077,7 @@ class PouncerApp:
             on_status=lambda t: log.info("RBN HTTP: %s", t),
             modes=tuple(m for m in self.cfg.follow_modes if m.upper() in ("CW", "RTTY"))
             or ("CW",), on_raw=self._on_raw_spot)
-        self._http_feed._started = time.time()
+        self._http_feed.began = time.time()
         self._http_feed.start()
 
     def _http_down(self, now: float | None = None) -> bool:
@@ -2086,7 +2086,7 @@ class PouncerApp:
         if f is None:
             return True
         now = now or time.time()
-        return now - max(f.last_ok, getattr(f, "_started", now)) > self.HTTP_DOWN_S
+        return now - max(f.last_ok, getattr(f, "began", now)) > self.HTTP_DOWN_S
 
     def _http_as_source(self, url: str, now: float) -> None:
         """'Spots: HTTP': the HTTP feed delivers the CW spots, the telnet

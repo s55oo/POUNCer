@@ -332,10 +332,10 @@ class ClusterServer:
                         if not logged_in and (b"login" in data.lower() or b"call" in data.lower()):
                             up.sendall(c.call.encode("ascii", "replace") + b"\r\n")
                             logged_in, c.up_ok = True, True
-                        if not c.send_raw(data):
-                            return
                         buf += strip_telnet(data)
                         buf = self._lines_from_cluster(c, buf)
+                        if c.closed:
+                            return
                     if not logged_in and time.monotonic() - started > 5:
                         up.sendall(c.call.encode("ascii", "replace") + b"\r\n")   # no prompt seen
                         logged_in, c.up_ok = True, True
@@ -379,31 +379,52 @@ class ClusterServer:
         return False
 
     def _lines_from_cluster(self, c: _Client, buf: bytes) -> bytes:
-        """Complete lines from the cluster: note its DX spots (so POUNCer's
-        same spot isn't sent again) and hand them to the app."""
+        """The cluster's data -> the client, line by line: everything passes
+        (spots of people, announcements, prompts, answers) except the
+        **skimmer** spots ('DX de S53WW-#:') - those the client gets from
+        POUNCer, from the source chosen with Spots: RBN | Telnet | HTTP and
+        POUNCer's skimmer choice. Every DX line goes to the app; the ones
+        passed on are noted (POUNCer doesn't send the same spot again)."""
+        out = bytearray()
         while b"\n" in buf:
             raw, buf = buf.split(b"\n", 1)
+            raw += b"\n"
             line = raw.decode("ascii", "replace").strip()
             if not line:
+                out += raw
                 continue
             traffic.emit("relay", line[:120])
             at = line.find("DX de ")
             if at > 0:          # after a prompt with no newline ("... >DX de ...")
+                out += raw[:raw.find(b"DX de ")]
+                raw = raw[raw.find(b"DX de "):]
                 line = line[at:]
             pkt = parse_dx(line)
+            skimmer = pkt is not None and pkt["spotter"].endswith("-#")
+            if not skimmer:
+                out += raw
             if pkt is None:
                 continue
-            now = time.time()
-            with self._lock:
-                c.recent[(pkt["call"], int(round(pkt["freq_khz"] * 10)))] = now
-                if len(c.recent) > 3000:
-                    for k in [k for k, t in c.recent.items() if now - t > 300]:
-                        del c.recent[k]
+            if not skimmer:
+                now = time.time()
+                with self._lock:
+                    c.recent[(pkt["call"], int(round(pkt["freq_khz"] * 10)))] = now
+                    if len(c.recent) > 3000:
+                        for k in [k for k, t in c.recent.items() if now - t > 300]:
+                            del c.recent[k]
             if self.on_upstream_line is not None:
                 try:
                     self.on_upstream_line(line)
                 except Exception:  # noqa: BLE001
                     log.exception("relay line")
+        # the rest without a newline: a prompt ('login:', 'S55OO de NODE >')
+        # goes on now; the start of a DX line waits for its end
+        head = buf.lstrip()[:6]
+        if buf and not (b"DX de "[:len(head)] == head):
+            out += buf
+            buf = b""
+        if out and not c.send_raw(bytes(out)):
+            c.closed = True
         return buf[-4096:]
 
     def _had_it(self, c: _Client, key: tuple[str, int], now: float) -> bool:

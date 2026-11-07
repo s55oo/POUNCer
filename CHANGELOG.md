@@ -1,5 +1,20 @@
 # POUNCer — Changelog
 
+## v0.7.149 — 2026-11-07 — N1MM gets the skimmer spots you chose; HTTP fixed
+
+- **Relay: N1MM's skimmer spots follow Spots: RBN | Telnet | HTTP.** The
+  cluster's own skimmer spots (`DX de S53WW-#:`) are no longer passed on to
+  N1MM - it gets them from POUNCer, from the chosen source and with
+  POUNCer's skimmer choice (S53WW, backups while it is quiet). Spots of
+  people, announcements, prompts and answers still pass through.
+- **Fix (v0.7.148): the HTTP feed never started** - neither with the HTTP
+  button nor as the backup (an attribute name clashed with Python's
+  thread; it then looked "down" after 2 minutes). Now covered by a test with
+  the real feed.
+- **Fix:** with Spots: HTTP the telnet connection could still log in when
+  standby came during a connect; it now checks standby (and the relay's
+  shared login) after connecting and while reading.
+
 ## v0.7.148 — 2026-11-07 — Spots: RBN | Telnet | HTTP
 
 - **Fix (v0.7.147):** while the CW feed shared N1MM's login through the relay,
