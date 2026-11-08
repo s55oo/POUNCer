@@ -983,6 +983,10 @@ DX de S53WW-#:   14025.0  DL1ABC       CW 23 dB 28 WPM CQ             1200Z
     the client. With Telnet and Cluster both off, N1MM gets `*** POUNCer:
     not sent - no telnet connection` and `sh/dx` = POUNCer's last 30 spots.
   - **off**: nothing goes out (the client stays connected).
+  - **Send spots made in N1MM to the DX cluster** (Settings > Cluster server,
+    `[cluster] spots_out`, on): off = your Alt+P / Spot It spots stay here -
+    N1MM gets `*** POUNCer: spot not sent to the DX cluster`, nobody else
+    sees them; `sh/dx` and filters still go.
   - One connection to azure, POUNCer's (login = your call); N1MM never logs
     in there itself, so no "Reconnected as S55OO ..." fights.
 - The same call / frequency / skimmer once a minute; up to 10 clients;

@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.165 — 2026-11-08 — Keep N1MM's spots off the DX cluster
+
+- Settings > Cluster server > **send spots made in N1MM to the DX cluster**
+  (`[cluster] spots_out`, on by default). Off: a spot you make in N1MM
+  (Alt+P / Spot It, `DX ...`) is not sent on over POUNCer's telnet
+  connection - N1MM gets "*** POUNCer: spot not sent to the DX cluster";
+  sh/dx and other commands still go.
+
 ## v0.7.164 — 2026-11-07 — SNR from the Telnet (azure) skimmer spots
 
 - azure (S50DXS) writes the skimmer SNR glued to "dB" (`CW   9dB Q:9*

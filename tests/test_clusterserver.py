@@ -181,6 +181,18 @@ class DistributorTests(unittest.TestCase):
         self.c.send("DX 14030.0 K2BWC")
         self.assertIn("not sent - no telnet connection", self.c.until("Cluster)"))
 
+    def test_spots_made_in_n1mm_kept_local(self) -> None:
+        self.srv.spots_out = lambda: False
+        self.c.buf = b""
+        self.c.send("DX 14030.0 K2BWC tnx")
+        self.assertIn("spot not sent to the DX cluster", self.c.until("Cluster server)"))
+        self.c.send("sh/dx")                          # other commands still go
+        for _ in range(50):
+            if self.sent:
+                break
+            time.sleep(0.02)
+        self.assertEqual(self.sent, ["sh/dx"])
+
     def test_relay_off_nothing_forwarded(self) -> None:
         self.relay[0] = False
         self.c.buf = b""

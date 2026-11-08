@@ -56,6 +56,12 @@ SETTINGS: list[dict] = [
              "the clients on the port above; what a client sends (DX spots, sh/dx) goes over "
              "POUNCer's own telnet connection (Telnet / Cluster on), the answers come back. "
              "Opens no connection of its own. Off = nothing goes out. Also the Relay button."},
+    {"key": "cluster.spots_out", "attr": "cluster_spots_out", "kind": "bool", "live": True,
+     "group": "Cluster server", "label": "  ... send spots made in N1MM to the DX cluster",
+     "help": "On = a spot you make in N1MM (Alt+P / Spot It, 'DX ...') goes over POUNCer's "
+             "telnet connection to the DX cluster network. Off = it stays here: N1MM gets "
+             "'*** POUNCer: spot not sent' and nobody else sees it. Other commands (sh/dx, "
+             "filters) still go."},
     {"key": "n1mm.qsy_wait_ms", "attr": "qsy_wait_ms", "kind": "int", "min": 0, "max": 10000,
      "live": True, "group": "Tap -> N1MM",
      "label": "Wait for N1MM's new frequency (ms)",
