@@ -11,6 +11,12 @@ fetches what is already known from the master (HTTP ``/api/runhist``).
 If the master stops (no announce for 6 s) or its RBN is down for over a
 minute, the next one takes over.
 
+Taking the master back: ``claim()`` ("Become master") gives this POUNCer a
+start time just before everyone else's, so it is elected at once (older
+POUNCers elect the same way - nothing new on the wire). With ``auto_master``
+([team] master = on) it does so by itself each time it finds the team again:
+after a restart, or when the network comes back after a drop.
+
 Stdlib only; plain JSON datagrams; a team is everyone on the same network
 and port.
 """
@@ -155,9 +161,14 @@ class Team:
         on_update=None,       # called when the master says: update now
         get_src=None,         # -> "rbn" / "telnet": (master) where the CW spots come from
         on_src=None,          # (master) a slave's button: called with "rbn" / "telnet"
+        auto_master: bool = False,  # take the master back on (re)joining the team
     ) -> None:
         self.id = uuid.uuid4().hex[:12]
         self.started = time.time()
+        self._rank: float | None = None   # set by claim(); else the start time
+        self.auto_master = auto_master
+        self._had_peers = False
+        self.claimed_at: float | None = None
         self.web_port = web_port
         self.port = port
         self.version = version
@@ -205,6 +216,13 @@ class Team:
                 pass
 
     # --- state -----------------------------------------------------------
+    @property
+    def rank(self) -> float:
+        """What the team elects by (sent as 'started'): the start time, or
+        the earlier one claim() took."""
+        r = getattr(self, "_rank", None)
+        return self.started if r is None else r
+
     def _healthy(self, now: float) -> bool:
         """A master whose RBN has been down over RBN_SICK_S isn't healthy."""
         if not self.is_master():
@@ -219,7 +237,7 @@ class Team:
     def _nodes(self, now: float) -> dict[str, dict]:
         with self._lock:
             nodes = {i: dict(p) for i, p in self.peers.items()}
-        nodes[self.id] = {"started": self.started, "seen": now,
+        nodes[self.id] = {"started": self.rank, "seen": now,
                           "healthy": getattr(self, "_last_healthy", True)}
         return nodes
 
@@ -328,7 +346,8 @@ class Team:
         while not self._stop.is_set():
             now = time.time()
             self._last_healthy = self._healthy(now)
-            hi = {"t": "hi", "started": self.started, "web": self.web_port,
+            self._auto_claim()
+            hi = {"t": "hi", "started": self.rank, "web": self.web_port,
                   "healthy": self._last_healthy, "ver": self.version}
             for key, fn in (("cw", self._needs_rbn), ("paused", self._rbn_paused),
                             ("ssb", getattr(self, "_on_phone", None))):
@@ -350,6 +369,30 @@ class Team:
             self._send(hi)
             self._maybe_sync()
             self._stop.wait(ANNOUNCE_S)
+
+    # --- taking the master back ---------------------------------------------
+    def claim(self) -> bool:
+        """Become the master: rank just before every other POUNCer. False if
+        already master (or alone). Sends a fresh announce at once."""
+        peers = self.alive_peers()
+        if not peers or self.is_master():
+            return False
+        first = min(min(float(p["started"]) for p in peers), self.rank)
+        self._rank = first - 1.0
+        self.claimed_at = time.time()
+        log.info("team: became master on request")
+        traffic.emit("team", "this POUNCer takes the master role")
+        self._send({"t": "hi", "started": self.rank, "web": self.web_port,
+                    "healthy": True, "ver": self.version})
+        return True
+
+    def _auto_claim(self) -> None:
+        """auto_master: claim once each time the team is found again (start,
+        network back) - not over and over, so two such PCs don't fight."""
+        has = bool(self.alive_peers())
+        if has and not getattr(self, "_had_peers", False) and getattr(self, "auto_master", False):
+            self.claim()
+        self._had_peers = has
 
     def peers_need_rbn(self) -> bool:
         """Any other POUNCer of the team needs RBN (a radio on CW, ...)."""

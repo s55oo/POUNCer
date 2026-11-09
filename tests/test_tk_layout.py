@@ -213,7 +213,7 @@ class TkSettingsWindowTests(unittest.TestCase):
         for name in ("_open_config_folder", "_reconnect_log", "_restart_now", "_shutdown_and_quit",
                      "_on_toggle_worked", "_clear_spots", "_open_browser", "_on_update_click",
                      "_open_url", "_about", "_apply_compact", "_apply_topmost", "_set_alert", "_open_app_window", "_set_look", "_toggle_tiles", "_toggle_layout", "_show_phone_qr", "_allow_firewall",
-                     "_team_password", "_switch_version", "_station_test", "_toggle_rate_line", "_update_team", "_rollback"):
+                     "_team_password", "_become_master", "_toggle_team_master", "_switch_version", "_station_test", "_toggle_rate_line", "_update_team", "_rollback"):
             setattr(f, name, lambda *a, **k: None)
         f._team_pw_label = PouncerApp._team_pw_label.__get__(f)
         for name in ("_refresh_spot_menus", "_menu_source", "_menu_filter", "_show_connections",

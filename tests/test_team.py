@@ -99,6 +99,34 @@ class TeamTests(unittest.TestCase):
         finally:
             teammod.PEER_TIMEOUT_S = old
 
+    def test_become_master_click(self) -> None:
+        self.assertTrue(wait_for(lambda: self.b.role() == "slave"))
+        self.assertFalse(self.a.claim())             # already master: nothing
+        self.assertTrue(self.b.claim())
+        self.assertTrue(wait_for(lambda: self.a.role() == "slave" and self.b.role() == "master"))
+        self.assertLess(self.b.rank, self.a.rank)
+        self.assertEqual(self.a.started + 0, self.a.started)   # start time itself unchanged
+
+
+class AutoMasterTests(unittest.TestCase):
+    def test_restarted_master_takes_it_back(self) -> None:
+        old = teammod.ANNOUNCE_S
+        teammod.ANNOUNCE_S = 0.2
+        b = Team(0, port=18122, send_to=[("127.0.0.1", 18121)])
+        b.started -= 100                              # B took over while A was gone
+        a = Team(0, port=18121, send_to=[("127.0.0.1", 18122)], auto_master=True)
+        try:
+            b.start()
+            a.start()                                 # A comes back (restart)
+            self.assertTrue(wait_for(lambda: a.role() == "master" and b.role() == "slave", 4))
+            claimed = a.claimed_at
+            time.sleep(0.6)
+            self.assertEqual(a.claimed_at, claimed)   # once, not on every announce
+        finally:
+            a.stop()
+            b.stop()
+            teammod.ANNOUNCE_S = old
+
 
 class JoinSyncTests(unittest.TestCase):
     def test_joiner_fetches_known_runhist_from_master(self) -> None:

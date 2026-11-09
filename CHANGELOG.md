@@ -1,5 +1,19 @@
 # POUNCer — Changelog
 
+## v0.7.166 — 2026-11-09 — Take the team master role back
+
+- When the master PC was shut down or lost the network, another POUNCer
+  took over - and stayed master after the first one came back (the master
+  is the one running longest). Now:
+  - click the **SLAVE** badge (or *File > Become team master*): this
+    POUNCer becomes the master at once, the other one a slave;
+  - *File > This PC is the team master* (`[team] master = on`, off by
+    default): it takes the role back **by itself** each time it finds the
+    team again - after a restart or when the network comes back. Set it on
+    one PC only.
+- How: the POUNCer announces a start time just before everyone else's, so
+  the usual election picks it - older POUNCers in the team agree too.
+
 ## v0.7.165 — 2026-11-08 — Keep N1MM's spots off the DX cluster
 
 - Settings > Cluster server > **send spots made in N1MM to the DX cluster**

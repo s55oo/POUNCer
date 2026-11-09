@@ -436,6 +436,7 @@ class PouncerApp:
         # Team role: MASTER (talks to RBN) / SLAVE / alone - a coloured badge
         self.team_label = tk.Label(top, text="", font=(theme.FONT, 9, "bold"), padx=8, pady=2)
         self.team_label.pack(side="right", padx=(8, 0))
+        self.team_label.bind("<Button-1>", lambda _e: self._become_master())
         # clear the spots: of the band in the list / of every band (like the badges)
         for text, cmd in (("CLR ALL", self._clear_spots), ("CLR BAND", self._clear_band)):
             b = tk.Label(top, text=text, font=(theme.FONT, 9, "bold"), padx=8, pady=2,
@@ -674,6 +675,10 @@ class PouncerApp:
         self._fw_menu = (file, file.index("end"))
         file.add_command(label=self._team_pw_label(), command=self._team_password)
         self._pw_menu = (file, file.index("end"))
+        file.add_command(label="Become team master (take it back)", command=self._become_master)
+        self.team_master_var = tk.BooleanVar(value=bool(getattr(self.cfg, "team_master", False)))
+        file.add_checkbutton(label="This PC is the team master (take it back after a restart)",
+                             variable=self.team_master_var, command=self._toggle_team_master)
         file.add_separator()
         file.add_command(label="Restart POUNCer", command=self._restart_now,
                          state="normal" if self.updater.exe else "disabled")
@@ -1648,6 +1653,8 @@ class PouncerApp:
             return ("TEAM - the other POUNCers on the network (UDP broadcast)\n"
                     f"Team: {onoff(g(c, 'team', True))}, UDP {g(c, 'team_port', 12079)}, role {role}\n"
                     f"Extra peers: {peers}\n"
+                    f"Take master back after a restart: {onoff(g(c, 'team_master', False))} "
+                    "(click the SLAVE badge: become master now)\n"
                     f"Password: {'set' if g(c, 'team_key', '') else 'off'}")
         if group == "WEB":
             return ("WEB - the phone page (HTTP server; requests from phones / browsers)\n"
@@ -3990,6 +3997,7 @@ class PouncerApp:
                 rbn_paused=lambda: bool(getattr(self, "_rbn_pause_on", False)),
                 get_src=lambda: self.cfg.rbn_source,
                 on_src=lambda v: self._web_queue.put(("src", v)),
+                auto_master=bool(getattr(self.cfg, "team_master", False)),
             )
             self.team.start()
         except OSError as exc:
@@ -5722,6 +5730,39 @@ class PouncerApp:
         else:
             messagebox.showwarning("POUNCer - Windows Firewall",
                                    f"The rules were not added ({detail}).", parent=self.root)
+
+    # ---- taking the master role back -----------------------------------------
+    def _become_master(self) -> None:
+        """SLAVE badge / File menu: this POUNCer becomes the team master
+        (e.g. the radio PC after a restart, when another one took over)."""
+        from tkinter import messagebox
+        team = self.team
+        if team is None or team.role() != "slave":
+            messagebox.showinfo("POUNCer", {"master": "This POUNCer is already the team master.",
+                                            "solo": "No other POUNCer on the network - "
+                                                    "nothing to take over."}.get(
+                team.role() if team else "", "The team is off ([team] enabled)."),
+                parent=self.root)
+            return
+        if not messagebox.askyesno(
+                "POUNCer - become master",
+                f"Take the master role from {team.master_ip()}?\n\n"
+                "This POUNCer then keeps the spot connections and feeds the others; "
+                f"{team.master_ip()} becomes a slave.", parent=self.root):
+            return
+        if team.claim():
+            log.info("team: master role taken back by hand")
+        self._update_team_label()
+
+    def _toggle_team_master(self) -> None:
+        on = bool(self.team_master_var.get())
+        self.cfg.team_master = on
+        if self.team is not None:
+            self.team.auto_master = on
+        try:
+            set_ini_value(self.cfg.config_path, "team", "master", "on" if on else "off")
+        except OSError as exc:
+            log.warning("[team] master not saved: %s", exc)
 
     # ---- team password (File > Team password...) -----------------------------
 

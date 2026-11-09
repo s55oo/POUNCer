@@ -170,6 +170,7 @@ class Config:
     team_port: int = 12079
     team_peers: tuple[str, ...] = ()  # extra POUNCer IPs (networks without broadcast)
     team_key: str = ""                # team password key (hex, never the password); "" = off
+    team_master: bool = False         # take the master role back on (re)joining the team
     sort: str = "snr"
     min_snr: int = 0             # list (window + phone): hide spots weaker than this (0 = all)
     min_snr_keep_mults: bool = True  # ... but never hide a new multiplier
@@ -423,6 +424,7 @@ def load_config(path: str) -> Config:
     cfg.forward_fkeys = b("ui", "forward_fkeys", cfg.forward_fkeys)
     cfg.team = b("team", "enabled", cfg.team)
     cfg.team_port = i("team", "port", cfg.team_port)
+    cfg.team_master = b("team", "master", cfg.team_master)
     cfg.team_peers = tuple(
         p for p in s("team", "peers", "").replace(";", ",").replace(" ", ",").split(",") if p
     )

@@ -1011,6 +1011,13 @@ a **team**:
   everything known so far from the master;
 - if the master is switched off (or its RBN is down over a minute) the next
   one takes over within seconds;
+- **taking the master back**: click the blue **SLAVE** badge (or *File >
+  Become team master*) and this POUNCer is the master at once, the old one
+  a slave. Tick *File > This PC is the team master* (`[team] master = on`)
+  on the PC that should always be master (e.g. the radio PC): it then takes
+  the role back by itself each time it finds the team again - after a
+  restart, or when the network comes back after a drop. Set it on one PC
+  only. Works with older POUNCers in the team too;
 - each POUNCer tells the others whether it **needs RBN** (a radio on CW, not
   an SSB contest): the master connects to RBN only while one does - the whole
   team on SSB = no RBN connection anywhere, back at once when a radio goes to
