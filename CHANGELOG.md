@@ -1,5 +1,19 @@
 # POUNCer — Changelog
 
+## v0.7.173 — 2026-11-09 — A click takes the station you clicked again
+
+- In the clean row list a click on F8EXX took the station one line below.
+  The list on screen was the old one while the click already used the new
+  one: with a row selected, each refresh tried to select that row in the
+  (hidden, empty) table, failed with "Item 0 not found" and stopped before
+  the row list was redrawn. Now only the table selects in the table, and
+  the row list (and tiles) are redrawn every refresh.
+- The same error is what stopped the refresh before v0.7.172 - so the
+  "worked station still in the list" reports came from this too.
+- Test: select a row, a new spot comes on top, then every row is clicked -
+  each click must give the station drawn on that line
+  (`test_rows_click_after_select.py`).
+
 ## v0.7.172 — 2026-11-09 — Worked stations: find out what happens
 
 - PA7AL logged on 40 m CW still stayed in the list with v0.7.171. To see

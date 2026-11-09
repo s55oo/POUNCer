@@ -5346,7 +5346,10 @@ class PouncerApp:
                                                     else "")) else s.spotter),
                 ),
             )
-        if reselect is not None:
+        if reselect is not None and kind == "tree":
+            # only the table has rows to select (v0.7.173): with tiles / the
+            # clean rows the table is empty, and selecting in it raised an
+            # error that stopped the refresh - the list froze after a click
             self.tree.selection_set(reselect)
             self.tree.focus(reselect)
         if getattr(self, "tiles_var", None) is not None and self.tiles_var.get():
