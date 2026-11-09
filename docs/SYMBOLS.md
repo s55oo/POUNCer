@@ -19,7 +19,7 @@ them in the window (or long-press on the phone) for a short explanation.
 | **⚠ CHECK** (amber) | something should be looked at (an old country file, the clock a few seconds off, ...) |
 | **✗ NOT READY** (red) | something POUNCer needs is not working (no radio info, no log, no RBN, ...) |
 | **MASTER** (green) | team: this POUNCer holds the RBN connection and feeds the others |
-| **SLAVE** (blue) | team: this POUNCer gets its spots from the master |
+| **SLAVE** (blue) | team: this POUNCer gets its spots from the master. **Click it** to become the master yourself (asks first; File > Become team master does the same) |
 | **TEAM: ALONE** (grey) | team is on, but no other POUNCer is on the network |
 | **TEAM OFF** (dark) | team is switched off |
 | team badge **orange** | a team POUNCer runs a different version (the tooltip says which IP and version) |
@@ -247,6 +247,9 @@ Marks in the call and Mult columns:
 | **WPM − / WPM +** | N1MM's CW speed down / up (PgDn / PgUp); the speed is shown between them |
 | **−25 Hz / +25 Hz** | move the VFO, no TX |
 | **NEXT ▶** | the next station of the list: QSY + call, like tapping its tile. No TX |
+| keys **dimmed** + "🔒 Look only" | this phone doesn't control N1MM: taps, NEXT, F-keys, ENTER, Spot It, CW keyboard, tune and WPM do nothing. Band menu (tap the frequency) > **Control N1MM** switches it on for this phone |
+| **Control N1MM: on for all phones** (band menu) | the PC - in a team the master - set *Phones may control N1MM* = all: no switch needed |
+| **Control N1MM: off on the PC** (band menu) | *Phones may control N1MM* = off: look only for every phone |
 
 ### Status line and band menu
 

@@ -331,7 +331,7 @@ random id of that POUNCer) and `t` (type):
 
 | `t` | When | Content | Sent to |
 |---|---|---|---|
-| `hi` | every 2 s | `started` (time), `web` (its web port), `healthy` (RBN works or closed on purpose), `ver` (version), `cw` (this POUNCer needs RBN: a radio on CW, not an SSB contest), `paused` (master: RBN closed, nobody needs it) | broadcast `255.255.255.255:12079` out of **every** network adapter (LAN, ZeroTier…) + directly to each known POUNCer and each `[team] peers` IP |
+| `hi` | every 2 s | `started` (time), `web` (its web port), `healthy` (RBN works or closed on purpose), `ver` (version), `cw` (this POUNCer needs RBN: a radio on CW, not an SSB contest), `paused` (master: RBN closed, nobody needs it), `src` / `pc` (master: its spot sources / `[web] phone_control` - the slaves follow both) | broadcast `255.255.255.255:12079` out of **every** network adapter (LAN, ZeroTier…) + directly to each known POUNCer and each `[team] peers` IP |
 | `spot` | master, per spot | `s`: `{dxcall, freq_khz, mode, snr, wpm, spot_type, spotter, time_utc}` | directly to each POUNCer |
 | `src` | slave, *Spots: RBN / Telnet* button | `{"t":"src","v":"telnet"}` - the master switches its CW feed (only the master acts on it); the master's choice goes out in its `hi` as `"src"` | directly to each POUNCer |
 | `update` | master, *Help > Update all POUNCers in the team* | nothing else - every POUNCer checks GitHub, downloads the newest and restarts (accepted only from the master) | directly to each POUNCer |
@@ -346,6 +346,11 @@ random id of that POUNCer) and `t` (type):
 - **Master** = the one running longest whose RBN works; it alone talks to
   RBN / the cluster and passes spots on. Not heard for 6 s, or its RBN down
   for over a minute → the next one takes over.
+- **Taking it back** (v0.7.166): the SLAVE badge / *File > Become team
+  master* makes this POUNCer announce a `started` one second before the
+  earliest one, so every POUNCer (older versions too) elects it. With
+  `[team] master = on` it does so by itself each time it finds the team
+  again (restart, network back) - once, not over and over.
 - A POUNCer that joins fetches what is already known with
   `GET http://<master>:8080/api/runhist` (section 10).
 - Different versions in one team are shown on the Team light.
@@ -367,6 +372,7 @@ query parameters (`radio=A|B` = which radio the phone works).
 | `/api/explain?call=3B8X&freq=14025.1` | phone Debug (hold a tile): everything POUNCer knows about that spot - entity, zones, each multiplier type new / worked, worked, run history, SCP, tapped, all skimmers that spotted it, the raw spot - read-only, local data |
 | `/api/zones?min=15` | per band and CQ zone 1-40: `hears_me` (skimmers that spotted your call) and `i_hear` (stations heard by skimmers on your continent), best SNR, count, calls, minutes ago - from the RBN / cluster feed POUNCer already has, nothing new on the network |
 | `/api/qsy?call=&freq=&mode=&radio=` | tap: QSY + call into N1MM (the next `/api/spots` carries `tap`: what really happened) |
+| (control) | `/api/qsy`, `/api/key`, `/api/cw`, `/api/tune` answer **403** to other devices when `[web] phone_control = off` (in a team: the master's choice); the PC's own browser always may. `/api/spots` carries `control_ok` and `control_all` (= `all`: every phone, no switch); with `phone` each phone's own switch (band menu, kept in the browser) decides |
 | `/api/key?key=F2&radio=` | F-key / Enter / PgUp / PgDn to N1MM (F-keys **transmit**) |
 | `/api/minsnr?db=10` | Minimum SNR of the list (0–60; 0 = off, the default) - window and phone, saved to config.ini |
 | `/api/cw?op=open\|text\|back\|done\|stop&text=&n=&radio=` | Phone CW keyboard: open = Ctrl+K in the Entry Window, text = typed into N1MM's CW window (**transmits**; A–Z, 0–9, space, CW punctuation, max 200), back = n × Backspace, done = Enter, stop = Esc. 404 when `[web] cw_keyboard = false` |
