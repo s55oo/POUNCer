@@ -224,7 +224,7 @@ class RunHistoryTests(unittest.TestCase):
         con.close()
 
     def test_warm_up_downloads_once_and_loads(self) -> None:
-        with tempfile.TemporaryDirectory() as d:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:   # warm-up thread may still write
             src = os.path.join(d, "src.sqlite")
             self._warm_db(src)
             with open(src, "rb") as fh:
