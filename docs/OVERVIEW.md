@@ -38,7 +38,7 @@ Several of POUNCer's strongest parts come from **S53ZO**:
 ## Getting started
 
 1. Download **POUNCer.exe** and **config.ini** from the [latest GitHub release](https://github.com/s55oo/POUNCer/releases/latest) into one folder, e.g. next to N1MM.
-2. In N1MM: Config > Config Ports > **Broadcast Data**, tick **Radio**, **App Info**, **Contacts** and **Spots**, all to 127.0.0.1:12060 ([details](../README.md#n1mm-logger-setup)). When Windows asks, allow POUNCer through the firewall (the phone needs TCP 8080).
+2. In N1MM: Config > Config Ports > **Broadcast Data**, tick **Radio**, **App Info**, **Contacts** (worked stations leave the list at once) and **Spots**, all to the same address (127.0.0.1:12060) ([details](../README.md#n1mm-logger-setup)). When Windows asks, allow POUNCer through the firewall (the phone needs TCP 8080).
 3. Start POUNCer. Set your skimmer, keys and autostart in **Settings** (no need to edit config.ini by hand).
 4. On the phone, open the address shown at the bottom of the window (same Wi-Fi or ZeroTier).
 

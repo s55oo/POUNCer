@@ -195,6 +195,7 @@ class PouncerApp:
         self._snr_hidden = 0
         # the open log / contest as N1MM broadcasts it (AppInfo) wins over the ini
         self.worked.app_info = self.state.app
+        self.worked.contact_events = self.state.contact_events
         # No [rbn] callsign in config.ini: use the one N1MM has.
         if not config.rbn_callsign:
             config.rbn_callsign = n1mm_station_call(config.n1mm_ini or None)

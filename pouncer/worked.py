@@ -252,6 +252,7 @@ class WorkedLog:
         self._wanted_nr: int | None = None      # what N1MM / the ini named
         # -> what N1MM broadcast as open (AppInfo / contact packets), or None
         self.app_info: Callable[[], dict | None] | None = None
+        self.contact_events = None   # n1mm.RadioState.contact_events (QSOs from packets)
         self._app_seen = None
         self.contest_source = ""                # "N1MM", "ini" or "latest QSO"
         self.ini_stale_nr: int | None = None    # newest QSOs are in this other contest
@@ -407,9 +408,11 @@ class WorkedLog:
         contacts = app.get("contacts") if app else None
         if contacts != getattr(self, "_contacts_seen", None):
             # N1MM broadcast a logged / changed / deleted QSO (Broadcast Data >
-            # Contacts): read the log now, whatever the files' times say
+            # Contacts): read the log now, whatever the files' times say, and
+            # take the QSO from the packet itself at once (v0.7.171)
             self._contacts_seen = contacts
             self._signature = None
+            self._take_contacts()
         if now - self._last_check >= interval:
             self._last_check = now
             info, problem = self._resolve()
@@ -477,14 +480,22 @@ class WorkedLog:
         rebuilds the index from the WAL itself and sees every committed QSO;
         a half-written last frame fails its checksum and is simply ignored
         (the next change reads again). N1MM's files are only read."""
+        con = None
         try:
             copy = self._copy_log(path)
             con = sqlite3.connect(copy, timeout=2.0)
             con.execute("PRAGMA query_only=1")
             con.execute("SELECT count(*) FROM sqlite_master").fetchone()
+            if not getattr(self, "_copy_said", False):
+                log.info("worked: reading copies of the log in %s", os.path.dirname(copy))
+                self._copy_said = True
             return con
         except (OSError, sqlite3.Error) as exc:
-            log.debug("log copy not usable (%s) - reading %s directly", exc, path)
+            if con is not None:
+                con.close()
+            if str(exc) != getattr(self, "_copy_err", ""):
+                log.warning("worked: log copy failed (%s) - reading %s directly", exc, path)
+                self._copy_err = str(exc)
         uri = pathlib.Path(path).absolute().as_uri() + "?mode=ro"
         try:
             con = sqlite3.connect(uri, uri=True, timeout=2.0)
@@ -494,13 +505,20 @@ class WorkedLog:
         return con
 
     def _copy_log(self, path: str) -> str:
-        """Copy ``path`` + ``path-wal`` into POUNCer's temp folder; the copy's path."""
+        """Copy ``path`` + ``path-wal`` into POUNCer's temp folder under a NEW
+        name each time (v0.7.171): Windows keeps an old copy's ``-shm`` mapped
+        / locked a while, and a stale index reused under the same name made
+        SQLite show the old log. Older copies are removed when they can be."""
         folder = os.path.join(tempfile.gettempdir(), f"POUNCer-log-{os.getpid()}")
+        if os.path.exists(folder) and not os.path.isdir(folder):
+            folder += "-copies"
         os.makedirs(folder, exist_ok=True)
-        dst = os.path.join(folder, os.path.basename(path) or "log.s3db")
-        for ext in ("-wal", "-shm", "-journal"):
+        self._copy_n = getattr(self, "_copy_n", 0) + 1
+        base = os.path.basename(path) or "log.s3db"
+        dst = os.path.join(folder, f"{self._copy_n}-{base}")
+        for name in os.listdir(folder):                     # earlier copies
             try:
-                os.remove(dst + ext)
+                os.remove(os.path.join(folder, name))
             except OSError:
                 pass
         shutil.copyfile(path, dst)
@@ -607,6 +625,10 @@ class WorkedLog:
             log.warning("worked-log read failed for %s: %s", path, exc)
             return
         self._keys = keys
+        if getattr(self, "_extra", None):
+            self._extra -= keys                 # the log has them now
+        if getattr(self, "_gone", None):
+            self._gone &= {k[:2] for k in keys}   # deleted ones the log still shows
         self.station_call = station
         self.mult_types = tuple(mult_worked)
         self._mult_worked = mult_worked
@@ -829,11 +851,39 @@ class WorkedLog:
             key=lambda kv: order.index(kv[0]) if kv[0] in order else len(order),
         )
 
+    def _take_contacts(self) -> None:
+        """N1MM's contact packets (contactinfo / contactreplace = logged,
+        contactdelete = gone): worked at once, before the log file shows it."""
+        events = getattr(self, "contact_events", None)
+        if events is None:
+            return
+        extra = self.__dict__.setdefault("_extra", set())
+        gone = self.__dict__.setdefault("_gone", set())
+        for n, kind, call, band, mode, khz, nr in events(getattr(self, "_event_n", 0)):
+            self._event_n = n
+            if not call or (nr is not None and self._wanted_nr is not None
+                            and nr != self._wanted_nr):
+                continue
+            label = band_label(band) or (band_from_khz(khz) if khz else None)
+            if not label:
+                continue
+            if kind == "contactdelete":           # (no mode in it): that call on that band
+                for k in [k for k in extra if k[:2] == (call, label)]:
+                    extra.discard(k)
+                gone.add((call, label))
+            else:
+                extra.add((call, label, normalize_mode(mode)))
+                gone.discard((call, label))
+            log.info("worked: N1MM %s %s %s %s", kind, call, label, normalize_mode(mode))
+
     def is_worked(self, call: str, freq_khz: float, mode: str) -> bool:
         band = band_from_khz(freq_khz)
         if not band:
             return False
-        return (call.strip().upper(), band, normalize_mode(mode)) in self._keys
+        key = (call.strip().upper(), band, normalize_mode(mode))
+        if key in getattr(self, "_extra", ()):
+            return True
+        return key in self._keys and key[:2] not in getattr(self, "_gone", ())
 
     def worked_keys(self) -> Iterable[tuple[str, str, str]]:
         return frozenset(self._keys)

@@ -1361,10 +1361,10 @@ no spots).
    name the old one; the check line says CHECK when today's QSOs are in
    another contest than the ini names. (N1MM sends App Info only at its
    start and when a contest is opened, so a POUNCer started later reads the
-   ini until then - that's fine.) **Tick Contacts too** (recommended): every
-   logged QSO carries the contest number, and POUNCer re-reads the log the
-   moment N1MM says a QSO was logged, so the worked station leaves the list
-   at once.
+   ini until then - that's fine.) **Tick Contacts too** (strongly
+   recommended, same address as Radio): every logged QSO is sent to POUNCer
+   (call, band, mode), so the worked station leaves the list the moment you
+   log it; a deleted QSO brings it back. POUNCer also re-reads the log.
 6. For SSB contests tick **Spots** too (same address): POUNCer then uses
    N1MM's cluster spots instead of a second cluster connection of its own.
 7. Click OK. N1MM now broadcasts radio info every ~10 s and on every change.

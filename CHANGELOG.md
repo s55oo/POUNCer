@@ -1,5 +1,19 @@
 # POUNCer — Changelog
 
+## v0.7.171 — 2026-11-09 — Worked stations: straight from N1MM's QSO packet
+
+- Still seen after v0.7.170: IS0AFM and G5HOW logged on 40 m CW stayed in
+  the list; deleted QSOs were noticed, new ones only after a restart.
+- Now the QSO is taken **from N1MM's Contacts broadcast itself** (call,
+  band, mode in the `contactinfo` packet): the station counts as worked the
+  moment N1MM sends it - no waiting for the log file. A deleted QSO
+  (`contactdelete`) makes it needed again. Needs *Config > Broadcast Data >
+  Contacts* to the address POUNCer listens on (the same as *Radio*, e.g.
+  127.0.0.1:12060 - or 12061 if `[n1mm] listen_port` says so).
+- The log copy now gets a new name each time (a stale index of the previous
+  copy, still held by Windows, could show the old log), and pouncer.log says
+  once that copies are read - or why a copy failed.
+
 ## v0.7.170 — 2026-11-09 — Fix: worked stations, the real cause
 
 - v0.7.169 made POUNCer re-read the log after each QSO - but on Windows

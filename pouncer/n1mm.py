@@ -95,6 +95,13 @@ def parse_app_info(data: bytes) -> dict | None:
     out = {"kind": root.tag, "contest_nr": nr, "contest_name": text("contestname")}
     if root.tag == "AppInfo":
         out["dbname"] = text("dbname")
+    elif root.tag.startswith("contact"):
+        # the QSO itself: call, band (MHz, e.g. "7"), mode; rxfreq in 10 Hz
+        out["call"] = text("call").upper()
+        out["band"] = text("band")
+        out["mode"] = text("mode").upper()
+        rx = _to_int(text("rxfreq"))
+        out["khz"] = rx / 100.0 if rx else None
     return out
 
 
@@ -157,6 +164,7 @@ class RadioState:
         self._active: int | None = None
         self._last = 0.0
         self._app: dict = {}            # open log / contest from AppInfo, contact packets
+        self._contact_events: list = []   # (n, kind, call, band, mode, khz, contest_nr)
 
     def set_app(self, info: dict) -> None:
         """AppInfo: database + contest; a contact packet: the contest only
@@ -171,7 +179,17 @@ class RadioState:
             app["t"] = time.time()
             if str(info.get("kind", "")).startswith("contact"):
                 app["contacts"] = app.get("contacts", 0) + 1   # a QSO logged / changed
+                ev = self._contact_events
+                ev.append((app["contacts"], info.get("kind"), info.get("call", ""),
+                           info.get("band", ""), info.get("mode", ""), info.get("khz"),
+                           info.get("contest_nr")))
+                del ev[:-200]
             self._app = app
+
+    def contact_events(self, after: int = 0) -> list:
+        """Contact packets numbered above ``after`` (newest 200 kept)."""
+        with self._lock:
+            return [e for e in self._contact_events if e[0] > after]
 
     def last_update(self) -> float:
         """time.time() of the last RadioInfo (0 = none yet)."""

@@ -68,8 +68,9 @@ dialog, `127.0.0.1:12060`) - sent at start and when a contest is opened or
 switched - and the contest number in **contactinfo / contactreplace /
 lookupinfo** packets (*Contacts*, *Lookup*). They name the open log and
 contest, so only that contest is counted (the ini can be out of date); a
-**contactinfo / contactreplace** also makes POUNCer re-read the log at once
-(the worked station leaves the list):
+**contactinfo / contactreplace** carries the QSO (`call`, `band`, `mode`,
+`rxfreq`): POUNCer marks that call worked on that band + mode at once and
+re-reads the log; a **contactdelete** makes it needed again (v0.7.171):
 
 ```xml
 <AppInfo><app>N1MM</app><dbname>S55OO.s3db</dbname><contestnr>8</contestnr>

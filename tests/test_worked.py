@@ -232,6 +232,28 @@ class WorkedLogTests(unittest.TestCase):
         finally:
             writer.close()
 
+    def test_contact_packet_marks_worked_at_once(self) -> None:
+        # the log file doesn't show the QSO yet - N1MM's packet does
+        from pouncer.n1mm import RadioState, parse_app_info
+        _make_db(self.db, [("K1ABC", 14.0, "CW")])
+        st = RadioState()
+        wl = WorkedLog("", self.ini, refresh_seconds=0)
+        wl.app_info = st.app
+        wl.contact_events = st.contact_events
+        wl.maybe_reload()
+        self.assertFalse(wl.is_worked("G5HOW", 7002.0, "CW"))
+        st.set_app(parse_app_info(b"<contactinfo><contestname>CQWWCW</contestname>"
+                                  b"<contestnr>1</contestnr><call>G5HOW</call><band>7</band>"
+                                  b"<rxfreq>700200</rxfreq><mode>CW</mode></contactinfo>"))
+        wl._wanted_nr = 1
+        wl.maybe_reload()
+        self.assertTrue(wl.is_worked("G5HOW", 7002.0, "CW"))
+        self.assertFalse(wl.is_worked("G5HOW", 14002.0, "CW"))     # other band: still needed
+        st.set_app(parse_app_info(b"<contactdelete><contestnr>1</contestnr><call>G5HOW</call>"
+                                  b"<band>7</band></contactdelete>"))
+        wl.maybe_reload()
+        self.assertFalse(wl.is_worked("G5HOW", 7002.0, "CW"))
+
     def test_contact_packet_rereads_the_log(self) -> None:
         _make_db(self.db, [("K1ABC", 14.0, "CW")])
         app = {"contest_nr": None}
