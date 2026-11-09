@@ -357,6 +357,9 @@ class PouncerApp:
 
     def _build_ui(self) -> None:
         self.root = tk.Tk()
+        # a failing button / timer callback goes to pouncer.log (no console in the exe)
+        self.root.report_callback_exception = (
+            lambda et, ev, tb: log.error("window callback failed", exc_info=(et, ev, tb)))
         self.root.title(f"POUNCer {__version__} - RBN band follower for N1MM")
         theme.apply(self.root, getattr(self.cfg, "look", "classic"))   # first: SCALE, colours
         self.root.geometry(f"{theme.px(940)}x{theme.px(520)}")
@@ -3245,9 +3248,19 @@ class PouncerApp:
     def _tick(self) -> None:
         """The refresh tick, timed for the perf log (a slow tick = a slow window)."""
         t0 = time.perf_counter()
+        self._tick_scheduled = False
         try:
             self._tick_body()
+        except Exception:  # noqa: BLE001 - log it, and keep the window refreshing
+            if time.time() - getattr(self, "_tick_err_t", 0) > 30:
+                log.exception("refresh tick failed (the window keeps refreshing)")
+                self._tick_err_t = time.time()
         finally:
+            if not self._tick_scheduled:
+                try:
+                    self.root.after(REFRESH_MS, self._tick)
+                except Exception:  # noqa: BLE001 - window closing
+                    pass
             ms = (time.perf_counter() - t0) * 1000
             p = getattr(self, "_perf", None)
             if p is not None:
@@ -3319,6 +3332,7 @@ class PouncerApp:
             if time.time() - self._web_addr_checked >= 60:
                 self._refresh_web_address()
         self.root.after(REFRESH_MS, self._tick)
+        self._tick_scheduled = True
 
     def _build_web_payload(self, radio: int | None = None, view_band: str | None = None) -> dict:
         radio = radio or self.radio

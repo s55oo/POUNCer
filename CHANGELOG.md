@@ -11,7 +11,11 @@
     (and how big its `-wal`) or the live file was read.
 - The phone's Debug (hold a tile; `/api/explain`) shows the last read and
   the stations taken from N1MM's packets.
-- A failing log read can no longer stop the window's refresh.
+- **Found the real problem**: right after PA7AL was logged the window's
+  refresh stopped (the phone data froze at that minute) - an error in one
+  refresh step was never logged and ended the refresh loop for good, so the
+  list kept PA7AL. Now the refresh always goes on, and any such error is
+  written to pouncer.log with its details (also for buttons and timers).
 
 ## v0.7.171 — 2026-11-09 — Worked stations: straight from N1MM's QSO packet
 
