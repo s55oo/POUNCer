@@ -30,7 +30,8 @@ class TagTests(unittest.TestCase):
             tag = first["tag"]
             box["p"] = _payload(age=40)                     # only older: nothing new
             same = get("?since=" + tag)
-            self.assertEqual(same, {"same": True, "tag": tag, "version": first["version"]})
+            self.assertEqual(same, {"same": True, "tag": tag, "version": first["version"],
+                                "control_ok": True})
             box["p"] = _payload(snr=25)                     # changed: the whole list again
             full = get("?since=" + tag)
             self.assertEqual(full["spots"][0]["snr"], 25)

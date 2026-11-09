@@ -195,6 +195,13 @@ team) and UDP 12079 (team); everything else is outgoing.
   is to send the keystroke to the Entry Window (`EntryWindowHwnd`). Reorder or
   disable the buttons with e.g. `fkeys = F1:CQ F4:MyCall Enter` (empty = no
   buttons).
+* **Control N1MM** (phone band menu - tap the frequency) - **off** on every
+  phone until you switch it on there once (remembered per phone): **look
+  only**, tapping a station, NEXT, F-keys, ENTER, Spot It, CW keyboard, tune
+  and CW speed do nothing (keys dimmed). On the PC, *Settings > Tap -> N1MM >
+  Phones may control N1MM* (`[web] phone_control`) off = no phone or other PC
+  can control N1MM at all (POUNCer refuses it, HTTP 403); the browser on the
+  PC itself always can.
 * **Keyboard F-keys** - with the POUNCer window active, F1-F12 (and Enter,
   if it is one of the set keys) go straight to N1MM: POUNCer focuses the
   Entry Window and presses the key there, so the message is sent

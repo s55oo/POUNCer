@@ -206,6 +206,29 @@ class WebServerTests(unittest.TestCase):
         self.assertTrue(data["ok"])
         self.assertEqual(self.keys, ["Enter"])
 
+    def test_phone_control_off_refuses_other_devices(self) -> None:
+        from unittest import mock
+        import pouncer.web as webmod
+        self.web.set_phone_control(False)
+        with self._get("/api/key?key=F4") as resp:          # this PC: still fine
+            self.assertTrue(json.load(resp)["ok"])
+        with mock.patch.object(webmod._Handler, "_local_client", lambda self: False):
+            for path in ("/api/key?key=F2", "/api/qsy?call=K1ABC&freq=14015.5",
+                         "/api/tune?hz=50", "/api/cw?op=open"):
+                with self.assertRaises(urllib.error.HTTPError) as ctx:
+                    self._get(path)
+                self.assertEqual(ctx.exception.code, 403, path)
+            with self._get("/api/spots") as resp:
+                self.assertFalse(json.load(resp)["control_ok"])
+            self.web.set_phone_control(True)
+            with self._get("/api/key?key=F2") as resp:
+                self.assertTrue(json.load(resp)["ok"])
+        self.assertEqual(self.keys, ["F4", "F2"])
+        with self._get("/") as resp:                        # the phone's own switch
+            page = resp.read().decode("utf-8")
+        self.assertIn('id="ctlbtn"', page)
+        self.assertIn("pouncer.control", page)
+
     def test_key_rejects_bad_key(self) -> None:
         with self.assertRaises(urllib.error.HTTPError) as ctx:
             self._get("/api/key?key=F13")

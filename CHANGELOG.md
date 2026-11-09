@@ -1,5 +1,18 @@
 # POUNCer — Changelog
 
+## v0.7.167 — 2026-11-09 — Phone: Control N1MM switch (look only by default)
+
+- Phone band menu (tap the frequency): **Control N1MM (QSY, F-keys, CW)**.
+  Off = **look only**: tapping a station, NEXT, the F-keys, ENTER, Spot It,
+  the CW keyboard, tune and CW speed do nothing - the keys are dimmed and a
+  note says how to switch it on. Remembered per phone; **off on every phone
+  until you switch it on there once** - a phone lying on the table, or a
+  visitor's, can't QSY or transmit by accident.
+- PC side: Settings > Tap -> N1MM > **Phones may control N1MM**
+  (`[web] phone_control`, on). Off = POUNCer itself refuses QSY / keys / CW /
+  tune from every phone and other PC (HTTP 403), whatever the phone's switch
+  says; the browser on the PC itself always can. Changes at once.
+
 ## v0.7.166 — 2026-11-09 — Take the team master role back
 
 - When the master PC was shut down or lost the network, another POUNCer

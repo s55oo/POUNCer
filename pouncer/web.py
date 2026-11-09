@@ -47,6 +47,8 @@ def is_send_key(key: str) -> bool:
 
 
 CW_OPS = ("open", "text", "back", "done", "stop")
+# what a phone may do only with control allowed ([web] phone_control)
+CONTROL_PATHS = ("/api/qsy", "/api/key", "/api/cw", "/api/tune")
 _CW_CHARS = re.compile(r"[^A-Z0-9 /?.,=+\-@!():;'\"<>&]")
 
 
@@ -413,6 +415,8 @@ INDEX_HTML = """<!doctype html>
   .fkeys button.half .fl { font-size: calc(var(--kfont) * 0.55); }
   /* red while pressed, and for a moment after the tap (.sel) */
   .fkeys button:active, .fkeys button.sel { background: #c62828; }
+  body.locked .fkeys button, body.locked .footbar [data-tune],
+  body.locked .footbar [data-key], body.locked #next { opacity: .35; }
   /* ENTER held: fills up in 1.3 s, then the CW keyboard opens */
   @keyframes holdfill { from { box-shadow: inset 0 0 0 0 #f9a825; }
                         to { box-shadow: inset 0 -120px 0 0 #f9a825; } }
@@ -529,6 +533,7 @@ INDEX_HTML = """<!doctype html>
 <div id="bandsheet"><div class="sheet">
   <div class="sheet-title">Band<span id="bandfor"></span> <span>(shows its spots - tap a station to QSY)</span></div>
   <div class="bandgrid" id="bandgrid"></div>
+  <button class="sheet-close" id="ctlbtn">Control N1MM: off</button>
   <button class="sheet-close" id="alertpopbtn">Alert pop-up: on</button>
   <button class="sheet-close" id="alertsndbtn">Alert sound: on</button>
   <a class="sheet-close helplink" href="/summary">Contest summary</a>
@@ -845,6 +850,32 @@ INDEX_HTML = """<!doctype html>
     }
   }
   document.getElementById('clr').onclick = () => clearSpots(false);
+  // Control N1MM (per phone, off until switched on): QSY taps, F-keys,
+  // ENTER, Spot It, CW keyboard, tune and CW speed. Off = look only.
+  let control = false;
+  try { control = localStorage.getItem('pouncer.control') === '1'; } catch (e) {}
+  const ctlBtn = document.getElementById('ctlbtn');
+  function pcAllows() { return lastData.control_ok !== false; }
+  function labelControl() {
+    const pc = pcAllows();
+    ctlBtn.textContent = pc
+      ? ('Control N1MM (QSY, F-keys, CW): ' + (control ? 'on' : 'off - look only'))
+      : 'Control N1MM: off on the PC (Settings > phone control)';
+    ctlBtn.disabled = !pc;
+    document.body.classList.toggle('locked', !(control && pc));
+  }
+  ctlBtn.onclick = () => {
+    control = !control;
+    try { localStorage.setItem('pouncer.control', control ? '1' : '0'); } catch (e) {}
+    labelControl();
+    toast(control ? '\u2714 this phone controls N1MM (QSY, F-keys transmit)'
+                  : '\U0001f512 look only - taps and keys do nothing', null, 2500);
+  };
+  function canControl() {
+    if (!pcAllows()) { toast('\U0001f512 Control from phones is off on the PC'); return false; }
+    if (!control) { toast('\U0001f512 Look only - band menu (tap the frequency) > Control N1MM'); return false; }
+    return true;
+  }
   const alertPopBtn = document.getElementById('alertpopbtn');
   const alertSndBtn = document.getElementById('alertsndbtn');
   function labelAlerts() {
@@ -923,7 +954,7 @@ INDEX_HTML = """<!doctype html>
     const end = () => { clearTimeout(timer); b.classList.remove('holding'); };
     b.addEventListener('pointerdown', () => {
       b.dataset.held = '';
-      if (!lastData.cw_keyboard) return;
+      if (!lastData.cw_keyboard || !control || !pcAllows()) return;
       b.classList.add('holding');
       clearTimeout(timer);
       timer = setTimeout(() => { b.dataset.held = '1'; end(); openCw(); }, 1300);
@@ -981,6 +1012,7 @@ INDEX_HTML = """<!doctype html>
     cwErrN = n;
   }
   async function sendKey(key, btn) {
+    if (!canControl()) return;
     if (btn) {
       btn.classList.add('sel');
       setTimeout(() => btn.classList.remove('sel'), 800);
@@ -1011,6 +1043,7 @@ INDEX_HTML = """<!doctype html>
       }
     }
     lastData = data;
+    labelControl();
     tapResult(data);
     // SO2R switch: shown when N1MM reports two radios (or B was chosen)
     const radioSw = document.getElementById('radiosw');
@@ -1480,6 +1513,7 @@ INDEX_HTML = """<!doctype html>
     if (j !== to) list.splice(to, 0, list.splice(j, 1)[0]);
   }
   async function qsy(s, btn) {
+    if (!canControl()) return;
     const at = shown.findIndex(x => calmKey(x) === calmKey(s));
     pin = {key: calmKey(s), idx: at < 0 ? 0 : at, at: Date.now()};
     selKey = spotKey(s);
@@ -1609,6 +1643,7 @@ INDEX_HTML = """<!doctype html>
   }
   document.querySelectorAll('.footbar [data-tune]').forEach(b => {
     b.onclick = async () => {
+      if (!canControl()) return;
       flash(b);
       const hz = Number(b.dataset.tune) * tuneStep;
       try {
@@ -1622,6 +1657,7 @@ INDEX_HTML = """<!doctype html>
   });
   document.querySelectorAll('.footbar [data-key]').forEach(b => {
     b.onclick = async () => {
+      if (!canControl()) return;
       flash(b);
       try {
         const r = await fetch('/api/key?' + rp({key: b.dataset.key}));
@@ -1689,6 +1725,7 @@ INDEX_HTML = """<!doctype html>
           s.age = a;
         });
         if (data.version) lastData.version = data.version;
+        if ('control_ok' in data) { lastData.control_ok = data.control_ok; labelControl(); }
         tapResult(lastData);              // the "no answer" timeout still runs
         if (!flips) return;               // nothing to redraw
         data = lastData;
@@ -1791,6 +1828,13 @@ HELP_HTML = """<!doctype html>
 <h1>POUNCer __VERSION__ - what every button does</h1>
 <p class="lead">The page follows the band your radio is on in N1MM and shows the RBN
 spots you still need there. Nothing here transmits except the F-keys.</p>
+<p><b>Control N1MM</b> (band menu - tap the frequency): <b>off</b> on a new phone =
+<b>look only</b>: tapping a station, the F-keys, ENTER, Spot It, the CW keyboard,
+tune and CW speed do nothing (the keys are dimmed, a note says so). Switch it
+<b>on</b> once on the phone you work with - it is remembered on that phone. On the
+PC, <i>Settings &gt; Tap -&gt; N1MM &gt; Phones may control N1MM</i>
+(<code>[web] phone_control</code>) off = no phone can, whatever its switch says;
+the browser on the PC itself always can.</p>
 
 <h2>Top row</h2>
 <dl>
@@ -2898,6 +2942,11 @@ class _Handler(BaseHTTPRequestHandler):
         if self.command != "HEAD":
             self.wfile.write(body)
 
+    def _control_ok(self) -> bool:
+        """QSY / keys / CW / tune allowed for this client: always from this
+        PC, from others unless [web] phone_control is off."""
+        return self._local_client() or getattr(self.server, "phone_control", True)
+
     def _local_client(self) -> bool:
         ip = (self.client_address[0] or "") if self.client_address else ""
         return ip in ("127.0.0.1", "::1", "::ffff:127.0.0.1") or ip.startswith("127.")
@@ -3004,10 +3053,16 @@ class _Handler(BaseHTTPRequestHandler):
             tag = payload_tag(data)
             since = (parse_qs(parsed.query).get("since") or [""])[0]
             if since and since == tag and not data.get("pending"):
-                self._send_json({"same": True, "tag": tag, "version": __version__})
+                self._send_json({"same": True, "tag": tag, "version": __version__,
+                                 "control_ok": self._control_ok()})
                 return
             # the page reloads itself when POUNCer was updated under it
-            self._send_json({**data, "tag": tag, "version": __version__})
+            self._send_json({**data, "tag": tag, "version": __version__,
+                             "control_ok": self._control_ok()})
+            return
+        if parsed.path in CONTROL_PATHS and not self._control_ok():
+            self._send_json({"ok": False, "error": "control from phones is off on the PC "
+                                                   "([web] phone_control)"}, 403)
             return
         if parsed.path == "/api/qsy":
             q = parse_qs(parsed.query)
@@ -3282,6 +3337,10 @@ class WebServer:
     def set_min_snr_handler(self, fn) -> None:
         """Phone SNR button: fn(db) sets the minimum SNR (0 = all)."""
         self._httpd.on_min_snr = fn
+
+    def set_phone_control(self, on: bool) -> None:
+        """[web] phone_control: False = only this PC may QSY / press keys."""
+        self._httpd.phone_control = bool(on)
 
     def set_cw_handler(self, fn) -> None:
         """Phone CW keyboard: fn(op, text, n, radio=...)."""

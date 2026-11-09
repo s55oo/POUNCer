@@ -1661,7 +1661,8 @@ class PouncerApp:
                     f"Page: {onoff(g(c, 'web_enabled', True))}, "
                     f"{g(c, 'web_host', '')}:{g(c, 'web_port', 8080)} TCP\n"
                     f"Settings from other devices: {onoff(g(c, 'web_remote_settings', False))}; "
-                    f"CW keyboard: {onoff(g(c, 'web_cw_keyboard', True))}")
+                    f"CW keyboard: {onoff(g(c, 'web_cw_keyboard', True))}; "
+                    f"phones may control N1MM: {onoff(g(c, 'web_phone_control', True))}")
         if group == "PSKR":
             on = g(c, "ssb_pskreporter", True)
             return ("PSKR - PSK Reporter (MQTT): is a 40 / 160 m spot in the FT8 window "
@@ -4944,6 +4945,8 @@ class PouncerApp:
                 self._src_last = None
             if key.startswith("cluster."):
                 self._apply_cluster_server()
+            if key == "web.phone_control" and self.web is not None:
+                self.web.set_phone_control(self.cfg.web_phone_control)
         else:
             log.info("setting NOT saved: %s = %r: %s", key, value, res.get("error"))
         return res
@@ -5949,6 +5952,7 @@ class PouncerApp:
             if self.cfg.web_cw_keyboard:
                 self.web.set_cw_handler(self._web_cw)
             self.web.set_min_snr_handler(self._web_min_snr)
+            self.web.set_phone_control(self.cfg.web_phone_control)
             self.web.set_settings_provider(
                 lambda: {"items": settingsmod.current(self.cfg), "path": self.cfg.config_path},
                 self._save_setting_web,

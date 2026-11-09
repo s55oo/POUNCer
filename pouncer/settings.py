@@ -117,6 +117,12 @@ SETTINGS: list[dict] = [
      "label": "Phone CW keyboard (hold ENTER)",
      "help": "Hold ENTER on the phone 1.3 s: type text that N1MM sends as CW "
              "(its Ctrl+K window). Done = Enter, Stop = Esc. Transmits."},
+    {"key": "web.phone_control", "attr": "web_phone_control", "kind": "bool",
+     "live": True, "group": "Tap -> N1MM",
+     "label": "Phones may control N1MM",
+     "help": "Off: no phone / other PC can QSY, press the F-keys, ENTER, Spot It or use "
+             "the CW keyboard - look only (the browser on this PC still can). On: each "
+             "phone still has its own switch (band menu > Control N1MM), off until set."},
     {"key": "n1mm.default_radio", "attr": "default_radio", "kind": "choice",
      "choices": ["A", "B"], "live": False, "group": "SO2R / SO2V",
      "label": "Radio at start", "help": "Which radio the main window works at start."},
