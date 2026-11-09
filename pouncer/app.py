@@ -1662,7 +1662,7 @@ class PouncerApp:
                     f"{g(c, 'web_host', '')}:{g(c, 'web_port', 8080)} TCP\n"
                     f"Settings from other devices: {onoff(g(c, 'web_remote_settings', False))}; "
                     f"CW keyboard: {onoff(g(c, 'web_cw_keyboard', True))}; "
-                    f"phones may control N1MM: {onoff(g(c, 'web_phone_control', True))}")
+                    f"phones may control N1MM: {g(c, 'web_phone_control', 'phone')}")
         if group == "PSKR":
             on = g(c, "ssb_pskreporter", True)
             return ("PSKR - PSK Reporter (MQTT): is a 40 / 160 m spot in the FT8 window "
@@ -3999,6 +3999,7 @@ class PouncerApp:
                 get_src=lambda: self.cfg.rbn_source,
                 on_src=lambda v: self._web_queue.put(("src", v)),
                 auto_master=bool(getattr(self.cfg, "team_master", False)),
+                get_pc=lambda: self.cfg.web_phone_control,
             )
             self.team.start()
         except OSError as exc:
@@ -4040,6 +4041,28 @@ class PouncerApp:
     def _toggle_check_details(self) -> None:
         self._check_details = not self._check_details
         self._update_check_line()
+
+    def _phone_control(self) -> str:
+        """Phones controlling N1MM here: a team slave follows the master's
+        [web] phone_control, everyone else its own."""
+        team = self.team
+        if team is not None and team.role() == "slave":
+            got = team.master_phone_control()
+            if got:
+                return got
+        return self.cfg.web_phone_control
+
+    def _apply_phone_control(self) -> None:
+        """Give the web server the mode in force (only when it changes)."""
+        if getattr(self, "web", None) is None:
+            return
+        mode = self._phone_control()
+        if mode != getattr(self, "_pc_applied", None):
+            self.web.set_phone_control(mode)
+            if getattr(self, "_pc_applied", None) is not None:
+                log.info("phones may control N1MM: %s%s", mode,
+                         " (the team master's choice)" if mode != self.cfg.web_phone_control else "")
+            self._pc_applied = mode
 
     def _update_team_label(self) -> None:
         """Team badge in the top bar + window title: MASTER / SLAVE / alone."""
@@ -4473,6 +4496,7 @@ class PouncerApp:
         self._update_check_line()
         self._update_band_lights()
         self._update_team_label()
+        self._apply_phone_control()
         self._update_lights(snap)
 
     # ---- pre-contest check ------------------------------------------------
@@ -4945,8 +4969,8 @@ class PouncerApp:
                 self._src_last = None
             if key.startswith("cluster."):
                 self._apply_cluster_server()
-            if key == "web.phone_control" and self.web is not None:
-                self.web.set_phone_control(self.cfg.web_phone_control)
+            if key == "web.phone_control":
+                self._apply_phone_control()
         else:
             log.info("setting NOT saved: %s = %r: %s", key, value, res.get("error"))
         return res
@@ -5953,6 +5977,7 @@ class PouncerApp:
                 self.web.set_cw_handler(self._web_cw)
             self.web.set_min_snr_handler(self._web_min_snr)
             self.web.set_phone_control(self.cfg.web_phone_control)
+            self._pc_applied = self.cfg.web_phone_control
             self.web.set_settings_provider(
                 lambda: {"items": settingsmod.current(self.cfg), "path": self.cfg.config_path},
                 self._save_setting_web,

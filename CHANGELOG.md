@@ -1,5 +1,16 @@
 # POUNCer — Changelog
 
+## v0.7.168 — 2026-11-09 — Phone control for all phones, from the master
+
+- Settings > Tap -> N1MM > **Phones may control N1MM** is now a choice
+  (`[web] phone_control`): **phone** = each phone's own switch (as in
+  v0.7.167, off until set), **all** = every phone controls N1MM at once - no
+  switch needed (it shows "on for all phones"), **off** = look only for all.
+- In a team the **master's** choice counts for every POUNCer: set it once
+  on the master and all PCs' phones follow (within ~2 s). Alone, or with an
+  older master, a POUNCer uses its own. `true` / `false` from v0.7.167 are
+  read as phone / off.
+
 ## v0.7.167 — 2026-11-09 — Phone: Control N1MM switch (look only by default)
 
 - Phone band menu (tap the frequency): **Control N1MM (QSY, F-keys, CW)**.

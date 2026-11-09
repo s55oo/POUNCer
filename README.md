@@ -199,9 +199,11 @@ team) and UDP 12079 (team); everything else is outgoing.
   phone until you switch it on there once (remembered per phone): **look
   only**, tapping a station, NEXT, F-keys, ENTER, Spot It, CW keyboard, tune
   and CW speed do nothing (keys dimmed). On the PC, *Settings > Tap -> N1MM >
-  Phones may control N1MM* (`[web] phone_control`) off = no phone or other PC
-  can control N1MM at all (POUNCer refuses it, HTTP 403); the browser on the
-  PC itself always can.
+  Phones may control N1MM* (`[web] phone_control`): **phone** = each phone's
+  own switch, **all** = every phone at once (no switch needed), **off** = no
+  phone or other PC can (POUNCer refuses it, HTTP 403). In a team the
+  **master's** choice counts for all POUNCers. The browser on the PC itself
+  always can.
 * **Keyboard F-keys** - with the POUNCer window active, F1-F12 (and Enter,
   if it is one of the set keys) go straight to N1MM: POUNCer focuses the
   Entry Window and presses the key there, so the message is sent

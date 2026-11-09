@@ -226,6 +226,11 @@ class WebServerTests(unittest.TestCase):
         self.assertEqual(self.keys, ["F4", "F2"])
         with self._get("/") as resp:                        # the phone's own switch
             page = resp.read().decode("utf-8")
+        self.web.set_phone_control("all")                   # every phone, no switch
+        with self._get("/api/spots") as resp:
+            data = json.load(resp)
+        self.assertTrue(data["control_ok"] and data["control_all"])
+        self.assertIn("forAll()", self._get("/").read().decode("utf-8"))
         self.assertIn('id="ctlbtn"', page)
         self.assertIn("pouncer.control", page)
 

@@ -162,6 +162,7 @@ class Team:
         get_src=None,         # -> "rbn" / "telnet": (master) where the CW spots come from
         on_src=None,          # (master) a slave's button: called with "rbn" / "telnet"
         auto_master: bool = False,  # take the master back on (re)joining the team
+        get_pc=None,          # -> 'phone' / 'all' / 'off': (master) phones may control N1MM
     ) -> None:
         self.id = uuid.uuid4().hex[:12]
         self.started = time.time()
@@ -185,6 +186,7 @@ class Team:
         self._on_self = on_self
         self._on_update = on_update
         self._get_src = get_src
+        self._get_pc = get_pc
         self._on_src = on_src
         self._fixed_targets = send_to  # tests: only these
         self._manual_peers = [p.strip() for p in (peers or []) if p.strip()]
@@ -366,6 +368,11 @@ class Team:
                     hi["src"] = str(self._get_src())
                 except Exception:  # noqa: BLE001
                     pass
+            if getattr(self, "_get_pc", None) is not None and self.is_master():
+                try:
+                    hi["pc"] = str(self._get_pc())
+                except Exception:  # noqa: BLE001
+                    pass
             self._send(hi)
             self._maybe_sync()
             self._stop.wait(ANNOUNCE_S)
@@ -427,6 +434,14 @@ class Team:
         with self._lock:
             p = self.peers.get(mid or "")
             return p.get("src") if p else None
+
+    def master_phone_control(self) -> str | None:
+        """Slave: the master's [web] phone_control ('phone' / 'all' / 'off'),
+        None if it doesn't say (older version)."""
+        mid = self.master_id()
+        with self._lock:
+            p = self.peers.get(mid or "")
+            return p.get("pc") if p else None
 
     def send_src(self, src: str) -> None:
         """Slave's button: ask the master to take the CW spots from 'rbn' /
@@ -491,6 +506,7 @@ class Team:
                     "ssb": bool(msg.get("ssb", not msg.get("cw", True))), "paused": bool(msg.get("paused", False)),
                     "src": (_sources(msg.get("src")) if isinstance(msg.get("src"), str)
                             else None),
+                    "pc": (msg.get("pc") if msg.get("pc") in ("phone", "all", "off") else None),
                 }
             if new:
                 log.info("team: POUNCer %s at %s joined", pid, ip)

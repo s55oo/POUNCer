@@ -108,6 +108,28 @@ class TeamTests(unittest.TestCase):
         self.assertEqual(self.a.started + 0, self.a.started)   # start time itself unchanged
 
 
+class PhoneControlTests(unittest.TestCase):
+    def test_slave_learns_the_masters_choice(self) -> None:
+        from pouncer.config import phone_control_mode
+        self.assertEqual([phone_control_mode(v) for v in ("true", "false", "ALL", "", "x")],
+                         ["phone", "off", "all", "phone", "phone"])
+        old = teammod.ANNOUNCE_S
+        teammod.ANNOUNCE_S = 0.2
+        a = Team(0, port=18131, send_to=[("127.0.0.1", 18132)], get_pc=lambda: "all")
+        a.started -= 100
+        b = Team(0, port=18132, send_to=[("127.0.0.1", 18131)], get_pc=lambda: "off")
+        try:
+            a.start()
+            b.start()
+            self.assertTrue(wait_for(lambda: b.master_phone_control() == "all", 4))
+            time.sleep(0.5)
+            self.assertIsNone(a.master_phone_control())   # a slave's choice isn't sent
+        finally:
+            a.stop()
+            b.stop()
+            teammod.ANNOUNCE_S = old
+
+
 class AutoMasterTests(unittest.TestCase):
     def test_restarted_master_takes_it_back(self) -> None:
         old = teammod.ANNOUNCE_S

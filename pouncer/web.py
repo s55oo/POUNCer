@@ -856,13 +856,15 @@ INDEX_HTML = """<!doctype html>
   try { control = localStorage.getItem('pouncer.control') === '1'; } catch (e) {}
   const ctlBtn = document.getElementById('ctlbtn');
   function pcAllows() { return lastData.control_ok !== false; }
+  function forAll() { return pcAllows() && lastData.control_all === true; }
+  function controlling() { return pcAllows() && (control || forAll()); }
   function labelControl() {
     const pc = pcAllows();
-    ctlBtn.textContent = pc
-      ? ('Control N1MM (QSY, F-keys, CW): ' + (control ? 'on' : 'off - look only'))
-      : 'Control N1MM: off on the PC (Settings > phone control)';
-    ctlBtn.disabled = !pc;
-    document.body.classList.toggle('locked', !(control && pc));
+    ctlBtn.textContent = !pc ? 'Control N1MM: off on the PC (Settings > phone control)'
+      : forAll() ? 'Control N1MM: on for all phones (set on the PC)'
+      : ('Control N1MM (QSY, F-keys, CW): ' + (control ? 'on' : 'off - look only'));
+    ctlBtn.disabled = !pc || forAll();
+    document.body.classList.toggle('locked', !controlling());
   }
   ctlBtn.onclick = () => {
     control = !control;
@@ -873,7 +875,7 @@ INDEX_HTML = """<!doctype html>
   };
   function canControl() {
     if (!pcAllows()) { toast('\U0001f512 Control from phones is off on the PC'); return false; }
-    if (!control) { toast('\U0001f512 Look only - band menu (tap the frequency) > Control N1MM'); return false; }
+    if (!control && !forAll()) { toast('\U0001f512 Look only - band menu (tap the frequency) > Control N1MM'); return false; }
     return true;
   }
   const alertPopBtn = document.getElementById('alertpopbtn');
@@ -954,7 +956,7 @@ INDEX_HTML = """<!doctype html>
     const end = () => { clearTimeout(timer); b.classList.remove('holding'); };
     b.addEventListener('pointerdown', () => {
       b.dataset.held = '';
-      if (!lastData.cw_keyboard || !control || !pcAllows()) return;
+      if (!lastData.cw_keyboard || !controlling()) return;
       b.classList.add('holding');
       clearTimeout(timer);
       timer = setTimeout(() => { b.dataset.held = '1'; end(); openCw(); }, 1300);
@@ -1725,7 +1727,10 @@ INDEX_HTML = """<!doctype html>
           s.age = a;
         });
         if (data.version) lastData.version = data.version;
-        if ('control_ok' in data) { lastData.control_ok = data.control_ok; labelControl(); }
+        if ('control_ok' in data) {
+          lastData.control_ok = data.control_ok; lastData.control_all = data.control_all;
+          labelControl();
+        }
         tapResult(lastData);              // the "no answer" timeout still runs
         if (!flips) return;               // nothing to redraw
         data = lastData;
@@ -1833,8 +1838,10 @@ spots you still need there. Nothing here transmits except the F-keys.</p>
 tune and CW speed do nothing (the keys are dimmed, a note says so). Switch it
 <b>on</b> once on the phone you work with - it is remembered on that phone. On the
 PC, <i>Settings &gt; Tap -&gt; N1MM &gt; Phones may control N1MM</i>
-(<code>[web] phone_control</code>) off = no phone can, whatever its switch says;
-the browser on the PC itself always can.</p>
+(<code>[web] phone_control</code>): <b>phone</b> = each phone's own switch,
+<b>all</b> = every phone at once (no switch needed), <b>off</b> = no phone, whatever
+its switch says. In a team the <b>master</b>'s choice counts for every POUNCer.
+The browser on the PC itself always can.</p>
 
 <h2>Top row</h2>
 <dl>
@@ -2945,7 +2952,13 @@ class _Handler(BaseHTTPRequestHandler):
     def _control_ok(self) -> bool:
         """QSY / keys / CW / tune allowed for this client: always from this
         PC, from others unless [web] phone_control is off."""
-        return self._local_client() or getattr(self.server, "phone_control", True)
+        return self._local_client() or getattr(self.server, "phone_control", "phone") != "off"
+
+    def _control_fields(self) -> dict:
+        """For the page: may this client control N1MM, and must every phone
+        (no switch needed - 'all' on the PC / team master)."""
+        return {"control_ok": self._control_ok(),
+                "control_all": getattr(self.server, "phone_control", "phone") == "all"}
 
     def _local_client(self) -> bool:
         ip = (self.client_address[0] or "") if self.client_address else ""
@@ -3054,11 +3067,11 @@ class _Handler(BaseHTTPRequestHandler):
             since = (parse_qs(parsed.query).get("since") or [""])[0]
             if since and since == tag and not data.get("pending"):
                 self._send_json({"same": True, "tag": tag, "version": __version__,
-                                 "control_ok": self._control_ok()})
+                                 **self._control_fields()})
                 return
             # the page reloads itself when POUNCer was updated under it
             self._send_json({**data, "tag": tag, "version": __version__,
-                             "control_ok": self._control_ok()})
+                             **self._control_fields()})
             return
         if parsed.path in CONTROL_PATHS and not self._control_ok():
             self._send_json({"ok": False, "error": "control from phones is off on the PC "
@@ -3338,9 +3351,15 @@ class WebServer:
         """Phone SNR button: fn(db) sets the minimum SNR (0 = all)."""
         self._httpd.on_min_snr = fn
 
-    def set_phone_control(self, on: bool) -> None:
-        """[web] phone_control: False = only this PC may QSY / press keys."""
-        self._httpd.phone_control = bool(on)
+    def set_phone_control(self, mode) -> None:
+        """[web] phone_control: 'phone' (each phone's switch), 'all' (every
+        phone, no switch) or 'off' (only this PC may QSY / press keys).
+        True / False = 'phone' / 'off'."""
+        if mode is True:
+            mode = "phone"
+        elif mode is False:
+            mode = "off"
+        self._httpd.phone_control = mode if mode in ("phone", "all", "off") else "phone"
 
     def set_cw_handler(self, fn) -> None:
         """Phone CW keyboard: fn(op, text, n, radio=...)."""
