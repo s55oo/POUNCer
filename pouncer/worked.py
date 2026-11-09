@@ -17,7 +17,9 @@ import calendar
 import os
 import pathlib
 import re
+import shutil
 import sqlite3
+import tempfile
 import time
 from typing import Callable, Iterable
 
@@ -466,6 +468,23 @@ class WorkedLog:
         return tuple(parts)
 
     def _connect(self, path: str) -> sqlite3.Connection:
+        """A connection to a fresh COPY of the log (v0.7.170), else the log.
+
+        On Windows a read-only connection to N1MM's live log kept seeing
+        the log as it was when POUNCer started: logged QSOs (in the -wal file)
+        never showed up, even though they were in the file. A copy of the
+        ``.s3db`` and its ``-wal`` (no ``-shm``) is opened alone, so SQLite
+        rebuilds the index from the WAL itself and sees every committed QSO;
+        a half-written last frame fails its checksum and is simply ignored
+        (the next change reads again). N1MM's files are only read."""
+        try:
+            copy = self._copy_log(path)
+            con = sqlite3.connect(copy, timeout=2.0)
+            con.execute("PRAGMA query_only=1")
+            con.execute("SELECT count(*) FROM sqlite_master").fetchone()
+            return con
+        except (OSError, sqlite3.Error) as exc:
+            log.debug("log copy not usable (%s) - reading %s directly", exc, path)
         uri = pathlib.Path(path).absolute().as_uri() + "?mode=ro"
         try:
             con = sqlite3.connect(uri, uri=True, timeout=2.0)
@@ -473,6 +492,22 @@ class WorkedLog:
             con = sqlite3.connect(path, timeout=2.0)
         con.execute("PRAGMA query_only=1")
         return con
+
+    def _copy_log(self, path: str) -> str:
+        """Copy ``path`` + ``path-wal`` into POUNCer's temp folder; the copy's path."""
+        folder = os.path.join(tempfile.gettempdir(), f"POUNCer-log-{os.getpid()}")
+        os.makedirs(folder, exist_ok=True)
+        dst = os.path.join(folder, os.path.basename(path) or "log.s3db")
+        for ext in ("-wal", "-shm", "-journal"):
+            try:
+                os.remove(dst + ext)
+            except OSError:
+                pass
+        shutil.copyfile(path, dst)
+        wal = path + "-wal"
+        if os.path.exists(wal):
+            shutil.copyfile(wal, dst + "-wal")
+        return dst
 
     def _load(
         self,

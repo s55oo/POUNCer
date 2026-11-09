@@ -209,6 +209,29 @@ class WorkedLogTests(unittest.TestCase):
         finally:
             writer.close()
 
+    def test_reads_a_copy_that_sees_every_committed_qso(self) -> None:
+        # Windows: a live read-only connection kept an old snapshot; the
+        # copy (db + wal, no shm) rebuilds the WAL index itself
+        _make_db(self.db, [("K1ABC", 14.0, "CW")])
+        writer = sqlite3.connect(self.db)
+        try:
+            writer.execute("PRAGMA journal_mode=WAL")
+            writer.execute("PRAGMA wal_autocheckpoint=0")
+            writer.execute("INSERT INTO DXLOG VALUES ('DJ9QQ', 7.0, 'CW')")
+            writer.commit()
+            wl = WorkedLog("", self.ini, refresh_seconds=0)
+            con = wl._connect(self.db)
+            try:
+                calls = {r[0] for r in con.execute("SELECT Call FROM DXLOG")}
+                where = con.execute("PRAGMA database_list").fetchone()[2]
+            finally:
+                con.close()
+            self.assertIn("DJ9QQ", calls)
+            self.assertNotEqual(os.path.abspath(where), os.path.abspath(self.db))   # a copy
+            self.assertTrue(os.path.exists(self.db + "-wal"))           # N1MM's files untouched
+        finally:
+            writer.close()
+
     def test_contact_packet_rereads_the_log(self) -> None:
         _make_db(self.db, [("K1ABC", 14.0, "CW")])
         app = {"contest_nr": None}

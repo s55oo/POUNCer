@@ -106,8 +106,8 @@ team) and UDP 12079 (team); everything else is outgoing.
   contests are not treated as worked. Spots whose callsign is already worked on
   the **same band and mode** are hidden - as soon as you log the QSO (POUNCer
   watches the log's `-wal` / `-shm` files through open handles, and N1MM's
-  *Contacts* broadcast if ticked; v0.7.169 fixed a worked station staying in
-  the list on Windows). The status line also shows how many
+  *Contacts* broadcast if ticked, and reads a fresh copy of the log -
+  v0.7.169 / 0.7.170 fixed a worked station staying in the list on Windows). The status line also shows how many
   QSOs the open contest has per band (the band you are on is highlighted) and
   the total. The log is re-read every few seconds -
   and whenever you switch contests - so changes take effect quickly.

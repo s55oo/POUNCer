@@ -1,5 +1,17 @@
 # POUNCer — Changelog
 
+## v0.7.170 — 2026-11-09 — Fix: worked stations, the real cause
+
+- v0.7.169 made POUNCer re-read the log after each QSO - but on Windows
+  the re-read still showed the log **as it was when POUNCer started**
+  (DJ9QQ logged on 40 m CW stayed in the list, even after *Reconnect log*).
+  SQLite's shared index of N1MM's live log gave POUNCer's read-only
+  connection an old view, although the QSO was in the `-wal` file.
+- Now POUNCer reads a **fresh copy** of the log (`.s3db` + `-wal`, in its
+  own temp folder) each time the log changes: SQLite rebuilds the index from
+  the WAL itself and sees every logged QSO. N1MM's files are only read.
+  If the copy fails for any reason, POUNCer reads the log directly as before.
+
 ## v0.7.169 — 2026-11-09 — Fix: a worked station stayed in the list
 
 - Bug: after logging a QSO in N1MM (e.g. S55S on 40 m CW) the station often
