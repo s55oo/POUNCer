@@ -1,5 +1,21 @@
 # POUNCer — Changelog
 
+## v0.7.169 — 2026-11-09 — Fix: a worked station stayed in the list
+
+- Bug: after logging a QSO in N1MM (e.g. S55S on 40 m CW) the station often
+  stayed in POUNCer's list on Windows, sometimes for up to an hour. POUNCer
+  noticed a new QSO by the times / sizes of the log files - and Windows
+  keeps those stale for a file N1MM holds open (Python 3.12+ reads them from
+  the folder entry).
+- Now POUNCer asks each log file through an open handle (current values)
+  and also reads SQLite's WAL index header in `<log>-shm`, which changes on
+  every commit - so a logged QSO is seen within half a second and the
+  station leaves the list (or turns grey with *Hide worked* off).
+- Backstop: the log is re-read every 30 s anyway (logged only when
+  something changed).
+- Also: when N1MM broadcasts a QSO (*Config > Broadcast Data > Contacts*,
+  to 127.0.0.1:12060 - now recommended), POUNCer re-reads the log at once.
+
 ## v0.7.168 — 2026-11-09 — Phone control for all phones, from the master
 
 - Settings > Tap -> N1MM > **Phones may control N1MM** is now a choice

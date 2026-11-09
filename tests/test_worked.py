@@ -186,6 +186,45 @@ class WorkedLogTests(unittest.TestCase):
         finally:
             writer.close()
 
+    def test_qso_noticed_when_file_times_and_sizes_lie(self) -> None:
+        # Windows: the times / sizes of a file N1MM keeps open can stay stale
+        # for a long time. The -shm header (moves on every commit) still shows it.
+        from unittest import mock
+        _make_db(self.db, [("K1ABC", 14.0, "CW")])
+        writer = sqlite3.connect(self.db)
+        try:
+            writer.execute("PRAGMA journal_mode=WAL")
+            writer.execute("INSERT INTO DXLOG VALUES ('K1ABC', 14.0, 'CW')")
+            writer.commit()
+            wl = WorkedLog("", self.ini, refresh_seconds=0)
+            frozen = os.stat_result((0o100644, 0, 0, 1, 0, 0, 4096, 1, 1, 1))
+            with mock.patch("os.fstat", lambda fd: frozen), \
+                    mock.patch("os.stat", lambda *a, **k: frozen):
+                self.assertTrue(wl.maybe_reload())
+                self.assertFalse(wl.maybe_reload())          # nothing new: no re-read
+                writer.execute("INSERT INTO DXLOG VALUES ('S55S', 7.0, 'CW')")
+                writer.commit()
+                self.assertTrue(wl.maybe_reload())
+            self.assertTrue(wl.is_worked("S55S", 7017.1, "CW"))
+        finally:
+            writer.close()
+
+    def test_contact_packet_rereads_the_log(self) -> None:
+        _make_db(self.db, [("K1ABC", 14.0, "CW")])
+        app = {"contest_nr": None}
+        wl = WorkedLog("", self.ini, refresh_seconds=0)
+        wl.app_info = lambda: dict(app) if app.get("contest_nr") else None
+        self.assertTrue(wl.maybe_reload())
+        self.assertFalse(wl.maybe_reload())
+        wl._db_signature = lambda path, nr: ("same",)       # files say nothing changed
+        wl._signature = ("same",)
+        self.assertFalse(wl.maybe_reload())
+        from pouncer.n1mm import RadioState
+        st = RadioState()
+        st.set_app({"kind": "contactinfo", "contest_nr": 8, "contest_name": "CQWWCW"})
+        app.update(st.app())
+        self.assertTrue(wl.maybe_reload())                   # the logged QSO: read now
+
 
 class LogOpenStateTests(unittest.TestCase):
     """Detecting whether N1MM has a log open, and reconnecting."""

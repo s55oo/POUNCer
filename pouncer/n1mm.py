@@ -71,7 +71,7 @@ def parse_radio_info(data: bytes) -> dict | None:
 
 # packets that name the contest open in N1MM (contestnr = the contest in
 # the open database; only AppInfo also names the database file)
-_CONTEST_PACKETS = ("AppInfo", "contactinfo", "contactreplace", "lookupinfo")
+_CONTEST_PACKETS = ("AppInfo", "contactinfo", "contactreplace", "contactdelete", "lookupinfo")
 
 
 def parse_app_info(data: bytes) -> dict | None:
@@ -169,6 +169,8 @@ class RadioState:
             app["contest_name"] = info.get("contest_name") or app.get("contest_name", "")
             app["kind"] = info.get("kind")
             app["t"] = time.time()
+            if str(info.get("kind", "")).startswith("contact"):
+                app["contacts"] = app.get("contacts", 0) + 1   # a QSO logged / changed
             self._app = app
 
     def last_update(self) -> float:

@@ -218,6 +218,8 @@ LOG_MISSING = "log_missing"        # the named .s3db file does not exist
 # While no log is open, look again this often (seconds) so the UI clears
 # quickly once the user opens one.
 RETRY_SECONDS = 2.0
+# backstop: re-read the log this often even when its files look unchanged
+FORCE_RELOAD_S = 30.0
 
 
 class WorkedLog:
@@ -400,6 +402,12 @@ class WorkedLog:
         if stamp != self._app_seen:              # N1MM opened another contest: now
             self._app_seen = stamp
             self._last_check = 0.0
+        contacts = app.get("contacts") if app else None
+        if contacts != getattr(self, "_contacts_seen", None):
+            # N1MM broadcast a logged / changed / deleted QSO (Broadcast Data >
+            # Contacts): read the log now, whatever the files' times say
+            self._contacts_seen = contacts
+            self._signature = None
         if now - self._last_check >= interval:
             self._last_check = now
             info, problem = self._resolve()
@@ -421,7 +429,7 @@ class WorkedLog:
                 "open a log in N1MM (File > Open Log)",
             )
         signature = self._db_signature(path, self._wanted_nr)
-        if signature == self._signature:
+        if signature == self._signature and now - getattr(self, "_loaded_at", now) < FORCE_RELOAD_S:
             return False
         self._load(path, signature, self._wanted_nr, self.contest_name)
         return True
@@ -431,16 +439,30 @@ class WorkedLog:
         """Change signature of the log, including its WAL sidecar file.
 
         N1MM runs the SQLite database in WAL mode, so newly logged QSOs land in
-        ``<db>-wal`` and the main file's size/mtime stays put. Watching the WAL
-        file too is what makes freshly-worked calls show up.
+        ``<db>-wal`` and the main file's size/mtime stays put.
+
+        v0.7.169: on Windows ``os.stat`` by NAME (Python 3.12+ uses
+        GetFileInformationByName) returns the directory entry, which NTFS
+        updates only now and then for a file another program keeps open - so
+        a QSO logged in N1MM was often not noticed (the list kept the
+        station). Now each file is opened and asked through its handle
+        (fstat: current), and the first 48 bytes of ``<db>-shm`` are read -
+        SQLite's WAL index header, whose change counter and frame count move
+        on every commit, even when the WAL file's size stays the same.
         """
         parts: list[object] = [contest_nr]
         for candidate in (path, path + "-wal"):
             try:
-                st = os.stat(candidate)
+                with open(candidate, "rb") as fh:
+                    st = os.fstat(fh.fileno())
                 parts += [st.st_mtime_ns, st.st_size]
             except OSError:
                 parts += [None, None]
+        try:
+            with open(path + "-shm", "rb") as fh:
+                parts.append(fh.read(48))
+        except OSError:
+            parts.append(None)
         return tuple(parts)
 
     def _connect(self, path: str) -> sqlite3.Connection:
@@ -583,10 +605,13 @@ class WorkedLog:
         self.log_open = True
         self.log_state = LOG_OK
         self.log_message = ""
-        log.info(
+        self._loaded_at = time.time()
+        said = (self.call_count, self.qso_count, path, contest_nr)
+        (log.info if said != getattr(self, "_said", None) else log.debug)(
             "loaded %d worked calls from %s (contest %s %s)",
             self.call_count, path, contest_nr, contest_name,
         )
+        self._said = said
 
     @staticmethod
     def _read_mult_names(con: sqlite3.Connection, contest_name: str) -> list:

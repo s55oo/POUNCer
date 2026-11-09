@@ -104,7 +104,10 @@ team) and UDP 12079 (team); everything else is outgoing.
   (read-only, auto-detected from `N1MM Logger.ini`) and considers **only the
   contest N1MM has open** (`Contest NR=` in the ini), so QSOs from other
   contests are not treated as worked. Spots whose callsign is already worked on
-  the **same band and mode** are hidden. The status line also shows how many
+  the **same band and mode** are hidden - as soon as you log the QSO (POUNCer
+  watches the log's `-wal` / `-shm` files through open handles, and N1MM's
+  *Contacts* broadcast if ticked; v0.7.169 fixed a worked station staying in
+  the list on Windows). The status line also shows how many
   QSOs the open contest has per band (the band you are on is highlighted) and
   the total. The log is re-read every few seconds -
   and whenever you switch contests - so changes take effect quickly.
@@ -1358,8 +1361,10 @@ no spots).
    name the old one; the check line says CHECK when today's QSOs are in
    another contest than the ini names. (N1MM sends App Info only at its
    start and when a contest is opened, so a POUNCer started later reads the
-   ini until then - that's fine.) (Ticking **Contacts**
-   helps too: every logged QSO carries the contest number.)
+   ini until then - that's fine.) **Tick Contacts too** (recommended): every
+   logged QSO carries the contest number, and POUNCer re-reads the log the
+   moment N1MM says a QSO was logged, so the worked station leaves the list
+   at once.
 6. For SSB contests tick **Spots** too (same address): POUNCer then uses
    N1MM's cluster spots instead of a second cluster connection of its own.
 7. Click OK. N1MM now broadcasts radio info every ~10 s and on every change.
