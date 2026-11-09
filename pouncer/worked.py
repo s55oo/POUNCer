@@ -436,6 +436,9 @@ class WorkedLog:
         signature = self._db_signature(path, self._wanted_nr)
         if signature == self._signature and now - getattr(self, "_loaded_at", now) < FORCE_RELOAD_S:
             return False
+        self._reason = ("first" if self._signature is None and not getattr(self, "_loaded_at", 0)
+                        else "packet/recheck" if self._signature is None
+                        else "files changed" if signature != self._signature else "30 s")
         self._load(path, signature, self._wanted_nr, self.contest_name)
         return True
 
@@ -523,8 +526,11 @@ class WorkedLog:
                 pass
         shutil.copyfile(path, dst)
         wal = path + "-wal"
+        size = 0
         if os.path.exists(wal):
             shutil.copyfile(wal, dst + "-wal")
+            size = os.path.getsize(dst + "-wal")
+        self._copy_info = f"copy {os.path.basename(dst)} (wal {size} bytes)"
         return dst
 
     def _load(
@@ -669,6 +675,15 @@ class WorkedLog:
             self.call_count, path, contest_nr, contest_name,
         )
         self._said = said
+        reason = getattr(self, "_reason", "")
+        self.last_read = {"t": round(self._loaded_at), "reason": reason, "qsos": self.qso_count,
+                          "calls": self.call_count, "newest": newest_ts,
+                          "copy": getattr(self, "_copy_info", "")}
+        if reason != "30 s" or self._loaded_at - getattr(self, "_read_said", 0) > 600:
+            log.info("worked: read (%s): %d QSOs of contest %s, newest in the log %s, %s",
+                     reason, self.qso_count, contest_nr, newest_ts or "-",
+                     getattr(self, "_copy_info", "") or "live file")
+            self._read_said = self._loaded_at
 
     @staticmethod
     def _read_mult_names(con: sqlite3.Connection, contest_name: str) -> list:

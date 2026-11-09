@@ -3285,8 +3285,13 @@ class PouncerApp:
         self._drain_spots()
         self._drain_wpm()
         self._ensure_rbn_clients()
-        if self.worked.maybe_reload():
-            self._dirty = True
+        try:
+            if self.worked.maybe_reload():
+                self._dirty = True
+        except Exception:  # noqa: BLE001 - never stop the tick (the window would freeze)
+            if time.time() - getattr(self, "_worked_err_t", 0) > 60:
+                log.exception("worked: log read failed")
+                self._worked_err_t = time.time()
         self._prune()
         self._remember_band_freq()
         # Retuning moves the "tuned to" highlight, so redraw when it changes.
@@ -3444,6 +3449,9 @@ class PouncerApp:
             "home_cont": self.home_cont, "dx": self._is_dx(s.dxcall),
             "wpx": wpx_prefix(s.dxcall),
             "contest": self.worked.contest_name, "log_open": self.worked.log_open,
+            "worked_read": dict(getattr(self.worked, "last_read", {}),
+                                from_n1mm=sorted(map(list, getattr(self.worked, "_extra", ()))),
+                                deleted=sorted(map(list, getattr(self.worked, "_gone", ())))),
             "worked": self.worked.is_worked(s.dxcall, s.freq_khz, s.mode),
             "zone_kind": "ITU" if self.worked.zone_is_itu else "CQ",
             "mults": self.worked.mult_detail(s.freq_khz, ent.prefix if ent else None, zone,

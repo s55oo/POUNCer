@@ -1,5 +1,18 @@
 # POUNCer — Changelog
 
+## v0.7.172 — 2026-11-09 — Worked stations: find out what happens
+
+- PA7AL logged on 40 m CW still stayed in the list with v0.7.171. To see
+  why on the real PC, pouncer.log now says:
+  - every QSO packet N1MM sends (`contactinfo` / `contactreplace` /
+    `contactdelete` / `lookupinfo`) with call, band, mode and contest;
+  - every read of the log: why (packet, files changed, 30 s), how many QSOs
+    of the open contest, the newest QSO time in the log, and whether a copy
+    (and how big its `-wal`) or the live file was read.
+- The phone's Debug (hold a tile; `/api/explain`) shows the last read and
+  the stations taken from N1MM's packets.
+- A failing log read can no longer stop the window's refresh.
+
 ## v0.7.171 — 2026-11-09 — Worked stations: straight from N1MM's QSO packet
 
 - Still seen after v0.7.170: IS0AFM and G5HOW logged on 40 m CW stayed in

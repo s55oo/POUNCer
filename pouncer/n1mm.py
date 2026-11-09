@@ -298,8 +298,13 @@ class RadioListener(threading.Thread):
                 app = parse_app_info(data)
                 if app is not None:
                     self.state.set_app(app)
-                    log.info("N1MM: open contest #%s %s %s", app.get("contest_nr"),
-                             app.get("contest_name", ""), app.get("dbname", ""))
+                    if app.get("kind") == "AppInfo":
+                        log.info("N1MM: open contest #%s %s %s", app.get("contest_nr"),
+                                 app.get("contest_name", ""), app.get("dbname", ""))
+                    else:
+                        log.info("N1MM: %s %s %s %s (contest #%s %s)", app.get("kind"),
+                                 app.get("call", ""), app.get("band", ""), app.get("mode", ""),
+                                 app.get("contest_nr"), app.get("contest_name", ""))
                 elif self.on_spot is not None and b"<spot" in data[:200].lower():
                     pkt = parse_spot_packet(data)
                     if pkt is not None:
