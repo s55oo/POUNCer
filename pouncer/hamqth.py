@@ -152,6 +152,9 @@ class HamQTHFeed(threading.Thread):
                     except Exception:  # noqa: BLE001
                         pass
                 if self.kind == "rbn" and sp.mode not in self.modes:
+                    if sp.mode in traffic.DIGITAL:
+                        traffic.digi_out("HAMQTH", sp, f"dropped: mode {sp.mode} not in "
+                                         f"Spots modes {','.join(self.modes)}")
                     continue
                 acc = getattr(self.filt, "accept", None)
                 if acc is not None and not acc(sp.spotter):

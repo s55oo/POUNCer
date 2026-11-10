@@ -15,7 +15,8 @@ import time
 
 MAX_LINES = 5000          # kept between two console refreshes at most
 _sink: "collections.deque | None" = None
-GROUPS = ("RBN", "TELNET", "SSB", "HTTP", "N1MM", "TEAM", "WEB", "PSKR", "SERVER")
+GROUPS = ("RBN", "TELNET", "SSB", "HTTP", "N1MM", "TEAM", "WEB", "PSKR", "SERVER", "FT8")
+DIGITAL = ("FT8", "FT4")
 
 
 def active() -> bool:
@@ -59,8 +60,23 @@ def squeeze(text: str, limit: int = 400) -> str:
     return t if len(t) <= limit else t[:limit] + " ..."
 
 
+def digi_out(where: str, spot, why: str) -> None:
+    """One line in the console's FT8 group: an FT8 / FT4 spot POUNCer keeps
+    out (of the list and of the cluster server on port 10000), or holds
+    back until PSK Reporter answers. ``where``: the feed or step (RBN,
+    cluster, server, PSKR ...)."""
+    if _sink is None:
+        return
+    spotter = getattr(spot, "spotter", "") or "?"
+    emit(f"FT8 {where}", f"{getattr(spot, 'dxcall', '?'):<10} "
+                         f"{float(getattr(spot, 'freq_khz', 0) or 0):>8.1f} "
+                         f"{(getattr(spot, 'mode', '') or '-'):<4} de {spotter:<10} {why}")
+
+
 def group_of(source: str) -> str:
     s = source.upper()
+    if s.startswith("FT8"):             # FT8 / FT4 spots kept out / held (digi_out)
+        return "FT8"
     if s.startswith("N1MM"):
         return "N1MM"
     if s.startswith("TEAM"):

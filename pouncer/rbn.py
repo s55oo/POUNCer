@@ -1031,6 +1031,10 @@ class RBNClient(threading.Thread):
                 if self.kind == "cluster":
                     spot.mode = guess_mode(spot.freq_khz, spot.mode)
             if self.modes and spot.mode.upper() not in self.modes:
+                if spot.mode.upper() in traffic.DIGITAL:
+                    traffic.digi_out(self._traffic_name(), spot,
+                                     f"dropped: mode {spot.mode} not in Spots modes "
+                                     f"{','.join(sorted(self.modes))}")
                 continue
             if hasattr(self.spotter_filter, "accept"):
                 if not self.spotter_filter.accept(spot.spotter):

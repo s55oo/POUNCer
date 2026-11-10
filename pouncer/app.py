@@ -17,6 +17,7 @@ from .bands import CONTEST_BANDS, DEFAULT_BAND_KHZ, band_from_khz
 from .config import Config
 from .flow import flow_positions
 from . import lights
+from . import traffic
 from .cty import CtyDB, Entity, default_cty_paths, load_cty, wpx_prefix
 from .ctyupdate import CtyUpdater, newest as newest_file
 from .n1mm import (
@@ -1685,6 +1686,19 @@ class PouncerApp:
                     "JT65 / PSK ... in the comment.\n"
                     "Your radio on USB at 7074 - 7077: SSB only while an SSB contest is open "
                     "in N1MM; at 14074 etc. never SSB.")
+        if group == "FT8":
+            want = ",".join(sorted({m.upper() for m in g(c, "follow_modes", ("CW",))}
+                                   & {"FT8", "FT4"}))
+            return ("FT8 - FT8 / FT4 spots POUNCer keeps out (v0.7.174)\n"
+                    "dropped (RBN / telnet / cluster / HTTP / HamQTH): an FT8 / FT4 spot "
+                    "of a feed whose Spots modes don't have it - not in the list, not on "
+                    "port 10000.\n"
+                    "server: an FT8 / FT4 spot (a cluster spot of a person with FT8 in the "
+                    "comment or at 14074 ...) not sent to port 10000.\n"
+                    "PSKR: a CW / SSB spot in an FT8 window is held from port 10000 until "
+                    "PSK Reporter answers: 'not served' (he is on FT8) or 'served now'.\n"
+                    + (f"FT8 / FT4 in the Spots modes ({want}): those ARE served."
+                       if want else "Spots modes without FT8 / FT4: none is served."))
         if group == "SERVER":
             dxc = g(self, "_dxc", None)
             return ("SERVER - POUNCer as a DX cluster for N1MM's Telnet window (port 10000)\n"
@@ -3854,9 +3868,7 @@ class PouncerApp:
             self._last_own_spot = time.time()
             if self.team is not None and self.team.is_master():
                 self.team.send_spot(self._spot_dict(spot))
-            dxc = getattr(self, "_dxc", None)
-            if dxc is not None:
-                dxc.publish(spot)             # N1MM's telnet clients (never N1MM's own)
+            self._serve(spot)                 # N1MM's telnet clients (never N1MM's own)
         # spots passed on by the team master (slave): use, don't pass on
         while got < 1000:
             try:
@@ -3870,17 +3882,59 @@ class PouncerApp:
             sf = getattr(self, "spotted_filter", None)
             if sf is not None and not sf.accept(spot.dxcall):
                 continue
-            dxc = getattr(self, "_dxc", None)
-            if dxc is not None:
-                dxc.publish(spot)
             self._note_own(spot)
             self._check_overlap(spot)
+            self._serve(spot)
             self.spots[spot.key] = spot
             self._track_on_freq(spot)
             got += 1
         self._relabel_overlap()
         if got:
             self._dirty = True
+
+    def _digi_wanted(self) -> set[str]:
+        """FT8 / FT4 in the Spots modes ([rbn] follow_modes): those are served."""
+        return {m.upper() for m in getattr(self.cfg, "follow_modes", ("CW",))} & {"FT8", "FT4"}
+
+    def _serve(self, spot: Spot) -> None:
+        """A spot to the cluster server (port 10000, N1MM's Telnet window) -
+        but no FT8 / FT4 spot unless FT8 / FT4 is in the Spots modes, and a
+        CW / SSB spot in an FT8 window only once PSK Reporter said it is not
+        FT8 (v0.7.174). Each one kept out or held is a line in the traffic
+        console (FT8)."""
+        dxc = getattr(self, "_dxc", None)
+        if dxc is None:
+            return
+        mode = (spot.mode or "").upper()
+        if mode in traffic.DIGITAL and mode not in self._digi_wanted():
+            if getattr(spot, "source", "") != "n1mm" and dxc.relay():
+                traffic.digi_out("server", spot, "not served to port "
+                                 f"{dxc.port}: {mode} spot (Spots modes: "
+                                 f"{','.join(self.cfg.follow_modes)})")
+            return
+        if spot.key in getattr(self, "_overlap_keys", ()):
+            held = getattr(self, "_serve_held", None)
+            if held is None:
+                held = self._serve_held = {}
+            held[spot.key] = spot
+            traffic.digi_out("PSKR", spot, f"held from port {dxc.port}: FT8 window - "
+                             "asking PSK Reporter if he is on FT8 / FT4")
+            return
+        dxc.publish(spot)
+
+    def _serve_verdict(self, key, digital: str = "") -> None:
+        """PSK Reporter's answer for a held spot: FT8 / FT4 = not served;
+        none = served now."""
+        held = getattr(self, "_serve_held", None)
+        spot = held.pop(key, None) if held else None
+        if spot is None:
+            return
+        dxc = getattr(self, "_dxc", None)
+        if digital:
+            traffic.digi_out("PSKR", spot, f"not served: PSK Reporter has him on {digital}")
+        elif dxc is not None:
+            if dxc.publish(spot):
+                traffic.digi_out("PSKR", spot, "served now: no FT8 / FT4 report of him")
 
     def _check_overlap(self, spot: Spot) -> None:
         """Ask PSK Reporter (MQTT) about ONE call when its spot sits in an FT8 /
@@ -3919,6 +3973,8 @@ class PouncerApp:
             if s is None or s.mode not in ("SSB", "CW"):
                 self._overlap_keys.discard(key)
                 getattr(self, "_overlap_since", {}).pop(key, None)
+                self._serve_verdict(key, s.mode if s is not None and
+                                    s.mode in traffic.DIGITAL else "")
                 continue
             m = self.pskr.digital(s.dxcall, s.freq_khz)
             if m:
@@ -3928,9 +3984,11 @@ class PouncerApp:
                 getattr(self, "_overlap_since", {}).pop(key, None)
                 self._dirty = True
                 log.info("PSK Reporter: %s %.1f is on %s, not %s", s.dxcall, s.freq_khz, m, was)
+                self._serve_verdict(key, m)
             elif time.time() - s.received > self.pskr.watch_s + 30:
                 self._overlap_keys.discard(key)      # no FT8 report: SSB / CW it is
                 getattr(self, "_overlap_since", {}).pop(key, None)
+                self._serve_verdict(key)
 
     OWN_HEARD_S = 600   # ★ = our own skimmer heard him within this time
 

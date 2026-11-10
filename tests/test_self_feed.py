@@ -137,7 +137,7 @@ class MasterListTests(unittest.TestCase):
             _note_self_spot=lambda *a, **k: noted.append(a))
         for n in ("_drain_spots", "_is_my_call"):
             setattr(f, n, getattr(P, n).__get__(f))
-        f._note_own = f._check_overlap = f._track_on_freq = lambda s: None
+        f._note_own = f._check_overlap = f._track_on_freq = f._serve = lambda s: None
         f._merged_dup = lambda s: False
         f._relabel_overlap = lambda: None
         f._spot_dict = lambda s: {"dxcall": s.dxcall}

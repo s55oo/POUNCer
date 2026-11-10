@@ -32,7 +32,8 @@ DOT = {"live": "#43a047", "quiet": "#f9a825", "dead": "#e53935", "why": "#78909c
 GROUPS = traffic.GROUPS
 group_of = traffic.group_of
 COLORS = {"RBN": "#81c784", "TELNET": "#80cbc4", "SSB": "#ffb74d", "HTTP": "#4fc3f7", "N1MM": "#ce93d8",
-          "TEAM": "#90caf9", "WEB": "#b0bec5", "PSKR": "#f48fb1", "SERVER": "#ffcc80", "OUT": "#ffeb3b"}
+          "TEAM": "#90caf9", "WEB": "#b0bec5", "PSKR": "#f48fb1", "SERVER": "#ffcc80", "FT8": "#ff8a65",
+          "OUT": "#ffeb3b"}
 
 
 class TrafficConsole:
@@ -325,6 +326,8 @@ class TrafficConsole:
                 extra.append(notes[g])
             if quiet < QUIET_S:
                 st = "live"
+            elif g == "FT8":                # nothing kept out lately: fine, not "dead"
+                st = "why"
             elif notes.get(g):
                 st = "why"
             else:

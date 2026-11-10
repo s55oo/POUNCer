@@ -118,6 +118,9 @@ class RBNHttpFeed(threading.Thread):
                 except Exception:  # noqa: BLE001
                     pass
             if spot is None or (self.modes and spot.mode not in self.modes):
+                if spot is not None and spot.mode in traffic.DIGITAL:
+                    traffic.digi_out("HTTP", spot, f"dropped: mode {spot.mode} not in "
+                                     f"Spots modes {','.join(sorted(self.modes))}")
                 continue
             acc = getattr(self.spotter_filter, "accept", None)
             if acc is not None and not acc(spot.spotter):

@@ -979,6 +979,15 @@ RBN, Telnet, HTTP, Cluster - and the team master's spots, as standard lines:
 DX de S53WW-#:   14025.0  DL1ABC       CW 23 dB 28 WPM CQ             1200Z
 ```
 
+- **No FT8 / FT4** (v0.7.174): an FT8 / FT4 spot is not served unless
+  FT8 / FT4 is in the Spots modes (`[rbn] follow_modes`) - also a cluster
+  spot of a person with FT8 in the comment or at 14074 / 21074 .... A CW /
+  SSB spot in an FT8 / FT4 window (14074 - 14077, 7074 - 7077 ...) is held
+  until PSK Reporter answers (up to about 2.5 min): on FT8 = not served, no
+  report = served then. Each one is a line in the traffic console
+  (*View > Traffic console*, the **FT8** group - type a call in *filter*):
+  `dropped` (a feed kept it out: not in the list either), `not served to
+  port 10000`, `held`, `served now`.
 - **No loop:** spots that came **from N1MM** (its own telnet, via
   Broadcast Data > Spots) are never served. And POUNCer recognises its own
   spots coming back from N1MM's broadcast (the same call and frequency within

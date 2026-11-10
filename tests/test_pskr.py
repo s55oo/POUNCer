@@ -117,7 +117,7 @@ class AppTests(unittest.TestCase):
         checker.digital = lambda call, khz: checker.known.get(call, "")
         f = types.SimpleNamespace(pskr=checker, _overlap_keys=set(), spots={}, _dirty=False,
                                   worked=types.SimpleNamespace(contest_name=contest))
-        for n in ("_check_overlap", "_relabel_overlap", "_phone_contest"):
+        for n in ("_check_overlap", "_relabel_overlap", "_phone_contest", "_serve_verdict"):
             setattr(f, n, getattr(P, n).__get__(f))
         return f, checker
 

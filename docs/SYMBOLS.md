@@ -198,6 +198,7 @@ Marks in the call and Mult columns:
 | **(hidden)** | switched off - still counted |
 | yellow source, `>` | sent by POUNCer (commands, QSY, login) |
 | **PSKR** | PSK Reporter: `subscribe` / `unsubscribe` of one call and its FT8 / FT4 reports (the FT8-or-SSB check on 7074 - 7077, and FT8-or-CW for a CW spot in an FT8 / FT4 window) |
+| **FT8** | FT8 / FT4 spots kept out of port 10000 (v0.7.174): `dropped` by a feed (mode not in the Spots modes), `not served to port 10000`, `held` (CW / SSB in an FT8 window, asking PSK Reporter), then `not served` (he is on FT8) or `served now`. Never a red dot: quiet = nothing kept out |
 | **self-spot** (under SSB) | the small connection for spots of your call: login `<call>-77`, the node filter, and only spots of your call |
 | blue bar **n new lines below** | you scrolled up; click it to follow the newest lines |
 | hover over a source (switch or dot) | pop-up: what the source is, its settings now (server:port, login, mode, filters, listen address, team role, relay), why it is quiet, line count |

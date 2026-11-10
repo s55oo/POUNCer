@@ -1,5 +1,25 @@
 # POUNCer — Changelog
 
+## v0.7.174 — 2026-11-10 — Console: every FT8 / FT4 spot kept out of port 10000
+
+- *View > Traffic console* has a new group **FT8**: one line for every FT8 /
+  FT4 spot POUNCer keeps out, with call, frequency, mode, spotter and why:
+  - `dropped` - a feed (RBN, telnet, cluster, HTTP, HamQTH) had an FT8 /
+    FT4 spot and FT8 / FT4 is not in the Spots modes: not in the list, not
+    on port 10000;
+  - `not served to port 10000` - an FT8 / FT4 spot that came in anyway (a
+    person's cluster spot with FT8 in the comment, at 14074 ...);
+  - `held` - a CW / SSB spot in an FT8 window while PSK Reporter is asked,
+    then `not served: PSK Reporter has him on FT8` or `served now`.
+  Type a call in *filter* to check one station. Hover the FT8 chip for the
+  rules.
+- **Fixed while checking this:** FT8 / FT4 spots of people from the cluster
+  were served on port 10000, and a CW / SSB spot in an FT8 window went out
+  at once, before PSK Reporter's answer. Now FT8 / FT4 is served only if it
+  is in the Spots modes, and the FT8-window spots wait for PSK Reporter
+  (up to about 2.5 min; a real CW station there is served then).
+- Test: `test_ft8_exclusions.py`.
+
 ## v0.7.173 — 2026-11-09 — A click takes the station you clicked again
 
 - In the clean row list a click on F8EXX took the station one line below.
