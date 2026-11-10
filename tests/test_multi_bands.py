@@ -91,6 +91,7 @@ class MultiBandTests(unittest.TestCase):
 class BrowserBandMenuTests(unittest.TestCase):
     @unittest.skipUnless(shutil.which("node"), "Node.js is needed for browser menu tests")
     def test_browser_selection_and_persistence(self):
-        subprocess.run([shutil.which("node"), "tests/browser_bands.cjs"],
-                       cwd=Path(__file__).resolve().parents[1], check=True, timeout=30,
-                       capture_output=True, text=True)
+        r = subprocess.run([shutil.which("node"), "tests/browser_bands.cjs"],
+                           cwd=Path(__file__).resolve().parents[1], timeout=30,
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)

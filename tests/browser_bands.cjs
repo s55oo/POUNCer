@@ -3,7 +3,8 @@
 const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
-const source = fs.readFileSync('pouncer/web.py', 'utf8');
+// Windows checkouts have CRLF line endings: the slices below look for '\n'
+const source = fs.readFileSync('pouncer/web.py', 'utf8').replace(/\r\n/g, '\n');
 const code = source.slice(source.indexOf('  let selectedBands ='), source.indexOf('  bandEl.onclick = openBands;'));
 function element() {
   return {

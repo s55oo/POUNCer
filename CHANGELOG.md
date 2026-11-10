@@ -7,6 +7,8 @@
   Selections are remembered per browser and per radio, stay active across
   band changes, and use the existing worked, mode, SNR and multiplier rules.
   Single-band, ALL bands and following the radio remain available.
+- Its browser test now also runs on Windows (a CRLF checkout made a search
+  in the test find nothing); a failing run shows Node's output.
 
 ## v0.7.180 — 2026-11-10 — Radio A / B badge in the lights row
 
