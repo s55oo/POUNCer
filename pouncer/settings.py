@@ -39,6 +39,12 @@ _AUTOSTART_APPS = _autostart_apps()
 
 
 SETTINGS: list[dict] = [
+    {"key": "worked.profile", "attr": "worked_profile", "kind": "choice",
+     "choices": ["auto", "off", "ttc", "mini40", "mini80", "mwc"],
+     "live": False, "group": "Program", "label": "Contest session profile",
+     "help": "auto: verified N1MM IDs; off: ordinary contest behavior. "
+             "ttc: 15-minute periods; mini40/mini80: 10-minute periods; mwc: whole hour. "
+             "UTC schedule, session counts and multipliers. Restart after changing."},
     {"key": "cluster.enabled", "attr": "cluster_server", "kind": "bool", "live": True,
      "group": "Cluster server", "label": "Serve the spots as a DX cluster (telnet)",
      "help": "N1MM's Telnet window (or any cluster client) connects to this PC on the port "

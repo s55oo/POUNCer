@@ -139,6 +139,7 @@ class Config:
     qsy_settle_ms: int = 250   # ... then this long before wiping / typing the call
     n1mm_ini: str = ""
 
+    worked_profile: str = "auto"
     worked_db: str = ""
     worked_hide: bool = True
     worked_refresh_seconds: int = 10
@@ -386,6 +387,9 @@ def load_config(path: str) -> Config:
     cfg.qsy_settle_ms = max(0, i("n1mm", "qsy_settle_ms", cfg.qsy_settle_ms))
     cfg.n1mm_ini = s("n1mm", "ini", cfg.n1mm_ini).strip()
 
+    cfg.worked_profile = s("worked", "profile", cfg.worked_profile).strip().lower()
+    if cfg.worked_profile not in ("auto", "off", "ttc", "mini40", "mini80", "mwc"):
+        cfg.worked_profile = "auto"
     cfg.worked_db = s("worked", "db", cfg.worked_db).strip()
     cfg.worked_hide = b("worked", "hide", cfg.worked_hide)
     cfg.worked_refresh_seconds = i("worked", "refresh_seconds", cfg.worked_refresh_seconds)

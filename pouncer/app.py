@@ -188,10 +188,10 @@ class PouncerApp:
         # How long each station has been calling on one frequency, from RBN
         self._on_freq = OnFreqTracker(ON_FREQ_STAY_KHZ, ON_FREQ_GAP_S)
         self.displayed: list[Spot] = []
-        self.state = RadioState()
+        self.state = RadioState(profile_override=config.worked_profile)
         self.worked = WorkedLog(
             config.worked_db, config.n1mm_ini, config.worked_refresh_seconds,
-            n1mm_running=self._n1mm_running,
+            n1mm_running=self._n1mm_running, profile=config.worked_profile,
         )
         self._worked_hidden = 0
         self._snr_hidden = 0
@@ -3380,10 +3380,7 @@ class PouncerApp:
         self._drain_wpm()
         self._ensure_rbn_clients()
         try:
-            if self.worked.maybe_reload():
-                self._dirty = True
-                if str(self.worked.status).startswith("read failed"):
-                    self._note_error("reading the N1MM log", self.worked.status[13:])
+            self._reload_worked()
         except Exception as exc:  # noqa: BLE001 - never stop the tick (the window would freeze)
             if time.time() - getattr(self, "_worked_err_t", 0) > 60:
                 log.exception("worked: log read failed")
@@ -3404,19 +3401,32 @@ class PouncerApp:
             self._perf["rebuilds"] += 1
         self._drain_web()
         if self.web is not None and self._web_due():
-            # one payload per radio: each phone shows its own radio's band
-            radios = set(self.state.radio_numbers()) | {1, self.radio}
-            self._web_cache = {r: self._build_web_payload(r) for r in sorted(radios)}
-            # bands phones look at without the radio being there (asked < 10 s ago)
-            now = time.time()
-            views = {k: t for k, t in dict(self._web_views).items() if now - t < WEB_VIEW_S}
-            self._web_views = views
-            self._web_view_cache = {k: self._build_web_payload(*k) for k in views}
+            self._refresh_web_payloads()
             # ZeroTier can come up after POUNCer starts: re-check every minute.
             if time.time() - self._web_addr_checked >= 60:
                 self._refresh_web_address()
         self.root.after(REFRESH_MS, self._tick)
         self._tick_scheduled = True
+
+    def _reload_worked(self) -> None:
+        """Refresh clock-driven eligibility as well as database-driven changes."""
+        if self.worked.maybe_reload():
+            self._dirty = True
+            self._web_built = 0.0
+            if getattr(self.worked, "profile", None):
+                self._rate_at = 0.0
+            if str(self.worked.status).startswith("read failed"):
+                self._note_error("reading the N1MM log", self.worked.status[13:])
+
+    def _refresh_web_payloads(self) -> None:
+        # one payload per radio: each phone shows its own radio's band
+        radios = set(self.state.radio_numbers()) | {1, self.radio}
+        self._web_cache = {r: self._build_web_payload(r) for r in sorted(radios)}
+        # bands phones look at without the radio being there (asked < 10 s ago)
+        now = time.time()
+        views = {k: t for k, t in dict(self._web_views).items() if now - t < WEB_VIEW_S}
+        self._web_views = views
+        self._web_view_cache = {k: self._build_web_payload(*k) for k in views}
 
     def _build_web_payload(self, radio: int | None = None, view_band: str | None = None) -> dict:
         radio = radio or self.radio
@@ -3485,6 +3495,7 @@ class PouncerApp:
             ),
             "modes": list(self._effective_modes(radio)),
             "worked": self.worked.status,
+            "session": getattr(self.worked, "session_text", ""),
             "qsos": {
                 "total": self.worked.qso_count,
                 "bands": [
@@ -3508,6 +3519,8 @@ class PouncerApp:
                     "country": self._country(s.dxcall),
                     "dx": self._is_dx(s.dxcall),
                     "mult": self._mults(s),
+                    "worked": bool(getattr(self.worked, "profile", None)
+                                   and self.worked.is_worked(s.dxcall, s.freq_khz, s.mode)),
                     "busted": bool(self.scp is not None and self.scp.busted(s.dxcall)),
                     **self._tried_fields(s),
                     **self._run_fields(s),
@@ -4651,6 +4664,8 @@ class PouncerApp:
             if self.worked.log_open:
                 per_band = " ".join(f"{b} **{n}**" for b, n in self.worked.band_qsos())
                 worked += f"   QSOs: {per_band or '-'} (total **{self.worked.qso_count}**)"
+                if getattr(self.worked, "session_text", ""):
+                    worked += "   **" + self.worked.session_text + "**"
                 rules = self.worked.mult_summary()
                 worked += f"   mults: **{rules or 'none known'}**"
         else:
@@ -5771,11 +5786,17 @@ class PouncerApp:
         path = getattr(w, "_path", None)
         if not w.log_open or not path:
             return {"ok": False, "error": w.log_message or "No log open in N1MM"}
-        try:
-            qsos = summarymod.read_qsos(path, w.contest_nr, w.mult_slots or w.mult_types)
-        except Exception as exc:   # locked / gone
-            return {"ok": False, "error": f"Could not read the log: {exc}"}
-        out = summarymod.build(qsos, self.taps.snapshot(), w.mult_slots or w.mult_types)
+        session_data = w.session_summary() if getattr(w, "profile", None) else None
+        if session_data is not None:
+            qsos, slots, session = session_data
+            taps = [t for t in self.taps.snapshot() if session.contains(t[0])]
+            out = summarymod.build(qsos, taps, slots, now=session.now)
+        else:
+            try:
+                qsos = summarymod.read_qsos(path, w.contest_nr, w.mult_slots or w.mult_types)
+            except Exception as exc:   # locked / gone
+                return {"ok": False, "error": f"Could not read the log: {exc}"}
+            out = summarymod.build(qsos, self.taps.snapshot(), w.mult_slots or w.mult_types)
         out.update(log=w.db_name, contest=w.contest_name,
                    station=w.station_call or self.own_call())
         return out

@@ -1,5 +1,16 @@
 # POUNCer — Changelog
 
+## Unreleased
+
+- Contest session profiles: TTC (15-minute stages), MINI40/MINI80 (10-minute
+  periods), and OK1WC Memorial (one whole-hour session). Worked status resets
+  at fixed UTC boundaries; weekly rounds in the same log stay separate.
+- Session-wide unique-call multipliers for TTC/Mini-Test and per-band suffix
+  multipliers for MWC; session totals also feed the rate and summary views.
+- Desktop/browser session status and countdown, automatic list refreshes,
+  and timestamp/GUID-aware Contacts reconciliation. Explicit profile override
+  in Settings / config.ini for custom or unverified N1MM contest names.
+
 ## v0.7.181 — 2026-11-10 — Phone / browser: two or more bands on one list
 
 - Browser band menu: select two or more bands and show their spots together

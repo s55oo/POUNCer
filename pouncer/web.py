@@ -129,6 +129,7 @@ INDEX_HTML = """<!doctype html>
   button.tile.onfreq { outline: 3px solid #4fc3f7; outline-offset: -3px;
     box-shadow: 0 0 0 2px #4fc3f7, 0 0 14px rgba(79,195,247,.55); }
   .call { font-size: 32px; font-weight: 800; letter-spacing: .5px; }
+  button.tile.worked .call { color: #9e9e9e; }
   .call.dx { color: #ffeb3b; }  /* DX = outside our continent */
   .detail { font-size: 13px; opacity: .8; }
   /* Phones (single column): half-height tiles, call left / details right,
@@ -339,6 +340,7 @@ INDEX_HTML = """<!doctype html>
   .sheet-close { margin-top: 10px; width: 100%; background: #37474f; color: #fff;
     border: 0; border-radius: 10px; font: inherit; padding: 12px; cursor: pointer; }
   header .band .khz { font-size: 12px; font-weight: 400; opacity: .7; }
+  header .session { color: #81d4fa; font-size: 12px; line-height: 1.4; margin-top: 4px; overflow-wrap: anywhere; }
   header .meta b { color: #fff; }
   header .meta .cur { color: #ffeb3b; font-weight: 700; }
   header .meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 4px; }
@@ -477,6 +479,7 @@ INDEX_HTML = """<!doctype html>
   <div class="metarow"><div class="meta" id="meta">connecting...</div>
     <a class="help" href="/summary" title="Contest summary: QSOs, rate, mults from spots">&Sigma;</a>
     <a class="help" href="/help" title="What every button does">?</a></div>
+  <div class="session" id="session" hidden></div>
   <div id="logwarn"><span class="msg" id="logmsg"></span>
     <button id="logbtn">Reconnect</button></div>
 </header>
@@ -1035,6 +1038,9 @@ INDEX_HTML = """<!doctype html>
     }
   }
   function render(data) {
+    const sessionEl = document.getElementById('session');
+    sessionEl.hidden = !data.session;
+    sessionEl.textContent = data.session || '';
     renderFkeys(data.fkeys);
     cwCheck(data);
     if (data.tune_step && data.tune_step !== tuneStep) { tuneStep = data.tune_step; labelTune(); }
@@ -1186,7 +1192,7 @@ INDEX_HTML = """<!doctype html>
       let key = calmKey(s), n = 1;
       while (seen.has(key)) key = calmKey(s) + '#' + (++n);
       seen.add(key);
-      const cls = 'tile' + (snrVal(s) >= 20 ? ' strong' : '') +
+      const cls = 'tile' + (s.worked ? ' worked' : '') + (snrVal(s) >= 20 ? ' strong' : '') +
         (s.mult >= 2 ? ' m2' : (s.mult === 1 ? ' m1' : '')) +
         (s === tuned ? ' onfreq' : '') +
         // not re-spotted for a while: probably gone - fade it
@@ -1934,6 +1940,19 @@ address <code>127.0.0.1:12060</code>, like Radio): N1MM then tells POUNCer at on
 and contest you opened. Without it POUNCer reads N1MM's ini, which N1MM saves only now and
 then - after switching contests the counts can belong to the old one until N1MM is restarted.</p>
 
+<h2>Weekly contest sessions</h2>
+<p><b>Settings &gt; Program &gt; Contest session profile</b> (restart required):
+<b>auto</b> recognizes verified N1MM IDs; explicit <b>ttc</b>, <b>mini40</b>,
+<b>mini80</b> and <b>mwc</b> support custom UDC names; <b>off</b> uses ordinary
+whole-contest checks. TTC has four 15-minute stages (Tuesday 19:30 UTC);
+MINI40/MINI80 have six 10-minute periods (Wednesday 17:00/18:00 UTC).
+MWC is one hour (Monday 16:30 UTC), with no within-hour reset.</p>
+<p>The session line shows the UTC date/start, period and countdown. Previously
+worked stations return automatically at a new period; grey calls with Hide
+worked off mean worked in the current period. Unique-call multipliers last
+the whole TTC round / Mini-Test band session; MWC counts suffix characters
+per band. Enable N1MM App Info and Contacts. Missing QSO UTC timestamps are
+excluded with a warning; N1MM still controls logging, serials and scoring.</p>
 <h2>Spot tiles</h2>
 <dl>
   <dt>Tap</dt>

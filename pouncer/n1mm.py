@@ -12,6 +12,7 @@ import xml.etree.ElementTree as ET
 from xml.sax.saxutils import escape as xml_escape
 
 from .bands import band_from_khz, tens_of_hz_to_khz
+from .contest_rules import profile_for
 
 log = logging.getLogger(__name__)
 
@@ -102,6 +103,10 @@ def parse_app_info(data: bytes) -> dict | None:
         out["mode"] = text("mode").upper()
         rx = _to_int(text("rxfreq"))
         out["khz"] = rx / 100.0 if rx else None
+        out["timestamp"] = text("timestamp")
+        out["id"] = text("ID")
+        out["oldtimestamp"] = text("oldtimestamp")
+        out["oldcall"] = text("oldcall").upper()
     return out
 
 
@@ -158,13 +163,15 @@ def next_tune_khz(
 class RadioState:
     """Thread-safe holder for the most recent N1MM radio information."""
 
-    def __init__(self) -> None:
+    def __init__(self, profile_override: str = "auto") -> None:
+        self.profile_override = profile_override
         self._lock = threading.Lock()
         self._radios: dict[int, dict] = {}
         self._active: int | None = None
         self._last = 0.0
         self._app: dict = {}            # open log / contest from AppInfo, contact packets
-        self._contact_events: list = []   # (n, kind, call, band, mode, khz, contest_nr)
+        self._contact_sequence = 0
+        self._contact_events: list = []   # (sequence, kind, call, band, mode, khz, contest_nr, metadata)
 
     def set_app(self, info: dict) -> None:
         """AppInfo: database + contest; a contact packet: the contest only
@@ -173,16 +180,23 @@ class RadioState:
             app = dict(self._app)
             if info.get("kind") == "AppInfo":
                 app = {"dbname": info.get("dbname") or ""}
-            app["contest_nr"] = info.get("contest_nr")
-            app["contest_name"] = info.get("contest_name") or app.get("contest_name", "")
+            # AppInfo identifies the open contest. A late packet from an older
+            # contest must not switch the active contest back.
+            protected = (profile_for(app.get("contest_name", ""), self.profile_override)
+                         or profile_for(info.get("contest_name", ""), self.profile_override))
+            if (not protected or info.get("kind") == "AppInfo" or not app.get("dbname")
+                    or info.get("contest_nr") == app.get("contest_nr")):
+                app["contest_nr"] = info.get("contest_nr")
+                app["contest_name"] = info.get("contest_name") or app.get("contest_name", "")
             app["kind"] = info.get("kind")
             app["t"] = time.time()
             if str(info.get("kind", "")).startswith("contact"):
-                app["contacts"] = app.get("contacts", 0) + 1   # a QSO logged / changed
+                self._contact_sequence += 1
+                app["contacts"] = self._contact_sequence
                 ev = self._contact_events
                 ev.append((app["contacts"], info.get("kind"), info.get("call", ""),
                            info.get("band", ""), info.get("mode", ""), info.get("khz"),
-                           info.get("contest_nr")))
+                           info.get("contest_nr"), dict(info)))
                 del ev[:-200]
             self._app = app
 

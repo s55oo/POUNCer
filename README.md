@@ -1534,3 +1534,36 @@ current band again. With multiple selection off, band buttons show one band
 immediately; **ALL bands** still shows every contest band. Selecting bands
 only changes the spot list. Tapping a spot tunes the selected radio when
 **Control N1MM** is enabled.
+
+### Weekly contests and repeat-QSO periods
+
+**Settings → Program → Contest session profile** (`[worked] profile`, restart
+required) supports TTC-SPCWC, MINI40, MINI80 and OK1WC Memorial. The default
+**auto** recognizes exact verified N1MM names; use **mini40** explicitly for
+40m Mini-Test, or choose another explicit profile for a custom UDC name.
+**off** restores ordinary whole-contest worked checks.
+
+- **TTC:** Tuesday 19:30–20:30 UTC; four 15-minute stages, 80m and 40m.
+- **MINI40:** Wednesday 17:00–18:00 UTC; six 10-minute periods, 40m.
+- **MINI80:** Wednesday 18:00–19:00 UTC; six 10-minute periods, 80m.
+- **MWC:** Monday 16:30–17:30 UTC; once per band for the whole hour, without
+  any within-session reset.
+
+At a new period, stations worked only in earlier periods become available
+again automatically, including in Hide worked and combined-band browser
+views. Session totals and unique-call multipliers do not reset at period
+boundaries. MWC uses the final suffix character as a multiplier separately
+on each band. Prior weekly rounds do not count in the current session.
+
+Desktop log status and a separate browser status line show the session,
+period (where applicable) and countdown. With Hide worked off, browser
+callsigns worked in the current period are grey. Outside the scheduled
+session, status says so and repeat eligibility/multiplier recommendations
+are inactive; totals refer to the displayed dated session.
+
+Enable N1MM **App Info** and **Contacts** broadcasts. POUNCer uses actual QSO
+UTC timestamps, not packet arrival times. Missing timestamps are excluded
+with a warning. N1MM remains responsible for logging, serials and final
+scoring; POUNCer does not change its database or configure its duplicate rules.
+See [contest profiles](docs/CONTEST_PROFILES.md) for verified identifiers,
+rule sources, session scopes and packet reconciliation limitations.

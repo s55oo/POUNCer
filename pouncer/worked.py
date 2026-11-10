@@ -12,6 +12,8 @@ when its callsign appears in the open log on the same band AND mode.
 
 from __future__ import annotations
 
+from .contest_rules import Contact, SessionLog, profile_for, utc_timestamp, contact_id, suffix_character
+
 import logging
 import calendar
 import os
@@ -243,7 +245,18 @@ class WorkedLog:
         ini_path: str = "",
         refresh_seconds: int = 10,
         n1mm_running: Callable[[], bool | None] | None = None,
+        profile: str = "auto",
+        clock: Callable[[], float] | None = None,
     ) -> None:
+        self.profile_override = profile
+        self._clock = clock or (lambda: time.time())
+        self._session_log = SessionLog()
+        self._profile_scope = None
+        self._profile_stamp = None
+        self.profile = None
+        self.session_text = ""
+        self._session_mults = set()
+        self._profile_summary = None
         self.db_path = db_path.strip()
         self.ini_path = ini_path.strip()
         self.refresh_seconds = max(1, refresh_seconds)
@@ -335,6 +348,11 @@ class WorkedLog:
         """Record that no log is usable. Returns True if the UI must refresh."""
         changed = bool(self._keys) or self.log_open or self.log_state != state
         self._keys = set()
+        self._session_log = SessionLog()
+        self._profile_scope = None
+        self.profile = None
+        self.session_text = ""
+        self._profile_summary = None
         self._path = None
         self._signature = None
         self.call_count = 0
@@ -411,7 +429,8 @@ class WorkedLog:
         Returns True when the worked set or the open/closed state changed.
         """
         done = self._take_job()
-        now = time.time()
+        now = self._clock()
+        done = self._refresh_profile() or done
         interval = (
             self.refresh_seconds if self._path
             else min(self.refresh_seconds, RETRY_SECONDS)
@@ -428,8 +447,7 @@ class WorkedLog:
             # take the QSO from the packet itself at once (v0.7.171)
             self._contacts_seen = contacts
             self._invalidate()
-            self._take_contacts()
-        if now - self._last_check >= interval:
+        if now < self._last_check or now - self._last_check >= interval:
             self._last_check = now
             info, problem = self._resolve()
             if problem:
@@ -440,6 +458,9 @@ class WorkedLog:
             self._wanted_nr = info.get("contest_nr")
             self.contest_name = info.get("contest_name", "")
             self._source = info.get("source", "ini")
+        self._ensure_profile()
+        self._take_contacts()
+        done = self._refresh_profile() or done
         path = self._path
         if path is None:
             return done
@@ -462,7 +483,8 @@ class WorkedLog:
             self._load(path, signature, self._wanted_nr, self.contest_name)
             return True
         job = {"path": path, "sig": signature, "gen": self._gen, "reason": reason,
-               "t": time.monotonic(), "res": None}
+               "t": time.monotonic(), "res": None, "contest_nr": self._wanted_nr,
+               "contest_name": self.contest_name}
         args = (path, self._wanted_nr, self.contest_name, getattr(self, "_source", "ini"))
 
         def run() -> None:
@@ -492,7 +514,11 @@ class WorkedLog:
         self._job = None
         res = job["res"]
         self.read_ms = round((time.monotonic() - job["t"]) * 1000)
-        if job["path"] != self._path:
+        app = self.app_info() if self.app_info else None
+        if app and app.get("contest_nr") is not None and app["contest_nr"] != job.get("contest_nr"):
+            self._signature = None
+            return False
+        if job["path"] != self._path or job.get("contest_nr") != self._wanted_nr:
             return False                        # another log since
         if res is None:                         # the thread crashed (in pouncer.log)
             self.status = "read failed: see pouncer.log"
@@ -610,10 +636,13 @@ class WorkedLog:
         """The slow part - copy and query the log. Touches nothing the window
         reads, so it can run in a thread (v0.7.176); ``_apply`` takes the
         result."""
+        read_started = time.monotonic()
+        use_profile = profile_for(contest_name, self.profile_override) is not None
         keys: set[tuple[str, str, str]] = set()
         calls: set[str] = set()
         band_qsos: dict[str, int] = {}
         total = 0
+        contacts = []
         mult_worked: dict[str, dict[str, set]] = {}
         slots: list[dict] = []
         call_vals: dict[str, dict] = {}
@@ -645,6 +674,10 @@ class WorkedLog:
                 flag_cols = [lower.get(f"ismultiplier{i}") for i in (1, 2, 3)]
                 sql = "SELECT Call, Band, Mode" + "".join(f", {f}" for f in cand)
                 sql += "".join(f", {f}" if f else ", 0" for f in flag_cols)
+                sql += ", " + (lower.get("ts") or "NULL")
+                id_col = lower.get("id")
+                sql += ", " + (f"COALESCE(NULLIF({id_col}, ''), 'row:' || rowid)" if id_col
+                                else "'row:' || rowid")
                 sql += " FROM DXLOG"
                 params: tuple = ()
                 if contest_nr is not None:
@@ -669,7 +702,9 @@ class WorkedLog:
                     calls.add(c)
                     values = {f: multsmod.normalize(f, v)
                               for f, v in zip(cand, row[3:3 + len(cand)])}
-                    flags = tuple(bool(x) for x in row[3 + len(cand):])
+                    flags = tuple(bool(x) for x in row[3 + len(cand):3 + len(cand) + 3])
+                    if use_profile:
+                        contacts.append(Contact(c, label, m, utc_timestamp(row[-2]), contact_id(row[-1])))
                     rows.append({"call": c, "band": label, "mode": m, "values": values,
                                  "flags": flags})
                     known = call_vals.setdefault(c, {})
@@ -705,7 +740,7 @@ class WorkedLog:
                 "slots": slots, "call_vals": call_vals, "station": station,
                 "contest_nr": contest_nr, "contest_name": contest_name, "source": source,
                 "newest_nr": newest_nr, "newest_ts": newest_ts, "callhist": callhist,
-                "copy": getattr(self, "_copy_info", "")}
+                "copy": getattr(self, "_copy_info", ""), "contacts": contacts, "read_started": read_started}
 
     def _apply(self, res: dict, signature: tuple) -> None:
         """Take a ``_read`` result: the worked set, mults, counts, status."""
@@ -757,7 +792,7 @@ class WorkedLog:
         self.log_open = True
         self.log_state = LOG_OK
         self.log_message = ""
-        self._loaded_at = time.time()
+        self._loaded_at = self._clock()
         said = (self.call_count, self.qso_count, path, contest_nr)
         (log.info if said != getattr(self, "_said", None) else log.debug)(
             "loaded %d worked calls from %s (contest %s %s)",
@@ -773,6 +808,74 @@ class WorkedLog:
                      reason, self.qso_count, contest_nr, newest_ts or "-",
                      copy_info or "live file")
             self._read_said = self._loaded_at
+
+        self._ensure_profile()
+        if self.profile:
+            self._session_log.reconcile(res.get("contacts", []), res.get("read_started"))
+            self._refresh_profile(force=True)
+
+    def _ensure_profile(self) -> None:
+        scope = (self._path, self._wanted_nr, self.contest_name, self.profile_override)
+        if scope != self._profile_scope:
+            self._profile_scope = scope
+            self.profile = profile_for(self.contest_name, self.profile_override)
+            self._session_log = SessionLog()
+            self._profile_stamp = None
+            self._extra = set()
+            self._gone = set()
+
+    def _refresh_profile(self, force=False) -> bool:
+        if not self.profile:
+            self.session_text = ""
+            return False
+        session = self.profile.session(self._clock())
+        keys, rows, mults = self._session_log.snapshot(session)
+        text = session.status()
+        missing = sum(r.timestamp is None for r in self._session_log.records.values())
+        if missing:
+            text += f" · {missing} QSOs without UTC timestamp excluded"
+        if self._session_log.warning:
+            text += " · " + self._session_log.warning
+        stamp = (text, frozenset(keys), tuple(rows), frozenset(mults))
+        if not force and stamp == self._profile_stamp:
+            return False
+        self._profile_stamp = stamp
+        self.session_text = text
+        self._keys = keys
+        self._session_mults = mults
+        self._profile_summary = (session, tuple(rows))
+        self.call_count = len({r.call for r in rows})
+        self.qso_count = len(rows)
+        self._band_qsos = {}
+        for r in rows:
+            self._band_qsos[r.band] = self._band_qsos.get(r.band, 0) + 1
+        self.status = f"{self.call_count} calls"
+        return True
+
+    def session_summary(self):
+        """Immutable published session snapshot for the summary/rate thread."""
+        published = self._profile_summary
+        if not self.profile or published is None:
+            return None
+        session, rows = published
+        suffix = session.profile.multiplier == "suffix"
+        field = "Suffix character" if suffix else "Unique callsign"
+        qsos = [{"t": r.timestamp, "call": r.call, "band": r.band, "mode": r.mode,
+                 "mults": {field: suffix_character(r.call) if suffix else r.call}} for r in rows]
+        return qsos, [{"field": field, "scope": "band" if suffix else "contest"}], session
+
+    def _profile_mult_detail(self, freq_khz, call, mode) -> list[dict]:
+        band = band_from_khz(freq_khz)
+        if not call or band not in self.profile.bands or (mode and normalize_mode(mode) != "CW"):
+            return []
+        suffix = self.profile.multiplier == "suffix"
+        value = suffix_character(call) if suffix else call.strip().upper()
+        return [{"type": "Suffix character" if suffix else "Unique callsign", "n": 1,
+                 "value": value, "where": band if suffix else "session",
+                 "new": bool(value and (band if suffix else '*', value) not in self._session_mults
+                             and self.profile.session(self._clock()).active),
+                 "source": "callsign", "how": "verified contest profile", "agree": None,
+                 "flagged": None, "scope": "band" if suffix else "contest"}]
 
     @staticmethod
     def _read_mult_names(con: sqlite3.Connection, contest_name: str) -> list:
@@ -907,6 +1010,8 @@ class WorkedLog:
         zone + new country = a double mult in CQWW). Exchange multipliers
         (section, DOK ...) count when the log or the call history knows the
         station's value."""
+        if self.profile:
+            return sum(int(d["new"]) for d in self._profile_mult_detail(freq_khz, call, mode))
         if not band_from_khz(freq_khz) or not self.mult_slots:
             return 0
         return sum(1 for _sl, _v, _src, new, _sc in self._spot_mults(
@@ -926,6 +1031,8 @@ class WorkedLog:
         slot its column, the station's value and where it came from, where it
         counts (band / band and mode / whole contest), how POUNCer knows the
         rule (N1MM's contest table or learnt from the log) and whether new."""
+        if self.profile:
+            return self._profile_mult_detail(freq_khz, call, mode)
         band = band_from_khz(freq_khz)
         out = []
         for sl, v, src, new, scope in self._spot_mults(
@@ -941,6 +1048,9 @@ class WorkedLog:
 
     def mult_summary(self) -> str:
         """'CQ zone per band + country per band' (window, phone, debug)."""
+        if self.profile:
+            return ("suffix character per band" if self.profile.multiplier == "suffix" else
+                    "unique callsign per session") + f" ({len(self._session_mults)} worked)"
         return multsmod.describe(self.mult_slots, "ITU" if self.zone_is_itu else "CQ")
 
     def band_qsos(self) -> list[tuple[str, int]]:
@@ -962,13 +1072,21 @@ class WorkedLog:
             return
         extra = self.__dict__.setdefault("_extra", set())
         gone = self.__dict__.setdefault("_gone", set())
-        for n, kind, call, band, mode, khz, nr in events(getattr(self, "_event_n", 0)):
+        for event in events(getattr(self, "_event_n", 0)):
+            n, kind, call, band, mode, khz, nr = event[:7]
             self._event_n = n
             if not call or (nr is not None and self._wanted_nr is not None
                             and nr != self._wanted_nr):
                 continue
             label = band_label(band) or (band_from_khz(khz) if khz else None)
             if not label:
+                continue
+            if self.profile:
+                info = event[7] if len(event) > 7 else {}
+                record = Contact(call, label, normalize_mode(mode) if mode else "",
+                                 utc_timestamp(info.get("timestamp")), contact_id(info.get("id")))
+                self._session_log.event(kind, record, info.get("oldcall", ""),
+                                        utc_timestamp(info.get("oldtimestamp")))
                 continue
             if kind == "contactdelete":           # (no mode in it): that call on that band
                 for k in [k for k in extra if k[:2] == (call, label)]:
@@ -984,6 +1102,8 @@ class WorkedLog:
         if not band:
             return False
         key = (call.strip().upper(), band, normalize_mode(mode))
+        if self.profile:
+            return key in self._keys
         if key in getattr(self, "_extra", ()):
             return True
         return key in self._keys and key[:2] not in getattr(self, "_gone", ())
