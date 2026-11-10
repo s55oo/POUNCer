@@ -177,6 +177,20 @@ class WebServerTests(unittest.TestCase):
         finally:
             web.stop()
 
+    def test_selected_bands_are_forwarded_with_radio_without_qsy(self) -> None:
+        requested = []
+
+        def get_spots(radio=None, band=None):
+            requested.append((radio, band))
+            return {**self.payload, "band": band, "radio": radio, "view": True}
+
+        self.web._httpd.get_spots = get_spots
+        with self._get("/api/spots?band=80m%2C40m%2C20m&radio=2") as resp:
+            data = json.load(resp)
+        self.assertEqual(requested, [(2, "80m,40m,20m")])
+        self.assertEqual(data["band"], "80m,40m,20m")
+        self.assertEqual(self.calls, [])
+
     def test_spots_json(self) -> None:
         with self._get("/api/spots") as resp:
             data = json.load(resp)

@@ -332,6 +332,8 @@ INDEX_HTML = """<!doctype html>
   #bandfor i { font-style: normal; color: #64b5f6; } #bandfor i.r2 { color: #ffb74d; }
   .bandgrid button:active { background: #c62828; }
   /* band menu: compact keys (a third smaller), ALL = every band on one list */
+  .multiband-picker { display: block; padding: 10px 0; cursor: pointer; }
+  .multiband-picker input { margin-right: 8px; }
   #bandgrid button { font-size: 15px; padding: 10px 0; }
   #bandgrid button.allb { grid-column: 1 / -1; letter-spacing: 1px; }
   .sheet-close { margin-top: 10px; width: 100%; background: #37474f; color: #fff;
@@ -532,7 +534,9 @@ INDEX_HTML = """<!doctype html>
 </div></div>
 <div id="bandsheet"><div class="sheet">
   <div class="sheet-title">Band<span id="bandfor"></span> <span>(shows its spots - tap a station to QSY)</span></div>
+  <label class="multiband-picker"><input type="checkbox" id="multibands"> Select multiple bands</label>
   <div class="bandgrid" id="bandgrid"></div>
+  <button class="sheet-close" id="applybands" hidden>Show selected bands</button>
   <button class="sheet-close" id="ctlbtn">Control N1MM: off</button>
   <button class="sheet-close" id="alertpopbtn">Alert pop-up: on</button>
   <button class="sheet-close" id="alertsndbtn">Alert sound: on</button>
@@ -565,7 +569,8 @@ INDEX_HTML = """<!doctype html>
   // Band menu: the band whose spots a radio's list shows, without moving the
   // radio ({radio: {band, from}}; from = the radio's band when picked - once
   // the radio changes band, e.g. by tapping a station there, the list
-  // follows the radio again). Tapping a station QSYs as always.
+  // follows the radio again). ALL and comma-separated selections stay on.
+  // Tapping a station QSYs as always.
   let views = {};
   try { views = JSON.parse(localStorage.getItem('pouncer.view') || '{}') || {}; } catch (e) { views = {}; }
   function saveViews() { try { localStorage.setItem('pouncer.view', JSON.stringify(views)); } catch (e) {} }
@@ -1117,15 +1122,15 @@ INDEX_HTML = """<!doctype html>
     if (vd >= 0) meta = '<span class="warn" title="' + esc(data.team) + '">\u26a0 ' + esc(data.team.slice(vd)) + '</span> &middot; ' + meta;
     {
       const v = views[String(cur)];
-      // ALL stays on when a tap moves the radio to another band (mult hunting)
-      if (v && v.band !== 'ALL' && data.radio_band &&
+      // ALL and multiple bands stay on when a tap changes the radio band
+      if (v && v.band !== 'ALL' && !v.band.includes(',') && data.radio_band &&
           (v.from !== data.radio_band || v.band === data.radio_band)) {
         delete views[String(cur)];   // the radio changed band: follow it again
         saveViews();
       }
     }
     if (data.view) meta = '<span class="viewtag" id="viewtag" title="Tap: back to the band the radio is on">' +
-      esc(data.band === 'ALL' ? 'ALL bands' : data.band) + ' list &middot; ' + (radioSw.hidden ? 'radio' : (cur === 2 ? 'B' : 'A')) +
+      esc(data.band === 'ALL' ? 'ALL bands' : (data.band || '').split(',').join(' + ')) + ' list &middot; ' + (radioSw.hidden ? 'radio' : (cur === 2 ? 'B' : 'A')) +
       ' on ' + esc(data.radio_band || '?') + ' \u2715</span> &middot; ' + meta;
     if (calm) meta = '<span class="calmtag" title="Calm list: tiles keep their place, re-sorted every 15 s">calm</span> &middot; ' + meta;
     const ck = data.checks;
@@ -1550,14 +1555,34 @@ INDEX_HTML = """<!doctype html>
   // One band menu (160-10 m) for the radio chosen with the A / B key in the
   // header: it shows that band's spots for that radio (no QSY - tap a
   // station there and that radio goes to it).
+  let selectedBands = new Set();
+  const multiBands = document.getElementById('multibands');
+  const applyBands = document.getElementById('applybands');
+  function updateBandSelection() {
+    applyBands.hidden = !multiBands.checked;
+    applyBands.disabled = selectedBands.size === 0;
+    bandGrid.querySelectorAll('[data-band]').forEach(btn => {
+      const picked = selectedBands.has(btn.dataset.band);
+      btn.classList.toggle('cur', picked);
+      btn.setAttribute('aria-pressed', String(picked));
+    });
+  }
+  multiBands.onchange = updateBandSelection;
+  applyBands.onclick = () => {
+    const bands = lastData.contest_bands || ['160m','80m','40m','20m','15m','10m'];
+    const picked = bands.filter(b => selectedBands.has(b));
+    if (picked.length) chooseBand(picked.join(','));
+  };
   function openBands() {
     const bands = lastData.contest_bands || ['160m','80m','40m','20m','15m','10m'];
     const cur = lastData.radio === 2 ? 2 : 1;
     const so2r = (lastData.radios || []).length > 1 || cur === 2;
     const real = (lastData.rbands || {})[String(cur)] || lastData.radio_band || lastData.band;
-    const shown = (views[String(cur)] && views[String(cur)].band) || real;
+    const shown = (views[String(cur)] && views[String(cur)].band) || real || '';
     document.getElementById('bandfor').innerHTML = so2r
       ? ' for <i class="r' + cur + '">radio ' + (cur === 2 ? 'B' : 'A') + '</i>' : '';
+    selectedBands = new Set(shown === 'ALL' ? bands : shown.split(','));
+    multiBands.checked = shown.includes(',');
     bandGrid.textContent = '';
     bands.forEach(b => {
       const btn = document.createElement('button');
@@ -1587,7 +1612,13 @@ INDEX_HTML = """<!doctype html>
       }
       if (b === shown) btn.classList.add('cur');
       if (b === real) btn.classList.add('here');   // the radio is on this band
-      btn.onclick = () => chooseBand(b);
+      btn.dataset.band = b;
+      btn.onclick = () => {
+        if (!multiBands.checked) { chooseBand(b); return; }
+        if (selectedBands.has(b)) selectedBands.delete(b);
+        else selectedBands.add(b);
+        updateBandSelection();
+      };
       bandGrid.appendChild(btn);
     });
     // ALL: spots of every band on one list - for hunting new mults (MLT puts
@@ -1605,6 +1636,7 @@ INDEX_HTML = """<!doctype html>
     }
     all.onclick = () => chooseBand('ALL');
     bandGrid.appendChild(all);
+    updateBandSelection();
     bandSheet.classList.add('show');
   }
   function closeBands() { bandSheet.classList.remove('show'); }
@@ -1618,6 +1650,9 @@ INDEX_HTML = """<!doctype html>
     if (b === 'ALL') {
       views[String(r)] = {band: 'ALL', from: real};
       toast(tag + 'ALL bands - MLT puts new mults on top; tap a station to QSY');
+    } else if (b.includes(',')) {
+      views[String(r)] = {band: b, from: real};
+      toast(tag + b.split(',').join(' + ') + ' spots - tap a station to QSY');
     } else if (b === real) {
       delete views[String(r)];
       toast(tag + b + ' (the radio is there)');
@@ -1851,6 +1886,10 @@ The browser on the PC itself always can.</p>
     <span class="sky">15m list &middot; on 20m &#10005;</span> in the small line while you
     look at another band; tap it to go back. When the radio changes band (e.g. after
     that tap) the list follows the radio again. No transmit.
+    Enable <b>Select multiple bands</b>, tap two or more bands, then
+    <b>Show selected bands</b> to combine their spots. The selection is remembered
+    for this browser and radio and stays active when you tune between bands.
+    Tap the list tag to follow the radio again.
     <b>ALL bands</b> (under the bands): every band on one list - for hunting new mults
     (with <b>MLT</b> they are on top, the pink number = mults spotted on all bands). A tap
     QSYs the radio to that station's band and ALL <b>stays on</b>; tap the

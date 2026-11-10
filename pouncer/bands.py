@@ -43,3 +43,15 @@ def tens_of_hz_to_khz(tens: float) -> float:
 def khz_to_tens_of_hz(khz: float) -> int:
     """Convert kHz to N1MM's tens-of-Hz frequency value."""
     return int(round(khz * 100.0))
+
+
+def normalize_band_view(value: str | None) -> str | None:
+    """Canonical browser band selection, or None for an invalid selection."""
+    if not value:
+        return None
+    if value == "ALL":
+        return value
+    selected = {b.strip() for b in value.split(",")}
+    if not selected or not selected.issubset(CONTEST_BANDS):
+        return None
+    return ",".join(b for b in CONTEST_BANDS if b in selected)

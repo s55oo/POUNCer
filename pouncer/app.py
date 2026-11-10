@@ -13,7 +13,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from . import __version__
-from .bands import CONTEST_BANDS, DEFAULT_BAND_KHZ, band_from_khz
+from .bands import CONTEST_BANDS, DEFAULT_BAND_KHZ, band_from_khz, normalize_band_view
 from .config import Config
 from .flow import flow_positions
 from . import lights
@@ -3422,8 +3422,8 @@ class PouncerApp:
         radio = radio or self.radio
         self._last_weak = 0
         real_band = self._current_band(radio)
-        if view_band == ALL_BANDS:
-            # all bands (hunting mults): new mults first so none is cut off
+        if view_band == ALL_BANDS or (view_band and "," in view_band):
+            # combined bands (hunting mults): new mults first before the list limit
             spots = sorted(
                 self._visible_spots(radio, view_band),
                 key=lambda s: (self._mults(s), s.snr if s.snr is not None else -999),
@@ -3594,8 +3594,8 @@ class PouncerApp:
         self._web_asked = time.time()       # a phone looks: lists every tick again
         cache = self._web_cache
         base = cache.get(radio or self.radio) or cache.get(self.radio) or cache.get(1) or {}
-        if not band or (band not in CONTEST_BANDS and band != ALL_BANDS) \
-                or band == base.get("band"):
+        band = normalize_band_view(band)
+        if not band or band == base.get("band"):
             return base
         key = (base.get("radio") or radio or self.radio, band)
         self._web_views[key] = time.time()        # the next tick builds it
@@ -5352,9 +5352,10 @@ class PouncerApp:
         modes = {m.upper() for m in self._effective_modes(radio)}
         own = self.own_call()
         every = band == ALL_BANDS          # phone band menu > ALL: every contest band
+        selected = set(band.split(",")) if band else set()
         items = [
             s for s in self.spots.values()
-            if (band is None or band_from_khz(s.freq_khz) == band
+            if (band is None or band_from_khz(s.freq_khz) in selected
                 or (every and band_from_khz(s.freq_khz) in CONTEST_BANDS))
             and s.mode.upper() in modes
             and not (self.cfg.hide_beacons and is_beacon(s))
