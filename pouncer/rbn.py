@@ -110,12 +110,43 @@ def _to_int(token: str) -> int | None:
         return None
 
 
+# The NCDXF / IARU International Beacon Project (ncdxf.org/beacon): 18
+# beacons taking turns on five frequencies, 10 s each, every 3 minutes.
+NCDXF_BEACONS = frozenset((
+    "4U1UN", "VE8AT", "W6WX", "KH6RS", "ZL6B", "VK6RBP", "JA2IGY", "RR9O", "VR2B",
+    "4S7B", "ZS6DN", "5Z4B", "4X6TU", "OH2B", "CS3B", "LU4AA", "OA4B", "YV5B"))
+NCDXF_KHZ = (14100.0, 18110.0, 21150.0, 24930.0, 28200.0)
+NCDXF_TOL_KHZ = 0.5          # skimmers read the beacons a few 100 Hz off
+
+
+def ncdxf_beacon(call: str, khz: float) -> bool:
+    """One of the 18 NCDXF beacons ON a beacon frequency: for sure the
+    beacon. The same call elsewhere (4U1UN on 14025) is a real station."""
+    base = (call or "").upper().split("/")[0]
+    if base not in NCDXF_BEACONS:
+        return False
+    try:
+        k = float(khz)
+    except (TypeError, ValueError):
+        return False
+    return any(abs(k - f) <= NCDXF_TOL_KHZ for f in NCDXF_KHZ)
+
+
+def beacon_why(spot: Spot) -> str:
+    """Why this spot is a beacon ("" = it is not one)."""
+    if ncdxf_beacon(spot.dxcall, spot.freq_khz):
+        return "NCDXF beacon on its frequency"
+    if spot.spot_type in ("BEACON", "NCDXF"):
+        return f"spot type {spot.spot_type}"
+    if spot.dxcall.upper().endswith("/B"):
+        return "call ends in /B"
+    return ""
+
+
 def is_beacon(spot: Spot) -> bool:
-    """RBN beacon spot: type BEACON / NCDXF (IBP), or a ".../B" callsign."""
-    return (
-        spot.spot_type in ("BEACON", "NCDXF")
-        or spot.dxcall.upper().endswith("/B")
-    )
+    """Beacon spot: type BEACON / NCDXF (IBP), a ".../B" callsign, or one of
+    the NCDXF beacons on a beacon frequency (v0.7.177)."""
+    return bool(beacon_why(spot))
 
 
 _DB_RE = re.compile(r"^-?\d{1,2}dB$")

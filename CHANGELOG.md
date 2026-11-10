@@ -1,5 +1,21 @@
 # POUNCer — Changelog
 
+## v0.7.177 — 2026-11-10 — NCDXF beacons kept out (list and port 10000)
+
+- **Hide beacons** (`[rbn] hide_beacons`, on by default, now also in
+  *Settings > RBN*) also knows the 18 NCDXF / IARU beacons (ncdxf.org):
+  4U1UN, VE8AT, W6WX, KH6RS, ZL6B, VK6RBP, JA2IGY, RR9O, VR2B, 4S7B,
+  ZS6DN, 5Z4B, 4X6TU, OH2B, CS3B, LU4AA, OA4B, YV5B - but only **on a
+  beacon frequency** (14100, 18110, 21150, 24930, 28200, ±0.5 kHz), where
+  it is for sure the beacon, also when a skimmer spots it as CQ. 4U1UN on
+  14025 is a real operation and stays.
+- Beacons (these, type BEACON / NCDXF, `/B` calls) are now **dropped as
+  they come in**: not in the list and not served on port 10000 to N1MM's
+  Telnet window (before they were only hidden in the list and still served).
+- *View > Traffic console*: new group **BEACON** - one line per beacon spot
+  dropped, with why. With **None** then **BEACON** ticked you see only them.
+- Test: `test_beacons.py`.
+
 ## v0.7.176 — 2026-11-10 — Red error line; the N1MM log is read in the background
 
 - **Red line at the bottom of the window** when something fails: the

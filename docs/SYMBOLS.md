@@ -197,6 +197,7 @@ Marks in the call and Mult columns:
 | red dot | quiet for 30 s or more, no known reason |
 | grey dot | quiet for a known reason (RBN on hold on SSB, SSB from N1MM, backup not needed) |
 | **(hidden)** | switched off - still counted |
+| **BEACON** | beacon spots dropped as they come in (v0.7.177): an NCDXF beacon (4U1UN, W6WX, OH2B ...) within 0.5 kHz of 14100 / 18110 / 21150 / 24930 / 28200, type BEACON / NCDXF, a /B call. Never a red dot |
 | **None** / **All** button | untick every source at once (then tick the one to watch); with all off it ticks them all again (v0.7.175) |
 | yellow source, `>` | sent by POUNCer (commands, QSY, login) |
 | **PSKR** | PSK Reporter: `subscribe` / `unsubscribe` of one call and its FT8 / FT4 reports (the FT8-or-SSB check on 7074 - 7077, and FT8-or-CW for a CW spot in an FT8 / FT4 window) |

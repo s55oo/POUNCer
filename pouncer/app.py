@@ -25,6 +25,7 @@ from .n1mm import (
 )
 from .rbn import (
     ContinentFilter, OnFreqTracker, PeopleFilter, RBNClient, Spot, SpotterFilter, SpottedFilter,
+    beacon_why,
     is_beacon,
     is_phone_contest,
     ports_for_modes, spot_from_n1mm, digital_sure, digital_overlap, digital_mode,
@@ -1697,6 +1698,15 @@ class PouncerApp:
                     "JT65 / PSK ... in the comment.\n"
                     "Your radio on USB at 7074 - 7077: SSB only while an SSB contest is open "
                     "in N1MM; at 14074 etc. never SSB.")
+        if group == "BEACON":
+            on = g(c, "hide_beacons", True)
+            return ("BEACON - beacon spots POUNCer keeps out (v0.7.177)\n"
+                    "dropped: one of the 18 NCDXF beacons (4U1UN, W6WX, OH2B, 4X6TU ...) "
+                    "within 0.5 kHz of 14100 / 18110 / 21150 / 24930 / 28200 - the same call "
+                    "elsewhere is a real station and stays; a spot of type BEACON / NCDXF; "
+                    "a call ending in /B. Not in the list, not on port 10000.\n"
+                    + ("Hide beacons: on ([rbn] hide_beacons)." if on else
+                       "Hide beacons is OFF ([rbn] hide_beacons): beacons are listed and served."))
         if group == "FT8":
             want = ",".join(sorted({m.upper() for m in g(c, "follow_modes", ("CW",))}
                                    & {"FT8", "FT4"}))
@@ -3905,6 +3915,8 @@ class PouncerApp:
                 if time.time() - spot.received < 900:
                     self._note_self_spot(spot.dxcall, spot.spotter, spot.freq_khz)
                 continue
+            if self._beacon_out(spot):
+                continue                  # a beacon: not in the list, not on port 10000
             sf = getattr(self, "spotted_filter", None)
             if sf is not None and not sf.accept(spot.dxcall):
                 continue                  # the Spotted filter: not one of these stations
@@ -3932,6 +3944,8 @@ class PouncerApp:
                 spot.time_utc = time.strftime("%H%MZ", time.gmtime(spot.received))
             if self._is_my_call(spot):
                 continue                  # (the pop-up came with it: _team_spot)
+            if self._beacon_out(spot):
+                continue
             sf = getattr(self, "spotted_filter", None)
             if sf is not None and not sf.accept(spot.dxcall):
                 continue
@@ -3944,6 +3958,21 @@ class PouncerApp:
         self._relabel_overlap()
         if got:
             self._dirty = True
+
+    def _beacon_out(self, spot: Spot) -> bool:
+        """[rbn] hide_beacons: a beacon spot (an NCDXF beacon on its
+        frequency, type BEACON / NCDXF, a .../B call) is dropped as it comes
+        in - not in the list, not on port 10000 - and is a line in the traffic
+        console (BEACON). v0.7.177."""
+        if not getattr(self.cfg, "hide_beacons", True):
+            return False
+        why = beacon_why(spot)
+        if not why:
+            return False
+        traffic.kept_out("BEACON", getattr(spot, "source", "") or "spot", spot,
+                         f"dropped: {why} - not in the list, not on port "
+                         f"{getattr(self.cfg, 'cluster_port', 10000)}")
+        return True
 
     def _digi_wanted(self) -> set[str]:
         """FT8 / FT4 in the Spots modes ([rbn] follow_modes): those are served."""

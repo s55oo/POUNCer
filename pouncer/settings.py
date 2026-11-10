@@ -168,6 +168,13 @@ SETTINGS: list[dict] = [
     {"key": "filter.conts", "attr": "filter_conts", "kind": "text", "live": True,
      "group": "Spotters", "label": "  Continents",
      "help": "EU, NA, SA, AS, AF, OC, comma separated."},
+    {"key": "rbn.hide_beacons", "attr": "hide_beacons", "kind": "bool", "live": True,
+     "group": "RBN", "label": "Hide beacons",
+     "help": "Beacon spots are dropped as they come in - not in the list, not on port 10000 "
+             "(N1MM's Telnet window): the 18 NCDXF beacons (4U1UN, W6WX, OH2B ...) when on "
+             "14100 / 18110 / 21150 / 24930 / 28200 (+-0.5 kHz; the same call elsewhere is "
+             "a real station and stays), spots of type BEACON / NCDXF, calls ending in /B. "
+             "Each one is a line in the traffic console (BEACON)."},
     {"key": "rbn.history", "attr": "rbn_history", "kind": "int", "min": 0, "max": 500,
      "live": False, "group": "RBN", "label": "Last spots at start (SH/DX)",
      "help": "0 = off."},

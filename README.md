@@ -444,7 +444,7 @@ the telnet server's skimmer spots, and the spots-of-my-call connection -
 both azure.s53m.com:8000), **SSB** (*Spots: Cluster*, the cluster's spots of
 people, and the commands sent), N1MM UDP packets in and QSY / call commands
 out, the HTTP feed, the team, the cluster server (**SERVER**), FT8 / FT4
-spots kept out of port 10000 (**FT8**), the phone page's requests (WEB, off
+spots kept out of port 10000 (**FT8**), beacon spots kept out (**BEACON**: the NCDXF beacons on their frequencies, /B calls), the phone page's requests (WEB, off
 at first). Tick sources on / off - **None** unticks them all, to then tick
 only the one to watch (**All** ticks them back) - type a filter word (a call, `DX de`, `RadioInfo` ...),
 Pause, Clear; outgoing lines are yellow (`>`). **Hover over a source** (its
@@ -1428,7 +1428,7 @@ All options live in `config.ini` and are documented there, line by line:
 | `backup_host`, `backup_port`, `backup_commands` | azure.s53m.com, 8000, – | The **Telnet** source's server (its skimmer spots); commands sent after login. |
 | `http_backup` | https://azure.s53m.com/cors/rbn/live | The **HTTP** source (RBN over HTTP); empty = none. |
 | `follow_modes` | CW | Modes to show (`CW`, `RTTY`, `FT8`, `FT4`). |
-| `hide_beacons` | true | Hide beacons (type BEACON / NCDXF, calls ending in `/B`). |
+| `hide_beacons` | true | Drop beacon spots as they come in - not in the list, not on port 10000: the 18 NCDXF beacons (4U1UN, W6WX, OH2B ...) on 14100 / 18110 / 21150 / 24930 / 28200 (±0.5 kHz; the same call elsewhere stays), type BEACON / NCDXF, calls ending in `/B`. Traffic console: **BEACON**. Settings > RBN. |
 | `cty` | N1MM's wl_cty.dat | Country file for continent / DX / mults. |
 | **[n1mm]** | | |
 | `listen_ip`, `listen_port` | 0.0.0.0, 12060 | Where POUNCer listens for N1MM's RadioInfo. |
