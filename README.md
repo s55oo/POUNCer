@@ -1520,3 +1520,17 @@ POUNCer is built on **S53ZO's** work: his public
 (run % / hours and the ⚡ rare CQ mark), his **RBN over HTTP** feed on Azure
 (the **HTTP** spot source), the **macOS builds**, and the radio B
 tuning method of his SP_Helper. See the [overview](docs/OVERVIEW.md#built-on-s53zos-work).
+
+### Showing several bands in the browser
+
+Tap the frequency at the top to open the band menu. Enable **Select multiple
+bands**, tap the bands you want (for example **80m** and **40m**), then tap
+**Show selected bands**. You can select two or more bands. Selected buttons
+are highlighted; the list tag shows the bands joined by **+**.
+
+The browser remembers the selection separately for radio A and B. It stays
+active when you tune between bands. Tap the list tag to follow the radio's
+current band again. With multiple selection off, band buttons show one band
+immediately; **ALL bands** still shows every contest band. Selecting bands
+only changes the spot list. Tapping a spot tunes the selected radio when
+**Control N1MM** is enabled.

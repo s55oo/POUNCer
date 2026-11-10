@@ -269,6 +269,8 @@ Marks in the call and Mult columns:
 | **?** | opens the help on the phone |
 | dot in the band menu | band open light, coloured orange (only your continent) to green (DX), with the DX count when open; grey = nothing heard |
 | pink **6M** in the band menu | 6 stations spotted on that band would be a new multiplier |
+| **Select multiple bands** + **Show selected bands** | choose two or more highlighted band buttons and combine their spots; remembered per browser and radio |
+| **80m + 40m list · ...** | only the selected bands; stays active after tuning; tap the tag to follow the radio again |
 | **ALL bands** key (pink number = mults on all bands) | every band on one list, for hunting new mults (MLT puts them on top); stays on after a tap moves the radio |
 | **ALL bands list · ...** | the list shows every band; tap it to go back to the radio's band |
 

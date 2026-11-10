@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## Unreleased
+
+- Browser band menu: select two or more bands and show their spots together.
+  Selections are remembered per browser and per radio, stay active across
+  band changes, and use the existing worked, mode, SNR and multiplier rules.
+  Single-band, ALL bands and following the radio remain available.
+
 ## v0.7.180 — 2026-11-10 — Radio A / B badge in the lights row
 
 - The SO2R **Radio A / B** switch moved from the sort row to the lights row,
