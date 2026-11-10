@@ -1,8 +1,9 @@
 # POUNCer — Changelog
 
-## Unreleased
+## v0.7.181 — 2026-11-10 — Phone / browser: two or more bands on one list
 
-- Browser band menu: select two or more bands and show their spots together.
+- Browser band menu: select two or more bands and show their spots together
+  (*Select multiple bands*, tap e.g. 80m + 40m, *Show selected bands*).
   Selections are remembered per browser and per radio, stay active across
   band changes, and use the existing worked, mode, SNR and multiplier rules.
   Single-band, ALL bands and following the radio remain available.
