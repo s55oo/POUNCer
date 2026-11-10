@@ -74,6 +74,24 @@ class ConsoleTests(unittest.TestCase):
         self.assertIn("RBN shown again (paused - every radio on SSB)", body)
         self.assertEqual(self.c.counts["RBN"], 3)
 
+    def test_none_unticks_all_then_all_ticks_back(self) -> None:
+        self.assertEqual(self.c.all_btn.cget("text"), "None")
+        self.c._toggle_all()                            # None: everything off
+        self.assertFalse(any(v.get() for v in self.c.show.values()))
+        self.assertEqual(self.c.all_btn.cget("text"), "All")
+        traffic.emit("rbn", "hidden Y1")
+        self.c.add(traffic.drain())
+        self.assertNotIn("Y1", self.body())
+        self.assertEqual(self.c.counts["RBN"], 1)       # still counted
+        self.c.show["PSKR"].set(True)                   # tick one: button back to None
+        self.c._switched("PSKR")
+        self.assertEqual(self.c.all_btn.cget("text"), "None")
+        self.c._toggle_all()                            # None again: all off
+        self.c._toggle_all()                            # All: everything on
+        self.assertTrue(all(v.get() for v in self.c.show.values()))
+        self.assertIn("all sources hidden", self.body())
+        self.assertIn("all sources shown", self.body())
+
     def test_a_failing_line_does_not_stop_it(self) -> None:
         calls = []
         real = self.c.add

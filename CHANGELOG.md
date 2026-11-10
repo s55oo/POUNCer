@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## v0.7.175 — 2026-11-10 — Console: None / All button
+
+- *View > Traffic console*: a **None** button after the source switches
+  unticks them all at once (still counted in the chips) - then tick only
+  the one to watch, e.g. **FT8**. With all off it reads **All** and ticks
+  them all again.
+- The filter and the Pause / Clear / Reset counters buttons are on a
+  second row: with ten sources one row was wider than the window and cut
+  the buttons off.
+
 ## v0.7.174 — 2026-11-10 — Console: every FT8 / FT4 spot kept out of port 10000
 
 - *View > Traffic console* has a new group **FT8**: one line for every FT8 /

@@ -196,6 +196,7 @@ Marks in the call and Mult columns:
 | red dot | quiet for 30 s or more, no known reason |
 | grey dot | quiet for a known reason (RBN on hold on SSB, SSB from N1MM, backup not needed) |
 | **(hidden)** | switched off - still counted |
+| **None** / **All** button | untick every source at once (then tick the one to watch); with all off it ticks them all again (v0.7.175) |
 | yellow source, `>` | sent by POUNCer (commands, QSY, login) |
 | **PSKR** | PSK Reporter: `subscribe` / `unsubscribe` of one call and its FT8 / FT4 reports (the FT8-or-SSB check on 7074 - 7077, and FT8-or-CW for a CW spot in an FT8 / FT4 window) |
 | **FT8** | FT8 / FT4 spots kept out of port 10000 (v0.7.174): `dropped` by a feed (mode not in the Spots modes), `not served to port 10000`, `held` (CW / SSB in an FT8 window, asking PSK Reporter), then `not served` (he is on FT8) or `served now`. Never a red dot: quiet = nothing kept out |

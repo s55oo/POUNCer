@@ -441,9 +441,10 @@ source as it arrives or goes out - RBN lines, **TELNET** (*Spots: Telnet*,
 the telnet server's skimmer spots, and the spots-of-my-call connection -
 both azure.s53m.com:8000), **SSB** (*Spots: Cluster*, the cluster's spots of
 people, and the commands sent), N1MM UDP packets in and QSY / call commands
-out, the HTTP feed, the team, the cluster server (**SERVER**),
-the phone page's requests (WEB, off at first). Tick
-sources on / off, type a filter word (a call, `DX de`, `RadioInfo` ...),
+out, the HTTP feed, the team, the cluster server (**SERVER**), FT8 / FT4
+spots kept out of port 10000 (**FT8**), the phone page's requests (WEB, off
+at first). Tick sources on / off - **None** unticks them all, to then tick
+only the one to watch (**All** ticks them back) - type a filter word (a call, `DX de`, `RadioInfo` ...),
 Pause, Clear; outgoing lines are yellow (`>`). **Hover over a source** (its
 switch or its dot): a pop-up says what that source is and what POUNCer is
 monitoring with which settings right now - server and port, login call,

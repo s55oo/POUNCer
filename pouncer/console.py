@@ -76,7 +76,15 @@ class TrafficConsole:
                                  command=lambda g=g: self._switched(g))
             cb.pack(side="left", padx=(0, 6))
             self._hoverable(cb, g)
-        ttk.Label(bar, text="  filter").pack(side="left")
+        # untick all sources at once (v0.7.175) - then tick only the one to
+        # watch; with all off the button ticks them all again
+        self.all_btn = ttk.Button(bar, text="None", width=5, command=self._toggle_all)
+        self.all_btn.pack(side="left", padx=(0, 6))
+        # filter and buttons on a row of their own: with ten sources one row
+        # was wider than the window and cut the buttons off (v0.7.175)
+        bar = ttk.Frame(win, padding=(6, 0, 6, 4))
+        bar.pack(fill="x")
+        ttk.Label(bar, text="filter").pack(side="left")
         self.filter = tk.StringVar()
         ttk.Entry(bar, textvariable=self.filter, width=14).pack(side="left", padx=(4, 8))
         self.pause_btn = ttk.Button(bar, text="Pause", command=self._toggle_pause)
@@ -190,6 +198,29 @@ class TrafficConsole:
                 pass
             self._tip = None
 
+    def _toggle_all(self) -> None:
+        """None: untick every source (still counted). All: tick them all."""
+        on = not any(v.get() for v in self.show.values())
+        for v in self.show.values():
+            v.set(on)
+        self.text.insert("end", time.strftime("%H:%M:%S ", time.gmtime())
+                         + ("--- all sources shown ---" if on
+                            else "--- all sources hidden (still counted above) - "
+                                 "tick the ones to watch ---") + "\n", "mark")
+        if self._at_end():
+            self.text.see("end")
+        self._sync_all_btn()
+        self._draw_chips()
+
+    def _sync_all_btn(self) -> None:
+        btn = getattr(self, "all_btn", None)
+        if btn is not None:
+            try:
+                btn.configure(text="None" if any(v.get() for v in self.show.values())
+                              else "All")
+            except tk.TclError:
+                pass
+
     def _switched(self, g: str) -> None:
         """A source ticked on / off: say so in the view (else it looks stuck)."""
         on = self.show[g].get()
@@ -199,6 +230,7 @@ class TrafficConsole:
                             else f"--- {g} hidden (still counted above)") + " ---\n", "mark")
         if self._at_end():
             self.text.see("end")
+        self._sync_all_btn()
         self._draw_chips()
 
     def close(self) -> None:
