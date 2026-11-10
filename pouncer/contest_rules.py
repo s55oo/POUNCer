@@ -125,7 +125,11 @@ class Contact:
 
     @property
     def key(self) -> tuple:
-        return ('id', self.guid) if self.guid else ('qso', self.timestamp, self.call, self.band, self.mode)
+        return ('id', self.guid) if self.guid else self.fallback_key
+
+    @property
+    def fallback_key(self) -> tuple:
+        return ('qso', self.timestamp, self.call, self.band, self.mode)
 
 
 class SessionLog:
@@ -174,12 +178,15 @@ class SessionLog:
         if kind == 'contactinfo' and (record.key in self.retired or current is not None):
             return False  # duplicate or delayed pre-edit creation
         if kind == 'contactdelete' and current is not None and (
-                record.timestamp is not None and current.timestamp != record.timestamp
-                or record.call and current.call != record.call):
+                (record.timestamp is not None and current.timestamp != record.timestamp)
+                or (record.call and current.call != record.call)
+                or (record.band and current.band != record.band)):
             return False  # a delayed delete of the pre-edit record
         if record.timestamp is None and kind != 'contactdelete':
             self.warning = 'Contact UTC timestamp missing; waiting for database'
             return False
+        if current is not None and kind in ('contactreplace', 'contactdelete'):
+            self.retired.add(current.fallback_key)
         if not record.guid or current is None:
             # GUIDs are preferred. Otherwise match a single original call/time,
             # never every occurrence of that call on a band.
@@ -195,6 +202,9 @@ class SessionLog:
                     self.warning = 'Contact identity ambiguous; waiting for database'
                     return False
                 oldkey, old = hits[0]
+                # Keep the original call/time/band alias after database ack:
+                # delayed ID-less creation packets must not resurrect it.
+                self.retired.add(old.fallback_key)
                 if old.guid:
                     record = replace(record, guid=old.guid)
                 else:

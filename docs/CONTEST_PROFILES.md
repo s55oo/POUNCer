@@ -73,8 +73,9 @@ views. The rate line and summary use the same session snapshot and multiplier
 scope. Run-history percentages/hours and the live CQ-duration tracker remain
 independent of this eligibility calculation.
 
-A wrapping browser status line and desktop log status show the session and
-countdown. Outside a session no period is active: worked flags and new-mult
+A wrapping browser status line and a dedicated desktop session line show
+the session and countdown. The desktop line stays visible in both clean
+and detailed layouts, independently of the optional log-details panel. Outside a session no period is active: worked flags and new-mult
 recommendations are inactive. On the scheduled weekday the displayed session
 is today's, including before its start; on other days it is the most recent
 scheduled session. The next start is displayed outside the active hour.
@@ -103,7 +104,9 @@ Because UDP has no edit-version number, an authoritative database snapshot
 begun at least five seconds after an unmatched edit supersedes the pending
 patch; the existing forced reread (30 seconds) provides eventual recovery
 from dropped/reordered edits and missed packets. Duplicate/delayed creation
-packets and deletes identifying a pre-edit timestamp/call are ignored.
+packets and deletes identifying a pre-edit timestamp/call/band are ignored.
+Original fallback identities are retained after an edit is acknowledged,
+so a delayed ID-less creation cannot resurrect its original callsign/time.
 Arbitrarily reordered replacements with identical GUID/call/time cannot be
 version-ordered from the protocol alone; the database resolves them.
 

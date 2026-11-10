@@ -1555,8 +1555,9 @@ views. Session totals and unique-call multipliers do not reset at period
 boundaries. MWC uses the final suffix character as a multiplier separately
 on each band. Prior weekly rounds do not count in the current session.
 
-Desktop log status and a separate browser status line show the session,
-period (where applicable) and countdown. With Hide worked off, browser
+A dedicated desktop session line (visible in clean and detailed layouts)
+and a separate browser status line show the session, period (where
+applicable) and countdown. With Hide worked off, browser
 callsigns worked in the current period are grey. Outside the scheduled
 session, status says so and repeat eligibility/multiplier recommendations
 are inactive; totals refer to the displayed dated session.

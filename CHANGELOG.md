@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- PR #2 audit fixes: explicit reference logs load in background even when
+  N1MM has another database open; session countdown stays visible in clean
+  desktop layout; delayed old-band deletes and ID-less pre-edit creation
+  packets no longer undo corrected contacts.
+
 - Contest session profiles: TTC (15-minute stages), MINI40/MINI80 (10-minute
   periods), and OK1WC Memorial (one whole-hour session). Worked status resets
   at fixed UTC boundaries; weekly rounds in the same log stay separate.

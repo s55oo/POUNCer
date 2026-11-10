@@ -158,6 +158,36 @@ class PacketReconciliationTests(unittest.TestCase):
         self.assertFalse(log.pending)
 
 
+    def test_late_delete_of_original_band_keeps_corrected_contact(self):
+        self.log.reconcile([self.a])
+        corrected = replace(self.a, band='80m')
+        self.log.event('contactreplace', corrected)
+        self.assertFalse(self.log.event('contactdelete', replace(self.a, mode='')))
+        self.assertEqual(list(self.log.records.values()), [corrected])
+        keys, rows, mults = self.log.snapshot(PROFILES['ttc'].session(self.a.timestamp + 1))
+        self.assertEqual(keys, {('S53ZO', '80m', 'CW')})
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(mults, {('*', 'S53ZO')})
+
+    def test_idless_replay_after_confirmed_edit_cannot_resurrect_original(self):
+        for guid in ('', 'row:1', 'guid-a'):
+            with self.subTest(database_identity=guid):
+                log = SessionLog(clock=lambda: 10)
+                original = replace(self.a, guid=guid)
+                corrected = replace(original, call='S55OO', timestamp=original.timestamp + 60)
+                log.reconcile([original])
+                self.assertTrue(log.event('contactreplace', replace(corrected, guid=''),
+                                          original.call, original.timestamp))
+                log.reconcile([corrected], read_started=11)
+                self.assertFalse(log.pending)
+                self.assertFalse(log.event('contactinfo', replace(original, guid='')))
+                self.assertEqual(list(log.records.values()), [corrected])
+                # A real repeat with a different QSO time is still accepted.
+                repeat = replace(original, guid='', timestamp=original.timestamp + 900)
+                self.assertTrue(log.event('contactinfo', repeat))
+                self.assertEqual(len(log.records), 2)
+
+
 
 class WorkedSessionTests(unittest.TestCase):
     def setUp(self):
@@ -442,6 +472,51 @@ class WorkedSessionTests(unittest.TestCase):
         self.assertEqual(self.w.qso_count, 2)
         self.assertEqual(self.w.new_mults(7020, None, None, None, 'NEW'), 0)
         self.assertIn('outside session', self.w.session_text)
+
+    def test_background_reference_log_ignores_other_database_appinfo(self):
+        self.insert('a', '2026-11-10 19:35:00')
+        self.state.set_app({'kind': 'AppInfo', 'dbname': 'different.s3db',
+                            'contest_nr': 9, 'contest_name': 'CQWWCW'})
+        w = self.new_reader()
+        w.background = True
+        self.assertTrue(w.maybe_reload(wait=True))
+        self.assertTrue(w.log_open)
+        self.assertEqual(w.contest_nr, 1)
+        self.assertEqual(w.qso_count, 1)
+        self.assertTrue(w.is_worked('S53ZO', 7020, 'CW'))
+
+
+class DesktopSessionStatusTests(unittest.TestCase):
+    def test_status_visible_in_clean_and_detailed_layout_and_hidden_without_session(self):
+        from tests.test_so2r import _import_app
+        app = _import_app()
+        f = MagicMock()
+        f.worked.log_open = True
+        f.worked.session_text = 'TTC-SPCWC · period 2/4 · 15:00 to next period'
+        label = MagicMock()
+        state = {'manager': '', 'text': ''}
+        label.winfo_manager.side_effect = lambda: state['manager']
+        label.cget.side_effect = lambda key: state[key]
+        label.configure.side_effect = lambda **kw: state.update(kw)
+        label.pack.side_effect = lambda **kw: state.update(manager='pack')
+        label.pack_forget.side_effect = lambda: state.update(manager='')
+        f.session_label = label
+        app.PouncerApp._update_session_label(f)
+        for clean in (True, False, True):
+            f._clean.return_value = clean
+            app.PouncerApp._apply_layout(f)
+            self.assertEqual(state['manager'], 'pack')
+            self.assertEqual(state['text'], f.worked.session_text)
+        f.worked.session_text = ''
+        app.PouncerApp._update_session_label(f)
+        self.assertEqual(state['manager'], '')
+        f.worked.session_text = 'TTC-SPCWC · period 3/4 · 15:00 to next period'
+        app.PouncerApp._update_session_label(f)
+        self.assertEqual(state['manager'], 'pack')
+        self.assertEqual(state['text'], f.worked.session_text)
+        f.worked.log_open = False
+        app.PouncerApp._update_session_label(f)
+        self.assertEqual(state['manager'], '')
 
 
 class BrowserProfileTests(unittest.TestCase):

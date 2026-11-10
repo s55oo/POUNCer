@@ -510,6 +510,9 @@ class PouncerApp:
         self._problem_added = False
         self._lights_last: list | None = None
         self._restart_btn: tk.Button | None = None
+        # Session state must remain visible when clean layout hides _info.
+        self.session_label = self._wrap_label(header, "", muted=True)
+        self.session_label.pack_forget()
         info = ttk.Frame(header, padding=(12, 2, 12, 2))
         info.pack(fill="x")
         self._info = info
@@ -4201,6 +4204,20 @@ class PouncerApp:
             if self.web is not None:
                 self.web.set_runhist_provider(self.runhist.snapshot)
 
+    def _update_session_label(self) -> None:
+        """A wrapping session/countdown line outside the optional details panel."""
+        label = getattr(self, "session_label", None)
+        if label is None:
+            return
+        text = getattr(self.worked, "session_text", "") if self.worked.log_open else ""
+        if label.cget("text") != text:
+            label.configure(text=text)
+        if text:
+            if not label.winfo_manager():
+                label.pack(fill="x", padx=12, pady=(0, 2), after=self.lights_frame)
+        elif label.winfo_manager():
+            label.pack_forget()
+
     def _update_top_bar(self, snap) -> None:
         """Big frequency + band / mode / CW speed (the chosen radio)."""
         if snap and snap.get("freq_khz"):
@@ -4664,8 +4681,6 @@ class PouncerApp:
             if self.worked.log_open:
                 per_band = " ".join(f"{b} **{n}**" for b, n in self.worked.band_qsos())
                 worked += f"   QSOs: {per_band or '-'} (total **{self.worked.qso_count}**)"
-                if getattr(self.worked, "session_text", ""):
-                    worked += "   **" + self.worked.session_text + "**"
                 rules = self.worked.mult_summary()
                 worked += f"   mults: **{rules or 'none known'}**"
         else:
@@ -4685,6 +4700,7 @@ class PouncerApp:
             )
         )
         self.log_label.configure(text=worked)
+        self._update_session_label()
         self._update_check_line()
         self._update_band_lights()
         self._update_team_label()

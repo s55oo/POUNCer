@@ -514,12 +514,16 @@ class WorkedLog:
         self._job = None
         res = job["res"]
         self.read_ms = round((time.monotonic() - job["t"]) * 1000)
-        app = self.app_info() if self.app_info else None
-        if app and app.get("contest_nr") is not None and app["contest_nr"] != job.get("contest_nr"):
+        # Compare the resolved selection, not an unrelated AppInfo contest:
+        # [worked] db can deliberately name a different reference database.
+        selection, problem = self._resolve()
+        if (problem or selection["path"] != job["path"]
+                or selection.get("contest_nr") != job.get("contest_nr")
+                or selection.get("contest_name", "") != job.get("contest_name", "")
+                or job["path"] != self._path):
             self._signature = None
-            return False
-        if job["path"] != self._path or job.get("contest_nr") != self._wanted_nr:
-            return False                        # another log since
+            self._last_check = 0.0
+            return False                        # selection changed while reading
         if res is None:                         # the thread crashed (in pouncer.log)
             self.status = "read failed: see pouncer.log"
             return True
