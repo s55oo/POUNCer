@@ -272,7 +272,9 @@ CW speed popup, autostart of your other programs (**N1MM first**,
 then the rest when N1MM is up; 8 programs, each optionally "only when N1MM is
 up"), auto-update from GitHub.
 
-**When something is wrong** - `cache\pouncer.log`, *Help > Save
+**When something is wrong** - a **red line** at the bottom of the window
+says what failed (the refresh, a button, reading the N1MM log), when and
+how often; click it to open pouncer.log (v0.7.176). `cache\pouncer.log`, *Help > Save
 diagnostics* (zip, no passwords), `cache\perf.csv` (CPU / memory / disk of
 POUNCer, N1MM and Windows, a row a minute), **traffic console** (View menu,
 Ctrl+Shift+D: the raw data of every source, only while open), phone *Reset

@@ -1,5 +1,21 @@
 # POUNCer — Changelog
 
+## v0.7.176 — 2026-11-10 — Red error line; the N1MM log is read in the background
+
+- **Red line at the bottom of the window** when something fails: the
+  refresh, a button / timer, or reading the N1MM log - e.g.
+  `Error in the refresh at 19:47z (35x since 19:30): TclError: Item 0 not
+  found - click: open pouncer.log`. Until now only pouncer.log knew (the
+  wrong-row click of v0.7.173 was such an error, for hours). Click it: the
+  log opens and the line goes away; it comes back if the error does.
+- **The N1MM log is read in a thread.** The window only starts the read and
+  takes the finished result, so a big log (TK0C: thousands of QSOs, copied
+  and read every change) no longer makes the window and the clicks stutter.
+  A QSO logged while a read runs is read again at once; *File > Reconnect
+  log* still waits for its read. 15000 QSOs: the window waited 84 ms per
+  read before, now under 1 ms.
+- Tests: `test_worked_background.py`, `test_tick_survives.py`.
+
 ## v0.7.175 — 2026-11-10 — Console: None / All button
 
 - *View > Traffic console*: a **None** button after the source switches

@@ -20,6 +20,7 @@ import re
 import shutil
 import sqlite3
 import tempfile
+import threading
 import time
 from typing import Callable, Iterable
 
@@ -281,6 +282,11 @@ class WorkedLog:
         self.log_open = False
         self.log_state = LOG_UNKNOWN
         self.log_message = "Looking for the N1MM log..."
+        # read the log in a thread (v0.7.176, set by the app): a big log no
+        # longer stalls the window; the result is taken in maybe_reload
+        self.background = False
+        self._job: dict | None = None
+        self._gen = 0                    # +1 each time a re-read is asked for
 
     def _resolve(self) -> tuple[dict | None, tuple[str, str] | None]:
         """Return ``(info, None)`` for an open log or ``(None, (state, msg))``."""
@@ -355,7 +361,13 @@ class WorkedLog:
         log is re-read even if its change signature looks the same.
         """
         self._last_check = 0.0
+        self._invalidate()
+
+    def _invalidate(self) -> None:
+        """Read the log again on the next check (also when a read is running:
+        what it brings may be older than what N1MM just wrote)."""
         self._signature = None
+        self._gen += 1
 
     def _apply_app(self, info: dict, fixed: bool = False) -> dict:
         """What N1MM broadcast (AppInfo: database + contest; QSO packets: the
@@ -383,7 +395,7 @@ class WorkedLog:
         info["source"] = "N1MM"
         return info
 
-    def maybe_reload(self) -> bool:
+    def maybe_reload(self, wait: bool = False) -> bool:
         """Reload if the database or the open contest changed.
 
         The log's cheap change-signature (main ``.s3db`` plus its ``-wal``
@@ -393,8 +405,12 @@ class WorkedLog:
         is throttled to ``refresh_seconds`` - or to ``RETRY_SECONDS`` while no
         log is open, so opening one is noticed quickly.
 
+        With ``background`` the read itself runs in a thread and its result
+        is taken here on a later call; ``wait`` waits for it (Reconnect).
+
         Returns True when the worked set or the open/closed state changed.
         """
+        done = self._take_job()
         now = time.time()
         interval = (
             self.refresh_seconds if self._path
@@ -411,7 +427,7 @@ class WorkedLog:
             # Contacts): read the log now, whatever the files' times say, and
             # take the QSO from the packet itself at once (v0.7.171)
             self._contacts_seen = contacts
-            self._signature = None
+            self._invalidate()
             self._take_contacts()
         if now - self._last_check >= interval:
             self._last_check = now
@@ -419,27 +435,72 @@ class WorkedLog:
             if problem:
                 return self._set_closed(*problem)
             if info["path"] != self._path:
-                self._signature = None
+                self._invalidate()
             self._path = info["path"]
             self._wanted_nr = info.get("contest_nr")
             self.contest_name = info.get("contest_name", "")
             self._source = info.get("source", "ini")
         path = self._path
         if path is None:
-            return False
+            return done
         if not os.path.exists(path):
             return self._set_closed(
                 LOG_MISSING,
                 f"Log {os.path.basename(path)} not found - "
                 "open a log in N1MM (File > Open Log)",
             )
+        if self._job is not None:               # one read at a time
+            return self._wait_job() or done if wait else done
         signature = self._db_signature(path, self._wanted_nr)
         if signature == self._signature and now - getattr(self, "_loaded_at", now) < FORCE_RELOAD_S:
+            return done
+        reason = ("first" if self._signature is None and not getattr(self, "_loaded_at", 0)
+                  else "packet/recheck" if self._signature is None
+                  else "files changed" if signature != self._signature else "30 s")
+        if not self.background:
+            self._reason = reason
+            self._load(path, signature, self._wanted_nr, self.contest_name)
+            return True
+        job = {"path": path, "sig": signature, "gen": self._gen, "reason": reason,
+               "t": time.monotonic(), "res": None}
+        args = (path, self._wanted_nr, self.contest_name, getattr(self, "_source", "ini"))
+
+        def run() -> None:
+            try:
+                job["res"] = self._read(*args)
+            except Exception:  # noqa: BLE001 - a broken read must not kill the thread silently
+                log.exception("worked: log read failed (thread)")
+        job["thread"] = threading.Thread(target=run, name="worked-log", daemon=True)
+        self._job = job
+        job["thread"].start()
+        if wait:
+            return self._wait_job() or done
+        return done
+
+    def _wait_job(self, timeout: float = 15.0) -> bool:
+        job = self._job
+        if job is not None:
+            job["thread"].join(timeout)
+        return self._take_job()
+
+    def _take_job(self) -> bool:
+        """The thread's read is done: take it (on the window's thread).
+        True = the worked set changed."""
+        job = self._job
+        if job is None or job["thread"].is_alive():
             return False
-        self._reason = ("first" if self._signature is None and not getattr(self, "_loaded_at", 0)
-                        else "packet/recheck" if self._signature is None
-                        else "files changed" if signature != self._signature else "30 s")
-        self._load(path, signature, self._wanted_nr, self.contest_name)
+        self._job = None
+        res = job["res"]
+        self.read_ms = round((time.monotonic() - job["t"]) * 1000)
+        if job["path"] != self._path:
+            return False                        # another log since
+        if res is None:                         # the thread crashed (in pouncer.log)
+            self.status = "read failed: see pouncer.log"
+            return True
+        self._reason = job["reason"]
+        self._apply(res, job["sig"])
+        if job["gen"] != self._gen:
+            self._signature = None              # asked again while reading: read again
         return True
 
     @staticmethod
@@ -540,6 +601,15 @@ class WorkedLog:
         contest_nr: int | None,
         contest_name: str,
     ) -> None:
+        """Read the log and take it at once (no background thread)."""
+        self._apply(self._read(path, contest_nr, contest_name,
+                               getattr(self, "_source", "ini")), signature)
+
+    def _read(self, path: str, contest_nr: int | None, contest_name: str,
+              source: str) -> dict:
+        """The slow part - copy and query the log. Touches nothing the window
+        reads, so it can run in a thread (v0.7.176); ``_apply`` takes the
+        result."""
         keys: set[tuple[str, str, str]] = set()
         calls: set[str] = set()
         band_qsos: dict[str, int] = {}
@@ -557,7 +627,6 @@ class WorkedLog:
                 except sqlite3.Error:
                     station = ""
                 cols = {r[1] for r in con.execute("PRAGMA table_info(DXLOG)")}
-                source = getattr(self, "_source", "ini")
                 newest_nr, newest_ts = None, ""
                 if "ContestNR" in cols and "TS" in cols:
                     row = con.execute(
@@ -627,9 +696,29 @@ class WorkedLog:
             finally:
                 con.close()
         except (sqlite3.Error, OSError) as exc:
-            self.status = f"read failed: {exc}"
-            log.warning("worked-log read failed for %s: %s", path, exc)
+            return {"path": path, "error": str(exc)}
+        callhist = None
+        if any(s["field"] and s["field"] not in multsmod.FROM_CALL for s in slots):
+            callhist = self._read_callhist(path, self._callhist_sig)
+        return {"path": path, "error": "", "keys": keys, "calls": calls,
+                "band_qsos": band_qsos, "total": total, "mult_worked": mult_worked,
+                "slots": slots, "call_vals": call_vals, "station": station,
+                "contest_nr": contest_nr, "contest_name": contest_name, "source": source,
+                "newest_nr": newest_nr, "newest_ts": newest_ts, "callhist": callhist,
+                "copy": getattr(self, "_copy_info", "")}
+
+    def _apply(self, res: dict, signature: tuple) -> None:
+        """Take a ``_read`` result: the worked set, mults, counts, status."""
+        path = res["path"]
+        if res["error"]:
+            self.status = f"read failed: {res['error']}"
+            log.warning("worked-log read failed for %s: %s", path, res["error"])
             return
+        keys, calls, band_qsos, total = res["keys"], res["calls"], res["band_qsos"], res["total"]
+        mult_worked, slots, call_vals = res["mult_worked"], res["slots"], res["call_vals"]
+        station, contest_nr, contest_name = res["station"], res["contest_nr"], res["contest_name"]
+        source, newest_nr, newest_ts = res["source"], res["newest_nr"], res["newest_ts"]
+        callhist, copy_info = res["callhist"], res["copy"]
         self._keys = keys
         if getattr(self, "_extra", None):
             self._extra -= keys                 # the log has them now
@@ -640,8 +729,8 @@ class WorkedLog:
         self._mult_worked = mult_worked
         self.mult_slots = slots
         self._call_vals = call_vals
-        if any(s["field"] and s["field"] not in multsmod.FROM_CALL for s in slots):
-            self._load_callhist(path)
+        if callhist is not None:
+            self._callhist, self._callhist_sig = callhist
         self.call_count = len(calls)
         self.qso_count = total
         self._band_qsos = band_qsos
@@ -678,11 +767,11 @@ class WorkedLog:
         reason = getattr(self, "_reason", "")
         self.last_read = {"t": round(self._loaded_at), "reason": reason, "qsos": self.qso_count,
                           "calls": self.call_count, "newest": newest_ts,
-                          "copy": getattr(self, "_copy_info", "")}
+                          "copy": copy_info}
         if reason != "30 s" or self._loaded_at - getattr(self, "_read_said", 0) > 600:
             log.info("worked: read (%s): %d QSOs of contest %s, newest in the log %s, %s",
                      reason, self.qso_count, contest_nr, newest_ts or "-",
-                     getattr(self, "_copy_info", "") or "live file")
+                     copy_info or "live file")
             self._read_said = self._loaded_at
 
     @staticmethod
@@ -700,19 +789,18 @@ class WorkedLog:
             return []
         return list(row) if row else []
 
-    def _load_callhist(self, log_path: str) -> None:
+    def _read_callhist(self, log_path: str, have_sig) -> tuple | None:
         """N1MM's call history (Databases\\N1MM Admin.s3db, table CallHist):
         section, exchange, grid ... of stations not worked yet. Re-read when
-        the file changes."""
+        the file changes: (calls, signature), None = unchanged."""
         path = os.path.join(os.path.dirname(log_path), "N1MM Admin.s3db")
         try:
             st = os.stat(path)
         except OSError:
-            self._callhist, self._callhist_sig = {}, None
-            return
+            return ({}, None) if have_sig is not None else None
         sig = (path, st.st_mtime_ns, st.st_size)
-        if sig == self._callhist_sig:
-            return
+        if sig == have_sig:
+            return None
         out: dict[str, dict] = {}
         try:
             con = self._connect(path)
@@ -736,8 +824,8 @@ class WorkedLog:
                 con.close()
         except (sqlite3.Error, OSError) as exc:
             log.info("call history not read: %s", exc)
-        self._callhist, self._callhist_sig = out, sig
         log.info("call history: %d calls with exchange data", len(out))
+        return out, sig
 
     @staticmethod
     def _read_mult_types(con: sqlite3.Connection, contest_name: str) -> tuple[str, ...]:

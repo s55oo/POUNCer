@@ -197,6 +197,7 @@ class PouncerApp:
         # the open log / contest as N1MM broadcasts it (AppInfo) wins over the ini
         self.worked.app_info = self.state.app
         self.worked.contact_events = self.state.contact_events
+        self.worked.background = True   # read the log in a thread (v0.7.176)
         # No [rbn] callsign in config.ini: use the one N1MM has.
         if not config.rbn_callsign:
             config.rbn_callsign = n1mm_station_call(config.n1mm_ini or None)
@@ -359,8 +360,10 @@ class PouncerApp:
     def _build_ui(self) -> None:
         self.root = tk.Tk()
         # a failing button / timer callback goes to pouncer.log (no console in the exe)
-        self.root.report_callback_exception = (
-            lambda et, ev, tb: log.error("window callback failed", exc_info=(et, ev, tb)))
+        def _cb_failed(et, ev, tb) -> None:
+            log.error("window callback failed", exc_info=(et, ev, tb))
+            self._note_error("a button / timer", ev)
+        self.root.report_callback_exception = _cb_failed
         self.root.title(f"POUNCer {__version__} - RBN band follower for N1MM")
         theme.apply(self.root, getattr(self.cfg, "look", "classic"))   # first: SCALE, colours
         self.root.geometry(f"{theme.px(940)}x{theme.px(520)}")
@@ -656,6 +659,14 @@ class PouncerApp:
         bottom = tk.Frame(self.root, bg=theme.BAR_BG, padx=12, pady=4)
         bottom.pack(fill="x")
         self._bottom = bottom
+        # red line when something failed (v0.7.176): the refresh, a button,
+        # reading the N1MM log - until now only pouncer.log knew. Click =
+        # open pouncer.log, and the line goes away.
+        self.err_label = tk.Label(bottom, text="", anchor="w", justify="left", cursor="hand2",
+                                  bg="#c62828", fg="white", padx=6,
+                                  font=(theme.FONT, 9, "bold"))
+        self.err_label.bind("<Button-1>", lambda _e: self._open_error_log())
+        self._err = None
         self.status_label = self._wrap_label(bottom, "", bg=theme.BAR_BG)
         self.web_label = self._wrap_label(bottom, "Phone view: starting...", bg=theme.BAR_BG,
                                           muted=True)
@@ -1950,7 +1961,7 @@ class PouncerApp:
     def _reconnect_log(self) -> None:
         """Re-read which log N1MM has open and reload it now."""
         self.worked.request_recheck()
-        self.worked.maybe_reload()
+        self.worked.maybe_reload(wait=True)
         self._dirty = True
         if self.worked.log_open:
             msg = f"Log reconnected: {self.worked.db_name} ({self.worked.status})"
@@ -3259,16 +3270,55 @@ class PouncerApp:
             _note_tap(self, spot, nr, False, f"N1MM never reported {spot.freq_khz:.1f} - "
                       f"check the radio{tail}")
 
+    def _note_error(self, where: str, exc: object) -> None:
+        """Show a failure in the red status line (count, last time, what)."""
+        e = getattr(self, "_err", None)
+        what = (f"{type(exc).__name__}: {exc}" if isinstance(exc, BaseException)
+                else str(exc)).strip()[:120]
+        if e is None or e["where"] != where or e["what"] != what:
+            e = self._err = {"where": where, "what": what, "n": 0, "first": time.time()}
+        e["n"] += 1
+        e["last"] = time.time()
+        self._show_error()
+
+    def _show_error(self) -> None:
+        e = getattr(self, "_err", None)
+        lbl = getattr(self, "err_label", None)
+        if lbl is None:
+            return
+        try:
+            if e is None:
+                lbl.pack_forget()
+                return
+            at = time.strftime("%H:%M", time.gmtime(e["last"]))
+            times = f" ({e['n']}x since {time.strftime('%H:%M', time.gmtime(e['first']))})" \
+                if e["n"] > 1 else ""
+            lbl.configure(text=f"\u26a0 Error in {e['where']} at {at}z{times}: {e['what']}"
+                               "  -  click: open pouncer.log")
+            if not lbl.winfo_ismapped():
+                lbl.pack(fill="x", before=self.status_label, pady=(0, 2))
+        except tk.TclError:
+            pass
+
+    def _open_error_log(self) -> None:
+        self._err = None
+        self._show_error()
+        self._open_path(diagmod.log_path(self.cfg.run_history_dir or "cache"))
+
     def _tick(self) -> None:
         """The refresh tick, timed for the perf log (a slow tick = a slow window)."""
         t0 = time.perf_counter()
         self._tick_scheduled = False
         try:
             self._tick_body()
-        except Exception:  # noqa: BLE001 - log it, and keep the window refreshing
+        except Exception as exc:  # noqa: BLE001 - log it, and keep the window refreshing
             if time.time() - getattr(self, "_tick_err_t", 0) > 30:
                 log.exception("refresh tick failed (the window keeps refreshing)")
                 self._tick_err_t = time.time()
+            try:
+                self._note_error("the refresh", exc)
+            except Exception:  # noqa: BLE001 - the marker must never stop the tick
+                pass
         finally:
             if not self._tick_scheduled:
                 try:
@@ -3315,10 +3365,13 @@ class PouncerApp:
         try:
             if self.worked.maybe_reload():
                 self._dirty = True
-        except Exception:  # noqa: BLE001 - never stop the tick (the window would freeze)
+                if str(self.worked.status).startswith("read failed"):
+                    self._note_error("reading the N1MM log", self.worked.status[13:])
+        except Exception as exc:  # noqa: BLE001 - never stop the tick (the window would freeze)
             if time.time() - getattr(self, "_worked_err_t", 0) > 60:
                 log.exception("worked: log read failed")
                 self._worked_err_t = time.time()
+            self._note_error("reading the N1MM log", exc)
         self._prune()
         self._remember_band_freq()
         # Retuning moves the "tuned to" highlight, so redraw when it changes.
