@@ -54,14 +54,17 @@ class BackgroundReadTests(unittest.TestCase):
 
     def test_qso_logged_while_reading_is_read_again(self) -> None:
         gate = threading.Event()
+        read = threading.Event()
         real = self.wl._read
 
         def slow(*a):
             res = real(*a)                   # reads the log BEFORE the new QSO
+            read.set()
             gate.wait(5)
             return res
         self.wl._read = slow
         self.wl.maybe_reload()
+        self.assertTrue(read.wait(5))        # the thread really read it (slow CI Macs)
         con = sqlite3.connect(self.db)
         con.execute("INSERT INTO DXLOG (Call, Band, Mode) VALUES ('DL1ABC', 14.0, 'CW')")
         con.commit()

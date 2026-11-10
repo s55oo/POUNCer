@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.178 — 2026-11-10 — macOS builds of v0.7.177
+
+- Same program as v0.7.177 (NCDXF beacons kept out). v0.7.177's Apple
+  Silicon build stopped on a timing slip in a new test (on a slow build Mac
+  the background read had not started before the test added a QSO); the
+  test now waits for the read. Windows users: v0.7.177 and v0.7.178 are the
+  same.
+
 ## v0.7.177 — 2026-11-10 — NCDXF beacons kept out (list and port 10000)
 
 - **Hide beacons** (`[rbn] hide_beacons`, on by default, now also in
