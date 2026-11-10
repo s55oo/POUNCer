@@ -405,7 +405,8 @@ class PouncerApp:
         # compact mode (View > Compact window): one line with A / B instead
         # of the header, sort row, F-keys and status lines
         self._compact_bar = ttk.Frame(self.root, padding=(6, 4, 6, 2))
-        self._compact_btn = ttk.Button(self._compact_bar, text="", command=self._toggle_radio)
+        self._compact_btn = ttk.Button(self._compact_bar, text="", style="Radio.TButton",
+                                       command=self._toggle_radio)
         self._compact_btn.pack(side="left")
         # one click back to the full window (or Ctrl+M, or untick it in View)
         self._compact_full = ttk.Button(self._compact_bar, text="\u2922", width=3,
@@ -575,7 +576,7 @@ class PouncerApp:
         # SO2R: which radio (N1MM Entry Window A / B) clicks, F-keys and the
         # band follow go to; with one radio only A is used.
         self.radio_btn = flow.add(ttk.Button(flow, text=self._radio_btn_text(),
-                                             style="Accent.TButton",
+                                             style="Radio.TButton",   # bold
                                              command=self._toggle_radio), gap=16)
 
         # Function keys: always ONE row of equal buttons that share the width

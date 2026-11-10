@@ -166,8 +166,20 @@ def apply(root: tk.Tk, look: str = "classic") -> ttk.Style:
         _modern_styles(style)
     else:
         _classic_styles(style)
+    _radio_style(style)
     title_bar(root)
     return style
+
+
+def _radio_style(style: ttk.Style) -> None:
+    """The A / B (SO2R radio) button: the Accent button in bold (v0.7.179)."""
+    try:
+        style.layout("Radio.TButton", style.layout("Accent.TButton"))
+        style.configure("Radio.TButton", **(style.configure("Accent.TButton") or {}))
+        style.map("Radio.TButton", **(style.map("Accent.TButton") or {}))
+    except tk.TclError:
+        pass
+    style.configure("Radio.TButton", font=(FONT, 11, "bold"))
 
 
 def _modern_styles(style: ttk.Style) -> None:

@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.7.179 — 2026-11-10 — Bold A / B button
+
+- The SO2R **Radio A / B** button (shown when N1MM reports two radios) and
+  its compact-mode twin are now **bold** and a point larger, so the radio
+  that clicks and F-keys go to is easy to see (both looks: classic and
+  modern). The phone page's A / B key was bold already.
+
 ## v0.7.178 — 2026-11-10 — macOS builds of v0.7.177
 
 - Same program as v0.7.177 (NCDXF beacons kept out). v0.7.177's Apple
