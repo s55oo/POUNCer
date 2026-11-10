@@ -575,9 +575,15 @@ class PouncerApp:
         # Settings / Help)
         # SO2R: which radio (N1MM Entry Window A / B) clicks, F-keys and the
         # band follow go to; with one radio only A is used.
-        self.radio_btn = flow.add(ttk.Button(flow, text=self._radio_btn_text(),
-                                             style="Radio.TButton",   # bold
-                                             command=self._toggle_radio), gap=16)
+        # It sits in the lights row, right after the Update light (v0.7.180) -
+        # the sort row keeps its room for the band numbers. Blue = A, orange
+        # = B, like the phone page's key. Added there in _update_lights.
+        self.radio_btn = tk.Label(self.lights_frame, text=self._radio_btn_text(),
+                                  font=(theme.FONT, 10, "bold"), padx=8, pady=1,
+                                  fg="#ffffff", cursor="hand2")
+        self.radio_btn.bind("<Button-1>", lambda _e: self._toggle_radio())
+        self._radio_btn_added = False
+        self._paint_radio_btn()
 
         # Function keys: always ONE row of equal buttons that share the width
         # (they get narrower with the window instead of wrapping).
@@ -3798,10 +3804,17 @@ class PouncerApp:
     def _radio_btn_text(self) -> str:
         return f"Radio {'AB'[self.radio - 1]} (A/B)"
 
+    def _paint_radio_btn(self) -> None:
+        """The A / B badge's text and colour: blue = A, orange = B."""
+        btn = getattr(self, "radio_btn", None)
+        if btn is not None:
+            btn.configure(text=self._radio_btn_text(),
+                          bg="#ef6c00" if self.radio == 2 else "#1565c0")
+
     def _toggle_radio(self) -> None:
         """Main window A / B button: act on / follow the other radio."""
         self.radio = 2 if self.radio == 1 else 1
-        self.radio_btn.configure(text=self._radio_btn_text())
+        self._paint_radio_btn()
         self._dirty = True
         self._update_compact_bar()
         note = "" if self.radio in self.state.radio_numbers() or not self.state.radio_numbers() \
@@ -4593,7 +4606,7 @@ class PouncerApp:
         """Radio A / B switch only when N1MM reports two radios (SO2R / SO2V)
         - or B is still chosen; with one radio there is nothing to switch."""
         show = self._so2r() or self.radio == 2
-        flow = getattr(self, "_flow", None)
+        flow = getattr(self, "lights_frame", None)
         btn = getattr(self, "radio_btn", None)
         if flow is not None and btn is not None:
             flow.set_visible(btn, show)
@@ -5073,6 +5086,12 @@ class PouncerApp:
             name.pack(side="left")
             self.lights_frame.add(box)
             self._lights.append((dot, name))
+        # the A / B badge right after the last light (Update), before the
+        # band chips (detailed layout) and the problem sentence
+        btn = getattr(self, "radio_btn", None)
+        if btn is not None and not getattr(self, "_radio_btn_added", True):
+            self.lights_frame.add(btn, gap=10)
+            self._radio_btn_added = True
         clean = self._clean()
         if self.bands_frame is None:
             if clean:                         # clean: on the sort row, after Min SNR

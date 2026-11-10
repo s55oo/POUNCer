@@ -633,7 +633,7 @@ chooses which radio that phone works: taps (QSY + callsign), F-keys,
 ENTER, −/+ Hz and the band menu go to that radio's Entry Window, and the
 spot list follows that radio's band. Every phone keeps its own choice -
 e.g. one phone for radio A, a second one for radio B. In the main window
-the **Radio A (A/B)** button does the same for clicks and keyboard F-keys;
+the **Radio A (A/B)** badge (in the lights row, after Update; blue = A, orange = B) does the same for clicks and keyboard F-keys;
 it only shows while N1MM reports two radios (with one there is nothing to
 switch). A phone / browser that had radio B chosen goes back to A by
 itself when N1MM reports only one radio again (since v0.7.66).

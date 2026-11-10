@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.180 — 2026-11-10 — Radio A / B badge in the lights row
+
+- The SO2R **Radio A / B** switch moved from the sort row to the lights row,
+  right after the **Update** light: a bold badge, **blue = A, orange = B**
+  (like the phone page's key); click = switch. The sort row keeps its room,
+  so the band numbers (160 ... 10) move up a line. Still shown only when
+  N1MM reports two radios (or B is chosen).
+
 ## v0.7.179 — 2026-11-10 — Bold A / B button
 
 - The SO2R **Radio A / B** button (shown when N1MM reports two radios) and
