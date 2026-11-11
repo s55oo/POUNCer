@@ -24,13 +24,17 @@ class ParseTests(unittest.TestCase):
         self.assertIsNone(parse_app_info(b"<RadioInfo><Freq>1</Freq></RadioInfo>"))
         self.assertIsNone(parse_app_info(b"not xml"))
 
-    def test_contact_keeps_the_database(self) -> None:
+    def test_contact_keeps_appinfo_selection_and_database(self) -> None:
         st = RadioState()
         st.set_app(parse_app_info(APP))
         st.set_app(parse_app_info(CONTACT))
         app = st.app()
         self.assertEqual((app["dbname"], app["contest_nr"], app["contest_name"]),
-                         ("S55OO.s3db", 3, "CQWPXCW"))
+                         ("S55OO.s3db", 2, "CQWWCW"))
+        # A real selection change must come from AppInfo, not a late QSO.
+        st.set_app(parse_app_info(APP.replace(b'<contestnr>2', b'<contestnr>3').replace(
+            b'<contestname>CQWWCW', b'<contestname>CQWPXCW')))
+        self.assertEqual((st.app()['contest_nr'], st.app()['contest_name']), (3, 'CQWPXCW'))
 
 
 class OpenContestTests(unittest.TestCase):

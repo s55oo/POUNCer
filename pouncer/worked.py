@@ -12,10 +12,11 @@ when its callsign appears in the open log on the same band AND mode.
 
 from __future__ import annotations
 
-from .contest_rules import Contact, SessionLog, profile_for, utc_timestamp, contact_id, suffix_character
+from .contest_rules import Contact, SessionLog, profile_for, utc_timestamp, contact_id, suffix_character, contest_name_key
 
 import logging
 import calendar
+import ntpath
 import os
 import pathlib
 import re
@@ -30,6 +31,13 @@ from . import mults as multsmod
 from .bands import BANDS, band_from_khz
 
 log = logging.getLogger(__name__)
+
+
+def _same_database(left: str, right: str) -> bool:
+    """Use supplied Windows paths; only bare legacy names need basename matching."""
+    if ntpath.dirname(left) and ntpath.dirname(right):
+        return ntpath.normcase(ntpath.normpath(left)) == ntpath.normcase(ntpath.normpath(right))
+    return ntpath.normcase(ntpath.basename(left)) == ntpath.normcase(ntpath.basename(right))
 
 _PHONE_MODES = {"USB", "LSB", "SSB", "AM", "FM", "PH", "PHONE"}
 
@@ -641,7 +649,6 @@ class WorkedLog:
         reads, so it can run in a thread (v0.7.176); ``_apply`` takes the
         result."""
         read_started = time.monotonic()
-        use_profile = profile_for(contest_name, self.profile_override) is not None
         keys: set[tuple[str, str, str]] = set()
         calls: set[str] = set()
         band_qsos: dict[str, int] = {}
@@ -707,8 +714,7 @@ class WorkedLog:
                     values = {f: multsmod.normalize(f, v)
                               for f, v in zip(cand, row[3:3 + len(cand)])}
                     flags = tuple(bool(x) for x in row[3 + len(cand):3 + len(cand) + 3])
-                    if use_profile:
-                        contacts.append(Contact(c, label, m, utc_timestamp(row[-2]), contact_id(row[-1])))
+                    contacts.append(Contact(c, label, m, utc_timestamp(row[-2]), contact_id(row[-1])))
                     rows.append({"call": c, "band": label, "mode": m, "values": values,
                                  "flags": flags})
                     known = call_vals.setdefault(c, {})
@@ -759,10 +765,6 @@ class WorkedLog:
         source, newest_nr, newest_ts = res["source"], res["newest_nr"], res["newest_ts"]
         callhist, copy_info = res["callhist"], res["copy"]
         self._keys = keys
-        if getattr(self, "_extra", None):
-            self._extra -= keys                 # the log has them now
-        if getattr(self, "_gone", None):
-            self._gone &= {k[:2] for k in keys}   # deleted ones the log still shows
         self.station_call = station
         self.mult_types = tuple(mult_worked)
         self._mult_worked = mult_worked
@@ -814,9 +816,11 @@ class WorkedLog:
             self._read_said = self._loaded_at
 
         self._ensure_profile()
+        self._session_log.reconcile(res.get("contacts", []), res.get("read_started"))
         if self.profile:
-            self._session_log.reconcile(res.get("contacts", []), res.get("read_started"))
             self._refresh_profile(force=True)
+        else:
+            self._keys = {(r.call, r.band, r.mode) for r in self._session_log.records.values()}
 
     def _ensure_profile(self) -> None:
         scope = (self._path, self._wanted_nr, self.contest_name, self.profile_override)
@@ -825,8 +829,6 @@ class WorkedLog:
             self.profile = profile_for(self.contest_name, self.profile_override)
             self._session_log = SessionLog()
             self._profile_stamp = None
-            self._extra = set()
-            self._gone = set()
 
     def _refresh_profile(self, force=False) -> bool:
         if not self.profile:
@@ -1074,8 +1076,6 @@ class WorkedLog:
         events = getattr(self, "contact_events", None)
         if events is None:
             return
-        extra = self.__dict__.setdefault("_extra", set())
-        gone = self.__dict__.setdefault("_gone", set())
         for event in events(getattr(self, "_event_n", 0)):
             n, kind, call, band, mode, khz, nr = event[:7]
             self._event_n = n
@@ -1085,20 +1085,22 @@ class WorkedLog:
             label = band_label(band) or (band_from_khz(khz) if khz else None)
             if not label:
                 continue
-            if self.profile:
-                info = event[7] if len(event) > 7 else {}
-                record = Contact(call, label, normalize_mode(mode) if mode else "",
-                                 utc_timestamp(info.get("timestamp")), contact_id(info.get("id")))
-                self._session_log.event(kind, record, info.get("oldcall", ""),
-                                        utc_timestamp(info.get("oldtimestamp")))
+            info = event[7] if len(event) > 7 else {}
+            # Queued events may predate an AppInfo database switch. ContestNR
+            # is only unique inside one database, so check the named contest too.
+            received_db = info.get("selection_dbname")
+            if received_db and self._path and not _same_database(received_db, self._path):
                 continue
-            if kind == "contactdelete":           # (no mode in it): that call on that band
-                for k in [k for k in extra if k[:2] == (call, label)]:
-                    extra.discard(k)
-                gone.add((call, label))
-            else:
-                extra.add((call, label, normalize_mode(mode)))
-                gone.discard((call, label))
+            if (self.contest_name and info.get("contest_name") and
+                    contest_name_key(self.contest_name) != contest_name_key(info["contest_name"])):
+                continue
+            record = Contact(call, label, normalize_mode(mode) if mode else "",
+                             utc_timestamp(info.get("timestamp")), contact_id(info.get("id")))
+            self._session_log.event(kind, record, info.get("oldcall", ""),
+                                    utc_timestamp(info.get("oldtimestamp")),
+                                    require_timestamp=bool(self.profile))
+            if not self.profile:
+                self._keys = {(r.call, r.band, r.mode) for r in self._session_log.records.values()}
             log.info("worked: N1MM %s %s %s %s", kind, call, label, normalize_mode(mode))
 
     def is_worked(self, call: str, freq_khz: float, mode: str) -> bool:
@@ -1106,11 +1108,7 @@ class WorkedLog:
         if not band:
             return False
         key = (call.strip().upper(), band, normalize_mode(mode))
-        if self.profile:
-            return key in self._keys
-        if key in getattr(self, "_extra", ()):
-            return True
-        return key in self._keys and key[:2] not in getattr(self, "_gone", ())
+        return key in self._keys
 
     def worked_keys(self) -> Iterable[tuple[str, str, str]]:
         return frozenset(self._keys)
