@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## v0.7.188 — 2026-11-11 — Layout switch: no error, band chips stay
+
+- Switching *View > Detailed layout* (clean <-> detailed) gave "window
+  callback failed ... bad window path name" in pouncer.log (and the red
+  error line): the band chips are rebuilt on a layout change, and the row
+  they sat in still measured the old, destroyed chips - and then stopped
+  laying out, so the new band chips could stay hidden. A row now forgets a
+  child as soon as it is destroyed. Test: `test_flow_survives_a_destroyed_child`.
+
 ## v0.7.187 — 2026-11-11 — Country file and Super Check Partial from S53M, every Friday
 
 - **Country file:** S53M's `cty.dat` (`https://azure.s53m.com/cors/cty.dat`,

@@ -125,8 +125,22 @@ class FlowFrame(ttk.Frame):
         self._items.append((widget, gap))
         # A child that changes size (e.g. a sort arrow) re-flows the rows.
         widget.bind("<Configure>", lambda e: self._schedule(), add="+")
+        # ... and one that is destroyed (the band chips are rebuilt when the
+        # layout changes) leaves the row: measuring it raised "bad window
+        # path name" and the row stopped laying out (v0.7.188)
+        widget.bind("<Destroy>", lambda e, w=widget: self._forget(w) if e.widget is w else None,
+                    add="+")
         self._schedule()
         return widget
+
+    def _forget(self, widget) -> None:
+        self._items = [(w, g) for w, g in self._items if w is not widget]
+        self._hidden.discard(widget)
+        self._last = None
+        try:
+            self._schedule()
+        except tk.TclError:                 # the row itself is going away too
+            pass
 
     def set_visible(self, widget, visible: bool) -> None:
         """Show / hide one child; the others close up (no gap)."""
@@ -147,7 +161,11 @@ class FlowFrame(ttk.Frame):
 
     def _layout(self) -> None:
         self._pending = False
-        width = max(self.winfo_width(), 1)
+        try:
+            width = max(self.winfo_width(), 1)
+        except tk.TclError:                 # the row itself was destroyed
+            return
+        self._items = [(w, g) for w, g in self._items if w.winfo_exists()]
         items = [(w, g) for w, g in self._items if w not in self._hidden]
         sizes = [(w.winfo_reqwidth(), w.winfo_reqheight()) for w, _ in items]
         pos, height = flow_positions(
