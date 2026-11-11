@@ -15,6 +15,13 @@
 - Desktop/browser session status and countdown, automatic list refreshes,
   and timestamp/GUID-aware Contacts reconciliation. Explicit profile override
   in Settings / config.ini for custom or unverified N1MM contest names.
+- Historical opportunity hints account for contest duration: operating-hours
+  threshold is 25% of the event, capped at six hours, and requires verified
+  matching-contest history. Unknown durations/context disable the hours rule;
+  an explicit duration override is available in Settings/config.ini.
+- Desktop and browser share one classification for ⚡, sorting and alerts.
+  Tooltips/help explain the evidence and avoid departure forecasts or promises
+  that a station can wait. Sub-hour historical activity is shown in minutes.
 
 ## v0.7.183 — 2026-11-11 — Run-history save 3x faster
 

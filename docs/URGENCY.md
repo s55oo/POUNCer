@@ -1,0 +1,101 @@
+# Historical opportunity hints
+
+The ⚡ mark describes historical run/participation patterns. It does **not**
+estimate the probability of departure, predict remaining CQ time, or tell the
+operator that another station can safely wait. Low run share and limited
+participation can suggest an opportunity worth considering, but neither
+establishes when the station will leave its frequency or stop operating.
+
+## Policy
+
+A station gets a historical opportunity hint when either:
+
+1. Known historical run share is **below 30%**; or
+2. Known matching-contest operating hours are **below the smaller of six
+   hours and 25% of the full contest duration**.
+
+The 25% fraction is an explicit heuristic policy choice, not a fitted or
+validated probability model. Boundaries are strict: exactly 25% / six hours
+does not trigger the hours criterion. Six hours remains the cap for long
+contests. Repeat-QSO stages are not the event duration.
+
+| Event duration | Hours threshold | Example |
+| --- | --- | --- |
+| 1 hour | 15 minutes | 48 minutes alone does not flag; 12 minutes can |
+| 12 hours (explicit override) | 3 hours | 4 hours alone does not flag |
+| 24 hours (explicit override) | 6 hours | Existing six-hour cap applies |
+| 48 hours | 6 hours | Existing six-hour cap applies |
+
+Unknown duration, unknown/mixed/different source contest, missing/invalid
+hours, or hours exceeding event duration disable the hours criterion. Low
+run share can still generate a hint, explicitly as historical evidence.
+A missing flag is not evidence that a station will remain available.
+
+## Verified automatic durations
+
+Verified 2026-11-11, using full event windows rather than category-specific
+operating-time allowances:
+
+- **CQ WW CW/SSB: 48 hours**, [organizer rules](https://www.cqww.com/rules/).
+- **CQ WPX CW/SSB: 48 hours**, [organizer rules](https://cqwpx.com/rules/).
+- **ARRL International DX CW/SSB: 48 hours**, [organizer information](https://www.arrl.org/arrl-dx).
+- **TTC-SPCWC: 1 hour**, [organizer rules](https://www.spcwc.pl/ttc/rules/en).
+- **MINI40 / MINI80: 1 hour each**, [organizer rules](https://minitest.narod.ru/).
+- **OK1WC Memorial: 1 hour**, [organizer rules](https://memorial-ok1wc.cz/index.php?page=rules2l).
+
+The duration table accepts exact names in `pouncer/urgency.py`, including
+N1MM's `MINITESTCW`, `OK1WC` and `TTC-SPCWC` names, and their `UDC_` prefix.
+CW/SSB variants are explicit; an unlisted RTTY or similarly named contest does
+not inherit a duration. Archive names CQWW, CQWPX and ARRL also work.
+This recognition is for historical hints, not a new logger contest definition.
+
+Other events can set **Settings → Program → History hint: contest duration**
+(`[ui] urgency_contest_minutes`). Zero means the verified automatic table;
+a positive integer supplies the full event duration in minutes (maximum one
+week). The setting is live and does not change logging/scoring. Reset it to
+zero when changing contests. It does not override source-history matching.
+
+## Source context and compatibility
+
+Run percentages/hours are still calculated from the same Cabrillo history.
+Hours represent summed QSO gaps of at most 30 minutes, averaged across
+selected logs. They are an estimate of recorded activity, not exact on-time.
+Reconstructed logs may have incomplete coverage and keep the `*` marker.
+
+Archive lookups now retain `history_contests` for the **actual selected logs**,
+including when the requested contest falls back to other same-mode contests.
+Only one matching source contest enables the hours criterion. Existing
+archive-name mappings normalize N1MM names for matching; they do not supply
+unverified durations. This avoids comparing another event's participation
+hours with the current event's duration.
+
+Precomputed warm-up rows have an explicit contest column, so loading them
+supplies verified context. A verified warm-up row replaces a legacy cached
+value lacking source context rather than attaching a guessed source to old
+numbers. JSON cache and team snapshots retain the new metadata. Old caches,
+older peers and run-only lists remain readable: their R%/hours can be shown,
+but unverified hours cannot create a hint. An old cache entry outside the
+warm-up lists needs to be looked up afresh (remove its cached result or the
+cache file) before the hours criterion can use its provenance; it is not
+silently attributed to the requested contest.
+
+The archive lookup contest mappings are unchanged. In particular, selecting
+a TTC/Mini-Test/MWC contest does not claim the archive has matching history;
+generic fallback remains visibly unverified/different for the hours rule.
+
+## Presentation
+
+Python produces one per-spot classification plus reasons, effective duration,
+hours threshold, matching status and optional duration fraction. Desktop
+badges/alerts and browser badges/alerts/⚡ sorting use that same decision.
+The browser does not independently reapply the old six-hour rule. Unknown
+unclassifiable history goes last in the historical-hint sort; DX and multiplier
+sort options retain their existing precedence.
+
+Desktop tooltips and browser tooltips/Debug expose the evidence and limits.
+Alerts read **history hint + new mult**. Phrases promising that a station
+will leave soon or can wait are removed. Sub-hour historical activity is shown
+in minutes (`~12m`) instead of rounding to `~0h` or `~1h`.
+
+This change is independent of PR #2's weekly session/duplicate rules, live CQ
+tracking, clicked-station pinning, selected bands, N1MM control and transmission.

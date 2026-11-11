@@ -472,7 +472,7 @@ INDEX_HTML = """<!doctype html>
     <button data-sort="snr" id="snrsort" title="Sort by SNR. Hold 1.3 s: minimum SNR (weaker spots not listed)">SNR</button>
     <button class="dxfirst" id="dxfirst" title="DX (outside your continent) on top">DX</button>
     <button class="multfirst" id="multfirst" title="New multipliers on top: double, then single">MLT</button>
-    <button class="rarefirst" id="rarefirst" title="Rare CQ on top: stations that rarely run or are on only a few hours (from past logs)">\u26a1</button>
+    <button class="rarefirst" id="rarefirst" title="Historical opportunity hints first; no departure prediction">\u26a1</button>
     <button class="reconnect" id="reconnect" title="Re-read which log N1MM has open">&#x21bb;<span class="lbl"> Log</span></button>
   </div>
   </div>
@@ -681,20 +681,13 @@ INDEX_HTML = """<!doctype html>
     const m = /([0-9]{2})([0-9]{2})Z/.exec(s.time || '');
     return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : -1;
   }
-  // Rare CQ: runs under rare_run % of its QSOs, or on the air under
-  // rare_hours hours, in its last log of this contest (run history).
-  function isRare(s) {
-    const d = lastData || {};
-    return (s.run != null && s.run < (d.rare_run || 30)) ||
-           (s.hours != null && s.hours < (d.rare_hours || 6));
-  }
-  // \u26a1 sort: rare first, then lowest run %, then fewest hours; hours
-  // only (logs without frequencies) after those; unknown last.
+  // Classification is supplied by Python so badges, alerts and desktop
+  // use one duration/provenance-aware policy. No local six-hour fallback.
+  function isRare(s) { return s.rare === true; }
   function rareKey(s) {
-    if (s.run == null && s.hours == null) return 1e6;
-    const h = Math.min(s.hours == null ? 99 : s.hours, 99) / 10;
-    if (s.run == null) return (isRare(s) ? 0 : 1e4) + 1000 + h;
-    return (isRare(s) ? 0 : 1e4) + s.run * 10 + h;
+    if (s.run == null && s.rare_hours_limit == null) return 1e6;
+    const h = s.hours_fraction == null ? 99 : Math.min(s.hours_fraction, 1) * 99;
+    return (isRare(s) ? 0 : 1e4) + (s.run == null ? 1000 : s.run * 10) + h / 10;
   }
   // Alert: a rare CQ (\u26a1) that is also a new multiplier appears on the
   // band -> a pop-up and / or a beep (+ vibrate where the phone can), each
@@ -742,7 +735,7 @@ INDEX_HTML = """<!doctype html>
       if (navigator.vibrate) { try { navigator.vibrate([120, 60, 120]); } catch (e) {} }
     }
     const s = fresh[0];
-    if (alertPop) toast('\u26a1 rare CQ + new mult: ' + s.call + ' ' + s.freq.toFixed(1));
+    if (alertPop) toast('\u26a1 history hint + new mult: ' + s.call + ' ' + s.freq.toFixed(1));
   }
   // Ping: the round trip phone -> POUNCer PC -> phone, once a minute (a tiny
   // request POUNCer answers at once; a browser can't send a real ICMP ping).
@@ -889,7 +882,7 @@ INDEX_HTML = """<!doctype html>
   const alertPopBtn = document.getElementById('alertpopbtn');
   const alertSndBtn = document.getElementById('alertsndbtn');
   function labelAlerts() {
-    alertPopBtn.textContent = 'Alert pop-up (rare CQ + new mult): ' + (alertPop ? 'on' : 'off');
+    alertPopBtn.textContent = 'Alert pop-up (history hint + new mult): ' + (alertPop ? 'on' : 'off');
     alertSndBtn.textContent = 'Alert sound (beep + vibrate): ' + (alertSound ? 'on' : 'off');
   }
   labelAlerts();
@@ -1203,15 +1196,17 @@ INDEX_HTML = """<!doctype html>
       const b = {title: ''};          // collects the tooltip text
       if (s.country) b.title = s.country + (s.cont ? ' (' + s.cont + ')' : '');
       // Run history (past logs): R = % of QSOs made running; ⚡ = rarely
-      // runs, so a CQ from it won't last - work it now.
+      // runs or historically operated briefly relative to this contest.
       const rare = isRare(s);
       if (s.cq_min != null) b.title = (b.title ? b.title + ' - ' : '') +
         'calling on this frequency for ' + cqText(s.cq_min) + (s.first ? ' (since ' + s.first + ')' : '') + (s.time ? ', last spot ' + s.time : '');
       if (s.run != null || s.hours != null) b.title = (b.title ? b.title + ' - ' : '') +
-        (s.run != null ? 'runs ' + s.run + '% of QSOs' + (s.run_band ? ' on ' + s.run_band : '') : 'run % unknown (logs without frequencies)') +
+        (s.run != null ? 'estimated historical run share ' + s.run + '%' + (s.run_band ? ' on ' + s.run_band : '') : 'run % unknown (logs without frequencies)') +
         (s.hours != null ? ', on air ~' + s.hours + ' h' : '') +
         ' in its past logs' + (s.rec ? ' (reconstructed from other logs: a minimum)' : '') +
-        (rare ? ' - rare CQ: work it now' : '');
+        (rare ? ' - historical opportunity hint' : '') +
+        (s.urgency_note ? ' - ' + s.urgency_note : '') +
+        ' - historical heuristic; no departure probability or time estimate';
       if (s.tried != null) b.title = (b.title ? b.title + ' - ' : '') +
         'already tapped ' + (s.tries > 1 ? s.tries + ' times, last ' : '') + s.tried + ' min ago';
       if (s.busted) b.title = (b.title ? b.title + ' - ' : '') +
@@ -1228,7 +1223,7 @@ INDEX_HTML = """<!doctype html>
         // mode only when it isn't CW (in a CW contest it always is)
         (s.mode && s.mode.toUpperCase() !== 'CW' && !ssbOnly ? ' ' + esc(s.mode) : '') +
         (s.run != null ? ' R' + s.run + '%' + (s.rec ? '*' : '') : '') +
-        (s.hours != null ? ' ~' + Math.round(s.hours) + 'h' : '') +
+        (s.hours_text ? ' ' + esc(s.hours_text) : '') +
         '</span> <span>' +
         // first spotted on this frequency (UTC), SNR, time calling there
         (s.first ? esc(s.first) + ' ' : (s.time ? esc(s.time) + ' ' : '')) +
@@ -1410,16 +1405,16 @@ INDEX_HTML = """<!doctype html>
     h += row('Blue outline', yn(s === tuned, 'radio is on it', 'no'),
       'radio ' + (d.freq ? d.freq.toFixed(1) : '?') + ', spot ' + s.freq.toFixed(1) + ' (within 0.5 kHz = on it)');
     h += row('Yellow ring', yn(spotKey(s) === selKey, 'the station you tapped last', 'no'), '');
-    h += row('\u26a1', yn(rare, 'rare CQ', 'no'),
-      'run ' + (s.run == null ? '?' : s.run + '%') + ' (rare under ' + (d.rare_run || 30) + '%), on air ' +
-      (s.hours == null ? '?' : '~' + s.hours + ' h') + ' (rare under ' + (d.rare_hours || 6) + ' h)');
+    h += row('\u26a1', yn(rare, 'historical opportunity hint', 'no flag'),
+      esc((s.rare_reasons || []).join(' ') + ' ' + (s.urgency_note || '')) +
+      ' Historical heuristic; no departure probability or time estimate.');
     h += row('?', yn(s.busted, 'not in Super Check Partial', 'no: known call'), 'maybe a skimmer error when shown');
     h += row('\u21bb', yn(s.tried != null, 'tapped ' + (s.tries || 1) + '\u00d7, last ' + s.tried + ' min ago', 'not tapped lately'), '');
     h += '</table><h3>Numbers on the tile</h3><table>';
     h += row(s.freq.toFixed(1), 'spot frequency (kHz)', s.mode && s.mode !== 'CW' ? 'mode ' + esc(s.mode) : '');
-    if (s.run != null) h += row('R' + s.run + '%' + (s.rec ? '*' : ''), 'share of its QSOs made running in past logs' +
+    if (s.run != null) h += row('R' + s.run + '%' + (s.rec ? '*' : ''), 'estimated share of measurable QSOs classified as running in past logs' +
       (s.run_band ? ' (on ' + esc(s.run_band) + ')' : ''), s.rec ? '* = log reconstructed from others: a minimum' : '');
-    if (s.hours != null) h += row('~' + Math.round(s.hours) + 'h', 'hours on the air in past logs of this contest', '');
+    if (s.hours != null) h += row(esc(s.hours_text || ('~' + s.hours + 'h')), 'operating time in historical logs (may be other contests)', '');
     h += row(esc(s.first || s.time || '--'), 'first spotted on this frequency (UTC)', s.time ? 'last spot ' + esc(s.time) : '');
     h += row(s.snr == null ? '--' : s.snr + 'dB', 'skimmer SNR (newest spot)', '');
     if (s.cq_min != null) h += row('cq' + cqText(s.cq_min), 'calling on this frequency for ' + cqText(s.cq_min), '');
@@ -1454,7 +1449,8 @@ INDEX_HTML = """<!doctype html>
     const r = f.run || {};
     h += '</table><h3>Run history (past logs)</h3><table>';
     h += row('Run', r.run == null ? 'unknown' : r.run + '%' + (r.band ? ' on ' + esc(r.band) : ''), 'rare when under ' + f.rare_run + '%');
-    h += row('On air', r.hours == null ? 'unknown' : '~' + r.hours + ' h', 'rare when under ' + f.rare_hours + ' h');
+    h += row('On air', r.hours == null ? 'unknown' : esc(r.hours_text || ('~' + r.hours + ' h')), esc(r.urgency_note || 'Hours hint unavailable.'));
+    h += row('History hint', esc((r.rare_reasons || []).join(' ') || 'No flag from the available evidence.'), 'Historical heuristic; no departure probability or time estimate.');
     h += row('Log', r.rec ? 'reconstructed from other logs' : (r.run == null && r.hours == null ? 'no log found' : 'its own log'), '');
     h += '</table><h3>Spot</h3><table>';
     h += row('Type / WPM', esc(f.type || '?') + (f.wpm ? ', ' + f.wpm + ' WPM' : ''), '');
@@ -1912,8 +1908,8 @@ The browser on the PC itself always can.</p>
   <dt><span class="k mag">MLT</span></dt>
   <dd>New multipliers on top: double first, then single.</dd>
   <dt><span class="k">&#9889;</span></dt>
-  <dd>Rare CQ on top: stations that hardly ever run, or are on only a few hours
-    (see <i>Run history</i> below). Unknown ones go last.</dd>
+  <dd>Historical opportunity hints first (see <i>Run history</i> below).
+    Unclassified history goes last. No departure prediction is made.</dd>
   <dt><span class="k">&#8635;</span></dt>
   <dd>Re-read which log N1MM has open (after you open another log).</dd>
 </dl>
@@ -1986,7 +1982,8 @@ excluded with a warning; N1MM still controls logging, serials and scoring.</p>
     isn't CW (e.g. RTTY).</dd>
   <dt>R81%</dt>
   <dd><b>Run history</b>: in its logs of the last 6 years of this contest (from S53ZO's
-    public log archive), 81% of its QSOs were made calling CQ - on this band when its logs
+    public log archive), 81% of measurable QSOs were classified as running from
+    frequency history (an estimate) - on this band when its logs
     have enough QSOs here, else over all bands (tap and hold the tile: the tooltip says
     which); on SSB from its SSB logs, on CW from its CW logs. Logs written without real
     frequencies give only the hours (no R%). For CQWW, ARRL DX and CQ WPX (CW and, as a separate list,
@@ -2001,8 +1998,10 @@ excluded with a warning; N1MM still controls logging, serials and scoring.</p>
   <dd>The call is not in the <b>Super Check Partial</b> list (calls active in contests) -
     maybe a skimmer error, one letter wrong. The list is downloaded fresh every week.</dd>
   <dt>&#9889;</dt>
-  <dd><b>Rare CQ</b>: runs under 30% or is on under 6 h. A CQ from it won't last -
-    work it now.</dd>
+  <dd><b>Historical opportunity hint</b>: run share below 30%, or matching-contest
+    operating hours below 25% of contest duration (capped at 6 h). Unknown duration
+    or unverified/different history disables the hours criterion. This is a
+    heuristic, with no probability or prediction of when the station will leave.</dd>
   <dt>1132Z</dt><dd>When it was first spotted on this frequency (UTC).</dd>
   <dt>22dB</dt><dd>Signal-to-noise on the skimmer.</dd>
   <dt>cq3m</dt>
@@ -2011,7 +2010,7 @@ excluded with a warning; N1MM still controls logging, serials and scoring.</p>
 <p>A <b>darker</b> tile (the text stays white) has not been re-spotted for 5 minutes - the station has probably
 stopped calling there. Not shown: stations you already worked on this band and mode,
 your own call, and beacons. One tile per station and band (the newest spot).</p>
-<p><b>Alert</b>: when a rare CQ (&#9889;) that is also a new multiplier appears on your
+<p><b>Alert</b>: when a historical opportunity hint (&#9889;) that is also a new multiplier appears on your
 band, the phone shows it in a pop-up and beeps (and vibrates where it can). Two
 switches in the band menu (tap the frequency): <b>Alert pop-up</b> and <b>Alert
 sound</b> - e.g. the pop-up without the beep. Sound works after your first tap on the

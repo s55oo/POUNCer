@@ -45,6 +45,12 @@ SETTINGS: list[dict] = [
      "help": "auto: verified N1MM IDs; off: ordinary contest behavior. "
              "ttc: 15-minute periods; mini40/mini80: 10-minute periods; mwc: whole hour. "
              "UTC schedule, session counts and multipliers. Restart after changing."},
+    {"key": "ui.urgency_contest_minutes", "attr": "urgency_contest_minutes", "kind": "int",
+     "min": 0, "max": 10080, "live": True, "group": "Program",
+     "label": "History hint: contest duration (minutes, 0 = auto)",
+     "help": "Hours hint below 25% of event duration, capped at 6 hours. "
+             "Requires matching-contest history; unknown duration/source disables that hint. "
+             "A historical heuristic, not a prediction of when a station will leave."},
     {"key": "cluster.enabled", "attr": "cluster_server", "kind": "bool", "live": True,
      "group": "Cluster server", "label": "Serve the spots as a DX cluster (telnet)",
      "help": "N1MM's Telnet window (or any cluster client) connects to this PC on the port "
@@ -336,8 +342,8 @@ SETTINGS: list[dict] = [
              "strong, pink bar = new mult); off (default) = the table with columns in small "
              "fonts. View menu / Ctrl+T."},
     {"key": "ui.alert_popup", "attr": "alert_popup", "kind": "bool",
-     "live": True, "group": "Program", "label": "Alert pop-up (rare CQ + new mult)",
-     "help": "Window: a yellow pop-up when a rare CQ (⚡) that is also a new multiplier "
+     "live": True, "group": "Program", "label": "Alert pop-up (history hint + new mult)",
+     "help": "Window: a yellow pop-up when a historical opportunity hint (⚡) that is also a new multiplier "
              "appears on your band; click it to QSY and call. Never takes the keyboard "
              "from N1MM. (The phone has its own switches in the band menu.)"},
     {"key": "ui.alert_sound", "attr": "alert_sound", "kind": "bool",

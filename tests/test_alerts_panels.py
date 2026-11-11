@@ -203,7 +203,7 @@ class TkRebuildAlertTests(unittest.TestCase):
             _sorted_visible=lambda: list(spots), _on_freq_spot=lambda items: None,
             worked=types.SimpleNamespace(is_worked=lambda c, k, m: c == "VP8Z"),
             _mults=lambda s: 0 if s.dxcall == "DL1AA" else 1,
-            _run_fields=lambda s: {"run": 5, "hours": 2} if s.dxcall != "K1AA" else {},
+            _run_fields=lambda s: {"run": 5, "hours": 2, "rare": True} if s.dxcall != "K1AA" else {},
             scp=None, _is_dx=lambda c: True, _continent=lambda c: "AF", _tried=lambda s: None,
             _check_alerts=lambda items: got.extend(s.dxcall for s in items))
         f._row_key = PouncerApp._row_key

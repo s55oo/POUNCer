@@ -253,7 +253,7 @@ class TkSettingsWindowTests(unittest.TestCase):
         self.assertIn("Start autostart programs now", flabels)
         self.assertIn("Open the autostart folder", flabels)
         self.assertIn("Always on top", vlabels)
-        self.assertIn("Alert pop-up (rare CQ + new mult)", vlabels)
+        self.assertIn("Alert pop-up (history hint + new mult)", vlabels)
         self.assertIn("Alert sound", vlabels)
         self.assertIn("Phone page as an app window", vlabels)
         self.assertIn("Station test (QSY + callsign, each radio)", vlabels)
@@ -359,7 +359,7 @@ class TkSpotListTests(unittest.TestCase):
             _sorted_visible=lambda: list(spots), _on_freq_spot=lambda items: None,
             worked=types.SimpleNamespace(is_worked=lambda c, k, m: c == "K1ABC"),
             _mults=lambda s: 1 if s.dxcall == "S50A" else 0,
-            _run_fields=lambda s: {"run": 10, "hours": 20} if s.dxcall == "DL1AA" else {},
+            _run_fields=lambda s: {"run": 10, "hours": 20, "rare": True} if s.dxcall == "DL1AA" else {},
             scp=types.SimpleNamespace(busted=lambda c: c == "PHB9CBR"),
             _is_dx=lambda c: False, _continent=lambda c: "EU",
             _act_on_spot=lambda s: tapped.append(s.dxcall))

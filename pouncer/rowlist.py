@@ -8,7 +8,7 @@ and colour is used only where it means something:
 - worked: the whole row grey; not re-spotted lately: dimmer;
 - DX (another continent): a warm row tint;
 - the station the radio is on: a blue frame; the selected row: a yellow frame;
-- run history: R84% (⚡ yellow = a rare runner - work it now).
+- run history: R84% (⚡ yellow = a historical opportunity hint).
 
 Columns: kHz, Call, SNR, WPM, Mult, Runs, Age, Skimmer - plus Mode and Type
 only when the list holds more than one mode / a spot that isn't a CQ.
