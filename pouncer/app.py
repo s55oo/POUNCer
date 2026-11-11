@@ -4447,6 +4447,7 @@ class PouncerApp:
                                     band=band_from_khz(s.freq_khz))
         info = info or {}
         return {"run": info.get("run"), "hours": info.get("hours"),
+                "hours_unrounded": info.get("hours_unrounded") is True,
                 "rec": bool(info.get("rec")), "run_band": info.get("band"),
                 **classify_urgency(info, self.worked.contest_name,
                                    getattr(self.cfg, "urgency_contest_minutes", 0))}
@@ -5585,8 +5586,11 @@ class PouncerApp:
                          f"{pct} % of measurable QSOs{band} were classified as running "
                          "from frequency history (an estimate).")
         if hours is not None:
-            span = f"{round(hours * 60)} minutes" if hours < 1 else f"{round(hours)} hours"
-            lines.append(f"{format_hours(hours)} - on the air about {span} in those "
+            unrounded = run.get("hours_unrounded") is True
+            label = format_hours(hours, unrounded=unrounded)
+            span = (f"{hours:g} hours (rounded)" if hours < 1 and not unrounded else
+                    f"{round(hours * 60)} minutes" if hours < 1 else f"{round(hours)} hours")
+            lines.append(f"{label} - on the air about {span} in those "
                          "historical logs (may be other contests).")
         if run.get("rec"):
             lines.append("* - a reconstructed log (put together from other stations' logs), "
@@ -5608,7 +5612,8 @@ class PouncerApp:
         if run.get("run") is not None:
             runs = f"R{run['run']}%" + ("*" if run.get("rec") else "")
         if run.get("hours") is not None:
-            runs += (" " if runs else "") + format_hours(run["hours"])
+            runs += (" " if runs else "") + format_hours(
+                run["hours"], unrounded=run.get("hours_unrounded") is True)
         own = self._own_mark(s) if hasattr(self, "_own_mark") else ""
         return {"freq": f"{s.freq_khz:.1f}", "call": s.dxcall,
                 "snr": "" if s.snr is None else str(s.snr),
@@ -5630,7 +5635,7 @@ class PouncerApp:
         if run.get("run") is not None:
             line1 += f"  R{run['run']}%" + ("*" if run.get("rec") else "")
         if run.get("hours") is not None:
-            line1 += "  " + format_hours(run["hours"])
+            line1 += "  " + format_hours(run["hours"], unrounded=run.get("hours_unrounded") is True)
         cq = self._cq_minutes(s) if hasattr(self, "_on_freq") else None
         line2 = (self._first_heard_utc(s) if hasattr(self, "_on_freq") else s.time_utc or "")
         line2 += "  " + ("--" if s.snr is None else f"{s.snr}dB")

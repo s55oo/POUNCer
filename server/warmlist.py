@@ -155,6 +155,7 @@ def main() -> None:
         ("built", datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")),
         ("years", f"{years[0]}-{years[-1]}"),
         ("contests", ",".join(f"{c} {'SSB' if m == 'PH' else m}" for c, m, _ in contests)),
+        ("hours_unrounded", "1"),
     ])
     con.commit()
     con.execute("VACUUM")
