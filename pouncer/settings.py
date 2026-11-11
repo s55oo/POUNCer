@@ -45,6 +45,12 @@ SETTINGS: list[dict] = [
      "help": "auto: verified N1MM IDs; off: ordinary contest behavior. "
              "ttc: 15-minute periods; mini40/mini80: 10-minute periods; mwc: whole hour. "
              "UTC schedule, session counts and multipliers. Restart after changing."},
+    {"key": "ui.zo_mode", "attr": "zo_mode", "kind": "bool", "live": True,
+     "group": "Program", "label": "ZO mode",
+     "help": "Three vertical callsign columns: Urgent, Medium, Normal. Unknown history "
+             "is separated below Normal. Existing sorting applies within each column. "
+             "Desktop uses tiles; browser keeps all three columns on phones too. "
+             "Historical priority hints, not departure probabilities."},
     {"key": "ui.urgency_contest_minutes", "attr": "urgency_contest_minutes", "kind": "int",
      "min": 0, "max": 10080, "live": True, "group": "Program",
      "label": "History hint: contest duration (minutes, 0 = auto)",

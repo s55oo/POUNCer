@@ -68,6 +68,8 @@ def classify(info: dict, contest: str, duration_minutes=0) -> dict:
     override = number(duration_minutes, high=10080)
     duration = override / 60 if override else DURATIONS.get(name_key(contest))
     run = number(info.get('run'), high=100)
+    if run is not None and run.is_integer():
+        run = int(run)
     hours = number(info.get('hours'))
     unrounded = info.get('hours_unrounded') is True
     contexts = info.get('history_contests')
@@ -108,8 +110,10 @@ def classify(info: dict, contest: str, duration_minutes=0) -> dict:
     explanation = reasons or medium or ([
         'No elevated historical priority detected; this does not promise continued availability.'
     ] if level == 'normal' else ['Not enough usable history to assign a priority.'])
-    confidence = 'limited' if not matching or not unrounded or info.get('rec') else 'matching-contest history'
-    return {'urgency': level, 'urgency_reasons': explanation, 'urgency_confidence': confidence,
+    confidence = ('insufficient evidence' if level == 'unknown' else
+                  'limited' if not matching or not unrounded or info.get('rec')
+                  else 'matching-contest history')
+    return {'run': run, 'hours': hours, 'urgency': level, 'urgency_reasons': explanation, 'urgency_confidence': confidence,
             'hours_text': format_hours(hours, unrounded=unrounded), 'rare': bool(reasons), 'rare_reasons': reasons, 'rare_hours_limit': limit,
             'hours_fraction': fraction, 'contest_hours': duration, 'history_matches': matching,
-            'urgency_note': note, 'history_contests': contexts if isinstance(contexts, list) else []}
+            'urgency_note': note, 'history_contests': [c for c in contexts if isinstance(c, str)] if isinstance(contexts, list) else []}

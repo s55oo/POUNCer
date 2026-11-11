@@ -3370,6 +3370,10 @@ class PouncerApp:
         return out
 
     def _tick_body(self) -> None:
+        zo_mode = bool(getattr(self.cfg, "zo_mode", False))
+        if zo_mode != getattr(self, "_zo_mode_seen", False):
+            self._zo_mode_seen = zo_mode
+            self._show_tiles()
         self.updater.maybe_check()
         self._check_auto_restart()
         self._drain_status()
@@ -3489,6 +3493,7 @@ class PouncerApp:
             "net": self._net_text(),
             "contest_bands": list(CONTEST_BANDS),
             "tune_step": self.cfg.tune_step_hz,
+            "zo_mode": bool(getattr(self.cfg, "zo_mode", False)),
             "rare_run": RARE_RUN_PCT,
             "filter": self._filter_width,
             # "cat": NAR/WIDE set the filter (always send); "toggle": Alt+'
@@ -5483,7 +5488,7 @@ class PouncerApp:
         alert = []
         tile_items = []
         row_items = []
-        want_tiles = getattr(self, "tiles_var", None) is not None and self.tiles_var.get()
+        want_tiles = kind == "tiles"
         want_rows = kind == "rows"
         fade_s = getattr(self.cfg, "fade_minutes", 5) * 60 if hasattr(self, "cfg") else 300
         net_down = self._net_down_since() if hasattr(self, "_net_down_since") else None
@@ -5552,7 +5557,8 @@ class PouncerApp:
             # error that stopped the refresh - the list froze after a click
             self.tree.selection_set(reselect)
             self.tree.focus(reselect)
-        if getattr(self, "tiles_var", None) is not None and self.tiles_var.get():
+        if want_tiles:
+            self.tiles.zo_mode = bool(getattr(self.cfg, "zo_mode", False))
             self.tiles.set_items(tile_items, int(reselect) if reselect is not None else None)
         if want_rows:
             self.rows.set_items(row_items, int(reselect) if reselect is not None else None)
@@ -5577,9 +5583,14 @@ class PouncerApp:
     def run_explain(call: str, run: dict, rare: bool) -> str:
         """The hover text of Runs: what 'R26% ~18h' means for this station."""
         pct, hours = run.get("run"), run.get("hours")
-        if pct is None and hours is None:
+        if pct is None and hours is None and not run.get("urgency"):
             return ""
         lines = []
+        if run.get("urgency"):
+            lines.append("ZO priority: " + run["urgency"].title() + " · " + run.get("urgency_confidence", ""))
+            lines.extend(run.get("urgency_reasons", []))
+            lines.append("History contests: " + (", ".join(run.get("history_contests", [])) or "unverified") +
+                         (" (matching)." if run.get("history_matches") else " (different or unverified)."))
         band = f" on {run['run_band']}" if run.get("run_band") else ""
         if pct is not None:
             lines.append(f"R{pct}%{'*' if run.get('rec') else ''} - in {call}'s historical logs, "
@@ -5642,6 +5653,8 @@ class PouncerApp:
         if cq is not None:
             line2 += f"  cq{cq}m"
         return {"call": s.dxcall, "line1": line1, "line2": line2,
+                "urgency": run.get("urgency", "unknown"),
+                "run_tip": self.run_explain(s.dxcall, run, bool(rare)),
                 "strong": s.snr is not None and s.snr >= 20, "dx": bool(self._is_dx(s.dxcall)),
                 "mult": int(mults or 0), "worked": bool(worked), "rare": bool(rare),
                 "busted": bool(busted), "onfreq": bool(onfreq), "stale": bool(stale),
@@ -5664,7 +5677,8 @@ class PouncerApp:
     def _list_kind(self) -> str:
         """Which list is shown: 'tiles', 'rows' (clean layout) or 'tree'
         (detailed layout, and the compact window)."""
-        if getattr(self, "tiles_var", None) is not None and self.tiles_var.get():
+        if (bool(getattr(getattr(self, "cfg", None), "zo_mode", False))
+                or (getattr(self, "tiles_var", None) is not None and self.tiles_var.get())):
             return "tiles"
         compact = getattr(self, "compact_var", None) is not None and self.compact_var.get()
         if self._clean() and not compact and getattr(self, "rows", None) is not None:

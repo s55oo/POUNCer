@@ -148,6 +148,19 @@ INDEX_HTML = """<!doctype html>
       line-height: 1.25; }
     button.tile .detail > span { display: block; }
   }
+  .zo-mode .grid { grid-auto-flow: row; align-items: start; align-content: start; gap: 4px; padding: 4px; }
+  .zo-mode button.tile { flex-direction: column; align-items: stretch; justify-content: flex-start;
+    min-width: 0; min-height: 100px; padding: 8px 5px; gap: 4px; }
+  .zo-mode button.tile .call, .zo-mode button.tile.tight .call,
+  .zo-mode button.tile .call.long, .zo-mode button.tile .call.xlong {
+    font-size: clamp(12px, 2.6vw, 22px); white-space: normal; overflow-wrap: anywhere; }
+  .zo-mode button.tile .detail, .zo-mode button.tile.tight .detail {
+    font-size: clamp(10px, 1.6vw, 13px); white-space: normal; overflow-wrap: anywhere; text-align: left; }
+  .zo-mode .zo-heading { font-size: clamp(11px, 2vw, 16px); margin: 0; padding: 6px 2px;
+    color: #cfd8dc; overflow-wrap: anywhere; }
+  .zo-mode .zo-heading.urgent { color: #ffb74d; }
+  .zo-mode .zo-heading.medium { color: #ffd54f; }
+  .zo-mode .zo-heading.unknown { border-top: 1px solid #607d8b; font-size: 11px; }
   .empty { padding: 24px; opacity: .6; font-size: 16px; }
   /* footer: CW speed -/+, VFO -/+ step, NEXT station (no TX) */
   .footbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 3;
@@ -671,8 +684,30 @@ INDEX_HTML = """<!doctype html>
   function hideToast() {           // all of them (e.g. a sheet opened)
     Array.from(toastEl.children).forEach(dropToast);
   }
+  // Classification comes only from the shared server policy.
+  function zoGroup(s) {
+    return ['urgent', 'medium', 'normal'].includes(s.urgency) ? s.urgency : 'unknown';
+  }
+  function zoOrder(spots) {
+    return ['urgent', 'medium', 'normal', 'unknown'].flatMap(g => spots.filter(s => zoGroup(s) === g));
+  }
+  function zoLayout(spots) {
+    const counts = [0, 0, 0, 0];
+    spots.forEach(s => counts[['urgent','medium','normal','unknown'].indexOf(zoGroup(s))]++);
+    const headings = [
+      {column:1, row:1, group:'urgent', text:'\\u26a1 Urgent (' + counts[0] + ')'},
+      {column:2, row:1, group:'medium', text:'Medium (' + counts[1] + ')'},
+      {column:3, row:1, group:'normal', text:'Normal (' + (counts[2] + counts[3]) + ')'}];
+    if (counts[3]) headings.push({column:3, row:counts[2]+2, group:'unknown', text:'Unknown (' + counts[3] + ')'});
+    const next = [2, 2, 2, counts[2] + 3];
+    const positions = spots.map(s => {
+      const g = ['urgent','medium','normal','unknown'].indexOf(zoGroup(s));
+      return {column: Math.min(g+1, 3), row: next[g]++};
+    });
+    return {headings, positions, rows:Math.max(1, ...positions.map(p => p.row))};
+  }
   function columns() {
-    return window.innerWidth >= 620 ? 2 : 1;
+    return lastData.zo_mode ? 3 : (window.innerWidth >= 620 ? 2 : 1);
   }
   function snrVal(s) {
     return s.snr == null ? -999 : s.snr;
@@ -806,7 +841,7 @@ INDEX_HTML = """<!doctype html>
   function arrange(data) {
     const full = sorted(data.spots, data.freq);
     const now = Date.now();
-    const sig = [sortKey, freqFrom, dxFirst, multFirst, rareFirst, data.band, data.radio].join('|');
+    const sig = [sortKey, freqFrom, dxFirst, multFirst, rareFirst, data.band, data.radio, data.zo_mode].join('|');
     if (!calm || sig !== calmSig || !calmOrder.length ||
         (now - calmSorted >= CALM_RESORT_MS && now - lastTouch >= CALM_HOLD_MS)) {
       calmSig = sig; calmSorted = now; calmNew = new Set();
@@ -1156,12 +1191,15 @@ INDEX_HTML = """<!doctype html>
       toast('CW ' + wpm + ' WPM ' + (wpm > lastWpm.v ? '\u25b2' : '\u25bc'), null, 1500);
     }
     lastWpm = {r: cur, v: wpm || 0};
-    const spots = arrange(data);
+    document.body.classList.toggle('zo-mode', !!data.zo_mode);
+    const arranged = arrange(data);
+    const spots = data.zo_mode ? zoOrder(arranged) : arranged;
     applyPin(spots);
     shown = spots;
-    const rows = Math.max(1, Math.ceil(spots.length / cols));
+    const zo = data.zo_mode ? zoLayout(spots) : null;
+    const rows = zo ? zo.rows : Math.max(1, Math.ceil(spots.length / cols));
     grid.style.gridTemplateColumns = 'repeat(' + cols + ', minmax(0, 1fr))';
-    grid.style.gridTemplateRows = 'repeat(' + rows + ', minmax(var(--row), auto))';
+    grid.style.gridTemplateRows = 'repeat(' + rows + (zo ? ', auto)' : ', minmax(var(--row), auto))');
     // "Tuned to": the spot nearest the radio frequency, within 0.5 kHz.
     let tuned = null;
     if (typeof data.freq === 'number' && data.freq > 0) {
@@ -1177,11 +1215,22 @@ INDEX_HTML = """<!doctype html>
     // tile under your finger stays the same element.
     const seen = new Set();
     let pos = 0;
+    while (zoHeads.length < (zo ? zo.headings.length : 0)) zoHeads.push(document.createElement('h3'));
+    zoHeads.forEach((el, n) => {
+      if (!zo || n >= zo.headings.length) { el.remove(); return; }
+      const h = zo.headings[n];
+      el.className = 'zo-heading ' + h.group;
+      el.textContent = h.text;
+      el.style.gridColumn = String(h.column);
+      el.style.gridRow = String(h.row);
+      if (grid.children[pos] !== el) grid.insertBefore(el, grid.children[pos] || null);
+      pos++;
+    });
     // other column count / window width: measure "too wide" again
     const layout = cols + 'x' + window.innerWidth;
     if (layout !== tilesLayout) { tilesLayout = layout; tiles.forEach(t => { t.tight = null; }); }
     if (emptyEl && emptyEl.parentNode) emptyEl.remove();
-    spots.forEach(s => {
+    spots.forEach((s, index) => {
       let key = calmKey(s), n = 1;
       while (seen.has(key)) key = calmKey(s) + '#' + (++n);
       seen.add(key);
@@ -1195,13 +1244,15 @@ INDEX_HTML = """<!doctype html>
       // DX (outside our continent): callsign in yellow; EU stays white
       const b = {title: ''};          // collects the tooltip text
       if (s.country) b.title = s.country + (s.cont ? ' (' + s.cont + ')' : '');
+      if (data.zo_mode) b.title += '\\nZO priority: ' + zoGroup(s) + ' · ' + (s.urgency_confidence || 'limited') +
+        '\\n' + (s.urgency_reasons || []).join(' ') + '\\nHistorical hints, not departure probabilities.';
       // Run history (past logs): R = % of QSOs made running; ⚡ = rarely
       // runs or historically operated briefly relative to this contest.
       const rare = isRare(s);
       if (s.cq_min != null) b.title = (b.title ? b.title + ' - ' : '') +
         'calling on this frequency for ' + cqText(s.cq_min) + (s.first ? ' (since ' + s.first + ')' : '') + (s.time ? ', last spot ' + s.time : '');
       if (s.run != null || s.hours != null) b.title = (b.title ? b.title + ' - ' : '') +
-        (s.run != null ? 'estimated historical run share ' + s.run + '%' + (s.run_band ? ' on ' + s.run_band : '') : 'run % unknown (logs without frequencies)') +
+        (s.run != null ? 'runs ' + s.run + '% of QSOs' + (s.run_band ? ' on ' + s.run_band : '') : 'run % unknown (logs without frequencies)') +
         (s.hours != null ? ', on air ~' + s.hours + ' h' : '') +
         ' in its past logs' + (s.rec ? ' (reconstructed from other logs: a minimum)' : '') +
         (rare ? ' - historical opportunity hint' : '') +
@@ -1238,6 +1289,8 @@ INDEX_HTML = """<!doctype html>
         tiles.set(key, t);
       }
       const el = t.el;
+      el.style.gridColumn = zo ? String(zo.positions[index].column) : '';
+      el.style.gridRow = zo ? String(zo.positions[index].row) : '';
       el._spot = s;                   // tap / hold use the latest spot data
       if (t.html !== html) { el.innerHTML = html; t.html = html; t.tight = null; }
       if (t.title !== b.title) { el.title = b.title; t.title = b.title; }
@@ -1267,10 +1320,13 @@ INDEX_HTML = """<!doctype html>
         emptyEl.className = 'empty';
         emptyEl.textContent = 'No needed spots on this band right now.';
       }
+      emptyEl.style.gridColumn = data.zo_mode ? '1 / -1' : '';
+      emptyEl.style.gridRow = data.zo_mode ? '2' : '';
       grid.appendChild(emptyEl);
     }
     markSort();
   }
+  const zoHeads = [];             // at most four reused column/divider headings
   const tiles = new Map();          // call|MHz -> {el, cls, title, html, tight}
   let emptyEl = null, tilesLayout = '';
   // Tap = QSY. Hold 2 s = offer to remove the call from the list.
@@ -1394,6 +1450,9 @@ INDEX_HTML = """<!doctype html>
     const snr = snrVal(s), stale = s.age != null && d.fade_s && s.age >= d.fade_s;
     const rare = isRare(s);
     let h = '<h3>Colours and marks on the tile</h3><table>';
+    if (d.zo_mode) h += row('ZO priority', esc(zoGroup(s)), esc((s.urgency_reasons || []).join(' ')) +
+      ' ' + esc(s.urgency_confidence || 'limited') + ' — historical hint, not a probability. History contests: ' +
+      esc((s.history_contests || []).join(', ') || 'unverified') + (s.history_matches ? ' (matching).' : ' (different or unverified).'));
     h += row('Green tile', yn(snr >= 20, 'yes', 'no (grey)'),
       'SNR ' + (s.snr == null ? 'unknown' : s.snr + ' dB') + ' - green from 20 dB up');
     h += row('Darker tile', yn(stale, 'yes: probably gone', 'no: fresh'),
@@ -1412,7 +1471,7 @@ INDEX_HTML = """<!doctype html>
     h += row('\u21bb', yn(s.tried != null, 'tapped ' + (s.tries || 1) + '\u00d7, last ' + s.tried + ' min ago', 'not tapped lately'), '');
     h += '</table><h3>Numbers on the tile</h3><table>';
     h += row(s.freq.toFixed(1), 'spot frequency (kHz)', s.mode && s.mode !== 'CW' ? 'mode ' + esc(s.mode) : '');
-    if (s.run != null) h += row('R' + s.run + '%' + (s.rec ? '*' : ''), 'estimated share of measurable QSOs classified as running in past logs' +
+    if (s.run != null) h += row('R' + s.run + '%' + (s.rec ? '*' : ''), 'share of its QSOs made running in past logs' +
       (s.run_band ? ' (on ' + esc(s.run_band) + ')' : ''), s.rec ? '* = log reconstructed from others: a minimum' : '');
     if (s.hours != null) h += row(esc(s.hours_text || ('~' + s.hours + 'h')), 'operating time in historical logs (may be other contests)', '');
     h += row(esc(s.first || s.time || '--'), 'first spotted on this frequency (UTC)', s.time ? 'last spot ' + esc(s.time) : '');
@@ -1518,13 +1577,20 @@ INDEX_HTML = """<!doctype html>
     if (Date.now() - pin.at > PIN_MS) { pin = null; return; }
     const j = list.findIndex(x => calmKey(x) === pin.key);
     if (j < 0) { pin = null; return; }           // logged / gone: let go
-    const to = Math.min(pin.idx, list.length - 1);
+    let to = Math.min(pin.idx, list.length - 1);
+    if (lastData.zo_mode) {
+      const g = zoGroup(list[j]);
+      if (pin.group !== g) { pin = null; return; }
+      const peers = list.map((s, i) => zoGroup(s) === g ? i : -1).filter(i => i >= 0);
+      to = peers[Math.min(pin.laneIdx || 0, peers.length - 1)];
+    }
     if (j !== to) list.splice(to, 0, list.splice(j, 1)[0]);
   }
   async function qsy(s, btn) {
     if (!canControl()) return;
     const at = shown.findIndex(x => calmKey(x) === calmKey(s));
-    pin = {key: calmKey(s), idx: at < 0 ? 0 : at, at: Date.now()};
+    pin = {key: calmKey(s), idx: at < 0 ? 0 : at, at: Date.now(), group: zoGroup(s),
+           laneIdx: shown.slice(0, Math.max(0, at)).filter(x => zoGroup(x) === zoGroup(s)).length};
     selKey = spotKey(s);
     document.querySelectorAll('button.tile.sel').forEach(t => t.classList.remove('sel'));
     btn.classList.add('sel');
@@ -1717,7 +1783,7 @@ INDEX_HTML = """<!doctype html>
     if (!shown.length) { toast('No stations in the list'); return; }
     const at = shown.findIndex(s => spotKey(s) === selKey);
     const i = at >= 0 && at + 1 < shown.length ? at + 1 : 0;
-    const tile = document.getElementById('grid').children[i];
+    const tile = document.getElementById('grid').querySelectorAll('button.tile')[i];
     qsy(shown[i], tile || btn);
   };
   function syncHeaderHeight() {
@@ -1742,6 +1808,7 @@ INDEX_HTML = """<!doctype html>
   //  - "since" = the tag of the list we have: POUNCer answers {same} when
   //    nothing changed, and the page only counts the spots' ages on.
   let inFlight = false, lastTag = '', lastQuery = '', recvAt = 0;
+  let pendingRender = false;        // received during an interaction hold
   async function refresh() {
     if (document.hidden || inFlight) return;
     inFlight = true;
@@ -1769,7 +1836,7 @@ INDEX_HTML = """<!doctype html>
           labelControl();
         }
         tapResult(lastData);              // the "no answer" timeout still runs
-        if (!flips) return;               // nothing to redraw
+        if (!flips && !pendingRender) return; // nothing received since the last render
         data = lastData;
       } else {
         lastTag = data.tag || '';
@@ -1788,9 +1855,11 @@ INDEX_HTML = """<!doctype html>
           document.getElementById('dbgsheet').classList.contains('show') ||
           (calm && Date.now() - lastTouch < CALM_HOLD_MS)) {
         lastData = data;
+        pendingRender = true;
         return;
       }
       render(data);
+      pendingRender = false;
     } catch (e) {
       metaEl.textContent = 'connection lost - retrying...';
       lastTag = '';                       // ask for the whole list next time
@@ -1982,8 +2051,7 @@ excluded with a warning; N1MM still controls logging, serials and scoring.</p>
     isn't CW (e.g. RTTY).</dd>
   <dt>R81%</dt>
   <dd><b>Run history</b>: in its logs of the last 6 years of this contest (from S53ZO's
-    public log archive), 81% of measurable QSOs were classified as running from
-    frequency history (an estimate) - on this band when its logs
+    public log archive), 81% of its QSOs were made calling CQ - on this band when its logs
     have enough QSOs here, else over all bands (tap and hold the tile: the tooltip says
     which); on SSB from its SSB logs, on CW from its CW logs. Logs written without real
     frequencies give only the hours (no R%). For CQWW, ARRL DX and CQ WPX (CW and, as a separate list,
@@ -2010,7 +2078,7 @@ excluded with a warning; N1MM still controls logging, serials and scoring.</p>
 <p>A <b>darker</b> tile (the text stays white) has not been re-spotted for 5 minutes - the station has probably
 stopped calling there. Not shown: stations you already worked on this band and mode,
 your own call, and beacons. One tile per station and band (the newest spot).</p>
-<p><b>Alert</b>: when a historical opportunity hint (&#9889;) that is also a new multiplier appears on your
+<p><b>Alert</b>: when a rare CQ (&#9889;) that is also a new multiplier appears on your
 band, the phone shows it in a pop-up and beeps (and vibrates where it can). Two
 switches in the band menu (tap the frequency): <b>Alert pop-up</b> and <b>Alert
 sound</b> - e.g. the pop-up without the beep. Sound works after your first tap on the
@@ -2131,6 +2199,22 @@ private ZeroTier network; never forward port 8080 on a router or open it on a sh
     after the last station you tapped; after the last one it starts again at the top.
     No transmit.</dd>
 </dl>
+
+<h2>ZO mode</h2>
+<p>Enable <b>Settings → Program → ZO mode</b> on POUNCer for three permanent
+columns: <b>⚡ Urgent / Medium / Normal</b>, even on phones. This live setting
+controls the desktop and all its browsers; it defaults off. Existing sorting and
+DX / MLT / ⚡ options apply inside each group. NEXT follows Urgent, Medium,
+Normal, then Unknown. Calm list retains its sorting delay, while changed evidence
+can move a station to its new group.</p>
+<p>Urgent: historical run share below 30%, or verified matching-contest operating
+hours below the smaller of 6 h and 25% of event duration. Medium: below 60%, or
+the smaller of 12 h and 50%, unless already Urgent. Normal has usable evidence
+without these flags. <b>Unknown</b>, separated below Normal, means insufficient
+usable evidence, not low risk. The Normal count includes Unknown. These are
+historical hints, not departure probabilities; Normal does not guarantee continued
+availability. Hold a tile for evidence and provenance. Grouping never tunes or
+transmits. Turning ZO mode off restores the desktop's previous table/tile view.</p>
 
 <h2 id="test">Test options</h2>
 <p>For busy contests - try them, switch off what you don't like. Saved on this

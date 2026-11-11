@@ -1,13 +1,24 @@
 # POUNCer — Changelog
 
-## Unreleased — Preserve activity precision in historical hints
+## v0.7.186 — 2026-11-11 — ZO mode: three priority columns
 
-- Keep measured activity unrounded through archive summaries and warm-up
-  builds. Exactly 15 minutes now stays at the one-hour contest threshold and
-  displays as `~15m`.
-- Legacy rounded caches remain readable but do not drive hours-based
-  priority. New warm-up data replaces their values; desktop and browser
-  preserve the rounded hour unit until precise history is available.
+From S53ZO's pull request #4.
+
+- Add live Settings → Program → ZO mode: three permanent priority columns on
+  desktop and browser, including phones, with counts and a separate Unknown
+  section. Existing sorts operate inside groups; disabling restores the previous
+  desktop layout. Historical run-share and duration-aware hours evidence drive
+  Urgent / Medium / Normal, with explanations instead of departure probabilities.
+  Preserve canvas pooling, browser tile reuse, controls and NEXT order.
+- Apply deferred browser updates after interaction holds, even when the next
+  server response is unchanged.
+- ZO cards are laid out top to bottom with the real fonts: the call (wraps),
+  the marks (next line when one does not fit, shortened with … when one alone
+  is too wide), then the two detail lines below them - nothing leaves a card
+  or overlaps at any width or font (the pull request's own test failed at
+  210 - 320 px with other fonts than the Mac's).
+- ZO mode is off by default (*Settings > Program > ZO mode*); everything else
+  works as before.
 
 ## v0.7.185 — 2026-11-11 — Exact operating minutes for the ⚡ hours hint
 
@@ -20,6 +31,12 @@ From S53ZO's pull request #5.
   run-share hint still works). See [docs/URGENCY.md](docs/URGENCY.md).
 - After this release the warm-up lists should be rebuilt (*Build warm-up
   list* workflow), so the hours hint has exact values again.
+- Keep measured activity unrounded through archive summaries and warm-up
+  builds. Exactly 15 minutes now stays at the one-hour contest threshold and
+  displays as `~15m`.
+- Legacy rounded caches remain readable but do not drive hours-based
+  priority. New warm-up data replaces their values; desktop and browser
+  preserve the rounded hour unit until precise history is available.
 
 ## v0.7.184 — 2026-11-11 — Weekly contest sessions (TTC, Mini-Test, OK1WC); duration-aware ⚡ hints
 
