@@ -324,7 +324,7 @@ class Runner:
             return
         a = am.Autostart(items, running=self._running, launch=self._launch, sleep=self._sleep,
                          on_status=self.say, n1mm_up=self.up, wait_s=self.s["n1mm_timeout"],
-                         clock=self._clock)
+                         clock=self._clock, cancelled=self._stop.is_set)
         a.run()
         self.results += a.results
         if not self._stop.is_set():
