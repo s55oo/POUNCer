@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Apply deferred browser updates after interaction holds, even when the next
+  server response is unchanged. Wrap ZO tile marks inside compact desktop cards
+  and reserve additional vertical space for them.
+
+- Add live Settings → Program → ZO mode: three permanent priority columns on
+  desktop and browser, including phones, with counts and a separate Unknown
+  section. Existing sorts operate inside groups; disabling restores the previous
+  desktop layout. Historical run-share and duration-aware hours evidence drive
+  Urgent / Medium / Normal, with explanations instead of departure probabilities.
+  Preserve canvas pooling, browser tile reuse, controls and NEXT order.
+
 - Historical opportunity hints account for contest duration: operating-hours
   threshold is 25% of the event, capped at six hours, and requires verified
   matching-contest history. Unknown durations/context disable the hours rule;
