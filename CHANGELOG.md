@@ -9,6 +9,18 @@
   priority. New warm-up data replaces their values; desktop and browser
   preserve the rounded hour unit until precise history is available.
 
+## v0.7.185 — 2026-11-11 — Exact operating minutes for the ⚡ hours hint
+
+From S53ZO's pull request #5.
+
+- A station with exactly 15 minutes in a one-hour contest was stored as
+  0.2 h, shown as ~12m and wrongly marked urgent. Operating hours now keep
+  their exact value from the archive and from new warm-up files; old,
+  rounded values stay visible but no longer drive the hours hint (the
+  run-share hint still works). See [docs/URGENCY.md](docs/URGENCY.md).
+- After this release the warm-up lists should be rebuilt (*Build warm-up
+  list* workflow), so the hours hint has exact values again.
+
 ## v0.7.184 — 2026-11-11 — Weekly contest sessions (TTC, Mini-Test, OK1WC); duration-aware ⚡ hints
 
 From S53ZO's pull requests #2 and #3.
