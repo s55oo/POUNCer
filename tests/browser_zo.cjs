@@ -92,5 +92,37 @@ function calls(){return Array.from(c.shown,x=>x.call)}
   assert.equal(c.zoHeads[2].textContent,'Normal (0)');
   assert.equal(c.zoHeads[3].parentNode,null);
   assert.equal(c.columns(),3);
+
+  // Exercise refresh(), not just render(): a full response received during a
+  // hold must be rendered after release even if every later response is same.
+  c.rp=()=>new URLSearchParams();c.document.hidden=false;
+  Object.assign(c,{pressing:false,location:{reload:noop}});
+  vm.runInContext(code("  let inFlight = false", "  document.addEventListener('visibilitychange'"),c);
+  for (const hold of ['pointer','remove','debug','calm']) {
+    for (const enabled of [true,false]) {
+      c.calm=false;c.pressing=false;
+      get('rmsheet').classList.remove('show');get('dbgsheet').classList.remove('show');
+      data={...data,zo_mode:!enabled,spots:[s('HELD','urgent',30)]};c.render(data);
+      const previous=grid.style.gridTemplateColumns;
+      c.pressing=hold==='pointer';
+      if(hold==='remove')get('rmsheet').classList.add('show');
+      if(hold==='debug')get('dbgsheet').classList.add('show');
+      c.calm=hold==='calm';c.lastTouch=Date.now();
+      vm.runInContext("lastTag='';lastQuery='';pendingRender=false",c);
+      let replies=[{...data,zo_mode:enabled,spots:[s('HELD','normal',30)],tag:'held'},
+                   {same:true},{same:true},{same:true}];
+      let fetches=[];c.fetch=async url=>{fetches.push(url);return {json:async()=>replies.shift()}};
+      await c.refresh();assert.equal(grid.style.gridTemplateColumns,previous,hold+' holds rendering');
+      await c.refresh();assert.equal(grid.style.gridTemplateColumns,previous,hold+' still holds on same');
+      c.pressing=false;c.lastTouch=0;
+      get('rmsheet').classList.remove('show');get('dbgsheet').classList.remove('show');
+      await c.refresh();
+      assert.equal(grid.style.gridTemplateColumns,'repeat('+(enabled?3:1)+', minmax(0, 1fr))',hold+' applies deferred toggle');
+      if(enabled)assert.equal(c.tiles.get('HELD|7').el.style.gridColumn,'3','latest classification applied');
+      assert.equal(vm.runInContext('pendingRender',c),false);
+      const count=created;await c.refresh();assert.equal(created,count);
+      assert.ok(fetches.every(url=>url.startsWith('/api/spots?')),'refresh never sends controls');
+    }
+  }
   console.log('ZO browser: columns, sorting, calm list, NEXT/QSY permissions, reuse and toggling passed');
 })().catch(e=>{console.error(e);process.exitCode=1});

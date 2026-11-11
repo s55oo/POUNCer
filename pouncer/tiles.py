@@ -222,7 +222,8 @@ class TileList(ttk.Frame):
         cw = (w - GAP * (cols + 1)) / cols
         ch = theme.px(CARD_H)
         if self.zo_mode:
-            ch = theme.px(132 if cw < theme.px(200) else 104)
+            # Compact cards reserve room for wrapped marks as well as details.
+            ch = theme.px(176 if cw < theme.px(200) else 104)
             self._zo_ch = ch
             self._boxes, headings, self._height = zo.layout(self.items, w, ch, GAP, theme.px(28))
         else:
@@ -298,14 +299,26 @@ class TileList(ttk.Frame):
                                          (it.get("own") and "\u2605", p["tried"]),
                                          (it.get("rare") and "\u26a1", p["rare"]),
                                          (it.get("tried"), p["tried"])) if m]
+        mark_y = y0 + ch * 0.35
+        row_bottom = mark_y
         for j, m_id in enumerate(slot["marks"]):
             if j < len(marks):
                 mark, col = marks[j]
-                c.coords(m_id, bx, y0 + ch * 0.35 if self.zo_mode else (y0 + y1) / 2)
+                c.coords(m_id, bx, mark_y if self.zo_mode else (y0 + y1) / 2)
                 c.itemconfigure(m_id, text=mark, fill=col, state="normal",
+                                anchor="nw" if self.zo_mode else "w", width=0,
                                 font=(theme.FONT, 7, "bold") if self.zo_mode else
                                      (small_b if mark == it.get("tried") else (theme.FONT, 14, "bold")))
                 bb = c.bbox(m_id)
+                if self.zo_mode:
+                    right = x1 - theme.px(8)
+                    if bb and bb[2] > right and bx > tx:
+                        bx, mark_y = tx, row_bottom + theme.px(3)
+                    c.coords(m_id, bx, mark_y)
+                    c.itemconfigure(m_id, width=max(1, right - bx - 2))
+                    bb = c.bbox(m_id)
+                    if bb:
+                        row_bottom = max(row_bottom, bb[3])
                 bx = (bb[2] if bb else bx) + theme.px(4)
             else:
                 c.itemconfigure(m_id, state="hidden", text="")
@@ -316,10 +329,10 @@ class TileList(ttk.Frame):
             c.itemconfigure(slot[key], anchor="w" if self.zo_mode else "e",
                             justify="left" if self.zo_mode else "right",
                             width=max(1, x1 - rx - 8) if self.zo_mode else 0)
-        c.coords(slot["l1"], rx, y0 + ch * (0.58 if self.zo_mode else 0.32))
+        c.coords(slot["l1"], rx, y0 + ch * (0.70 if self.zo_mode else 0.32))
         c.itemconfigure(slot["l1"], text=it.get("line1", ""), fill=p["detail"], font=small_b,
                         state="normal")
-        c.coords(slot["l2"], rx, y0 + ch * (0.82 if self.zo_mode else 0.70))
+        c.coords(slot["l2"], rx, y0 + ch * (0.88 if self.zo_mode else 0.70))
         c.itemconfigure(slot["l2"], text=it.get("line2", ""), fill=p["detail"], font=small,
                         state="normal")
 

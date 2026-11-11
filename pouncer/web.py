@@ -1802,6 +1802,7 @@ INDEX_HTML = """<!doctype html>
   //  - "since" = the tag of the list we have: POUNCer answers {same} when
   //    nothing changed, and the page only counts the spots' ages on.
   let inFlight = false, lastTag = '', lastQuery = '', recvAt = 0;
+  let pendingRender = false;        // received during an interaction hold
   async function refresh() {
     if (document.hidden || inFlight) return;
     inFlight = true;
@@ -1829,7 +1830,7 @@ INDEX_HTML = """<!doctype html>
           labelControl();
         }
         tapResult(lastData);              // the "no answer" timeout still runs
-        if (!flips) return;               // nothing to redraw
+        if (!flips && !pendingRender) return; // nothing received since the last render
         data = lastData;
       } else {
         lastTag = data.tag || '';
@@ -1848,9 +1849,11 @@ INDEX_HTML = """<!doctype html>
           document.getElementById('dbgsheet').classList.contains('show') ||
           (calm && Date.now() - lastTouch < CALM_HOLD_MS)) {
         lastData = data;
+        pendingRender = true;
         return;
       }
       render(data);
+      pendingRender = false;
     } catch (e) {
       metaEl.textContent = 'connection lost - retrying...';
       lastTag = '';                       // ask for the whole list next time

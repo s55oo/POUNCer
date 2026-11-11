@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Apply deferred browser updates after interaction holds, even when the next
+  server response is unchanged. Wrap ZO tile marks inside compact desktop cards
+  and reserve additional vertical space for them.
+
 - Add live Settings → Program → ZO mode: three permanent priority columns on
   desktop and browser, including phones, with counts and a separate Unknown
   section. Existing sorts operate inside groups; disabling restores the previous
