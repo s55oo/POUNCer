@@ -22,6 +22,7 @@ last minutes is our own coming back and is ignored.
 from __future__ import annotations
 
 import logging
+import queue
 import re
 import socket
 import sys
@@ -37,6 +38,9 @@ MAX_CLIENTS = 10
 HISTORY = 30            # sh/dx: the last spots again
 ECHO_S = 600            # a spot N1MM sends back within this time = our own
 DUP_S = 60              # the same call / frequency / spotter again within this: not resent
+CLIENT_PENDING_BYTES = 128 * 1024
+CLIENT_PENDING_ITEMS = 256
+CLIENT_IO_TIMEOUT_S = 1.0
 
 
 def dx_line(spotter: str, freq_khz: float, call: str, comment: str, time_utc: str) -> str:
@@ -101,22 +105,70 @@ class _Client:
         self.lock = threading.Lock()
         self.mid_line = False                     # the last bytes sent ended mid-line
         self.closed = False
+        self._pending_bytes = 0
+        self._output: queue.Queue = queue.Queue(maxsize=CLIENT_PENDING_ITEMS)
+        self._stop = threading.Event()
+        self.sock.settimeout(CLIENT_IO_TIMEOUT_S)
+        self._writer = threading.Thread(target=self._write_loop, name="cluster-output", daemon=True)
+        self._writer.start()
 
     def send(self, text: str) -> bool:
         return self.send_raw(text.encode("ascii", "replace"))
 
     def send_raw(self, data: bytes, own_line: bool = False) -> bool:
-        """Send; our own line never lands in the middle of a cluster line."""
+        """Queue without socket waits; disconnect a client that falls behind."""
+        with self.lock:
+            if self.closed:
+                return False
+            if self._pending_bytes + len(data) <= CLIENT_PENDING_BYTES:
+                try:
+                    self._output.put_nowait((data, own_line))
+                except queue.Full:
+                    pass
+                else:
+                    self._pending_bytes += len(data)
+                    return True
+        self.close()
+        return False
+
+    def _write_loop(self) -> None:
         try:
-            with self.lock:
+            while not self._stop.is_set():
+                try:
+                    data, own_line = self._output.get(timeout=0.1)
+                except queue.Empty:
+                    continue
+                size = len(data)
                 if own_line and self.mid_line:
                     data = b"\r\n" + data
                 self.sock.sendall(data)
                 if not own_line:
                     self.mid_line = not data.endswith((b"\n", b"\r"))
-            return True
+                else:
+                    self.mid_line = False
+                with self.lock:
+                    self._pending_bytes -= size
+                self._output.task_done()
         except OSError:
-            return False
+            pass
+        finally:
+            self.close()
+
+    def close(self, drain: bool = False) -> None:
+        # Only the client's command thread requests a brief graceful drain
+        # ("bye"). Publishing and GUI shutdown never wait for the network.
+        if drain:
+            until = time.monotonic() + 0.2
+            while not self.closed and self._pending_bytes and time.monotonic() < until:
+                self._stop.wait(0.005)
+        with self.lock:
+            self.closed = True
+        self._stop.set()
+        try:
+            self.sock.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
+        self.sock.close()
 
 
 class ClusterServer:
@@ -171,10 +223,7 @@ class ClusterServer:
         with self._lock:
             clients, self.clients = self.clients, []
         for c in clients:
-            try:
-                c.sock.close()
-            except OSError:
-                pass
+            c.close()
 
     def client_count(self) -> int:
         with self._lock:
@@ -197,6 +246,7 @@ class ClusterServer:
                 full = len(self.clients) >= MAX_CLIENTS
             if full:
                 try:
+                    sock.settimeout(CLIENT_IO_TIMEOUT_S)
                     sock.sendall(b"Sorry, too many connections.\r\n")
                     sock.close()
                 except OSError:
@@ -210,7 +260,6 @@ class ClusterServer:
 
     def _serve(self, sock: socket.socket, addr) -> None:
         c = _Client(sock, addr)
-        sock.settimeout(None)
         with self._lock:
             self.clients.append(c)
         log.info("cluster server: %s:%s connected", *addr)
@@ -218,7 +267,10 @@ class ClusterServer:
             c.send(f"POUNCer {self.version} DX cluster\r\n\r\nlogin: ")
             buf = b""
             while not self._stop.is_set():
-                data = sock.recv(1024)
+                try:
+                    data = sock.recv(1024)
+                except socket.timeout:
+                    continue
                 if not data:
                     break
                 buf += strip_telnet(data)
@@ -235,7 +287,7 @@ class ClusterServer:
         except OSError:
             pass
         finally:
-            c.closed = True
+            c.close(drain=not self._stop.is_set())
             with self._lock:
                 if c in self.clients:
                     self.clients.remove(c)
