@@ -242,7 +242,7 @@ class RunHistoryTests(unittest.TestCase):
                     break
                 time.sleep(0.05)
             self.assertEqual(rh.get("M0KTZ", "CQWWCW", "CW"),
-                             {"run": 6, "hours": 3.5, "rec": True})
+                             {"run": 6, "hours": 3.5, "rec": True, "history_contests": ["CQWW"]})
             self.assertEqual(rh.get("S50R", "ARRLDXCW", "CW")["run"], 80)
             self.assertIn("2 stations", rh.warm_status)
             txt = os.path.join(d, "cache", "warm-up.txt")

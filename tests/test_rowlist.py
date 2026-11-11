@@ -179,12 +179,14 @@ class RunTipTests(unittest.TestCase):
     def test_text(self) -> None:
         P = _import_app().PouncerApp
         t = P.run_explain("DL1ABC", {"run": 26, "hours": 18.4, "rec": False, "run_band": "20m"}, True)
-        self.assertIn("26 % of the QSOs on 20m were made running", t)
+        self.assertIn("26 % of measurable QSOs on 20m were classified as running", t)
         self.assertIn("about 18 hours", t)
-        self.assertIn("Rare runner", t)
+        self.assertIn("Historical opportunity hint", t)
+        self.assertIn("no probability or departure time", t)
         t2 = P.run_explain("K1ABC", {"run": 88, "hours": 30, "rec": True}, False)
         self.assertIn("reconstructed log", t2)
-        self.assertIn("regular runner", t2)
+        self.assertIn("No historical opportunity flag", t2)
+        self.assertNotIn("can wait", t2)
         self.assertEqual(P.run_explain("X", {}, False), "")
 
 

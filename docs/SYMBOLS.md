@@ -112,7 +112,7 @@ them only says what they are.
 | warm (beige / brown) row | DX - another continent than yours |
 | blue frame | the radio is on this station (within 0.5 kHz) |
 | yellow frame | selected (arrow keys); Space = tap it |
-| **R84% ~23h** in *Runs* (hover = the explanation for that station) | that station ran (called CQ) 84 % of its QSOs, ~23 h on the air, in its past logs of this contest; **R12% ⚡** in yellow = a **rare runner** - it won't stay, work it now |
+| **R84% ~23h** in *Runs* (hover = the explanation for that station) | that station ran (called CQ) 84 % of its QSOs, ~23 h on the air, in its past logs of this contest; **R12% ⚡** in yellow = a **historical opportunity hint**, without a departure prediction |
 | *Age* `now` / `3 min` | since that station's last spot |
 | **?** after the call | not in Super Check Partial (busted?) |
 | **★** / ★ S53WW | your own skimmer heard it |
@@ -147,7 +147,7 @@ Marks in the call and Mult columns:
 
 | Mark | Meaning |
 | --- | --- |
-| **⚡** before the call | rare CQ: this station runs under 30 % of its QSOs, or is on for under 6 hours, in the past years of this contest - work it now |
+| **⚡** before the call | historical opportunity hint: run share below 30%, or matching-contest hours below 25% of event duration (capped at 6 h); unknown context/duration disables the hours rule |
 | **?** after the call | not in Super Check Partial: maybe a busted (misread) call |
 | **↻3m** after the call | you clicked this station 3 minutes ago; **↻3m×2** = clicked twice, the last time 3 minutes ago |
 | **M** in the Mult column | one new multiplier |
@@ -183,7 +183,7 @@ Marks in the call and Mult columns:
 | **F1 ... F12** | send N1MM's function key: they **transmit** (the edge turns red under the mouse) |
 | **Radio A / Radio B** | which radio POUNCer follows. Shown only when N1MM reports two radios / VFOs |
 | **CW 30 WPM ▲** / **▼** popup | the CW speed was changed in N1MM: up or down |
-| yellow **⚡ rare CQ + new mult: 3B8X 7012.0** pop-up | a rare CQ that is also a new multiplier just appeared (once per station and band); **click it = QSY and call**; gone after 8 s. *View > Alert pop-up* on / off, *Alert sound* = two beeps (each on its own) |
+| yellow **⚡ history hint + new mult: 3B8X 7012.0** pop-up | a rare CQ that is also a new multiplier just appeared (once per station and band); **click it = QSY and call**; gone after 8 s. *View > Alert pop-up* on / off, *Alert sound* = two beeps (each on its own) |
 | red bar **⚠ Internet down since 12:03 (14 min) - the last spots stay, greyed; reconnecting by itself** | no internet on this PC (no answer from 1.1.1.1 / 8.8.8.8 / 9.9.9.9 for two rounds). The rows from before it went are **grey** and don't age out; spots from the team or N1MM still come in normal colours. Green **✔ Internet back after 14 min** for 8 s, then every feed reconnects at once. Phone: the same text in orange at the start of the line. `[ui] internet_check` |
 | yellow **SPOTTED: S55OO by DL1ABC on 14025.0 2147Z** pop-up + a yellow bar under the top bar | a person (not a skimmer) spotted your call on a DX cluster; **(self-spot)** = you spotted yourself. 3 s (click closes it sooner), once per spotter and frequency in 15 min; the alert sound if on. In a team only on the PC whose radio is on that band; the status line keeps the last one |
 | **Station test** window (View menu) | per radio: ✓ QSY up / back and how long N1MM took, ✓ test call in the box and cleared; ✗ = that step failed; - = not tested (box not empty, radio B typed) |

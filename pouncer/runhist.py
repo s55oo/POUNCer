@@ -6,7 +6,7 @@ callsign; its logs of the last 6 years of the same contest and mode (else
 its other contests in that mode) are downloaded and their frequencies and
 times looked at: how much of it was RUN, and how many
 hours the station was on the air. A station that rarely runs, or is only on
-for a few hours, but is spotted calling CQ won't be there long - work it now.
+for a few hours provides a historical opportunity hint, not a departure forecast.
 Stations that never sent a log are covered by the archive's reconstructed
 logs (built from other stations' logs; a lower bound, marked ``rec``).
 
@@ -28,6 +28,9 @@ import zlib
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import quote
 
+from .urgency import (HOURS_CAP as RARE_HOURS, RUN_THRESHOLD as RARE_RUN_PCT,
+                      ARCHIVE_PREFIXES as CONTESTS)
+
 log = logging.getLogger(__name__)
 
 # Warm-up lists (server/warmlist.py, built by GitHub Actions in POUNCer's repo):
@@ -42,21 +45,12 @@ WORKERS = 8           # lookups in parallel (a new band = many new calls)
 MIN_QSOS = 30         # fewer QSOs than this = not enough to tell
 MIN_BAND_QSOS = 20    # per band: fewer measurable QSOs than this = use the overall run %
 RUN_KHZ = 0.3         # same frequency (kHz) as one of the last 2 QSOs = running
-RARE_RUN_PCT = 30     # runs less than this % of QSOs = "rarely runs" (marked)
-RARE_HOURS = 6        # on the air less than this many hours = rare (marked)
 OFF_MINUTES = 30      # a pause longer than this between QSOs = off time
 # Logs without CAT give only the band edge as frequency (28000, 14000 ...):
 # every QSO "on the same frequency" would look like one long run. Those QSOs
 # are left out of the run % (common in SSB logs).
 BAND_ONLY_KHZ = {1800, 3500, 7000, 10100, 14000, 18068, 21000, 24890, 28000, 50000}
 
-# N1MM contest name prefix -> archive contest folder.
-CONTESTS = {
-    "CQWWRTTY": "CQWWRTTY", "CQWPXRTTY": "CQWPXRTTY", "CQWW": "CQWW",
-    "CQWPX": "CQWPX", "CQ160": "CQ160", "ARRLDX": "ARRL", "WAE": "WAE",
-    "EUHFC": "EUHFC", "OKOMDX": "OK_OM_DX_Contest", "SPDX": "SPDX_contest",
-    "UKRAINDX": "URE", "YUDX": "YU_DX_Contest", "KVP": "ZRS_KVP",
-}
 _MODES = {"CW": "CW", "SSB": "PH", "PH": "PH", "USB": "PH", "LSB": "PH",
           "RTTY": "RTTY", "FT8": "DIGI", "FT4": "DIGI"}
 
@@ -376,7 +370,7 @@ class RunHistory:
                     sel += ", bands FROM warm" if "bands" in cols else ", NULL FROM warm"
                     rows = []
                     for c, ct, m, r, h, rec, bands in con.execute(sel):
-                        value = {"run": r, "hours": h, "rec": bool(rec)}
+                        value = {"run": r, "hours": h, "rec": bool(rec), "history_contests": [ct]}
                         if bands:
                             try:
                                 per_band = json.loads(bands)
@@ -397,7 +391,13 @@ class RunHistory:
             return 0
         with self._lock:
             for call, contest, mode, value in rows:
-                self._results.setdefault(f"{call.upper()}|{contest}|{mode}", value)
+                key = f"{call.upper()}|{contest}|{mode}"
+                old = self._results.get(key)
+                if (isinstance(old, dict) and "history_contests" not in old
+                        and "history_contests" in value):
+                    self._results[key] = value   # verified warm-up upgrades legacy context
+                else:
+                    self._results.setdefault(key, value)
         if not getattr(self, "_warm_states", None):
             self.warm_status = f"{len(rows)} stations known in advance"
         log.info("run list %s: %d entries", path, len(rows))
@@ -560,6 +560,9 @@ class RunHistory:
         if out is None:
             return None
         out["rec"] = rec
+        contexts = [r[1] for r in rows if r[0] in paths]
+        out["history_contests"] = (sorted(set(contexts)) if contexts and
+                                   all(isinstance(c, str) and c.strip() for c in contexts) else [])
         return out
 
     @staticmethod

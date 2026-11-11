@@ -156,8 +156,9 @@ team) and UDP 12079 (team); everything else is outgoing.
   for stations that never sent one). The **R%** is for the **spot's band**
   when its logs have enough QSOs there (a 20 m runner that only S&Ps on 80 m
   shows its 80 m habit on an 80 m spot), else over all bands. Logs written
-  without CAT (no real frequencies) still give the **hours**, just no R%; **⚡** = rare CQ (runs under 30% or on
-  under 6 h) - it won't last, work it now
+  without CAT (no real frequencies) still give the **hours**, just no R%; **⚡** =
+  historical opportunity hint: run share under 30%, or matching-contest hours
+  below 25% of contest duration (capped at 6 h). It does not predict departure
   (`[ui] run_history`, cached in a `cache` folder). The **⚡** header button
   sorts the rarely-running stations to the top. A new call is known in about
   a second (8 looked up at a time; instant once cached).
@@ -359,7 +360,7 @@ F-keys stay as buttons - they're used all contest long):
   autostart folder, Restart POUNCer, Exit.
 * **View** - *Also enter callsign in N1MM* and *Hide worked* (tick),
   **Compact window (beside N1MM)** (tick, **Ctrl+M**) and **Always on top**
-  (tick), **Alert pop-up (rare CQ + new mult)** and **Alert sound** (tick),
+  (tick), **Alert pop-up (history hint + new mult)** and **Alert sound** (tick),
   **Detailed layout** (tick: every status line and the old table),
   **Rate / QSOs / mults per band line** and **Spot list as tiles** (Ctrl+T)
   (tick), Clear spots, Contest summary, **CQ zones: who hears me** and **Band
@@ -486,7 +487,7 @@ multiplier** appears in the list - once per station and band, not for what
 is listed in the first 30 s after the start:
 
 - **Alert pop-up** (on by default): a yellow pop-up at the top of the window
-  for 8 s, `⚡ rare CQ + new mult: 3B8X 7012.0`; **click it = QSY and call**,
+  for 8 s, `⚡ history hint + new mult: 3B8X 7012.0`; **click it = QSY and call**,
   like clicking the spot. It never takes the keyboard from N1MM.
 - **Alert sound** (off by default): two short beeps.
 
@@ -1112,7 +1113,7 @@ All phone keys and marks: **[docs/SYMBOLS.md](docs/SYMBOLS.md#phone-page)**.
 | **Yellow** ring | the tile you tapped last |
 | **7003.1** (bold) | spot frequency, kHz; the mode is shown only when it isn't CW |
 | R6% / ~4h / `*` | run history: % of QSOs made running (on this band when known) and hours on the air in its logs of the last 6 years of this contest; `*` = reconstructed log |
-| ⚡ | rare CQ: runs under 30 % or on under 6 h - work it now |
+| ⚡ | historical opportunity hint: low run share or brief participation relative to this contest; no departure prediction |
 | 1132Z | first spotted on this frequency (UTC) |
 | 22dB | skimmer SNR |
 | cq3m | calling on this frequency for 3 minutes (from RBN) |
@@ -1534,3 +1535,24 @@ current band again. With multiple selection off, band buttons show one band
 immediately; **ALL bands** still shows every contest band. Selecting bands
 only changes the spot list. Tapping a spot tunes the selected radio when
 **Control N1MM** is enabled.
+
+### Historical opportunity hints and contest duration
+
+The ⚡ mark is a **historical heuristic**, with no departure probability or
+predicted remaining operating time. It flags a run share below 30%, or
+recorded operating hours below **25% of the full contest duration, capped
+at six hours**. A one-hour contest therefore uses a 15-minute hours threshold;
+participating for most of that hour does not automatically earn a ⚡.
+
+The hours criterion requires verified matching-contest history. Fallback
+history from other contests, mixed history, unknown durations and older
+cache entries without source context do not trigger that criterion. Their
+R%/hours can still be displayed, and known low run share can still flag a
+historical hint. Reconstructed logs may have incomplete coverage.
+
+**Settings → Program → History hint: contest duration** (`[ui] urgency_contest_minutes`) accepts an explicit full-event duration in minutes;
+**0** uses the verified duration table. Reset overrides when changing contests.
+Tooltips and browser Debug explain the threshold and source-context limitation.
+Sub-hour historical operating time is displayed in minutes (e.g. `~12m`).
+See [the policy and rule sources](docs/URGENCY.md). This feature is independent
+of repeat-QSO periods, logger scoring and click-to-tune behavior.

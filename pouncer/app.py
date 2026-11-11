@@ -30,7 +30,8 @@ from .rbn import (
     is_phone_contest,
     ports_for_modes, spot_from_n1mm, digital_sure, digital_overlap, digital_mode,
 )
-from .runhist import RARE_HOURS, RARE_RUN_PCT, RunHistory
+from .runhist import RARE_RUN_PCT, RunHistory
+from .urgency import classify as classify_urgency, format_hours
 from .rbnhttp import RBNHttpFeed
 from .scp import ScpList
 from .cwspeed import SpeedReader
@@ -726,10 +727,10 @@ class PouncerApp:
                              variable=self.tiles_var, accelerator="Ctrl+T",
                              command=lambda: self._toggle_tiles(flip=False))
         view.add_separator()
-        # rare CQ + new mult alert: pop-up and sound, each on its own
+        # history hint + new mult alert: pop-up and sound, each on its own
         self.alert_popup_var = tk.BooleanVar(value=bool(self.cfg.alert_popup))
         self.alert_sound_var = tk.BooleanVar(value=bool(self.cfg.alert_sound))
-        view.add_checkbutton(label="Alert pop-up (rare CQ + new mult)",
+        view.add_checkbutton(label="Alert pop-up (history hint + new mult)",
                              variable=self.alert_popup_var,
                              command=lambda: self._set_alert("popup"))
         view.add_checkbutton(label="Alert sound", variable=self.alert_sound_var,
@@ -890,7 +891,7 @@ class PouncerApp:
                           relief="solid" if band in (here, self._view_band) else "flat",
                           bd=2 if viewed else (1 if band == here else 0))
 
-    # ---- rare CQ + new mult alert (window) --------------------------------
+    # ---- history hint + new mult alert (window) --------------------------------
     ALERT_MS = 8000
 
     def _set_alert(self, which: str) -> None:
@@ -953,9 +954,9 @@ class PouncerApp:
             return
         s = fresh[0]
         more = f"  (+{len(fresh) - 1} more)" if len(fresh) > 1 else ""
-        log.info("alert: rare CQ + new mult %s %.1f%s", s.dxcall, s.freq_khz, more)
+        log.info("alert: history hint + new mult %s %.1f%s", s.dxcall, s.freq_khz, more)
         if self.cfg.alert_popup:
-            self._show_alert(s, f"\u26a1 rare CQ + new mult: {s.dxcall}  {s.freq_khz:.1f}{more}"
+            self._show_alert(s, f"\u26a1 history hint + new mult: {s.dxcall}  {s.freq_khz:.1f}{more}"
                                 "\nclick = QSY and call")
         if self.cfg.alert_sound:
             alert_beep(self.root)
@@ -3476,7 +3477,6 @@ class PouncerApp:
             "contest_bands": list(CONTEST_BANDS),
             "tune_step": self.cfg.tune_step_hz,
             "rare_run": RARE_RUN_PCT,
-            "rare_hours": RARE_HOURS,
             "filter": self._filter_width,
             # "cat": NAR/WIDE set the filter (always send); "toggle": Alt+'
             "filter_mode": (
@@ -3558,7 +3558,7 @@ class PouncerApp:
                                              mode=s.mode),
             "mult_rules": self.worked.mult_summary(),
             "mult": self._mults(s),
-            "run": run, "rare_run": RARE_RUN_PCT, "rare_hours": RARE_HOURS,
+            "run": run, "rare_run": RARE_RUN_PCT,
             "scp": None if self.scp is None else not self.scp.busted(s.dxcall),
             "tried": {"times": tried[0], "minutes": tried[1]} if tried else None,
             "tried_window_min": self.cfg.tried_minutes,
@@ -4417,7 +4417,9 @@ class PouncerApp:
                                     band=band_from_khz(s.freq_khz))
         info = info or {}
         return {"run": info.get("run"), "hours": info.get("hours"),
-                "rec": bool(info.get("rec")), "run_band": info.get("band")}
+                "rec": bool(info.get("rec")), "run_band": info.get("band"),
+                **classify_urgency(info, self.worked.contest_name,
+                                   getattr(self.cfg, "urgency_contest_minutes", 0))}
 
     def own_call(self) -> str:
         """Our call as N1MM has it now: <mycall> in its RadioInfo (Config >
@@ -5157,6 +5159,9 @@ class PouncerApp:
                 self._apply_cluster_server()
             if key == "web.phone_control":
                 self._apply_phone_control()
+            if key == "ui.urgency_contest_minutes":
+                self._dirty = True
+                self._web_built = 0.0
         else:
             log.info("setting NOT saved: %s = %r: %s", key, value, res.get("error"))
         return res
@@ -5455,8 +5460,7 @@ class PouncerApp:
             mults = self._mults(s)
             worked = self.worked.is_worked(s.dxcall, s.freq_khz, s.mode)
             run = self._run_fields(s)
-            rare = (run.get("run") is not None and run["run"] < RARE_RUN_PCT) or (
-                run.get("hours") is not None and run["hours"] < RARE_HOURS)
+            rare = bool(run.get("rare"))
             busted = self.scp is not None and self.scp.busted(s.dxcall)
             if rare and mults and not worked:
                 alert.append(s)
@@ -5546,20 +5550,23 @@ class PouncerApp:
         lines = []
         band = f" on {run['run_band']}" if run.get("run_band") else ""
         if pct is not None:
-            lines.append(f"R{pct}%{'*' if run.get('rec') else ''} - in {call}'s past logs of this "
-                         f"contest, {pct} % of the QSOs{band} were made running (calling CQ); "
-                         f"the rest searching & pouncing.")
+            lines.append(f"R{pct}%{'*' if run.get('rec') else ''} - in {call}'s historical logs, "
+                         f"{pct} % of measurable QSOs{band} were classified as running "
+                         "from frequency history (an estimate).")
         if hours is not None:
-            lines.append(f"~{round(hours)}h - on the air about {round(hours)} hours in those "
-                         "contests.")
+            span = f"{round(hours * 60)} minutes" if hours < 1 else f"{round(hours)} hours"
+            lines.append(f"{format_hours(hours)} - on the air about {span} in those "
+                         "historical logs (may be other contests).")
         if run.get("rec"):
             lines.append("* - a reconstructed log (put together from other stations' logs), "
                          "not its own.")
         if rare:
-            lines.append(f"\u26a1 Rare runner (runs under {RARE_RUN_PCT} % or on the air under "
-                         f"{RARE_HOURS} h): it may not stay on this frequency - work it now.")
-        elif pct is not None and pct >= 70:
-            lines.append("A regular runner: it usually stays - it can wait if you are busy.")
+            lines.append("\u26a1 Historical opportunity hint: " + (" ".join(run.get("rare_reasons", [])) or "Historical run/participation pattern."))
+        elif pct is not None or hours is not None:
+            lines.append("No historical opportunity flag from the available evidence.")
+        if run.get("urgency_note"):
+            lines.append(run["urgency_note"])
+        lines.append("Historical heuristic only; no probability or departure time is estimated.")
         lines.append("From the public contest-log archive (S53ZO).")
         return "\n".join(lines)
 
@@ -5570,7 +5577,7 @@ class PouncerApp:
         if run.get("run") is not None:
             runs = f"R{run['run']}%" + ("*" if run.get("rec") else "")
         if run.get("hours") is not None:
-            runs += (" " if runs else "") + f"~{round(run['hours'])}h"
+            runs += (" " if runs else "") + format_hours(run["hours"])
         own = self._own_mark(s) if hasattr(self, "_own_mark") else ""
         return {"freq": f"{s.freq_khz:.1f}", "call": s.dxcall,
                 "snr": "" if s.snr is None else str(s.snr),
@@ -5592,7 +5599,7 @@ class PouncerApp:
         if run.get("run") is not None:
             line1 += f"  R{run['run']}%" + ("*" if run.get("rec") else "")
         if run.get("hours") is not None:
-            line1 += f"  ~{round(run['hours'])}h"
+            line1 += "  " + format_hours(run["hours"])
         cq = self._cq_minutes(s) if hasattr(self, "_on_freq") else None
         line2 = (self._first_heard_utc(s) if hasattr(self, "_on_freq") else s.time_utc or "")
         line2 += "  " + ("--" if s.snr is None else f"{s.snr}dB")
