@@ -78,7 +78,11 @@ class CtyUpdater:
         def loop():
             while not self._stop.is_set():
                 if self.due():
-                    self.check()
+                    try:
+                        self.check()
+                    except Exception as exc:  # a bad local file must not end future checks
+                        self.status = f"country file check failed: {exc}"
+                        log.exception("CTY: %s", self.status)
                 self._stop.wait(3600)
         threading.Thread(target=loop, name="cty-update", daemon=True).start()
 
@@ -100,33 +104,30 @@ class CtyUpdater:
 
     def check(self) -> bool:
         """Ask for a newer file; True if one was installed."""
-        mine = self.path if os.path.exists(self.path) else ""
-        headers = {"User-Agent": "POUNCer"}
-        if mine:
-            headers["If-Modified-Since"] = email.utils.formatdate(os.path.getmtime(mine),
-                                                                  usegmt=True)
         try:
+            mine = self.path if os.path.exists(self.path) else ""
+            headers = {"User-Agent": "POUNCer"}
+            if mine:
+                headers["If-Modified-Since"] = email.utils.formatdate(os.path.getmtime(mine),
+                                                                      usegmt=True)
             status, data = self._get(headers)
+            if status == 304:
+                self._mark_checked()
+                self.status = time.strftime("country file up to date (checked %d.%m. %H:%M)")
+                log.info("CTY: %s is current", self.url)
+                return False
+            if status != 200 or not data:
+                raise ValueError(f"country file download rejected (HTTP {status}, empty or invalid response)")
+            db = CtyDB.from_text(data.decode("latin-1"))
+            n = len({e.name for e in db._prefixes.values()})
+            if n < MIN_ENTITIES:
+                raise ValueError(f"country file download rejected ({n} countries)")
+            self._write(self.path, data)
         except Exception as exc:  # noqa: BLE001 - offline: try again in an hour
             self.status = f"country file check failed: {exc}"
             log.info("CTY: %s", self.status)
             return False
         self._mark_checked()
-        if status == 304 or not data:
-            self.status = time.strftime("country file up to date (checked %d.%m. %H:%M)")
-            log.info("CTY: %s is current", self.url)
-            return False
-        try:
-            db = CtyDB.from_text(data.decode("latin-1"))
-        except Exception as exc:  # noqa: BLE001
-            db = None
-            log.warning("CTY: download unreadable: %s", exc)
-        n = len({e.name for e in getattr(db, "_prefixes", {}).values()}) if db else 0
-        if n < MIN_ENTITIES:
-            self.status = f"country file download rejected ({n} countries)"
-            log.warning("CTY: %s", self.status)
-            return False
-        self._write(self.path, data)
         same_kind = (os.path.basename(self.n1mm_path).lower()
                      == os.path.basename(self.path).lower())
         if self.update_n1mm and self.n1mm_path and not same_kind:
