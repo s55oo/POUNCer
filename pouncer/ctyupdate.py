@@ -38,6 +38,14 @@ def cache_name(url: str) -> str:
     return name if name.lower().endswith(".dat") else "cty.dat"
 
 
+def _validate(data: bytes) -> int:
+    db = CtyDB.from_text(data.decode("latin-1"))
+    count = len({e.name for e in db._prefixes.values()})
+    if count < MIN_ENTITIES:
+        raise ValueError(f"country file download rejected ({count} countries)")
+    return count
+
+
 def newest(paths) -> str:
     """The newest existing file of ``paths`` ('' if none)."""
     found = [p for p in paths if p and os.path.exists(p)]
@@ -104,6 +112,9 @@ class CtyUpdater:
 
     def check(self) -> bool:
         """Ask for a newer file; True if one was installed."""
+        same_kind = (os.path.basename(self.n1mm_path).casefold()
+                     == os.path.basename(self.path).casefold())
+        copy_n1mm = self.update_n1mm and bool(self.n1mm_path) and same_kind
         try:
             mine = self.path if os.path.exists(self.path) else ""
             headers = {"User-Agent": "POUNCer"}
@@ -112,34 +123,44 @@ class CtyUpdater:
                                                                       usegmt=True)
             status, data = self._get(headers)
             if status == 304:
+                # A previous valid cache install may have failed to copy into
+                # N1MM. Recover even across a restart / unchanged server reply,
+                # without overwriting an independently newer N1MM file.
+                if (copy_n1mm and mine and
+                        (not os.path.exists(self.n1mm_path) or
+                         os.path.getmtime(self.path) >= os.path.getmtime(self.n1mm_path))):
+                    with open(self.path, "rb") as fh:
+                        cached = fh.read()
+                    _validate(cached)
+                    self._write(self.n1mm_path, cached)
                 self._mark_checked()
                 self.status = time.strftime("country file up to date (checked %d.%m. %H:%M)")
                 log.info("CTY: %s is current", self.url)
                 return False
             if status != 200 or not data:
                 raise ValueError(f"country file download rejected (HTTP {status}, empty or invalid response)")
-            db = CtyDB.from_text(data.decode("latin-1"))
-            n = len({e.name for e in db._prefixes.values()})
-            if n < MIN_ENTITIES:
-                raise ValueError(f"country file download rejected ({n} countries)")
+            n = _validate(data)
             self._write(self.path, data)
         except Exception as exc:  # noqa: BLE001 - offline: try again in an hour
             self.status = f"country file check failed: {exc}"
             log.info("CTY: %s", self.status)
             return False
-        self._mark_checked()
-        same_kind = (os.path.basename(self.n1mm_path).lower()
-                     == os.path.basename(self.path).lower())
+        copy_error = None
         if self.update_n1mm and self.n1mm_path and not same_kind:
             log.info("CTY: %s not copied into N1MM (it uses %s)", os.path.basename(self.path),
                      os.path.basename(self.n1mm_path))
-        if self.update_n1mm and self.n1mm_path and same_kind:
+        if copy_n1mm:
             try:
                 self._write(self.n1mm_path, data)
                 log.info("CTY: new wl_cty.dat copied to %s", self.n1mm_path)
             except OSError as exc:
+                copy_error = exc
                 log.warning("CTY: could not write %s: %s", self.n1mm_path, exc)
+        if copy_error is None:
+            self._mark_checked()
         self.status = time.strftime("new country file %d.%m. %H:%M") + f" ({n} countries)"
+        if copy_error is not None:
+            self.status += f"; N1MM copy failed, retry in an hour: {copy_error}"
         log.info("CTY: new %s from %s, %d countries", os.path.basename(self.path), self.url, n)
         if self.on_new is not None:
             try:

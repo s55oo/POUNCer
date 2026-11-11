@@ -62,3 +62,51 @@ class RecoveryTests(unittest.TestCase):
             self.assertEqual(calls, [1_800_000_000.0, 1_800_003_600.0])
             self.assertTrue(os.path.exists(u.path))
             self.assertFalse(u.due())
+
+
+class N1mmCopyRecoveryTests(unittest.TestCase):
+    def test_failed_n1mm_copy_retries_from_cache_after_restart_and_304(self):
+        with tempfile.TemporaryDirectory() as folder:
+            now = [1_800_000_000.0]
+            destination = os.path.join(folder, 'n1mm', 'wl_cty.dat')
+            os.makedirs(os.path.dirname(destination))
+            with open(destination, 'wb') as fh:
+                fh.write(b'old N1MM file')
+            os.utime(destination, (1, 1))
+            installed = []
+            cache = os.path.join(folder, 'cache')
+            u = CtyUpdater(cache, n1mm_path=destination, update_n1mm=True, url="https://isolated.invalid/wl_cty.dat",
+                           clock=lambda: now[0], fetch=lambda *_: (200, fake_cty()), on_new=installed.append)
+            original = u._write
+            def write(path, data):
+                if path == destination:
+                    raise OSError('N1MM temporarily locked')
+                original(path, data)
+            with patch.object(u, '_write', side_effect=write):
+                self.assertTrue(u.check())  # the main app still gets its valid new cache
+            self.assertEqual(installed, [u.path])
+            now[0] += 3600
+            self.assertTrue(u.due())
+            restarted = CtyUpdater(cache, n1mm_path=destination, update_n1mm=True, url="https://isolated.invalid/wl_cty.dat",
+                                  clock=lambda: now[0], fetch=lambda *_: (304, b''))
+            self.assertTrue(restarted.due())
+            self.assertFalse(restarted.check())  # no newer server file; copy still recovers
+            with open(destination, 'rb') as fh:
+                self.assertEqual(fh.read(), fake_cty())
+            self.assertFalse(restarted.due())
+
+    def test_304_does_not_replace_a_newer_local_n1mm_file(self):
+        with tempfile.TemporaryDirectory() as folder:
+            destination = os.path.join(folder, 'wl_cty.dat')
+            u = CtyUpdater(os.path.join(folder, 'cache'), n1mm_path=destination,
+                           update_n1mm=True, url="https://isolated.invalid/wl_cty.dat", fetch=lambda *_: (304, b''))
+            os.makedirs(os.path.dirname(u.path))
+            with open(u.path, 'wb') as fh:
+                fh.write(fake_cty())
+            with open(destination, 'wb') as fh:
+                fh.write(fake_cty(321))
+            os.utime(u.path, (100, 100))
+            os.utime(destination, (200, 200))
+            self.assertFalse(u.check())
+            with open(destination, 'rb') as fh:
+                self.assertEqual(fh.read(), fake_cty(321))
