@@ -94,14 +94,71 @@ class KeyboardTargetTests(unittest.TestCase):
                 patch.object(app.win32mod, 'send_ctrl_k', side_effect=lambda: foreground.__setitem__(0, 7777)), \
                 patch.object(app, 'window_pid', return_value=10), \
                 patch.object(app.win32mod, 'is_window', return_value=True), \
+                patch.object(app.win32mod, 'focused_multiline_edit', return_value=8888), \
                 patch.object(app, 'send_enter') as enter, patch.object(app.time, 'sleep'):
             self.assertTrue(fake._cw_open(2))
             fake._cw_close(False)
             enter.assert_called_once()
             focus.assert_not_called()
 
+    def test_ctrl_k_race_to_other_entry_or_unrelated_dialog_never_sends_cw(self):
+        for candidate in (1111, 9999):
+            app, fake = self.fake()
+            fake._cw_win = None
+            foreground = [2222]
+            with self.subTest(candidate=candidate), \
+                    patch.object(app.win32mod, 'foreground_window', side_effect=lambda: foreground[0]), \
+                    patch.object(app.win32mod, 'send_ctrl_k', side_effect=lambda: foreground.__setitem__(0, candidate)), \
+                    patch.object(app, 'force_foreground', side_effect=lambda h: foreground.__setitem__(0, h) or True), \
+                    patch.object(app, 'window_pid', return_value=10), \
+                    patch.object(app.win32mod, 'is_window', return_value=True), \
+                    patch.object(app, 'send_enter') as enter, \
+                    patch.object(app, 'type_text') as text, patch.object(app.time, 'sleep'):
+                self.assertFalse(fake._cw_open(2))
+                fake._cw('text', 'CQ', radio=2)
+                fake._cw('done', radio=2)
+                text.assert_not_called()
+                enter.assert_not_called()
+
+
 
 class ReceiverSafetyTests(unittest.TestCase):
+    def test_incomplete_appinfo_cannot_block_startup_or_erase_confirmed_selection(self):
+        for invalid in (None, 'not-a-number', True):
+            state = RadioState()
+            state.set_app({'kind': 'AppInfo', 'dbname': 'unknown.s3db',
+                           'contest_nr': invalid, 'contest_name': ''})
+            state.set_app({'kind': 'contactinfo', 'contest_nr': 1, 'contest_name': 'CQWWCW'})
+            self.assertEqual((state.app()['contest_nr'], state.app()['contest_name']), (1, 'CQWWCW'))
+            state.set_app({'kind': 'AppInfo', 'dbname': 'current.s3db',
+                           'contest_nr': 2, 'contest_name': 'CQWPXCW'})
+            state.set_app({'kind': 'AppInfo', 'dbname': 'unknown.s3db',
+                           'contest_nr': invalid, 'contest_name': ''})
+            self.assertEqual((state.app()['contest_nr'], state.app()['contest_name']), (2, 'CQWPXCW'))
+        state = RadioState()
+        listener = RadioListener('127.0.0.1', 0, state)
+        listener._handle_packet(b'<AppInfo><dbname>unknown.s3db</dbname></AppInfo>')
+        self.assertIsNone(state.app())
+        listener._handle_packet(b'<contactinfo><contestnr>1</contestnr><contestname>CQWWCW</contestname></contactinfo>')
+        self.assertEqual(state.app()['contest_nr'], 1)
+
+    def test_confirmed_name_spelling_and_udc_alias_accept_legitimate_events(self):
+        state = RadioState()
+        state.set_app({'kind': 'AppInfo', 'dbname': 'custom.s3db', 'contest_nr': 1,
+                       'contest_name': 'UDC_OK1WC'})
+        state.set_app({'kind': 'contactinfo', 'contest_nr': 1, 'contest_name': ' ok1wc '})
+        self.assertEqual(state.app()['contest_name'], 'UDC_OK1WC')
+        self.assertEqual(len(state.contact_events()), 1)
+
+    def test_same_contest_number_cannot_replace_appinfo_contest_name(self):
+        for kind in ('contactinfo', 'contactreplace', 'lookupinfo'):
+            state = RadioState()
+            state.set_app({'kind': 'AppInfo', 'dbname': 'new-db.s3db',
+                           'contest_nr': 1, 'contest_name': 'CQWPXCW'})
+            state.set_app({'kind': kind, 'contest_nr': 1, 'contest_name': 'CQWWCW'})
+            self.assertEqual(state.app()['contest_name'], 'CQWPXCW')
+            self.assertEqual(state.contact_events(), [])
+
     def test_bad_encoding_is_ignored_by_parsers(self):
         data = b'<?xml version="1.0" encoding="unknown-encoding"?><RadioInfo/>'
         self.assertIsNone(parse_radio_info(data))
@@ -158,6 +215,30 @@ class ReceiverSafetyTests(unittest.TestCase):
 
 
 class OrdinaryContactTests(unittest.TestCase):
+    def test_queued_old_database_contacts_cannot_cross_same_number_switch(self):
+        for old_name in ('CQWWCW', 'CQWPXCW'):
+            with self.subTest(old_name=old_name), tempfile.TemporaryDirectory() as folder:
+                path = os.path.join(folder, 'new-db.s3db')
+                con = sqlite3.connect(path)
+                con.execute('CREATE TABLE DXLOG (ID TEXT, TS TEXT, Call TEXT, Band REAL, Mode TEXT, ContestNR INT)')
+                con.commit(); con.close()
+                state = RadioState()
+                state.set_app({'kind': 'AppInfo', 'dbname': 'old-db.s3db',
+                               'contest_nr': 1, 'contest_name': old_name})
+                state.set_app(parse_app_info(f'<contactinfo><contestnr>1</contestnr><contestname>{old_name}</contestname>'
+                    '<ID>old</ID><call>OLD</call><band>14</band><mode>CW</mode>'
+                    '<timestamp>2026-11-11 12:00:00</timestamp></contactinfo>'.encode()))
+                state.set_app({'kind': 'AppInfo', 'dbname': path, 'contest_nr': 1, 'contest_name': 'CQWPXCW'})
+                worked = WorkedLog(path)
+                worked.app_info, worked.contact_events = state.app, state.contact_events
+                worked.maybe_reload()
+                self.assertFalse(worked.is_worked('OLD', 14025, 'CW'))
+                state.set_app(parse_app_info(b'<contactinfo><contestnr>1</contestnr><contestname>cqwpXCW</contestname>'
+                    b'<ID>current</ID><call>GOOD</call><band>14</band><mode>CW</mode>'
+                    b'<timestamp>2026-11-11 12:01:00</timestamp></contactinfo>'))
+                worked.maybe_reload()
+                self.assertTrue(worked.is_worked('GOOD', 14025, 'CW'))
+
     def test_duplicate_and_other_mode_survive_delete_before_and_after_database_ack(self):
         with tempfile.TemporaryDirectory() as folder:
             path = os.path.join(folder, 'test.s3db')

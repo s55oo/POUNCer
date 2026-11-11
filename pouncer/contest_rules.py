@@ -13,6 +13,12 @@ import time
 UTC = timezone.utc
 
 
+def contest_name_key(name: str) -> str:
+    """Compare the logger's spelling/case and documented UDC prefix only."""
+    key = ''.join((name or '').upper().split())
+    return key[4:] if key.startswith('UDC_') else key
+
+
 @dataclass(frozen=True)
 class Profile:
     name: str

@@ -107,3 +107,23 @@ class ClearEditOnWindowsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CwInputIdentityTests(unittest.TestCase):
+    def test_multiline_edit_must_be_writable_and_owned_by_candidate(self):
+        from types import SimpleNamespace
+        def info(thread, pointer):
+            pointer._obj.hwndFocus = 8888
+            return True
+        api = SimpleNamespace(GetWindowThreadProcessId=lambda *a: 10, GetGUIThreadInfo=info,
+                              GetParent=lambda h: {8888: 7777}.get(h, 0))
+        for style, cls, window, expected in ((4, 'WindowsForms10.EDIT', 7777, 8888),
+                (0, 'WindowsForms10.EDIT', 7777, None),
+                (4 | 0x800, 'WindowsForms10.EDIT', 7777, None),
+                (4, 'WindowsForms10.STATIC', 7777, None),
+                (4, 'WindowsForms10.EDIT', 1111, None)):
+            with self.subTest(style=style, cls=cls, window=window), \
+                    mock.patch.object(win32, '_WIN', True), mock.patch.object(win32, '_user32', api), \
+                    mock.patch.object(win32, 'class_name', return_value=cls), \
+                    mock.patch.object(win32, '_GetLong', return_value=style, create=True):
+                self.assertEqual(win32.focused_multiline_edit(window), expected)

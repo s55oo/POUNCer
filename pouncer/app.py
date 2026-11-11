@@ -124,6 +124,18 @@ def _keyboard_ready(app, hwnd, *, allow_focus=True) -> bool:
         return False
 
 
+def _cw_keyboard_ready(app, hwnd, nr: int, *, allow_focus=True) -> bool:
+    """A CW input must be distinct from every reported Entry Window."""
+    entry = app.state.entry_window_hwnd(nr)
+    entries = {app.state.entry_window_hwnd(r) for r in app.state.radio_numbers()}
+    if not hwnd or hwnd in entries or not win32mod.is_window(hwnd):
+        return False
+    pid = window_pid(entry) if entry else 0
+    return bool(pid and window_pid(hwnd) == pid and
+                _keyboard_ready(app, hwnd, allow_focus=allow_focus) and
+                win32mod.focused_multiline_edit(hwnd))
+
+
 class FlowFrame(ttk.Frame):
     """Frame that lays its children out left to right, wrapping onto new
     rows when the window gets narrow (see ``flow.flow_positions``).
@@ -3687,9 +3699,11 @@ class PouncerApp:
         keyboard - never into the callsign box."""
         win = self._cw_win
         if win and win32mod.is_window(win) and self._cw_radio == nr:
-            return _keyboard_ready(self, win) or self._cw_fail("N1MM's CW window could not be focused")
+            return _cw_keyboard_ready(self, win, nr) or self._cw_fail("N1MM's CW input window could not be verified")
         if win:
             self._cw_close(stop=False)
+            if self._cw_win is not None:
+                return False
         hwnd = self.state.entry_window_hwnd(nr)
         if not _keyboard_ready(self, hwnd):
             return self._cw_fail("N1MM's Entry Window could not be brought to the front")
@@ -3698,9 +3712,9 @@ class PouncerApp:
         for _ in range(10):              # wait for N1MM's CW window (max 0.5 s)
             time.sleep(0.05)
             fg = win32mod.foreground_window()
-            if fg and fg != hwnd:
+            if _cw_keyboard_ready(self, fg, nr, allow_focus=False):
                 break
-        if not fg or fg == hwnd or window_pid(fg) != window_pid(hwnd):
+        if not _cw_keyboard_ready(self, fg, nr, allow_focus=False):
             return self._cw_fail("N1MM's CW window (Ctrl+K) did not open")
         self._cw_win, self._cw_radio, self._cw_error = fg, nr, ""
         self.status_label.configure(
@@ -3716,7 +3730,7 @@ class PouncerApp:
         if not win or self._cw_radio != nr or not win32mod.is_window(win):
             self._cw_win = None
             return self._cw_open(nr)
-        return _keyboard_ready(self, win) or self._cw_fail("N1MM's CW window could not be focused")
+        return _cw_keyboard_ready(self, win, nr) or self._cw_fail("N1MM's CW input window could not be verified")
 
     def _cw_close(self, stop: bool) -> None:
         """Done: Enter (N1MM sends what's left, closes its CW window).
@@ -3728,8 +3742,8 @@ class PouncerApp:
                 if _keyboard_ready(self, hwnd):
                     win32mod.send_escape()
             return
-        if not _keyboard_ready(self, win):
-            self._cw_error = "N1MM's CW window could not be focused; close/stop was not sent"
+        if not _cw_keyboard_ready(self, win, self._cw_radio or self._radio_nr()):
+            self._cw_error = "N1MM's CW input window could not be verified; close/stop was not sent"
             self._cw_error_n += 1
             self.status_label.configure(text="CW keyboard: " + self._cw_error)
             return

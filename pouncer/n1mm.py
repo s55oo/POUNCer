@@ -12,6 +12,7 @@ import xml.etree.ElementTree as ET
 from xml.sax.saxutils import escape as xml_escape
 
 from .bands import band_from_khz, tens_of_hz_to_khz
+from .contest_rules import contest_name_key
 
 log = logging.getLogger(__name__)
 
@@ -176,6 +177,10 @@ class RadioState:
     def set_app(self, info: dict) -> None:
         """AppInfo: database + contest; a contact packet: the contest only
         (keeps the database AppInfo named)."""
+        if info.get("kind") == "AppInfo" and (isinstance(info.get("contest_nr"), bool)
+                or not isinstance(info.get("contest_nr"), int)):
+            log.warning("N1MM AppInfo without a valid contest number ignored")
+            return
         with self._lock:
             app = dict(self._app)
             if info.get("kind") == "AppInfo":
@@ -183,19 +188,25 @@ class RadioState:
                 self._have_app_info = True
             # AppInfo identifies the open contest. A late packet from an older
             # contest must not switch the active contest back.
-            if (not self._have_app_info or info.get("kind") == "AppInfo"
-                    or info.get("contest_nr") == app.get("contest_nr")):
+            if not self._have_app_info or info.get("kind") == "AppInfo":
                 app["contest_nr"] = info.get("contest_nr")
                 app["contest_name"] = info.get("contest_name") or app.get("contest_name", "")
+            elif info.get("contest_nr") == app.get("contest_nr") and not app.get("contest_name"):
+                app["contest_name"] = info.get("contest_name", "")
             app["kind"] = info.get("kind")
             app["t"] = time.time()
-            if str(info.get("kind", "")).startswith("contact"):
+            named_foreign = (app.get("contest_name") and info.get("contest_name") and
+                             contest_name_key(app["contest_name"]) != contest_name_key(info["contest_name"]))
+            selected = (not self._have_app_info or (info.get("contest_nr") == app.get("contest_nr")
+                                                   and not named_foreign))
+            if str(info.get("kind", "")).startswith("contact") and selected:
                 self._contact_sequence += 1
                 app["contacts"] = self._contact_sequence
                 ev = self._contact_events
+                metadata = dict(info, selection_dbname=app.get("dbname", ""))
                 ev.append((app["contacts"], info.get("kind"), info.get("call", ""),
                            info.get("band", ""), info.get("mode", ""), info.get("khz"),
-                           info.get("contest_nr"), dict(info)))
+                           info.get("contest_nr"), metadata))
                 del ev[:-200]
             self._app = app
 

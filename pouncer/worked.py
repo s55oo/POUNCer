@@ -12,7 +12,7 @@ when its callsign appears in the open log on the same band AND mode.
 
 from __future__ import annotations
 
-from .contest_rules import Contact, SessionLog, profile_for, utc_timestamp, contact_id, suffix_character
+from .contest_rules import Contact, SessionLog, profile_for, utc_timestamp, contact_id, suffix_character, contest_name_key
 
 import logging
 import calendar
@@ -1078,6 +1078,16 @@ class WorkedLog:
             if not label:
                 continue
             info = event[7] if len(event) > 7 else {}
+            # Queued events may predate an AppInfo database switch. ContestNR
+            # is only unique inside one database, so check the named contest too.
+            received_db = info.get("selection_dbname")
+            if (received_db and self._path and
+                    os.path.basename(received_db.replace('\\', '/')).casefold() !=
+                    os.path.basename(self._path).casefold()):
+                continue
+            if (self.contest_name and info.get("contest_name") and
+                    contest_name_key(self.contest_name) != contest_name_key(info["contest_name"])):
+                continue
             record = Contact(call, label, normalize_mode(mode) if mode else "",
                              utc_timestamp(info.get("timestamp")), contact_id(info.get("id")))
             self._session_log.event(kind, record, info.get("oldcall", ""),

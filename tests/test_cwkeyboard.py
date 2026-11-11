@@ -84,6 +84,7 @@ def _fake_app(fg_after_ctrl_k):
         mock.patch.object(app.win32mod, "send_ctrl_k", side_effect=ctrl_k),
         mock.patch.object(app.win32mod, "foreground_window", side_effect=lambda: fg["now"]),
         mock.patch.object(app.win32mod, "is_window", return_value=True),
+        mock.patch.object(app.win32mod, "focused_multiline_edit", side_effect=lambda h: 8888 if h == 7777 else None),
         mock.patch.object(app.win32mod, "send_escape", side_effect=lambda: keys.append("esc")),
         mock.patch.object(app.win32mod, "send_backspace", side_effect=lambda n: keys.append(("bs", n))),
         mock.patch.object(app, "send_enter", side_effect=lambda: keys.append("enter")),
