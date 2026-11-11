@@ -1,5 +1,7 @@
 """Settings page: config.ini edited in place, live values, local-only edits."""
 
+from tests.web_request import open_web
+
 import json
 import os
 import shutil
@@ -83,14 +85,14 @@ class PageTests(unittest.TestCase):
         web, saved = self._web(remote=False)
         base = f"http://127.0.0.1:{web.port}"
         try:
-            with urllib.request.urlopen(base + "/api/settings", timeout=5) as r:
+            with open_web(base + "/api/settings", timeout=5) as r:
                 d = json.load(r)
             self.assertTrue(d["can_edit"])
             self.assertFalse(d["can_restart"])
-            with urllib.request.urlopen(base + "/api/settings/set?key=n1mm.qsy_wait_ms&value=900",
+            with open_web(base + "/api/settings/set?key=n1mm.qsy_wait_ms&value=900",
                                         timeout=5) as r:
                 self.assertTrue(json.load(r)["ok"])
-            with urllib.request.urlopen(base + "/settings", timeout=5) as r:
+            with open_web(base + "/settings", timeout=5) as r:
                 self.assertIn("Settings", r.read().decode())
         finally:
             web.stop()
@@ -103,7 +105,7 @@ class PageTests(unittest.TestCase):
             for key, value in (("autostart.folder", r"C:\\Users\\x\\Downloads"),
                                ("autostart.app1", r"C:\\evil.exe"), ("Autostart.enabled", "true")):
                 with self.assertRaises(urllib.error.HTTPError) as cm:
-                    urllib.request.urlopen(base + "/api/settings/set?" + urllib.parse.urlencode(
+                    open_web(base + "/api/settings/set?" + urllib.parse.urlencode(
                         {"key": key, "value": value}), timeout=5)
                 self.assertEqual(cm.exception.code, 403)
         finally:
