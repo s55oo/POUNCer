@@ -1,4 +1,4 @@
-"""Station test (View > Station test): does QSY + callsign entry work?
+"""Station test (N1MM > Station test): does QSY + callsign entry work?
 
 A quick check after setting up (cables, COM ports, N1MM's Broadcast Data
 just moved): per radio N1MM reports, QSY 0.1 kHz up and back (no TX), and

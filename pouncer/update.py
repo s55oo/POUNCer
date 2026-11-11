@@ -222,7 +222,7 @@ class Updater:
         log.info("update %s: SHA-256 checked against %s", tag, " + ".join(hashes))
         return data
 
-    # --- any released version (Help > Switch version...) ----------------------
+    # --- any released version (Help > Versions > Switch version...) ----------------------
     def list_releases(self) -> list[dict]:
         """The published versions with a POUNCer.exe, newest first:
         [{"tag", "date", "release"}] (no pre-releases)."""

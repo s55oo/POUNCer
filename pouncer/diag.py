@@ -4,7 +4,7 @@
 kept) to the normal logging, so taps, QSYs, autostart, team and connection
 problems can be read afterwards - the exe has no console window.
 
-``build_zip`` makes *Help > Save diagnostics*: one zip with the log files,
+``build_zip`` makes *Help > Troubleshooting > Save diagnostics*: one zip with the log files,
 a facts.txt (versions, radios, team, connections) and config.ini with any
 password / token / secret / key value replaced by ``***``.
 """

@@ -20,11 +20,11 @@ them in the window (or long-press on the phone) for a short explanation.
 | **✗ NOT READY** (red) | something POUNCer needs is not working (no radio info, no log, no RBN, ...) |
 | red line at the bottom **⚠ Error in ... - click: open pouncer.log** | something failed (the refresh, a button, reading the N1MM log): when, how often, the error. Click = pouncer.log opens, the line goes away (v0.7.176) |
 | **MASTER** (green) | team: this POUNCer holds the RBN connection and feeds the others |
-| **SLAVE** (blue) | team: this POUNCer gets its spots from the master. **Click it** to become the master yourself (asks first; File > Become team master does the same) |
+| **SLAVE** (blue) | team: this POUNCer gets its spots from the master. **Click it** to become the master yourself (asks first; Team > Become team master does the same) |
 | **TEAM: ALONE** (grey) | team is on, but no other POUNCer is on the network |
 | **TEAM OFF** (dark) | team is switched off |
 | team badge **orange** | a team POUNCer runs a different version (the tooltip says which IP and version) |
-| **CLR BAND** / **CLR ALL** (grey, next to the team badge) | forget the spots of the band in the list (the radio's, or the band chip clicked) / of every band; View > Clear spots does CLR ALL too; the phone's Undo brings them back |
+| **CLR BAND** / **CLR ALL** (grey, next to the team badge) | forget the spots of the band in the list (the radio's, or the band chip clicked) / of every band; Spots > Clear spots does CLR ALL too; the phone's Undo brings them back |
 
 Click the READY badge for the list of checks. Each one is shown with
 **✓** (good), **⚠** (look at it) or **✗** (not working), each in its own
@@ -183,13 +183,13 @@ Marks in the call and Mult columns:
 | **F1 ... F12** | send N1MM's function key: they **transmit** (the edge turns red under the mouse) |
 | **Radio A / Radio B** | which radio POUNCer follows. Shown only when N1MM reports two radios / VFOs |
 | **CW 30 WPM ▲** / **▼** popup | the CW speed was changed in N1MM: up or down |
-| yellow **⚡ history hint + new mult: 3B8X 7012.0** pop-up | a rare CQ that is also a new multiplier just appeared (once per station and band); **click it = QSY and call**; gone after 8 s. *View > Alert pop-up* on / off, *Alert sound* = two beeps (each on its own) |
+| yellow **⚡ history hint + new mult: 3B8X 7012.0** pop-up | a rare CQ that is also a new multiplier just appeared (once per station and band); **click it = QSY and call**; gone after 8 s. *Tools > Alerts > Pop-up* on / off, *Alert sound* = two beeps (each on its own) |
 | red bar **⚠ Internet down since 12:03 (14 min) - the last spots stay, greyed; reconnecting by itself** | no internet on this PC (no answer from 1.1.1.1 / 8.8.8.8 / 9.9.9.9 for two rounds). The rows from before it went are **grey** and don't age out; spots from the team or N1MM still come in normal colours. Green **✔ Internet back after 14 min** for 8 s, then every feed reconnects at once. Phone: the same text in orange at the start of the line. `[ui] internet_check` |
 | yellow **SPOTTED: S55OO by DL1ABC on 14025.0 2147Z** pop-up + a yellow bar under the top bar | a person (not a skimmer) spotted your call on a DX cluster; **(self-spot)** = you spotted yourself. 3 s (click closes it sooner), once per spotter and frequency in 15 min; the alert sound if on. In a team only on the PC whose radio is on that band; the status line keeps the last one |
 | **Station test** window (View menu) | per radio: ✓ QSY up / back and how long N1MM took, ✓ test call in the box and cleared; ✗ = that step failed; - = not tested (box not empty, radio B typed) |
 | **min SNR** box | spots weaker than this are not listed (0 = all) |
 
-### Traffic console (View menu, Ctrl+Shift+D)
+### Traffic console (Tools menu, Ctrl+Shift+D)
 
 | What you see | Meaning |
 | --- | --- |
@@ -206,6 +206,20 @@ Marks in the call and Mult columns:
 | **self-spot** (under SSB) | the small connection for spots of your call: login `<call>-77`, the node filter, and only spots of your call |
 | blue bar **n new lines below** | you scrolled up; click it to follow the newest lines |
 | hover over a source (switch or dot) | pop-up: what the source is, its settings now (server:port, login, mode, filters, listen address, team role, relay), why it is quiet, line count |
+
+### Menus and shortcuts (v0.7.189)
+
+| Menu | What | Shortcut |
+|---|---|---|
+| File | config folder, Autostart ▸, firewall, restart, exit | |
+| N1MM | Reconnect log, Also enter callsign, Station test | |
+| View | Compact window, Always on top, Detailed layout, Tiles, Rate line, Look ▸ | Ctrl+M, Ctrl+T |
+| Spots | sources, Hide worked, Clear spots, connections | Ctrl+H, Ctrl+L |
+| Spotters / Spotted | the filters | |
+| Tools | summary, CQ zones, timeline, Phone page ▸, Alerts ▸, Traffic console | Ctrl+Shift+D |
+| Team | password, become master, master after restart, update all (master) - grey when not possible | |
+| Settings... | the settings window (Mac: POUNCer > Settings…, ⌘,) | Ctrl+, |
+| Help | what every button does, GitHub, Versions ▸, Troubleshooting ▸, About | |
 
 ## Phone page
 

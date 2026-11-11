@@ -451,12 +451,12 @@ class PouncerApp:
         self._alerts = AlertWatch()
         self._self_spots = SelfSpotWatch()
         self._build_alert_popup()
-        # View > CQ zones / Band opening timeline: windows of their own
+        # Tools > CQ zones / Band opening timeline: windows of their own
         self._zones_win = ZonesWindow(self.root, self._zones,
                                       browser=lambda: self._open_browser("zones"))
         self._timeline_win = TimelineWindow(self.root, self._timeline,
                                             browser=lambda: self._open_browser("timeline"))
-        # View > Traffic console: the taps only work while it is open
+        # Tools > Traffic console: the taps only work while it is open
         self._console = TrafficConsole(self.root, notes=self._console_notes, info=self._console_info)
         self.root.bind_all("<Control-Shift-D>", lambda _e: self._console.open())
         self.root.bind_all("<Control-Shift-d>", lambda _e: self._console.open())
@@ -746,72 +746,57 @@ class PouncerApp:
         self._apply_layout()
 
     def _build_menu(self) -> None:
-        """Menu bar: File / View / Settings... / Help - the actions and
-        options that used to be a row of buttons (sort, A / B and the F-keys
-        stay as buttons: they're used all contest long)."""
+        """Menu bar (v0.7.189), grouped by what you do:
+        File (program) / N1MM / View (the window) / Spots (sources, Hide worked,
+        Clear) / Spotters / Spotted (one click in the contest) / Tools (pages and
+        windows) / Team / Settings... / Help. Sort, A / B and the F-keys stay
+        buttons: they're used all contest long."""
         bar = tk.Menu(self.root)
-        file = tk.Menu(bar, tearoff=False)
+        mac = sys.platform == "darwin"
+        # -- File: the program itself ----------------------------------------------
+        file = tk.Menu(bar, tearoff=False, postcommand=self._refresh_menu_states)
         file.add_command(label="Open the config folder", command=self._open_config_folder)
-        file.add_command(label="Reconnect log", command=self._reconnect_log)
-        file.add_command(label="Start autostart programs now", command=self._start_autostart)
-        file.add_command(label="Don't wait for N1MM (start the rest now)",
+        auto = tk.Menu(file, tearoff=False, postcommand=self._refresh_menu_states)
+        auto.add_command(label="Start autostart programs now", command=self._start_autostart)
+        auto.add_command(label="Don't wait for N1MM (start the rest now)",
                          command=self._stop_waiting_n1mm)
-        file.add_command(label="Open the autostart folder",
+        auto.add_command(label="Open the autostart folder",
                          command=lambda: self._open_path(self._autostart_folder()))
+        file.add_cascade(label="Autostart", menu=auto)
+        self._auto_menu = auto
         file.add_separator()
         file.add_command(label="Allow POUNCer in Windows Firewall\u2026", command=self._allow_firewall,
                          state="normal" if sys.platform == "win32" else "disabled")
         self._fw_menu = (file, file.index("end"))
-        file.add_command(label=self._team_pw_label(), command=self._team_password)
-        self._pw_menu = (file, file.index("end"))
-        file.add_command(label="Become team master (take it back)", command=self._become_master)
-        self.team_master_var = tk.BooleanVar(value=bool(getattr(self.cfg, "team_master", False)))
-        file.add_checkbutton(label="This PC is the team master (take it back after a restart)",
-                             variable=self.team_master_var, command=self._toggle_team_master)
         file.add_separator()
         file.add_command(label="Restart POUNCer", command=self._restart_now,
                          state="normal" if self.updater.exe else "disabled")
-        file.add_command(label="Exit", command=self._shutdown_and_quit)
+        file.add_command(label="Exit", command=self._shutdown_and_quit,
+                         accelerator="Cmd+Q" if mac else "")
         bar.add_cascade(label="File", menu=file)
+        # -- N1MM: how POUNCer works with N1MM -----------------------------------------
+        n1mm = tk.Menu(bar, tearoff=False)
+        n1mm.add_command(label="Reconnect log", command=self._reconnect_log)
+        n1mm.add_checkbutton(label="Also enter callsign in N1MM", variable=self.set_call_var)
+        n1mm.add_separator()
+        n1mm.add_command(label="Station test (QSY + callsign, each radio)",
+                         command=self._station_test)
+        bar.add_cascade(label="N1MM", menu=n1mm)
+        # -- View: this window ----------------------------------------------------------
         view = tk.Menu(bar, tearoff=False)
-        view.add_checkbutton(label="Also enter callsign in N1MM", variable=self.set_call_var)
-        view.add_checkbutton(label="Hide worked (same band + mode)",
-                             variable=self.hide_worked_var, command=self._on_toggle_worked)
-        view.add_separator()
         view.add_checkbutton(label="Compact window (beside N1MM)", variable=self.compact_var,
                              command=self._apply_compact, accelerator="Ctrl+M")
         view.add_checkbutton(label="Always on top", variable=self.topmost_var,
                              command=self._apply_topmost)
-        self.rate_var = tk.BooleanVar(value=bool(getattr(self.cfg, "rate_line", True)))
-        view.add_checkbutton(label="Rate / QSOs / mults per band line", variable=self.rate_var,
-                             command=self._toggle_rate_line)
+        view.add_separator()
         view.add_checkbutton(label="Detailed layout (every status line, the old table)",
                              variable=self.detailed_var, command=self._toggle_layout)
         view.add_checkbutton(label="Spot list as tiles (like the phone)",
                              variable=self.tiles_var, accelerator="Ctrl+T",
                              command=lambda: self._toggle_tiles(flip=False))
-        view.add_separator()
-        # history hint + new mult alert: pop-up and sound, each on its own
-        self.alert_popup_var = tk.BooleanVar(value=bool(self.cfg.alert_popup))
-        self.alert_sound_var = tk.BooleanVar(value=bool(self.cfg.alert_sound))
-        view.add_checkbutton(label="Alert pop-up (history hint + new mult)",
-                             variable=self.alert_popup_var,
-                             command=lambda: self._set_alert("popup"))
-        view.add_checkbutton(label="Alert sound", variable=self.alert_sound_var,
-                             command=lambda: self._set_alert("sound"))
-        view.add_separator()
-        view.add_command(label="Clear spots", command=self._clear_spots)
-        view.add_command(label="Contest summary", command=lambda: self._open_browser("summary"))
-        view.add_command(label="CQ zones: who hears me", command=lambda: self._zones_win.open())
-        view.add_command(label="Band opening timeline", command=lambda: self._timeline_win.open())
-        view.add_command(label="Phone page in the browser", command=self._open_browser)
-        view.add_command(label="Phone page QR code\u2026 (scan with the phone)",
-                         command=self._show_phone_qr)
-        view.add_command(label="Phone page as an app window", command=self._open_app_window)
-        view.add_command(label="Traffic console (raw data in / out)", accelerator="Ctrl+Shift+D",
-                         command=lambda: self._console.open())
-        view.add_command(label="Station test (QSY + callsign, each radio)",
-                         command=self._station_test)
+        self.rate_var = tk.BooleanVar(value=bool(getattr(self.cfg, "rate_line", True)))
+        view.add_checkbutton(label="Rate / QSOs / mults per band line", variable=self.rate_var,
+                             command=self._toggle_rate_line)
         view.add_separator()
         looks = tk.Menu(view, tearoff=False)
         self.look_var = tk.StringVar(value=getattr(self.cfg, "look", "classic"))
@@ -821,7 +806,8 @@ class PouncerApp:
                                   command=self._set_look)
         view.add_cascade(label="Look (from the next start)", menu=looks)
         bar.add_cascade(label="View", menu=view)
-        # Spots: where the spots come in from (each on / off) + the backups
+        # -- Spots: where they come from (each on / off), the list's own switches.
+        # The first entries are relabelled by position (SPOT_MENU): add after them.
         spots = tk.Menu(bar, tearoff=False, postcommand=self._refresh_spot_menus)
         self._src_vars = {}
         for key in ("rbn", "telnet", "http", "cluster"):
@@ -836,10 +822,14 @@ class PouncerApp:
             spots.add_checkbutton(label=key, variable=v,
                                   command=lambda k=key: self._menu_source(k))
         spots.add_separator()
+        spots.add_checkbutton(label="Hide worked (same band + mode)", accelerator="Ctrl+H",
+                              variable=self.hide_worked_var, command=self._on_toggle_worked)
+        spots.add_command(label="Clear spots", command=self._clear_spots, accelerator="Ctrl+L")
+        spots.add_separator()
         spots.add_command(label="The connections now\u2026", command=self._show_connections)
         bar.add_cascade(label="Spots", menu=spots)
         self._spots_menu = spots
-        # Spotters: the one filter for every source
+        # -- Spotters: the one filter for every source -------------------------------------
         spotters = tk.Menu(bar, tearoff=False, postcommand=self._refresh_spot_menus)
         self._flt_var = tk.StringVar(value=getattr(self.cfg, "filter_mode", "calls"))
         for key in ("calls", "dxcc", "zones", "cont", "ww"):
@@ -850,7 +840,7 @@ class PouncerApp:
                              command=self._settings_win.open)
         bar.add_cascade(label="Spotters", menu=spotters)
         self._spotters_menu = spotters
-        # Spotted: which spotted stations (the DX) - separate from Spotters
+        # -- Spotted: which spotted stations (the DX) - separate from Spotters ---------------
         spotted = tk.Menu(bar, tearoff=False, postcommand=self._refresh_spot_menus)
         self._spd_var = tk.StringVar(value=getattr(self.cfg, "spotted_mode", "ww"))
         for key in ("calls", "dxcc", "zones", "cont", "ww"):
@@ -861,26 +851,124 @@ class PouncerApp:
                             command=self._settings_win.open)
         bar.add_cascade(label="Spotted", menu=spotted)
         self._spotted_menu = spotted
-        bar.add_command(label="Settings...", command=self._settings_win.open)
-        helpm = tk.Menu(bar, tearoff=False)
+        # -- Tools: pages and windows ---------------------------------------------------------
+        tools = tk.Menu(bar, tearoff=False)
+        tools.add_command(label="Contest summary", command=lambda: self._open_browser("summary"))
+        tools.add_command(label="CQ zones: who hears me", command=lambda: self._zones_win.open())
+        tools.add_command(label="Band opening timeline", command=lambda: self._timeline_win.open())
+        tools.add_separator()
+        phone = tk.Menu(tools, tearoff=False)
+        phone.add_command(label="In the browser", command=self._open_browser)
+        phone.add_command(label="QR code\u2026 (scan with the phone)", command=self._show_phone_qr)
+        phone.add_command(label="As an app window", command=self._open_app_window)
+        tools.add_cascade(label="Phone page", menu=phone)
+        # history hint + new mult alert: pop-up and sound, each on its own
+        self.alert_popup_var = tk.BooleanVar(value=bool(self.cfg.alert_popup))
+        self.alert_sound_var = tk.BooleanVar(value=bool(self.cfg.alert_sound))
+        alerts = tk.Menu(tools, tearoff=False)
+        alerts.add_checkbutton(label="Pop-up (history hint + new mult)",
+                               variable=self.alert_popup_var,
+                               command=lambda: self._set_alert("popup"))
+        alerts.add_checkbutton(label="Sound", variable=self.alert_sound_var,
+                               command=lambda: self._set_alert("sound"))
+        tools.add_cascade(label="Alerts", menu=alerts)
+        tools.add_separator()
+        tools.add_command(label="Traffic console (raw data in / out)", accelerator="Ctrl+Shift+D",
+                          command=lambda: self._console.open())
+        bar.add_cascade(label="Tools", menu=tools)
+        # -- Team: POUNCers on several PCs ----------------------------------------------------
+        team = tk.Menu(bar, tearoff=False, postcommand=self._refresh_menu_states)
+        team.add_command(label=self._team_pw_label(), command=self._team_password)
+        self._pw_menu = (team, team.index("end"))
+        team.add_separator()
+        team.add_command(label="Become team master (take it back)", command=self._become_master)
+        self.team_master_var = tk.BooleanVar(value=bool(getattr(self.cfg, "team_master", False)))
+        team.add_checkbutton(label="This PC is the team master (take it back after a restart)",
+                             variable=self.team_master_var, command=self._toggle_team_master)
+        team.add_separator()
+        team.add_command(label="Update all POUNCers in the team (from the master)",
+                         command=self._update_team)
+        bar.add_cascade(label="Team", menu=team)
+        self._team_menu = team
+        # -- Settings: on the bar (Windows); on the Mac in the POUNCer menu (Cmd+,) -------------
+        if mac:
+            app_menu = tk.Menu(bar, name="apple", tearoff=False)
+            app_menu.add_command(label=f"About POUNCer {__version__}", command=self._about)
+            bar.add_cascade(menu=app_menu)
+            try:
+                self.root.createcommand("tk::mac::ShowPreferences", self._settings_win.open)
+            except tk.TclError:
+                pass
+        else:
+            bar.add_command(label="Settings...", command=self._settings_win.open)
+        # -- Help --------------------------------------------------------------------------------
+        helpm = tk.Menu(bar, tearoff=False, postcommand=self._refresh_menu_states)
         helpm.add_command(label="What every button does", command=lambda: self._open_browser("help"))
-        helpm.add_command(label="Check for a new version", command=self._on_update_click)
-        helpm.add_command(label="Update all POUNCers in the team (from the master)",
-                          command=self._update_team)
-        helpm.add_command(label="Go back to the previous version", command=self._rollback)
-        helpm.add_command(label="Switch version\u2026 (any released version)",
-                          command=self._switch_version)
         helpm.add_command(label="POUNCer on GitHub", command=lambda: self._open_url(GITHUB_URL))
-        helpm.add_command(label="Save diagnostics (zip)", command=self._save_diagnostics)
-        helpm.add_command(label="Open the log file", command=lambda: self._open_path(
+        helpm.add_separator()
+        versions = tk.Menu(helpm, tearoff=False)
+        versions.add_command(label="Check for a new version", command=self._on_update_click)
+        versions.add_command(label="Go back to the previous version", command=self._rollback,
+                             state="normal" if self.updater.exe else "disabled")
+        versions.add_command(label="Switch version\u2026 (any released version)",
+                             command=self._switch_version,
+                             state="normal" if self.updater.exe else "disabled")
+        helpm.add_cascade(label="Versions", menu=versions)
+        trouble = tk.Menu(helpm, tearoff=False)
+        trouble.add_command(label="Save diagnostics (zip)", command=self._save_diagnostics)
+        trouble.add_command(label="Open the log file", command=lambda: self._open_path(
             diagmod.log_path(self.cfg.run_history_dir or "cache")))
-        helpm.add_command(label="Open the performance log (CPU / memory / disk)",
-                          command=lambda: self._open_path(self.perf.path))
+        trouble.add_command(label="Open the performance log (CPU / memory / disk)",
+                            command=lambda: self._open_path(self.perf.path))
+        helpm.add_cascade(label="Troubleshooting", menu=trouble)
         helpm.add_separator()
         helpm.add_command(label=f"About POUNCer {__version__}", command=self._about)
         bar.add_cascade(label="Help", menu=helpm)
         self.root.configure(menu=bar)
         self.menubar = bar
+        # shortcuts (never while typing in a box - Ctrl+H is backspace there)
+        for seq, fn in (("<Control-h>", self._key_hide_worked), ("<Control-H>", self._key_hide_worked),
+                        ("<Control-l>", lambda: self._clear_spots()),
+                        ("<Control-L>", lambda: self._clear_spots()),
+                        ("<Control-comma>", self._settings_win.open)):
+            self.root.bind_all(seq, lambda e, f=fn: self._menu_key(e, f))
+
+    @staticmethod
+    def _menu_key(event, fn) -> str | None:
+        """A menu shortcut - but not while typing in an entry / text box."""
+        try:
+            if event.widget.winfo_class() in ("Entry", "TEntry", "Text", "Spinbox", "TSpinbox",
+                                              "TCombobox"):
+                return None
+        except (AttributeError, tk.TclError):
+            pass
+        fn()
+        return "break"
+
+    def _key_hide_worked(self) -> None:
+        """Ctrl+H: Hide worked on / off (as Spots > Hide worked)."""
+        self.hide_worked_var.set(not self.hide_worked_var.get())
+        self._on_toggle_worked()
+
+    def _refresh_menu_states(self) -> None:
+        """Before a menu opens: grey out what can't do anything now."""
+        def state(menu, label, on):
+            if menu is None:
+                return
+            try:
+                for i in range(menu.index("end") + 1):
+                    if menu.type(i) != "separator" and menu.entrycget(i, "label").startswith(label):
+                        menu.entryconfigure(i, state="normal" if on else "disabled")
+            except (tk.TclError, TypeError):
+                pass
+        team = getattr(self, "team", None)
+        role = team.role() if team is not None and hasattr(team, "role") else "off"
+        tm = getattr(self, "_team_menu", None)
+        state(tm, "Become team master", team is not None and role != "master")
+        state(tm, "This PC is the team master", team is not None)
+        state(tm, "Update all POUNCers", role == "master" and bool(self.updater.exe))
+        state(getattr(self, "_auto_menu", None), "Don't wait for N1MM",
+              getattr(self, "_n1mm_wait_rest", None) is not None)
 
     COMPACT_COLUMNS = ("freq", "call", "mult")
     COMPACT_GEOMETRY = "330x430"
@@ -959,7 +1047,7 @@ class PouncerApp:
     ALERT_MS = 8000
 
     def _set_alert(self, which: str) -> None:
-        """View > Alert pop-up / Alert sound: used at once, saved in config.ini."""
+        """Tools > Alerts > Pop-up / Alert sound: used at once, saved in config.ini."""
         var = self.alert_popup_var if which == "popup" else self.alert_sound_var
         on = bool(var.get())
         try:
@@ -1444,7 +1532,7 @@ class PouncerApp:
         done, text = w.check(time.time(), self.state.last_update(), app.get("t", 0.0),
                              self._n1mm_running())
         self.status_label.configure(text="Autostart: " + text + (
-            "" if done else "   (File > Don't wait for N1MM)"))
+            "" if done else "   (File > Autostart > Don't wait for N1MM)"))
         if done:
             self._n1mm_wait_done()
         else:
@@ -1462,7 +1550,7 @@ class PouncerApp:
         self._run_autostart(rest)
 
     def _stop_waiting_n1mm(self) -> None:
-        """File > Don't wait for N1MM: go on now."""
+        """File > Autostart > Don't wait for N1MM: go on now."""
         if getattr(self, "_n1mm_wait_rest", None) is not None:
             self._n1mm_wait_done()
 
@@ -1625,7 +1713,7 @@ class PouncerApp:
         self._save_setting("ui.rate_line", "true" if on else "false")
 
     def _station_test(self) -> None:
-        """View > Station test: per radio QSY 0.1 kHz up / back and a test call
+        """N1MM > Station test: per radio QSY 0.1 kHz up / back and a test call
         into the empty callsign box (in a thread - the window stays live)."""
         if getattr(self, "_station_testing", False):
             return
@@ -1903,7 +1991,7 @@ class PouncerApp:
         return f
 
     def _save_diagnostics(self) -> None:
-        """Help > Save diagnostics: a zip next to config.ini, folder opened."""
+        """Help > Troubleshooting > Save diagnostics: a zip next to config.ini, folder opened."""
         folder = os.path.dirname(self.cfg.config_path) if self.cfg.config_path else os.getcwd()
         out = os.path.join(folder, diagmod.zip_name())
         try:
@@ -5334,7 +5422,7 @@ class PouncerApp:
         self._lights_last = None   # redraw the light ("checking")
 
     def _update_team(self) -> None:
-        """Help > Update all POUNCers in the team: only on the master - every
+        """Team > Update all POUNCers in the team: only on the master - every
         team POUNCer (this one too) gets the newest version and restarts."""
         from tkinter import messagebox
         role = self.team.role() if self.team is not None else "off"
@@ -5387,7 +5475,7 @@ class PouncerApp:
                 f"failed - {self.updater.error or 'see the log'}"))
 
     def _switch_version(self) -> None:
-        """Help > Switch version...: the published versions (newest first);
+        """Help > Versions > Switch version...: the published versions (newest first);
         install the one picked - newer or older - checked like an update
         (two SHA-256 sums), the running one kept in versions\\, then restart."""
         from tkinter import messagebox
@@ -5426,7 +5514,7 @@ class PouncerApp:
                 return
             if not messagebox.askyesno("POUNCer", f"Install {r['tag']} ({r['date']}) and restart "
                                        "POUNCer?\n\nThe running version is kept in versions\\ "
-                                       "(Help > Go back to the previous version).", parent=win):
+                                       "(Help > Versions > Go back to the previous version).", parent=win):
                 return
             self.updater.install_release(r["release"])
             self._auto_restart = True                    # _check_auto_restart restarts it
@@ -5466,7 +5554,7 @@ class PouncerApp:
         threading.Thread(target=load, name="release-list", daemon=True).start()
 
     def _rollback(self) -> None:
-        """Help > Go back to the previous version (kept in versions\\)."""
+        """Help > Versions > Go back to the previous version (kept in versions\\)."""
         from tkinter import messagebox
         prev = self.updater.previous_versions() if self.updater.exe else []
         if not prev:
@@ -5990,7 +6078,7 @@ class PouncerApp:
         return None
 
     def _open_app_window(self) -> None:
-        """View > Phone page as an app window: the phone page on the PC in
+        """Tools > Phone page > As an app window: the phone page on the PC in
         its own window (Edge / Chrome app mode: no tabs, no address bar)."""
         url = self._local_web_url()
         if not url:
@@ -6117,7 +6205,7 @@ class PouncerApp:
 
     # ---- taking the master role back -----------------------------------------
     def _become_master(self) -> None:
-        """SLAVE badge / File menu: this POUNCer becomes the team master
+        """SLAVE badge / Team menu: this POUNCer becomes the team master
         (e.g. the radio PC after a restart, when another one took over)."""
         from tkinter import messagebox
         team = self.team
@@ -6148,7 +6236,7 @@ class PouncerApp:
         except OSError as exc:
             log.warning("[team] master not saved: %s", exc)
 
-    # ---- team password (File > Team password...) -----------------------------
+    # ---- team password (Team > Team password...) -----------------------------
 
     def _team_pw_label(self) -> str:
         return "Team password\u2026  (" + ("ON \u2714" if self.cfg.team_key else "off") + ")"

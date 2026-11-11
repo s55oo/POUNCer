@@ -116,10 +116,10 @@ team) and UDP 12079 (team); everything else is outgoing.
   N1MM"** banner (and the main window says so in its Log line). Spots are still
   shown, but nothing can be hidden as worked. POUNCer looks again every 2 s, so
   the banner clears on its own once you open a log; the **Reconnect** button
-  (banner, the **Log** button next to Sort, or *File > Reconnect log* in the
+  (banner, the **Log** button next to Sort, or *N1MM > Reconnect log* in the
   main window) re-reads which log N1MM has open immediately.
 * **Touch / big-button view** - the phone page in your PC's default browser
-  (touch screen, second monitor): *View > Phone page in the browser* in the
+  (touch screen, second monitor): *Tools > Phone page > In the browser* in the
   main window opens it (or set `[ui] touch_view = true` to open it at startup).
   The old separate Tk touch window is gone - one view for everything.
 * **Phone view (web)** - a small local web server (stdlib only) serves the same
@@ -128,7 +128,7 @@ team) and UDP 12079 (team); everything else is outgoing.
   `http://<pc-ip>:8080` - the exact address is shown in the top bar next to
   the frequency and on the **Phone view** line of the main window: the ZeroTier address if ZeroTier is running, otherwise the
   LAN address, plus the port it listens on. **Easier: a QR code** - click
-  that address in the top bar (or *View > Phone page QR code…*): a window with
+  that address in the top bar (or *Tools > Phone page > QR code…*): a window with
   one QR code per address (**LAN**, and **ZeroTier** when this PC is on
   ZeroTier). Scan it with the phone's camera and the page opens, no typing.
   Click a code to open the page in this PC's browser; Esc closes.
@@ -241,7 +241,7 @@ is required.
   **ALL bands** on the phone = every band on one list (hunting new mults).
 - Minimum SNR, DX / MLT / ⚡ first, calm list, NEXT, CLR with undo.
 - **Alert** when a rare CQ (⚡) that is also a new mult appears: **pop-up**
-  and **sound** switched on their own (window: View menu; phone: band menu);
+  and **sound** switched on their own (window: Tools > Alerts; phone: band menu);
   click the window's pop-up = QSY and call.
 - **SPOTTED pop-up**: someone spotted your call on a DX cluster ("SPOTTED:
   S55OO by DL1ABC on 14025.0"; skimmers don't count, a self-spot shows marked).
@@ -259,7 +259,7 @@ half-size keys on the phone (F1 + F3, F5, F7, F11, SPOTit); full keys are compac
 **Pictures of the band**
 - Band chips: DX heard, DX share colour, **new mults waiting** per band.
 - **CQ zones**: who hears you / what you hear, per band and zone 1-40 - a
-  window of its own (View menu) or the phone / browser page.
+  window of its own (Tools menu) or the phone / browser page.
 - **Band opening timeline**: spots per band in 10-minute boxes, 48 h - a
   window or the page.
 - **Contest summary**: QSOs, from POUNCer, mults, rate, best 60 min.
@@ -277,7 +277,7 @@ up"), auto-update from GitHub.
 says what failed (the refresh, a button, reading the N1MM log), when and
 how often; click it to open pouncer.log (v0.7.176). `cache\pouncer.log`, *Help > Save
 diagnostics* (zip, no passwords), `cache\perf.csv` (CPU / memory / disk of
-POUNCer, N1MM and Windows, a row a minute), **traffic console** (View menu,
+POUNCer, N1MM and Windows, a row a minute), **traffic console** (Tools menu,
 Ctrl+Shift+D: the raw data of every source, only while open), phone *Reset
 this page*.
 
@@ -355,22 +355,37 @@ address in the status bar. The compact window (Ctrl+M) and the tiles
 The options and actions are in the menu bar (sort, the A / B key and the
 F-keys stay as buttons - they're used all contest long):
 
-* **File** - open the config folder (Explorer), Reconnect log, Start
-  autostart programs now, Don't wait for N1MM (start the rest now), Open the
-  autostart folder, Restart POUNCer, Exit.
-* **View** - *Also enter callsign in N1MM* and *Hide worked* (tick),
-  **Compact window (beside N1MM)** (tick, **Ctrl+M**) and **Always on top**
-  (tick), **Alert pop-up (history hint + new mult)** and **Alert sound** (tick),
-  **Detailed layout** (tick: every status line and the old table),
-  **Rate / QSOs / mults per band line** and **Spot list as tiles** (Ctrl+T)
-  (tick), Clear spots, Contest summary, **CQ zones: who hears me** and **Band
-  opening timeline** (each opens a window of its own), Phone page in the
-  browser / as an app window, **Traffic console** (Ctrl+Shift+D), **Station
-  test**, Look (Dark / Light / Classic).
-* **Settings...** - the settings window (below).
-* **Help** - what every button does, check for a new version, POUNCer on
-  GitHub, **Save diagnostics (zip)**, **Open the log file**, **Open the
-  performance log**, About.
+Grouped by what you do (v0.7.189):
+
+* **File** - open the config folder (Explorer), **Autostart ▸** (start the
+  programs now · don't wait for N1MM · open the autostart folder), Allow
+  POUNCer in Windows Firewall…, Restart POUNCer, Exit.
+* **N1MM** - Reconnect log, *Also enter callsign in N1MM* (tick), **Station
+  test** (QSY + callsign, each radio).
+* **View** - this window: **Compact window (beside N1MM)** (tick,
+  **Ctrl+M**), **Always on top**, **Detailed layout** (every status line and
+  the old table), **Spot list as tiles** (**Ctrl+T**), **Rate / QSOs / mults
+  per band line**, Look ▸ (Dark / Light / Classic).
+* **Spots** - the sources (RBN / Telnet / HTTP / Cluster, TelBck, HamQTH),
+  **Hide worked** (**Ctrl+H**), **Clear spots** (**Ctrl+L**), the connections
+  now.
+* **Spotters** / **Spotted** - the filters, one click in the contest.
+* **Tools** - Contest summary, **CQ zones: who hears me**, **Band opening
+  timeline** (each a window of its own), **Phone page ▸** (in the browser ·
+  QR code · as an app window), **Alerts ▸** (pop-up · sound), **Traffic
+  console** (**Ctrl+Shift+D**).
+* **Team** - team password, Become team master, This PC is the team master,
+  Update all POUNCers in the team (on the master). Items that can't do
+  anything now are grey (no team, not the master ...).
+* **Settings...** (**Ctrl+,**) - the settings window (below). On a Mac:
+  *POUNCer > Settings… (⌘,)*.
+* **Help** - what every button does, POUNCer on GitHub, **Versions ▸** (check
+  for a new version · go back to the previous one · switch version),
+  **Troubleshooting ▸** (save diagnostics (zip) · the log file · the
+  performance log), About.
+
+The shortcuts work while POUNCer's window has the keyboard - not while you
+type in a box (Ctrl+H stays backspace there); the F-keys always go to N1MM.
 
 **Look** (View > Look, from the next start; `[ui] look`): **Dark** (the
 default: Windows 11 style in the phone page's colours, dark title bar, flat
@@ -430,7 +445,7 @@ Every spot of your call is written to
 the log ("spot of my call: ..."), so `cache\pouncer.log` shows whether it
 arrived at all.
 
-**Station test** (View > Station test): per radio a QSY 0.1 kHz up and back
+**Station test** (N1MM > Station test): per radio a QSY 0.1 kHz up and back
 (no TX) with N1MM's response time, then a test call into the empty callsign
 box of its Entry Window, read back and cleared (a box that holds something
 is left alone). A quick check after setting up - cables, COM ports,
@@ -577,14 +592,14 @@ release is downloaded, its SHA-256 checked, and it replaces POUNCer.exe on
 disk. It runs from the next start (or press **Restart -> vX**); POUNCer
 never restarts by itself in the middle of a contest. `[ui] auto_update`.
 
-**Update the whole team (from the master):** *Help > Update all POUNCers in
+**Update the whole team (from the master):** *Team > Update all POUNCers in
 the team* - only on the team master. Every POUNCer in the team (v0.7.127 or
 newer) checks GitHub, downloads the newest version and restarts into it by
 itself; the master does the same. A slave says "Only the team master…".
 
 **Kept versions / going back:** each update keeps the exe it replaces in
 `versions\POUNCer-<version>.exe` next to POUNCer.exe (the last 3).
-*Help > Go back to the previous version* installs the newest kept one and
+*Help > Versions > Go back to the previous version* installs the newest kept one and
 restarts. The first copy appears with the first update after v0.7.127.
 
 **Switch version…** (*Help*, v0.7.140): the published versions, newest
@@ -613,7 +628,7 @@ heard earlier) but none is heard for 30 s, the check line says
 **Team: no other POUNCer heard – firewall?** (rules missing) or **– check
 that PC's POUNCer and its firewall**.
 
-**File > Team password…** (optional): typed twice, the same on every POUNCer
+**Team > Team password…** (optional): typed twice, the same on every POUNCer
 of the team. Every team message then carries a time stamp and an
 **HMAC-SHA256** signature; messages without one, with another password,
 changed on the way, or **older than 5 minutes** (a recorded message played
@@ -910,7 +925,7 @@ knows them when the station is **in your log on another band**, or from
 ## Contest summary
 
 **Σ** on the phone page (next to **?**, also in the band menu) or the
-*View > Contest summary* in the main window opens a summary of the log N1MM has
+*Tools > Contest summary* in the main window opens a summary of the log N1MM has
 open: QSOs and how many came **from POUNCer** (you tapped that call on that
 band - tile, NEXT or main window - up to 15 minutes before it was logged),
 multipliers and how many came from spots, QSOs per hour on the air, best
@@ -923,7 +938,7 @@ worked from a spot. Taps are kept in `cache\taps.jsonl` for 14 days.
   alt="POUNCer CQ zones page: for each band a blue 'hears me' row and a green 'I hear' row across CQ zones 1 to 40, boxes showing the best SNR, own zone 15 framed in yellow (example data)"></p>
 <p align="center"><i>The CQ zones page (example data)</i></p>
 
-*View > CQ zones: who hears me* opens it as a **window of POUNCer** (the
+*Tools > CQ zones: who hears me* opens it as a **window of POUNCer** (the
 same picture, refreshed every 15 s, click a box for the details, *Open in the
 browser* for the page); **CQ zones** in the phone band menu opens the page
 `/zones`. For every band **two rows of CQ zones 1-40**:
@@ -947,7 +962,7 @@ A team slave has no RBN feed of its own: open the page on the master.
   alt="POUNCer band opening timeline: six rows 160 to 10 m, 10-minute boxes over 24 hours, coloured orange to green by DX share and brighter with more spots (example data)"></p>
 <p align="center"><i>The band opening timeline, 24 h (example data)</i></p>
 
-*View > Band opening timeline* opens it as a **window of POUNCer** (the same
+*Tools > Band opening timeline* opens it as a **window of POUNCer** (the same
 picture, refreshed every minute, click a box for its numbers, *Open in the
 browser* for the page); **Band opening timeline** in the phone band menu
 opens the page `/timeline`: **one row per band (160-10 m), time
@@ -995,7 +1010,7 @@ DX de S53WW-#:   14025.0  DL1ABC       CW 23 dB 28 WPM CQ             1200Z
   SSB spot in an FT8 / FT4 window (14074 - 14077, 7074 - 7077 ...) is held
   until PSK Reporter answers (up to about 2.5 min): on FT8 = not served, no
   report = served then. Each one is a line in the traffic console
-  (*View > Traffic console*, the **FT8** group - type a call in *filter*):
+  (*Tools > Traffic console*, the **FT8** group - type a call in *filter*):
   `dropped` (a feed kept it out: not in the list either), `not served to
   port 10000`, `held`, `served now`.
 - **No loop:** spots that came **from N1MM** (its own telnet, via
@@ -1044,7 +1059,7 @@ a **team**:
   one takes over within seconds;
 - **taking the master back**: click the blue **SLAVE** badge (or *File >
   Become team master*) and this POUNCer is the master at once, the old one
-  a slave. Tick *File > This PC is the team master* (`[team] master = on`)
+  a slave. Tick *Team > This PC is the team master* (`[team] master = on`)
   on the PC that should always be master (e.g. the radio PC): it then takes
   the role back by itself each time it finds the team again - after a
   restart, or when the network comes back after a drop. Set it on one PC
@@ -1194,7 +1209,7 @@ number of seconds after the one before:
   others after the program before. Arguments: put the path in quotes and the
   arguments after it, `"C:\HAM\My Tool\tool.exe" --port 9000`.
 - The **autostart folder** next to config.ini (made at the first start,
-  *File > Open the autostart folder*): everything in it starts after
+  *File > Autostart > Open the autostart folder*): everything in it starts after
   programs 1-8, in name order (`1 rotor.lnk`, `2 cw.bat`), `folder_delay`
   seconds apart.
 
@@ -1203,7 +1218,7 @@ program can be listed more than once (e.g. 4 copies of a log router): all
 copies start. An .exe that was already running before POUNCer started its
 list is not started again, and when POUNCer restarts itself
 (update, File > Restart) nothing is started again - so right after an
-auto-update use *File > Start autostart programs now* if they aren't
+auto-update use *File > Autostart > Start autostart programs now* if they aren't
 running yet (it runs the list by hand); the status bar shows what started.
 
 **N1MM first.** Put N1MM Logger+ (`N1MMLogger.net.exe`, wherever it is
@@ -1277,7 +1292,7 @@ network every device that can reach the PC is trusted - there is no login:
   only in POUNCer's own Settings window.
 - **Team (UDP 12079):** without a team password messages are not signed - a
   device on the network could pretend to be the master (spots, SPOTTED
-  pop-ups, "update all"). With **File > Team password…** (v0.7.140) every
+  pop-ups, "update all"). With **Team > Team password…** (v0.7.140) every
   message is signed and anything else is ignored (see below).
 - **N1MM port (UDP 12060):** listens on all adapters, so a device on the
   network could send fake radio / spot packets.
@@ -1351,13 +1366,13 @@ no spots).
 - **Log file:** POUNCer writes what it does - taps and QSYs (and whether N1MM
   reported the new frequency), which window got the call, autostart,
   connection problems - to `cache\pouncer.log` next to config.ini (1 MB,
-  3 older ones kept). *Help > Open the log file*.
-- **Diagnostics:** *Help > Save diagnostics (zip)* puts the log, a facts
+  3 older ones kept). *Help > Troubleshooting > Open the log file*.
+- **Diagnostics:** *Help > Troubleshooting > Save diagnostics (zip)* puts the log, a facts
   list (version, radios, log, team, checks, last tap) and config.ini with
   any password / token / key removed into one zip next to config.ini and
   opens the folder - send that zip when you report a problem.
 - **Performance log:** once a minute POUNCer writes a row to
-  `cache\perf.csv` (opens in Excel; *Help > Open the performance log*):
+  `cache\perf.csv` (opens in Excel; *Help > Troubleshooting > Open the performance log*):
   POUNCer's CPU (% of one core and of the whole PC), the PC's CPU, POUNCer's
   memory (working set, private, peak) and the PC's memory, free disk, the
   cache folder's size, POUNCer's disk reads / writes, threads, handles - and

@@ -1,5 +1,24 @@
 # POUNCer — Changelog
 
+## v0.7.189 — 2026-11-11 — Menus grouped by what you do; shortcuts
+
+- The menu bar is grouped by task instead of one long *View* menu:
+  **File** (program, Autostart ▸) · **N1MM** (Reconnect log, Also enter
+  callsign, Station test) · **View** (this window only) · **Spots** (sources,
+  **Hide worked**, **Clear spots**) · Spotters · Spotted · **Tools** (summary,
+  CQ zones, timeline, Phone page ▸, Alerts ▸, Traffic console) · **Team**
+  (password, master, update all) · Settings... · **Help** (Versions ▸,
+  Troubleshooting ▸).
+- Items that can't do anything now are grey: the team items without a team,
+  *Update all POUNCers* except on the master, *Don't wait for N1MM* except
+  while autostart waits.
+- New shortcuts: **Ctrl+H** Hide worked, **Ctrl+L** Clear spots, **Ctrl+,**
+  Settings (Ctrl+M, Ctrl+T, Ctrl+Shift+D as before). Not while you type in a
+  box; the F-keys still go to N1MM.
+- Mac: Settings is in the *POUNCer* menu (⌘,), as Mac programs have it - a
+  plain command on the menu bar is not shown there.
+- Every help text, the docs and the settings hints name the new places.
+
 ## v0.7.188 — 2026-11-11 — Audit fixes (F01-F17), layout switch, faster cluster server
 
 From S53ZO's pull requests #6 - #11 (an audit of 17 findings, each checked

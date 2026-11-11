@@ -362,7 +362,7 @@ class Team:
                     return f"{recent[st]}: {text} - ignored"
             return ""
         if "foreign" in recent:
-            return ("the other POUNCers use a team password - set it: File > Team password\u2026 "
+            return ("the other POUNCers use a team password - set it: Team > Team password\u2026 "
                     f"({recent['foreign']})")
         return ""
 

@@ -311,7 +311,7 @@ connection error is logged the first time and then every 10th time in a row.
 
 ## 9. Team (UDP 12079, in and out)
 
-**Team password** (optional, File > Team password…, v0.7.140): every message
+**Team password** (optional, Team > Team password…, v0.7.140): every message
 then ends in `\n#PCS1 <unix time> <HMAC-SHA256>` over the time and the JSON
 (key: PBKDF2-SHA256 of the password, 20000 rounds; only the key is stored in
 `[team] key`). Unsigned, wrongly signed, changed or more than 300 s old
@@ -337,7 +337,7 @@ random id of that POUNCer) and `t` (type):
 | `hi` | every 2 s | `started` (time), `web` (its web port), `healthy` (RBN works or closed on purpose), `ver` (version), `cw` (this POUNCer needs RBN: a radio on CW, not an SSB contest), `paused` (master: RBN closed, nobody needs it), `src` / `pc` (master: its spot sources / `[web] phone_control` - the slaves follow both) | broadcast `255.255.255.255:12079` out of **every** network adapter (LAN, ZeroTier…) + directly to each known POUNCer and each `[team] peers` IP |
 | `spot` | master, per spot | `s`: `{dxcall, freq_khz, mode, snr, wpm, spot_type, spotter, time_utc}` | directly to each POUNCer |
 | `src` | slave, *Spots: RBN / Telnet* button | `{"t":"src","v":"telnet"}` - the master switches its CW feed (only the master acts on it); the master's choice goes out in its `hi` as `"src"` | directly to each POUNCer |
-| `update` | master, *Help > Update all POUNCers in the team* | nothing else - every POUNCer checks GitHub, downloads the newest and restarts (accepted only from the master) | directly to each POUNCer |
+| `update` | master, *Team > Update all POUNCers in the team* | nothing else - every POUNCer checks GitHub, downloads the newest and restarts (accepted only from the master) | directly to each POUNCer |
 | `self` | master, when your call is spotted | `d`: `{call, spotter, khz, comment}` - the slaves show the SPOTTED pop-up too | directly to each POUNCer |
 | `rh` | when a call's run history is learned | `d`: `{"CALL\|CONTEST\|MODE": {run, hours, rec, bands…}}` | directly to each POUNCer |
 
@@ -349,7 +349,7 @@ random id of that POUNCer) and `t` (type):
 - **Master** = the one running longest whose RBN works; it alone talks to
   RBN / the cluster and passes spots on. Not heard for 6 s, or its RBN down
   for over a minute → the next one takes over.
-- **Taking it back** (v0.7.166): the SLAVE badge / *File > Become team
+- **Taking it back** (v0.7.166): the SLAVE badge / *Team > Become team
   master* makes this POUNCer announce a `started` one second before the
   earliest one, so every POUNCer (older versions too) elects it. With
   `[team] master = on` it does so by itself each time it finds the team

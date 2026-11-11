@@ -1,4 +1,4 @@
-"""CQ zones and band opening timeline as windows of POUNCer (View menu).
+"""CQ zones and band opening timeline as windows of POUNCer (Tools menu).
 
 The same pictures as the browser pages /zones and /timeline, drawn on a Tk
 canvas from the same data (``app._zones(minutes)`` / ``app._timeline(hours)``),

@@ -1,4 +1,4 @@
-"""Traffic console (View > Traffic console): what comes in and goes out.
+"""Traffic console (Tools > Traffic console): what comes in and goes out.
 
 Raw lines of every source as they arrive - RBN and the SSB cluster (telnet
 lines, and the commands sent), N1MM (UDP packets in, QSY / call commands

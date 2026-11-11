@@ -2,6 +2,7 @@
 e.g. the Windows build; skipped elsewhere)."""
 
 import gc
+import sys
 import unittest
 
 try:
@@ -244,47 +245,88 @@ class TkSettingsWindowTests(unittest.TestCase):
             setattr(f, name, lambda *a, **k: None)
         f._team_pw_label = PouncerApp._team_pw_label.__get__(f)
         for name in ("_refresh_spot_menus", "_menu_source", "_menu_filter", "_show_connections",
-                     "_menu_spotted"):
+                     "_menu_spotted", "_refresh_menu_states", "_key_hide_worked"):
             setattr(f, name, getattr(PouncerApp, name).__get__(f))
+        f._menu_key = PouncerApp._menu_key
+        f.team, f._n1mm_wait_rest = None, None
         f.SPOT_MENU, f.SOURCE_NAMES, f.CONN_KEYS = (PouncerApp.SPOT_MENU, PouncerApp.SOURCE_NAMES,
                                                     PouncerApp.CONN_KEYS)
         PouncerApp._build_menu(f)
         bar = f.menubar
         labels = [bar.entrycget(i, "label") for i in range(bar.index("end") + 1)]
-        self.assertEqual(labels, ["File", "View", "Spots", "Spotters", "Spotted", "Settings...",
-                                  "Help"])
+        # the Mac: Settings is in the POUNCer (apple) menu, not on the bar (Cmd+,)
+        mac = sys.platform == "darwin"
+        self.assertEqual([x for x in labels if x], ["File", "N1MM", "View", "Spots", "Spotters",
+                                                    "Spotted", "Tools", "Team"]
+                         + ([] if mac else ["Settings..."]) + ["Help"])
+
+        def menu(name):
+            return self.root.nametowidget(bar.entrycget(labels.index(name), "menu"))
+
+        def items(m):
+            return [m.entrycget(i, "label") for i in range(m.index("end") + 1)
+                    if m.type(i) != "separator"]
+
+        def sub(m, label):
+            return self.root.nametowidget(m.entrycget(items_all(m).index(label), "menu"))
+
+        def items_all(m):
+            return [m.entrycget(i, "label") if m.type(i) != "separator" else "-"
+                    for i in range(m.index("end") + 1)]
         f._refresh_spot_menus()
-        spots = self.root.nametowidget(bar.entrycget(2, "menu"))
-        slabels = [spots.entrycget(i, "label") for i in range(spots.index("end") + 1)
-                   if spots.type(i) != "separator"]
+        spots = menu("Spots")
+        slabels = items(spots)
         self.assertIn("RBN - telnet.reversebeacon.net:7000", slabels)
+        # the list's own switches live with the spots now (after the relabelled sources)
+        self.assertIn("Hide worked (same band + mode)", slabels)
+        self.assertIn("Clear spots", slabels)
         self.assertTrue(f._src_vars["rbn"].get() and f._src_vars["cluster"].get())
         self.assertFalse(f._src_vars["telnet"].get())
         self.assertTrue(f._src_vars["hamqth"].get())
-        spt = self.root.nametowidget(bar.entrycget(3, "menu"))
+        spt = menu("Spotters")
         self.assertEqual(spt.entrycget(0, "label"), "Calls: S53WW")
         self.assertIn("empty", spt.entrycget(1, "label"))
         self.assertEqual(f._flt_var.get(), "calls")
-        spd = self.root.nametowidget(bar.entrycget(4, "menu"))
+        spd = menu("Spotted")
         self.assertEqual(spd.entrycget(1, "label"), "DXCC: JA")
         self.assertEqual(f._spd_var.get(), "ww")
-        view = self.root.nametowidget(bar.entrycget(1, "menu"))
-        vlabels = [view.entrycget(i, "label") for i in range(view.index("end") + 1)
-                   if view.type(i) != "separator"]
-        self.assertIn("Hide worked (same band + mode)", vlabels)
-        self.assertIn("Contest summary", vlabels)
-        self.assertIn("Compact window (beside N1MM)", vlabels)
-        file = bar.nametowidget(bar.entrycget(0, "menu"))
-        flabels = [file.entrycget(i, "label") for i in range(file.index("end") + 1)
-                   if file.type(i) != "separator"]
-        self.assertIn("Start autostart programs now", flabels)
-        self.assertIn("Open the autostart folder", flabels)
-        self.assertIn("Always on top", vlabels)
-        self.assertIn("Alert pop-up (history hint + new mult)", vlabels)
-        self.assertIn("Alert sound", vlabels)
-        self.assertIn("Phone page as an app window", vlabels)
-        self.assertIn("Station test (QSY + callsign, each radio)", vlabels)
-        self.assertIn("Look (from the next start)", vlabels)
+        self.assertEqual(items(menu("N1MM")), ["Reconnect log", "Also enter callsign in N1MM",
+                                               "Station test (QSY + callsign, each radio)"])
+        vlabels = items(menu("View"))
+        for label in ("Compact window (beside N1MM)", "Always on top",
+                      "Detailed layout (every status line, the old table)",
+                      "Spot list as tiles (like the phone)", "Rate / QSOs / mults per band line",
+                      "Look (from the next start)"):
+            self.assertIn(label, vlabels)
+        tools = menu("Tools")
+        tlabels = items(tools)
+        for label in ("Contest summary", "CQ zones: who hears me", "Band opening timeline",
+                      "Phone page", "Alerts", "Traffic console (raw data in / out)"):
+            self.assertIn(label, tlabels)
+        self.assertEqual(items(sub(tools, "Phone page")),
+                         ["In the browser", "QR code\u2026 (scan with the phone)", "As an app window"])
+        self.assertEqual(items(sub(tools, "Alerts")), ["Pop-up (history hint + new mult)", "Sound"])
+        file = menu("File")
+        flabels = items(file)
+        self.assertIn("Autostart", flabels)
+        self.assertEqual(items(sub(file, "Autostart")), [
+            "Start autostart programs now", "Don't wait for N1MM (start the rest now)",
+            "Open the autostart folder"])
+        team = menu("Team")
+        self.assertIn("Update all POUNCers in the team (from the master)", items(team))
+        helpm = menu("Help")
+        self.assertIn("Versions", items(helpm))
+        self.assertIn("Troubleshooting", items(helpm))
+        # nothing that can't work now is clickable: no team here, not waiting for N1MM
+        f._refresh_menu_states()
+        for i in range(team.index("end") + 1):
+            if team.type(i) != "separator" and not team.entrycget(i, "label").startswith("Team password"):
+                self.assertEqual(team.entrycget(i, "state"), "disabled", team.entrycget(i, "label"))
+        auto = sub(file, "Autostart")
+        self.assertEqual(auto.entrycget(1, "state"), "disabled")
+        f._n1mm_wait_rest = []
+        f._refresh_menu_states()
+        self.assertEqual(auto.entrycget(1, "state"), "normal")
         self.assertEqual(f.look_var.get(), "dark")
         self.assertTrue(f.alert_popup_var.get())
         self.assertFalse(f.alert_sound_var.get())

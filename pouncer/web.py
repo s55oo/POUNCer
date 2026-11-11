@@ -2092,7 +2092,7 @@ your own call, and beacons. One tile per station and band (the newest spot).</p>
 band, the phone shows it in a pop-up and beeps (and vibrates where it can). Two
 switches in the band menu (tap the frequency): <b>Alert pop-up</b> and <b>Alert
 sound</b> - e.g. the pop-up without the beep. Sound works after your first tap on the
-page. The Windows window has its own two (View menu).</p>
+page. The Windows window has its own two (Tools &gt; Alerts).</p>
 
 <h2>Keys on the right</h2>
 <dl>
@@ -2139,19 +2139,19 @@ page. The Windows window has its own two (View menu).</p>
 
 <h2>Contest summary</h2>
 <p><span class="k">&Sigma;</span> next to <span class="k">?</span> (also in the band menu, and the
-<b>View &gt; Contest summary</b> in the main window) opens the contest summary of the log N1MM has
+<b>Tools &gt; Contest summary</b> in the main window) opens the contest summary of the log N1MM has
 open: QSOs and how many came <b>from POUNCer</b> (you tapped that call on that band up to
 15 minutes before logging it), multipliers and how many came from spots, rate on the
 air, best 60 minutes, a per-band table, rate per hour and the list of multipliers you
 worked from spots. POUNCer keeps the taps in <code>cache\\taps.jsonl</code> (14 days).</p>
 <h2>CQ zones: who hears me</h2>
-<p><b>CQ zones</b> in the band menu (or <b>View &gt; CQ zones</b> in the window): per band two
+<p><b>CQ zones</b> in the band menu (or <b>Tools &gt; CQ zones</b> in the window): per band two
 rows of CQ zones 1-40 - <b style="color:#64b5f6">hears me</b> = skimmers in that zone spotted your
 call (you need to call CQ), <b style="color:#81c784">I hear</b> = skimmers on your continent heard
 stations from that zone. Number = best SNR, brighter = stronger; tap a box for who and when.
 Your zone is yellow. The last 15 minutes (or 30 / 60).</p>
 <h2>Band opening timeline</h2>
-<p><b>Band opening timeline</b> in the band menu (or <b>View &gt; Band opening timeline</b>): one
+<p><b>Band opening timeline</b> in the band menu (or <b>Tools &gt; Band opening timeline</b>): one
 row per band, time left to right in 10-minute boxes (or 1 hour), now at the right. What the
 skimmers on your continent heard: <span style="color:#e08a3c">orange</span> = only your
 continent, <span style="color:#5bc35b">green</span> = DX, brighter = more spots. Tap a box for

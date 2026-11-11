@@ -1,4 +1,4 @@
-"""Traffic tap for the console (View > Traffic console).
+"""Traffic tap for the console (Tools > Traffic console).
 
 Every source calls ``emit(source, text)`` where its raw data arrives (RBN /
 cluster lines, N1MM UDP packets in and out, the HTTP feed, the team, the
