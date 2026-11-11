@@ -13,8 +13,11 @@ from __future__ import annotations
 from . import traffic
 
 import json
+import hmac
+import ipaddress
 import logging
 import re
+import secrets
 import socket
 import subprocess
 import sys
@@ -22,7 +25,7 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Callable
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlparse, urlsplit
 
 from . import __version__
 from .bands import CONTEST_BANDS
@@ -48,7 +51,13 @@ def is_send_key(key: str) -> bool:
 
 CW_OPS = ("open", "text", "back", "done", "stop")
 # what a phone may do only with control allowed ([web] phone_control)
-CONTROL_PATHS = ("/api/qsy", "/api/key", "/api/cw", "/api/tune")
+CONTROL_PATHS = frozenset(("/api/qsy", "/api/key", "/api/cw", "/api/tune",
+                           "/api/band", "/api/filter"))
+MUTATION_PATHS = CONTROL_PATHS | frozenset((
+    "/api/minsnr", "/api/hide", "/api/unhide", "/api/clear", "/api/reconnect",
+    "/api/settings/set", "/api/restart",
+))
+MAX_MUTATION_BODY = 8192
 _CW_CHARS = re.compile(r"[^A-Z0-9 /?.,=+\-@!():;'\"<>&]")
 
 
@@ -872,7 +881,7 @@ INDEX_HTML = """<!doctype html>
   // new spots come in again as RBN sends them. Undo in the pop-up for 5 s.
   async function clearSpots(undo) {
     try {
-      const r = await fetch('/api/clear' + (undo ? '?undo=1' : ''));
+      const r = await mutationFetch('/api/clear' + (undo ? '?undo=1' : ''));
       const j = await r.json();
       if (!j.ok) { toast('Failed: ' + (j.error || 'error')); return; }
       if (undo) { toast('Spots are back'); }
@@ -1006,7 +1015,7 @@ INDEX_HTML = """<!doctype html>
   }
   function cwSend(params) {        // in order, one after the other
     const q = rp(params);
-    cwChain = cwChain.then(() => fetch('/api/cw?' + q).then(r => r.json()).then(j => {
+    cwChain = cwChain.then(() => mutationFetch('/api/cw?' + q).then(r => r.json()).then(j => {
       if (!j.ok) toast('CW keyboard: ' + (j.error || 'error'));
     })).catch(e => toast('CW keyboard: ' + e));
   }
@@ -1056,7 +1065,7 @@ INDEX_HTML = """<!doctype html>
       setTimeout(() => btn.classList.remove('sel'), 800);
     }
     try {
-      const r = await fetch('/api/key?' + rp({key: key}));
+      const r = await mutationFetch('/api/key?' + rp({key: key}));
       const j = await r.json();
       toast(j.ok ? (/^enter$/i.test(key) ? 'Logged'
                     : (/^spotit$/i.test(key) ? 'Spot It (Alt+P) - spotted to the cluster' : ('TX ' + key)))
@@ -1374,7 +1383,7 @@ INDEX_HTML = """<!doctype html>
     v = Math.max(0, Math.min(60, v));
     showMinSnr(v);
     try {
-      const r = await fetch('/api/minsnr?' + new URLSearchParams({db: v}));
+      const r = await mutationFetch('/api/minsnr?' + new URLSearchParams({db: v}));
       const j = await r.json();
       if (!j.ok) toast('Failed: ' + (j.error || 'error'));
     } catch (e) { toast('Failed: ' + e); }
@@ -1419,7 +1428,7 @@ INDEX_HTML = """<!doctype html>
   }
   async function setHidden(s, hide) {
     try {
-      const r = await fetch('/api/' + (hide ? 'hide' : 'unhide') + '?' +
+      const r = await mutationFetch('/api/' + (hide ? 'hide' : 'unhide') + '?' +
         new URLSearchParams({call: s.call, freq: s.freq}));
       const j = await r.json();
       if (!j.ok) { toast('Failed: ' + (j.error || 'error')); return; }
@@ -1595,7 +1604,7 @@ INDEX_HTML = """<!doctype html>
     document.querySelectorAll('button.tile.sel').forEach(t => t.classList.remove('sel'));
     btn.classList.add('sel');
     try {
-      const r = await fetch('/api/qsy?' + rp(
+      const r = await mutationFetch('/api/qsy?' + rp(
         {call: s.call, freq: s.freq, mode: s.mode}));
       const j = await r.json();
       const el = toast(j.ok ? ('QSY ' + s.call + ' ...') : ('Failed: ' + (j.error || 'error')), null, j.ok ? 9000 : 5000);
@@ -1608,7 +1617,7 @@ INDEX_HTML = """<!doctype html>
   async function reconnect() {
     toast('Reconnecting to the N1MM log...');
     try {
-      const r = await fetch('/api/reconnect', {cache: 'no-store'});
+      const r = await mutationFetch('/api/reconnect');
       const j = await r.json();
       if (!j.ok) toast('Failed: ' + (j.error || 'error'));
     } catch (e) {
@@ -1752,7 +1761,7 @@ INDEX_HTML = """<!doctype html>
       flash(b);
       const hz = Number(b.dataset.tune) * tuneStep;
       try {
-        const r = await fetch('/api/tune?' + rp({hz: hz}));
+        const r = await mutationFetch('/api/tune?' + rp({hz: hz}));
         const j = await r.json();
         if (!j.ok) toast('Failed: ' + (j.error || 'error'));
       } catch (e) {
@@ -1765,7 +1774,7 @@ INDEX_HTML = """<!doctype html>
       if (!canControl()) return;
       flash(b);
       try {
-        const r = await fetch('/api/key?' + rp({key: b.dataset.key}));
+        const r = await mutationFetch('/api/key?' + rp({key: b.dataset.key}));
         const j = await r.json();
         toast(j.ok ? (b.dataset.key === 'PgUp' ? 'CW faster' : 'CW slower')
                    : ('Failed: ' + (j.error || 'error')));
@@ -2986,7 +2995,7 @@ SETTINGS_HTML = """<!doctype html>
     const v = it.kind === 'bool' ? (el.checked ? 'true' : 'false') : el.value;
     state.className = 'state'; state.textContent = 'saving...';
     try {
-      const r = await fetch('/api/settings/set?' + new URLSearchParams({key: it.key, value: v}));
+      const r = await mutationFetch('/api/settings/set?' + new URLSearchParams({key: it.key, value: v}));
       const j = await r.json();
       if (j.ok) {
         state.className = 'state ' + (j.live ? 'ok' : 'later');
@@ -3033,7 +3042,7 @@ SETTINGS_HTML = """<!doctype html>
     });
   }
   document.getElementById('restart').onclick = async () => {
-    try { await fetch('/api/restart'); } catch (e) {}
+    try { await mutationFetch('/api/restart'); } catch (e) {}
     lead.textContent = 'Restarting POUNCer... this page reloads in a few seconds.';
     setTimeout(() => location.reload(), 6000);
   };
@@ -3042,6 +3051,36 @@ SETTINGS_HTML = """<!doctype html>
 </main></body>
 </html>
 """
+
+
+# Both pages use the same mutation protocol. The token is scoped to this
+# running server, never a URL/cookie, and cannot be read by a foreign origin.
+MUTATION_CLIENT_JS = """
+  let mutationTokenPromise = null;
+  function mutationToken(refresh = false) {
+    if (refresh || !mutationTokenPromise) {
+      mutationTokenPromise = fetch('/api/session', {cache: 'no-store', credentials: 'same-origin'})
+        .then(async r => {
+          if (!r.ok) throw new Error('Cannot authorize browser controls');
+          return (await r.json()).token;
+        }).catch(e => { mutationTokenPromise = null; throw e; });
+    }
+    return mutationTokenPromise;
+  }
+  async function mutationFetch(url) {
+    const send = async refresh => fetch(url, {
+      method: 'POST', cache: 'no-store', credentials: 'same-origin',
+      headers: {'X-POUNCer-Token': await mutationToken(refresh)}
+    });
+    let r = await send(false);
+    // A restarted server has a new token. Retry only a rejected token, before
+    // any callback ran; never retry a control that may already have executed.
+    if (r.status === 403 && (await r.clone().json()).error_code === 'csrf') r = await send(true);
+    return r;
+  }
+"""
+INDEX_HTML = INDEX_HTML.replace('<script>', '<script>' + MUTATION_CLIENT_JS, 1)
+SETTINGS_HTML = SETTINGS_HTML.replace('<script>', '<script>' + MUTATION_CLIENT_JS, 1)
 
 
 class _Server(ThreadingHTTPServer):
@@ -3062,6 +3101,13 @@ class _Server(ThreadingHTTPServer):
         on_clear: ClearHandler | None = None,
     ):
         super().__init__(address, _Handler)
+        self.csrf_token = secrets.token_urlsafe(32)
+        # Host validation prevents DNS rebinding from exposing the token.
+        # Literal IPs are checked against the connection's actual destination;
+        # names support normal localhost / machine-name / mDNS LAN links.
+        hostname = socket.gethostname().lower().rstrip('.')
+        self.host_names = {hostname, hostname.split('.')[0], hostname.split('.')[0] + '.local',
+                           str(address[0]).lower().rstrip('.')}
         self.on_clear = on_clear
         self.on_tune = on_tune
         self.on_filter = on_filter
@@ -3086,6 +3132,9 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Content-Security-Policy", "frame-ancestors 'none'; base-uri 'self'")
         self.end_headers()
         if self.command != "HEAD":
             self.wfile.write(body)
@@ -3150,6 +3199,116 @@ class _Handler(BaseHTTPRequestHandler):
     def do_HEAD(self) -> None:
         self.do_GET()
 
+    def _authority(self, value: str, *, origin=False):
+        """Parse a single HTTP authority without accepting URL tricks."""
+        try:
+            if not value or any(c.isspace() for c in value) or any(c in value for c in '\\,@'):
+                return None
+            if any(c in value for c in '?#') or (not origin and '/' in value):
+                return None
+            parsed = urlsplit(value if origin else '//' + value)
+            if ((origin and parsed.scheme != 'http') or parsed.username is not None
+                    or parsed.password is not None or parsed.path or parsed.query or parsed.fragment
+                    or not parsed.hostname):
+                return None
+            return parsed.hostname.lower().rstrip('.'), parsed.port if parsed.port is not None else 80
+        except ValueError:
+            return None
+
+    def _valid_host(self) -> bool:
+        hosts = self.headers.get_all('Host', [])
+        authority = self._authority(hosts[0]) if len(hosts) == 1 else None
+        if authority is None or authority[1] != self.server.server_address[1]:
+            return False
+        host = authority[0]
+        destination = ipaddress.ip_address(self.connection.getsockname()[0])
+        try:
+            return ipaddress.ip_address(host) == destination
+        except ValueError:
+            return (host == 'localhost' and destination.is_loopback) or host in self.server.host_names
+
+    def _browser_intent(self) -> bool:
+        """No browser cross-origin deliveries; non-browser token clients work."""
+        origins = self.headers.get_all('Origin', [])
+        if origins and (len(origins) != 1 or self._authority(origins[0], origin=True)
+                        != self._authority(self.headers.get('Host', ''))):
+            return False
+        sites = self.headers.get_all('Sec-Fetch-Site', [])
+        return not sites or (len(sites) == 1 and sites[0] in ('same-origin', 'none'))
+
+    def _method_not_allowed(self, allow: str) -> None:
+        body = json.dumps({'ok': False, 'error': 'Reload this page; controls require authorized POST.'}).encode()
+        self.send_response(405)
+        self.send_header('Allow', allow)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Content-Length', str(len(body)))
+        self.send_header('Cache-Control', 'no-store')
+        self.end_headers()
+        if self.command != 'HEAD':
+            self.wfile.write(body)
+
+    def do_GET(self) -> None:
+        if not self._valid_host():
+            self._send_json({'ok': False, 'error': 'Unrecognized Host.'}, 403)
+            return
+        parsed = urlparse(self.path)
+        if parsed.path in MUTATION_PATHS:
+            self._method_not_allowed('POST')
+            return
+        if parsed.path == '/api/session':
+            if not self._browser_intent():
+                self._send_json({'ok': False, 'error': 'Cross-origin request refused.'}, 403)
+                return
+            self._send_json({'token': self.server.csrf_token})
+            return
+        self._dispatch(parsed)
+
+    def do_POST(self) -> None:
+        if not self._valid_host() or not self._browser_intent():
+            self._send_json({'ok': False, 'error': 'Cross-origin or unrecognized Host request refused.'}, 403)
+            return
+        parsed = urlparse(self.path)
+        if parsed.path not in MUTATION_PATHS:
+            self._send_json({'ok': False, 'error': 'not found'}, 404)
+            return
+        tokens = self.headers.get_all('X-POUNCer-Token', [])
+        if (len(tokens) != 1 or not tokens[0].isascii()
+                or not hmac.compare_digest(tokens[0], self.server.csrf_token)):
+            self._send_json({'ok': False, 'error': 'Browser authorization expired; reload or renew the token.',
+                             'error_code': 'csrf'}, 403)
+            return
+        if parsed.path in CONTROL_PATHS and not self._control_ok():
+            self._send_json({'ok': False, 'error': 'control from phones is off on the PC '
+                                                   '([web] phone_control)'}, 403)
+            return
+        lengths = self.headers.get_all('Content-Length', [])
+        try:
+            size = int(lengths[0]) if len(lengths) == 1 else 0
+            if size < 0 or len(lengths) > 1 or self.headers.get('Transfer-Encoding'):
+                raise ValueError
+        except ValueError:
+            self._send_json({'ok': False, 'error': 'Invalid request body length.'}, 400)
+            return
+        if size > MAX_MUTATION_BODY:
+            self._send_json({'ok': False, 'error': 'Request body too large.'}, 413)
+            return
+        if size:
+            if self.headers.get_content_type() != 'application/x-www-form-urlencoded':
+                self._send_json({'ok': False, 'error': 'Use form-encoded parameters.'}, 415)
+                return
+            try:
+                # Bound slow/incomplete clients too; no GUI thread waits here.
+                self.connection.settimeout(5)
+                body = self.rfile.read(size)
+                if len(body) != size:
+                    raise ValueError
+                query = body.decode('utf-8')
+            except (OSError, UnicodeError, ValueError):
+                self._send_json({'ok': False, 'error': 'Incomplete or invalid request body.'}, 400)
+                return
+            parsed = parsed._replace(query=(parsed.query + '&' + query).lstrip('&'))
+        self._dispatch(parsed)
+
     def _radio(self, parsed) -> int | None:
         """SO2R: ?radio=1|2 (A|B) chosen on the phone; None = not given."""
         raw = (parse_qs(parsed.query).get("radio") or [""])[0].strip().upper()
@@ -3161,8 +3320,7 @@ class _Handler(BaseHTTPRequestHandler):
         radio = self._radio(parsed)
         return fn(*args, radio=radio) if radio is not None else fn(*args)
 
-    def do_GET(self) -> None:
-        parsed = urlparse(self.path)
+    def _dispatch(self, parsed) -> None:
         if traffic._sink is not None:            # console open: who asked for what
             traffic.emit(f"WEB {self.client_address[0]}", self.path)
         try:   # load counters for the perf log (requests / min, phones open)
@@ -3176,11 +3334,7 @@ class _Handler(BaseHTTPRequestHandler):
             pass
         if parsed.path in ("/help", "/help.html"):
             body = HELP_HTML.replace("__VERSION__", __version__).encode("utf-8")
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
+            self._send(200, body, "text/html; charset=utf-8")
             return
         if parsed.path in ("/", "/index.html"):
             page = INDEX_HTML.replace("__VERSION__", __version__)
@@ -3213,10 +3367,6 @@ class _Handler(BaseHTTPRequestHandler):
             # the page reloads itself when POUNCer was updated under it
             self._send_json({**data, "tag": tag, "version": __version__,
                              **self._control_fields()})
-            return
-        if parsed.path in CONTROL_PATHS and not self._control_ok():
-            self._send_json({"ok": False, "error": "control from phones is off on the PC "
-                                                   "([web] phone_control)"}, 403)
             return
         if parsed.path == "/api/qsy":
             q = parse_qs(parsed.query)
@@ -3359,7 +3509,7 @@ class _Handler(BaseHTTPRequestHandler):
             page = SETTINGS_HTML.replace("__VERSION__", __version__)
             self._send(200, page.encode("utf-8"), "text/html; charset=utf-8")
             return
-        if parsed.path.startswith("/api/settings") or parsed.path == "/api/restart":
+        if parsed.path in ("/api/settings", "/api/settings/set", "/api/restart"):
             self._settings_api(parsed)
             return
         if parsed.path in ("/timeline", "/timeline.html"):

@@ -1,5 +1,7 @@
 """Minimum SNR: list filter (window + phone), /api/minsnr, the setting."""
 
+from tests.web_request import open_web
+
 import json
 import types
 import unittest
@@ -94,7 +96,7 @@ class ApiTests(unittest.TestCase):
         self.web.stop()
 
     def _get(self, path):
-        with urllib.request.urlopen(self.url + path, timeout=30) as r:
+        with open_web(self.url + path, timeout=30) as r:
             return json.loads(r.read())
 
     def test_minsnr(self) -> None:
@@ -111,7 +113,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(self.got, [10])
 
     def test_page_has_the_button(self) -> None:
-        with urllib.request.urlopen(self.url + "/", timeout=30) as r:
+        with open_web(self.url + "/", timeout=30) as r:
             page = r.read().decode()
         for part in ('id="snrsort"', 'id="snrsheet"', "snrbadge", "/api/minsnr?", "weak)"):
             self.assertIn(part, page)
