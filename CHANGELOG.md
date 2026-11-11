@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.7.183 — 2026-11-11 — Run-history save 3x faster
+
+- The run-history file (`cache\runhist5.json`, 6 - 7 MB after a few
+  contests) is written in one go: 93 ms instead of 321 ms. It is saved at
+  most every 30 s while run lookups come in, and Python holds the window
+  while it writes - a short pause in the list each time, now a third.
+
 ## v0.7.182 — 2026-11-11 — Memory leak fixed; faster list with many spots
 
 - **Memory leak fixed.** In the contest night of 8 Nov POUNCer grew from

@@ -513,8 +513,12 @@ class RunHistory:
                 data = dict(self._results)
             try:
                 os.makedirs(self.cache_dir, exist_ok=True)
+                # one dumps + one write (v0.7.183): json.dump writes in small
+                # chunks - 3x slower on the 6-7 MB file, and it holds the
+                # GIL, so the window waited ~300 ms every 30 s of lookups
+                text = json.dumps(data, separators=(",", ":"))
                 with open(self._file + ".part", "w", encoding="utf-8") as fh:
-                    json.dump(data, fh)
+                    fh.write(text)
                 os.replace(self._file + ".part", self._file)
             except OSError:
                 pass
