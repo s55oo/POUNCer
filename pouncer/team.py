@@ -27,6 +27,7 @@ from . import traffic
 
 import json
 import logging
+import math
 import socket
 import threading
 import time
@@ -137,6 +138,89 @@ def _sources(text: str) -> str:
     """The master's sources ('rbn,cluster'), only known names."""
     from .config import parse_sources
     return parse_sources(text)
+
+
+def _number(value, *, low=0, high=float("inf")) -> float:
+    """Wire numbers may be legacy numeric strings, but never booleans/NaN."""
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        raise ValueError("invalid team number")
+    number = float(value)
+    if not math.isfinite(number) or not low <= number <= high:
+        raise ValueError("invalid team number")
+    return number
+
+
+def _hello(msg: dict) -> dict:
+    """Validate before publishing peer state used by election and UI threads."""
+    port = _number(msg.get("web") if msg.get("web") is not None else 0, high=65535)
+    if not port.is_integer():
+        raise ValueError("invalid team web port")
+    started = _number(msg.get("started") if msg.get("started") is not None else time.time())
+    flags = {}
+    for key, default in (("healthy", True), ("cw", True), ("ssb", not msg.get("cw", True)),
+                         ("paused", False)):
+        value = msg.get(key, default)
+        if not isinstance(value, bool):
+            raise ValueError("invalid team flag")
+        flags[key] = value
+    bands = msg.get("bands")
+    if bands is not None:
+        if not isinstance(bands, dict):
+            raise ValueError("invalid team bands")
+        clean_bands = {}
+        for band, counts in bands.items():
+            if not isinstance(band, str) or not isinstance(counts, dict):
+                raise ValueError("invalid team band counts")
+            counts = dict(counts)
+            for field in ("spots", "calls", "dx"):
+                counts.setdefault(field, 0)
+            for field in ("spots", "calls", "dx", "pct"):
+                if field in counts:
+                    number = _number(counts[field], high=100 if field == "pct" else float("inf"))
+                    counts[field] = int(number) if number.is_integer() else number
+            clean_bands[band] = counts
+        bands = clean_bands
+    version = msg.get("ver") or ""
+    if not isinstance(version, str):
+        raise ValueError("invalid team version")
+    return {"web": int(port), "started": started, "ver": version, "bands": bands,
+            **flags, "src": _sources(msg["src"]) if isinstance(msg.get("src"), str) else None,
+            "pc": msg.get("pc") if msg.get("pc") in ("phone", "all", "off") else None}
+
+
+def _history_valid(data: dict) -> bool:
+    """Keep malformed shared values out of caches consumed later by the GUI."""
+    try:
+        for key, value in data.items():
+            if not isinstance(key, str) or key.count("|") != 2:
+                return False
+            if value is None:
+                continue
+            if not isinstance(value, dict):
+                return False
+            for field in ("run", "hours"):
+                v = value.get(field)
+                if v is not None:
+                    if not isinstance(v, (int, float)):
+                        return False
+                    _number(v, high=100 if field == "run" else float("inf"))
+            bands = value.get("bands")
+            if bands is None:
+                bands = {}
+            if not isinstance(bands, dict):
+                return False
+            for band, run in bands.items():
+                if not isinstance(band, str) or not isinstance(run, (int, float)):
+                    return False
+                _number(run, high=100)
+            contexts = value.get("history_contests")
+            if contexts is None:
+                contexts = []
+            if not isinstance(contexts, list) or any(not isinstance(c, str) for c in contexts):
+                return False
+    except (TypeError, ValueError, OverflowError):
+        return False
+    return True
 
 class Team:
     """Discovery, master election and data sharing between POUNCers."""
@@ -475,39 +559,35 @@ class Team:
                 if self._stop.is_set():
                     return
                 continue
-            payload, status = unseal(data, key=self.key)
             try:
+                payload, status = unseal(data, key=self.key)
                 msg = json.loads(payload.decode())
-            except (ValueError, UnicodeDecodeError):
-                continue
-            if not isinstance(msg, dict) or msg.get("id") in (None, self.id):
-                continue
-            self.auth_seen[status] = (time.time(), ip)
-            if not accepted(status, self.key):
-                continue
-            if traffic._sink is not None:
-                traffic.emit(f"TEAM {ip}", traffic.squeeze(data.decode("utf-8", "replace"), 300))
-            self.handle(msg, ip)
+                if not isinstance(msg, dict) or msg.get("id") in (None, self.id):
+                    continue
+                self.auth_seen[status] = (time.time(), ip)
+                if not accepted(status, self.key):
+                    continue
+                if traffic._sink is not None:
+                    traffic.emit(f"TEAM {ip}", traffic.squeeze(data.decode("utf-8", "replace"), 300))
+                self.handle(msg, ip)
+            except Exception as exc:  # one bad packet/callback must not end reception
+                log.debug("team: rejected packet from %s: %s", ip, exc)
 
     def handle(self, msg: dict, ip: str) -> None:
+        if not isinstance(msg, dict):
+            return
         kind = msg.get("t")
-        pid = str(msg["id"])
+        pid = msg.get("id")
+        if not isinstance(pid, str) or not pid or not isinstance(kind, str):
+            return
         if kind == "hi":
+            try:
+                peer = _hello(msg)
+            except (TypeError, ValueError, OverflowError):
+                return
             with self._lock:
                 new = pid not in self.peers
-                self.peers[pid] = {
-                    "ip": ip, "web": int(msg.get("web") or 0),
-                    "started": float(msg.get("started") or time.time()),
-                    "healthy": bool(msg.get("healthy", True)),
-                    "seen": time.time(), "ver": str(msg.get("ver") or ""),
-                    "bands": msg.get("bands") if isinstance(msg.get("bands"), dict) else None,
-                    # needs RBN? (older POUNCers don't say: yes, to be safe)
-                    "cw": bool(msg.get("cw", True)),
-                    "ssb": bool(msg.get("ssb", not msg.get("cw", True))), "paused": bool(msg.get("paused", False)),
-                    "src": (_sources(msg.get("src")) if isinstance(msg.get("src"), str)
-                            else None),
-                    "pc": (msg.get("pc") if msg.get("pc") in ("phone", "all", "off") else None),
-                }
+                self.peers[pid] = dict(peer, ip=ip, seen=time.time())
             if new:
                 log.info("team: POUNCer %s at %s joined", pid, ip)
         elif kind == "spot" and self._on_spot and not self.is_master():
@@ -521,7 +601,7 @@ class Team:
         elif kind == "self" and self._on_self and isinstance(msg.get("d"), dict) \
                 and pid == self.master_id():
             self._on_self(msg["d"])
-        elif kind == "rh" and self._on_runhist and isinstance(msg.get("d"), dict):
+        elif kind == "rh" and self._on_runhist and isinstance(msg.get("d"), dict) and _history_valid(msg["d"]):
             self._on_runhist(msg["d"])
 
     def _maybe_sync(self) -> None:
@@ -540,7 +620,13 @@ class Team:
         except (OSError, ValueError) as exc:
             log.info("team: sync from %s failed: %s", url, exc)
             return
-        if isinstance(data, dict):
+        if not isinstance(data, dict) or not _history_valid(data):
+            log.info("team: invalid run-history from %s", url)
+            return
+        try:
             self._on_runhist(data)
-            log.info("team: %d run-history entries from the master", len(data))
+        except Exception:  # a failed consumer can retry; never end the announce loop
+            log.exception("team: run-history sync callback failed")
+            return
+        log.info("team: %d run-history entries from the master", len(data))
         self._synced = True

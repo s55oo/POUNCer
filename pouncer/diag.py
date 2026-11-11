@@ -25,6 +25,8 @@ FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
 # config keys whose values never leave the PC (fkeys / hotkeys are not secrets)
 SECRET_RE = re.compile(r"^(\s*[;#]?\s*)([\w.]*(?:pass|password|passwd|token|secret|api_?key)[\w.]*)(\s*[=:]\s*)(.*)$",
                        re.IGNORECASE)
+SECTION_RE = re.compile(r"^\s*\[([^]]+)\]")
+TEAM_KEY_RE = re.compile(r"^(\s*[;#]?\s*)(key)(\s*[=:]\s*)(.*)$", re.IGNORECASE)
 EXTRA_FILES = ("cwspeed.txt", "warm-up.txt", "warm-up-ssb.txt", "window.json",
                "perf.csv", "perf.csv.1")
 
@@ -60,10 +62,27 @@ def setup_file_log(cache_dir: str, level: int = logging.INFO) -> str | None:
 def redact_ini(text: str) -> str:
     """config.ini without secrets: 'password = x' -> 'password = ***'."""
     out = []
+    section = ""
+    secret_indent = None
     for line in text.splitlines():
+        header = SECTION_RE.match(line)
+        if header:
+            section = header.group(1).strip().lower()
+            secret_indent = None
+        if secret_indent is not None and line.strip() and not line.lstrip().startswith((";", "#")):
+            indent = len(line) - len(line.lstrip())
+            if indent > secret_indent:
+                out.append(line[:indent] + "***")
+                continue
+            secret_indent = None
         m = SECRET_RE.match(line)
-        if m and m.group(4).strip():
-            line = m.group(1) + m.group(2) + m.group(3) + "***"
+        if m is None and section == "team":
+            m = TEAM_KEY_RE.match(line)
+        if m:
+            if not m.group(1).lstrip().startswith((";", "#")):
+                secret_indent = len(m.group(1))
+            if m.group(4).strip():
+                line = m.group(1) + m.group(2) + m.group(3) + "***"
         out.append(line)
     return "\n".join(out) + ("\n" if text.endswith("\n") else "")
 
