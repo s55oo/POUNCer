@@ -229,6 +229,7 @@ class RunHistory:
         self._lock = threading.Lock()
         # "CALL|CONTEST|MODE" -> {"run": %, "hours": h, "rec": bool} or None
         self._results: dict[str, dict | None] = {}
+        self._revision = 0
         self._asked: set[str] = set()
         self._queue: queue.Queue = queue.Queue()
         try:
@@ -396,6 +397,7 @@ class RunHistory:
             log.warning("run list %s unreadable: %s", path, exc)
             return 0
         with self._lock:
+            changed = False
             for call, contest, mode, value in rows:
                 key = f"{call.upper()}|{contest}|{mode}"
                 old = self._results.get(key)
@@ -403,8 +405,12 @@ class RunHistory:
                         and (value.get("hours_unrounded") is True or
                              ("history_contests" not in old and "history_contests" in value))):
                     self._results[key] = value   # replace legacy numbers, never relabel them
+                    changed = True
                 else:
+                    changed |= key not in self._results
                     self._results.setdefault(key, value)
+            if changed:
+                self._revision += 1
         if not getattr(self, "_warm_states", None):
             self.warm_status = f"{len(rows)} stations known in advance"
         log.info("run list %s: %d entries", path, len(rows))
@@ -419,6 +425,8 @@ class RunHistory:
                     if value is None or isinstance(value, dict):
                         self._results[key] = value
                         added += 1
+            if added:
+                self._revision += 1
         if added:
             self._save()
         return added
@@ -427,6 +435,12 @@ class RunHistory:
         """Everything known (for a team peer that just joined)."""
         with self._lock:
             return dict(self._results)
+
+    @property
+    def revision(self) -> int:
+        """Change counter for main-thread presentation; never invokes Tk."""
+        with self._lock:
+            return self._revision
 
     def get(self, call: str, n1mm_contest: str, mode: str,
             band: str | None = None) -> dict | None:
@@ -459,8 +473,14 @@ class RunHistory:
                 f"{self.server}/runs?contest={quote(contest)}&mode={quote(mode)}"
             ))
             with self._lock:
+                changed = False
                 for call, pct in data.items():
-                    self._results[f"{call.upper()}|{contest}|{mode}"] = {"run": pct}
+                    key = f"{call.upper()}|{contest}|{mode}"
+                    if self._results.get(key) is None:
+                        self._results[key] = {"run": pct}
+                        changed = True
+                if changed:
+                    self._revision += 1
             log.info("run list %s %s: %d calls from %s", contest, mode, len(data), self.server)
             self._save()
         except Exception as exc:  # server down: per-call lookups still work
@@ -486,6 +506,7 @@ class RunHistory:
                 continue
             with self._lock:
                 self._results[key] = pct
+                self._revision += 1
             self._save()
             if self.on_learn is not None:  # tell the team
                 try:
