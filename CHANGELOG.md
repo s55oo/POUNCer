@@ -16,7 +16,10 @@ From S53ZO's pull request #4.
   the marks (next line when one does not fit, shortened with … when one alone
   is too wide), then the two detail lines below them - nothing leaves a card
   or overlaps at any width or font (the pull request's own test failed at
-  210 - 320 px with other fonts than the Mac's).
+  210 - 320 px with other fonts than the Mac's). Each detail line stays on
+  one line (… when too wide); if a card is still too tall the call font gets
+  smaller, and at last the call goes on one line with … (Windows' wider
+  fonts needed this; checked on GitHub's Windows and Mac builds).
 - ZO mode is off by default (*Settings > Program > ZO mode*); everything else
   works as before.
 
