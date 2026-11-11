@@ -25,7 +25,7 @@ text.u, text.t, text.w, text.p { stroke: none; }
 </style>
 </defs>
 <rect width="1400" height="1250" fill="#ffffff"/>
-<text class="h" font-size="24" x="700" y="36" text-anchor="middle">POUNCer – network connections (v0.7.164)</text>
+<text class="h" font-size="24" x="700" y="36" text-anchor="middle">POUNCer – network connections (v0.7.188)</text>
 <text class="s" x="700" y="58" text-anchor="middle">ports are the defaults (config.ini) · no passwords: RBN and the clusters get your callsign only · details: docs/NETWORK.md</text>
 <rect class="zone" x="20" y="76" width="680" height="845" rx="14"/>
 <text class="zt" x="36" y="98" text-anchor="start">SHACK PC (Windows)</text>
@@ -39,7 +39,7 @@ text.u, text.t, text.w, text.p { stroke: none; }
 <text class="s" x="44" y="170" text-anchor="start">log *.s3db</text>
 <text class="s" x="44" y="186" text-anchor="start">N1MM Logger.ini</text>
 <text class="s" x="44" y="202" text-anchor="start">wl_cty.dat · MASTER.SCP</text>
-<text class="s" x="44" y="218" text-anchor="start"></text>
+<text class="s" x="44" y="218" text-anchor="start">  (fallback only)</text>
 <text class="s" x="44" y="234" text-anchor="start">Broadcast Data:</text>
 <text class="s" x="44" y="250" text-anchor="start">Radio + App Info + Spots</text>
 <text class="s" x="44" y="266" text-anchor="start">→ 127.0.0.1:12060</text>
@@ -70,8 +70,8 @@ text.u, text.t, text.w, text.p { stroke: none; }
 <text class="sw" x="454" y="461" text-anchor="start">CLR BAND · CLR ALL</text>
 <text class="sw" x="454" y="478" text-anchor="start"></text>
 <text class="sw" x="454" y="495" text-anchor="start">cache\</text>
-<text class="sw" x="454" y="512" text-anchor="start">wl_cty.dat (every 5 days)</text>
-<text class="sw" x="454" y="529" text-anchor="start">warm lists · MASTER.SCP</text>
+<text class="sw" x="454" y="512" text-anchor="start">cty.dat · MASTER.DTA (Fridays)</text>
+<text class="sw" x="454" y="529" text-anchor="start">warm lists</text>
 <text class="sw" x="454" y="546" text-anchor="start">run history · window.json</text>
 <line class="u" x1="234" y1="150" x2="438" y2="150" marker-end="url(#aU)"/>
 <text class="l u" x="336" y="143" text-anchor="middle">UDP 12060</text>
@@ -132,13 +132,13 @@ text.u, text.t, text.w, text.p { stroke: none; }
 <line class="w" x1="692" y1="584" x2="874" y2="584" marker-end="url(#aH)"/>
 <text class="l w" x="782.0" y="577" text-anchor="middle">HTTPS</text>
 <rect class="box" x="876" y="650" width="490" height="62" rx="10"/>
-<text class="h" x="888" y="672" text-anchor="start">www.country-files.com  (HTTPS)</text>
-<text class="s" x="888" y="692" text-anchor="start">wl_cty.dat every 5 days (304 = current)</text>
+<text class="h" x="888" y="672" text-anchor="start">azure.s53m.com  HTTPS /cors/cty.dat</text>
+<text class="s" x="888" y="692" text-anchor="start">country file (AD1C cty.dat) · every Friday (304 = current)</text>
 <line class="w" x1="692" y1="672" x2="874" y2="672" marker-end="url(#aH)"/>
 <text class="l w" x="782.0" y="665" text-anchor="middle">HTTPS</text>
 <rect class="box" x="876" y="722" width="490" height="62" rx="10"/>
-<text class="h" x="888" y="744" text-anchor="start">supercheckpartial.com  (HTTPS)</text>
-<text class="s" x="888" y="764" text-anchor="start">MASTER.SCP if newer</text>
+<text class="h" x="888" y="744" text-anchor="start">azure.s53m.com  HTTPS /cors/MASTER.DTA</text>
+<text class="s" x="888" y="764" text-anchor="start">Super Check Partial (&quot;?&quot; marks) · every Friday</text>
 <line class="w" x1="692" y1="744" x2="874" y2="744" marker-end="url(#aH)"/>
 <text class="l w" x="782.0" y="737" text-anchor="middle">HTTPS</text>
 <rect class="box" x="876" y="794" width="490" height="62" rx="10"/>
@@ -156,7 +156,8 @@ text.u, text.t, text.w, text.p { stroke: none; }
 <text class="s" x="44" y="1027" text-anchor="start">phone page  http://PC:8080/</text>
 <text class="s" x="44" y="1043" text-anchor="start">tap = QSY + call · F-keys · band</text>
 <text class="s" x="44" y="1059" text-anchor="start">/summary · /zones · /timeline · /help</text>
-<text class="s" x="44" y="1075" text-anchor="start">settings change only on the PC itself</text>
+<text class="s" x="44" y="1075" text-anchor="start">buttons: POST + token, own page only</text>
+<text class="s" x="44" y="1107" text-anchor="start">settings change only on the PC itself</text>
 <text class="s" x="44" y="1091" text-anchor="start">QR code: View &gt; Phone page QR code</text>
 <rect class="box" x="470" y="985" width="420" height="145" rx="10"/>
 <text class="h" x="482" y="1007" text-anchor="start">Other POUNCers (team)</text>

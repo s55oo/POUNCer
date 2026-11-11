@@ -11,7 +11,7 @@ No connection uses a password. POUNCer logs in to RBN and the DX cluster
 with **your callsign only**, and sends no personal data anywhere. Addresses
 in the examples are private example addresses.
 
-![POUNCer network connections (v0.7.164): N1MM on UDP 12060 / 13064, Windows messages, files and the optional Telnet window on TCP 10000; RBN, azure.s53m.com (Telnet + Cluster on one login, TelBck, MyCall, HTTP), HamQTH, PSK Reporter, GitHub, country-files.com, Super Check Partial, NTP, internet check; phones on HTTP 8080, other POUNCers on UDP 12079, other PCs' N1MM on TCP 10000](network-diagram.svg)
+![POUNCer network connections (v0.7.188): N1MM on UDP 12060 / 13064, Windows messages, files and the optional Telnet window on TCP 10000; RBN, azure.s53m.com (Telnet + Cluster on one login, TelBck, MyCall, HTTP), HamQTH, PSK Reporter, GitHub, azure.s53m.com country file and Super Check Partial (every Friday), NTP, internet check; phones on HTTP 8080, other POUNCers on UDP 12079, other PCs' N1MM on TCP 10000](network-diagram.svg)
 
 *(Also as [PNG](network-diagram.png).)*
 
