@@ -3737,6 +3737,7 @@ class PouncerApp:
         Stop: Esc (stops at once)."""
         win = self._cw_win
         if not win or not win32mod.is_window(win):
+            self._cw_win = None
             if stop:                     # stop anyway: Esc in N1MM stops sending
                 hwnd = self.state.entry_window_hwnd(self._cw_radio or self._radio_nr())
                 if _keyboard_ready(self, hwnd):

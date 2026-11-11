@@ -120,6 +120,18 @@ class KeyboardTargetTests(unittest.TestCase):
                 text.assert_not_called()
                 enter.assert_not_called()
 
+    def test_native_cw_window_close_allows_verified_reopening(self):
+        app, fake = self.fake()
+        foreground = [2222]
+        with patch.object(app.win32mod, 'foreground_window', side_effect=lambda: foreground[0]), \
+                patch.object(app.win32mod, 'is_window', side_effect=lambda h: h != 7777), \
+                patch.object(app.win32mod, 'send_ctrl_k', side_effect=lambda: foreground.__setitem__(0, 8888)) as ctrl_k, \
+                patch.object(app.win32mod, 'focused_multiline_edit', side_effect=lambda h: 9999 if h == 8888 else None), \
+                patch.object(app, 'window_pid', return_value=10), patch.object(app.time, 'sleep'):
+            self.assertTrue(fake._cw_open(2))
+            self.assertEqual(fake._cw_win, 8888)
+            ctrl_k.assert_called_once()
+
 
 
 class ReceiverSafetyTests(unittest.TestCase):
