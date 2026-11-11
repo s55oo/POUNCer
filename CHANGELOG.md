@@ -16,6 +16,34 @@
   and timestamp/GUID-aware Contacts reconciliation. Explicit profile override
   in Settings / config.ini for custom or unverified N1MM contest names.
 
+## v0.7.183 — 2026-11-11 — Run-history save 3x faster
+
+- The run-history file (`cache\runhist5.json`, 6 - 7 MB after a few
+  contests) is written in one go: 93 ms instead of 321 ms. It is saved at
+  most every 30 s while run lookups come in, and Python holds the window
+  while it writes - a short pause in the list each time, now a third.
+
+## v0.7.182 — 2026-11-11 — Memory leak fixed; faster list with many spots
+
+- **Memory leak fixed.** In the contest night of 8 Nov POUNCer grew from
+  140 MB to **10.6 GB** (≈1.8 GB an hour, the PC at 98 % memory) and the
+  list got slow (250 - 380 ms a refresh). Cause: the row list and the tiles
+  deleted and re-drew every row on every refresh, and Tk never gives back
+  the memory of a deleted canvas item (~80 bytes each - thousands of rows,
+  80 refreshes a minute). Now they draw **only the rows on screen** into a
+  fixed set of re-used items. Test with contest traffic (3000 spots/min,
+  1.5 min): 613 MB and rising before, **177 MB** now; tiles 420 → 176 MB.
+  The list looks exactly the same (pixel-compared).
+- **Faster with many spots:**
+  - the check for the same spot from two sources (RBN + telnet + HTTP)
+    cleaned its memory on every spot once over 20000 keys - 1.25 ms per
+    spot, seconds a minute in heavy RBN; now at most every 10 s;
+  - band of a frequency, WPX prefix and the beacon check are remembered
+    (asked millions of times a minute).
+  Median refresh at that load: 36 → 20 ms, while handling 60 % more spots.
+- Tests: `test_rowlist.py` (items re-used, only visible rows, scrolling and
+  clicks), `test_looks.py` (the same for tiles).
+
 ## v0.7.181 — 2026-11-10 — Phone / browser: two or more bands on one list
 
 - Browser band menu: select two or more bands and show their spots together

@@ -108,6 +108,62 @@ class RowListTkTests(unittest.TestCase):
         self.assertEqual(w.selected, 0)
         w._tap_selected()
         self.assertEqual(taps, [1, 0])
+
+    def _many(self, n, tag=""):
+        return [{"freq": f"{14000 + i * 0.5:.1f}", "call": f"DL{i}{tag}", "snr": "20",
+                 "wpm": "25", "mult": i % 3, "run": "", "age": "now", "spotter": "S53WW",
+                 "mode": "CW", "type": "CQ", "dx": i % 2 == 0, "tried": "2x" if i % 5 == 0 else ""}
+                for i in range(n)]
+
+    def _texts(self, w):
+        return [w.c.itemcget(i, "text") for i in w.c.find_all()
+                if w.c.type(i) == "text" and w.c.itemcget(i, "state") != "hidden"]
+
+    def test_items_are_reused_not_recreated(self) -> None:
+        """v0.7.182: Tk never frees deleted canvas items - the list must not
+        create new ones on each refresh (10 GB in a contest night)."""
+        w = rowlist.RowList(self.root, on_tap=lambda i: None)
+        w.pack(fill="both", expand=True)
+        self.root.update()
+        w.set_items(self._many(1500))
+        self.root.update()
+        first = w.c.find_all()
+        last_id = max(first)
+        for r in range(30):                       # 30 refreshes, other spots each time
+            w.set_items(self._many(1500 - r * 7, tag=str(r)))
+            self.root.update()
+        self.assertEqual(max(w.c.find_all()), last_id)      # no new item made
+        self.assertIn("DL3" + "29", self._texts(w))         # but the new rows are shown
+
+    def test_only_rows_on_screen_are_drawn(self) -> None:
+        w = rowlist.RowList(self.root, on_tap=lambda i: None)
+        w.pack(fill="both", expand=True)
+        self.root.update()
+        w.set_items(self._many(2000))
+        self.root.update()
+        calls = [t for t in self._texts(w) if t.startswith("DL")]
+        self.assertIn("DL0", calls)
+        self.assertNotIn("DL1999", calls)
+        self.assertLess(len(calls), 120)          # ~20 on screen + margin, not 2000
+
+    def test_scrolling_draws_and_clicks_the_rows_there(self) -> None:
+        from pouncer import theme
+        taps = []
+        w = rowlist.RowList(self.root, on_tap=taps.append)
+        w.pack(fill="both", expand=True)
+        self.root.update()
+        w.set_items(self._many(2000))
+        self.root.update()
+        w.c.yview_moveto(0.5)                     # the middle of the list
+        self.root.update()
+        rh = theme.px(rowlist.ROW_H)
+        top = int(w.c.canvasy(0) // rh)
+        self.assertIn(f"DL{top + 2}", self._texts(w))
+        w._click(type("E", (), {"x": 50, "y": int(rh * 2.5)})())
+        self.assertEqual(taps, [top + 2])
+        w.set_items(self._many(10))               # list shrinks: no rows left over
+        self.root.update()
+        self.assertNotIn(f"DL{top + 2}", self._texts(w))
         # hover over Runs of row 0: the explanation; elsewhere: gone
         w.items[0]["run_tip"] = "R12% - test"
         x_run = next(x0 + 5 for k, x0, x1 in w._xs if k == "run")

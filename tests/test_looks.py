@@ -59,6 +59,37 @@ class LookTests(unittest.TestCase):
                          theme.KEY_COLORS["spot"])
         theme.apply(self.root, "classic")
 
+    def test_tiles_reuse_items_and_draw_only_the_visible(self) -> None:
+        """v0.7.182: like the row list - Tk never frees a deleted canvas item."""
+        theme.apply(self.root, "dark")
+        taps = []
+        t = TileList(self.root, on_tap=taps.append)
+        t.pack(fill="both", expand=True)
+        self.root.geometry("700x300")
+        self.root.update()
+
+        def many(n, tag=""):
+            return [{"call": f"DL{i}{tag}", "line1": "14025.0", "line2": "1200Z", "mult": i % 3,
+                     "tried": "2x" if i % 4 == 0 else ""} for i in range(n)]
+        t.set_items(many(1500))
+        self.root.update()
+        last_id = max(t.c.find_all())
+        for r in range(20):
+            t.set_items(many(1500 - r * 9, tag=str(r)))
+            self.root.update()
+        self.assertEqual(max(t.c.find_all()), last_id)     # nothing new created
+        shown = [t.c.itemcget(i, "text") for i in t.c.find_all()
+                 if t.c.type(i) == "text" and t.c.itemcget(i, "state") != "hidden"]
+        self.assertIn("DL019", shown)
+        self.assertLess(len([x for x in shown if x.startswith("DL")]), 100)
+        t.c.yview_moveto(0.5)                              # scroll: tiles there are drawn
+        self.root.update()
+        (x0, y0, x1, y1), j = next(b for b in t._boxes if b[0][1] >= t.c.canvasy(0))
+        self.assertIn(f"DL{j}19", [t.c.itemcget(i, "text") for i in t.c.find_all()
+                                   if t.c.type(i) == "text"])
+        t._click(type("E", (), {"x": int(x0 + 5), "y": int(y0 - t.c.canvasy(0) + 5)})())
+        self.assertEqual(taps, [j])
+
     def test_tiles_click_keys_and_marks(self) -> None:
         theme.apply(self.root, "dark")
         tapped = []

@@ -3925,7 +3925,10 @@ class PouncerApp:
         if now - seen.get(key, 0.0) < self.MERGE_S:
             return True
         seen[key] = now
-        if len(seen) > 20000:
+        # sweep old keys at most every 10 s (v0.7.182): above 20000 live keys
+        # (heavy RBN) the sweep ran on EVERY spot - 1.25 ms each, seconds a minute
+        if len(seen) > 20000 and now - getattr(self, "_merge_swept", 0.0) > 10:
+            self._merge_swept = now
             for k in [k for k, t in seen.items() if now - t > self.MERGE_S]:
                 del seen[k]
         return False

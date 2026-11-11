@@ -98,7 +98,8 @@ class RowList(ttk.Frame):
         self.head = tk.Canvas(self, highlightthickness=0, bd=0, height=theme.px(HEAD_H))
         self.c = tk.Canvas(self, highlightthickness=0, bd=0, cursor="hand2")
         sb = ttk.Scrollbar(self, orient="vertical", command=self.c.yview)
-        self.c.configure(yscrollcommand=sb.set)
+        self._sb = sb
+        self.c.configure(yscrollcommand=self._scrolled)
         self.head.pack(side="top", fill="x")
         sb.pack(side="right", fill="y")
         self.c.pack(side="left", fill="both", expand=True)
@@ -109,6 +110,14 @@ class RowList(ttk.Frame):
         self._height = 0
         self._sig = None
         self._head_sig = None
+        # Canvas items are REUSED (v0.7.182): Tk never gives back the memory
+        # of a deleted canvas item (~80 bytes each), and deleting + drawing
+        # every row on every refresh grew POUNCer to 10 GB in a contest
+        # night. Only the rows on screen (+ MARGIN) are drawn, into a pool
+        # of slots that are re-filled - fast with 2000 spots, and flat memory.
+        self._pool: list[dict] = []
+        self._pool_sig = None
+        self._drawn = (0, 0)
         self.c.bind("<Configure>", lambda e: self.draw(force=True))
         self.c.bind("<Button-1>", self._click)
         self.head.bind("<Button-1>", self._head_click)
@@ -253,6 +262,56 @@ class RowList(ttk.Frame):
             h.create_text(x, hh / 2, text=text, anchor=c[3], fill=p["head"], font=font)
         h.create_line(0, hh - 1, w, hh - 1, fill=p["head_line"])
 
+    MARGIN = 15                         # rows drawn above / below the window
+
+    def _visible(self) -> tuple[int, int]:
+        """The rows to draw: on screen, plus MARGIN either side."""
+        rh = max(1, theme.px(ROW_H))
+        try:
+            top = int(self.c.canvasy(0) // rh)
+            n_vis = int(max(self.c.winfo_height(), rh * 20) // rh) + 1
+        except tk.TclError:
+            top, n_vis = 0, 40
+        lo = max(0, top - self.MARGIN)
+        return lo, min(len(self.items), top + n_vis + self.MARGIN)
+
+    def _scrolled(self, first, last) -> None:
+        """Scrollbar moved: draw the rows that came into view."""
+        self._sb.set(first, last)
+        lo, hi = self._visible()
+        dlo, dhi = self._drawn
+        if lo < dlo or hi > dhi:
+            self.draw(force=True)
+
+    def _slot(self) -> dict:
+        """One row's canvas items, made once and re-filled (never deleted)."""
+        c = self.c
+        hid = {"state": "hidden"}
+        slot = {"bg": c.create_rectangle(0, 0, 0, 0, outline="", **hid),
+                "line": c.create_line(0, 0, 0, 0, **hid),
+                "texts": {}, "marks": [], "tag_r": None, "tag_t": None}
+        for col, _x0, _x1 in self._xs:
+            anchor = next(k[3] for k in self._cols if k[0] == col)
+            if col == "mult":
+                slot["tag_r"] = c.create_rectangle(0, 0, 0, 0, outline="", **hid)
+                slot["tag_t"] = c.create_text(0, 0, anchor="w", text="", **hid)
+            else:
+                slot["texts"][col] = c.create_text(0, 0, anchor="e" if col == "snr" else anchor,
+                                                   text="", **hid)
+            if col == "call":
+                slot["marks"] = [c.create_text(0, 0, anchor="w", text="", **hid) for _ in range(3)]
+        slot["sel"] = c.create_rectangle(0, 0, 0, 0, width=2, **hid)
+        return slot
+
+    def _hide_slot(self, slot: dict) -> None:
+        c = self.c
+        for k in ("bg", "line", "sel", "tag_r"):
+            if slot.get(k) is not None:
+                c.itemconfigure(slot[k], state="hidden")
+        for t in list(slot["texts"].values()) + slot["marks"] + (
+                [slot["tag_t"]] if slot.get("tag_t") is not None else []):
+            c.itemconfigure(t, state="hidden", text="")
+
     def draw(self, force: bool = False) -> None:
         cols = visible_columns(self.items)
         w = self._width()
@@ -266,72 +325,111 @@ class RowList(ttk.Frame):
         self._draw_head()
         p = self.palette()
         c = self.c
-        c.delete("all")
         c.configure(background=p["bg"])
+        pool_sig = (tuple(c_[0] for c_ in cols), w)
+        if pool_sig != self._pool_sig:       # other columns / width: new slots (rare)
+            c.delete("all")
+            self._pool, self._pool_sig = [], pool_sig
         rh = theme.px(ROW_H)
+        self._height = len(self.items) * rh
+        c.configure(scrollregion=(0, 0, w, max(self._height, c.winfo_height())))
+        lo, hi = self._visible()
+        self._drawn = (lo, hi)
+        while len(self._pool) < hi - lo:
+            self._pool.append(self._slot())
+        for k, slot in enumerate(self._pool):
+            i = lo + k
+            if i < hi:
+                self._fill(slot, i, self.items[i], p, w, rh)
+            else:
+                self._hide_slot(slot)
+
+    def _fill(self, slot: dict, i: int, it: dict, p: dict, w: int, rh: int) -> None:
+        """Put row i into a slot: text, colours, fonts, places."""
+        c = self.c
         pad = theme.px(8)
         call_f = (theme.FONT, 13, "bold")
         cell_f = (theme.FONT, 10)
         cell_b = (theme.FONT, 10, "bold")
         tag_f = (theme.FONT, 8, "bold")
         mark_f = (theme.FONT, 11, "bold")
-        for i, it in enumerate(self.items):
-            y0, y1 = i * rh, (i + 1) * rh
-            ym = (y0 + y1) / 2
-            if it.get("dx"):
-                c.create_rectangle(0, y0, w, y1, fill=p["dx"], outline="")
-            c.create_line(0, y1 - 1, w, y1 - 1, fill=p["line"])
-            grey = it.get("worked") or it.get("offline")
-            text = p["worked"] if grey else (p["stale"] if it.get("stale") else p["text"])
-            muted = p["worked"] if grey else p["muted"]
-            for col, x0, x1 in self._xs:
-                anchor = next(k[3] for k in self._cols if k[0] == col)
-                x = x1 - pad if anchor == "e" else x0 + pad
-                if col == "call":
-                    mult = int(it.get("mult") or 0)
-                    color = p["worked"] if grey else (
-                        p["mult2"] if mult >= 2 else p["mult1"] if mult else
-                        p["stale"] if it.get("stale") else p["call"])
-                    t = c.create_text(x, ym, text=it.get("call", ""), anchor="w", fill=color,
-                                      font=call_f)
-                    bx = (c.bbox(t)[2] if c.bbox(t) else x) + theme.px(5)
-                    for mark, mc, f in ((it.get("busted") and "?", p["busted"], mark_f),
-                                        (it.get("own") and "★", p["tried"], mark_f),
-                                        (it.get("tried"), p["tried"], (theme.FONT, 9, "bold"))):
-                        if mark and bx < x1:
-                            m = c.create_text(bx, ym, text=mark, anchor="w",
-                                              fill=muted if grey else mc, font=f)
-                            bx = (c.bbox(m)[2] if c.bbox(m) else bx) + theme.px(4)
-                elif col == "mult":
-                    mult = int(it.get("mult") or 0)
-                    if mult and not grey:
-                        label = "MM" if mult >= 2 else "M"
-                        t = c.create_text(x + theme.px(5), ym, text=label, anchor="w",
-                                          fill=p["tag_fg"], font=tag_f)
-                        bb = c.bbox(t)
-                        if bb:
-                            r = c.create_rectangle(bb[0] - theme.px(4), bb[1] - 1,
-                                                   bb[2] + theme.px(4), bb[3] + 1,
-                                                   fill=p["tag2" if mult >= 2 else "tag1"],
-                                                   outline="")
-                            c.tag_lower(r, t)
-                elif col == "run":
+        y0, y1 = i * rh, (i + 1) * rh
+        ym = (y0 + y1) / 2
+        if it.get("dx"):
+            c.coords(slot["bg"], 0, y0, w, y1)
+            c.itemconfigure(slot["bg"], fill=p["dx"], state="normal")
+        else:
+            c.itemconfigure(slot["bg"], state="hidden")
+        c.coords(slot["line"], 0, y1 - 1, w, y1 - 1)
+        c.itemconfigure(slot["line"], fill=p["line"], state="normal")
+        grey = it.get("worked") or it.get("offline")
+        text = p["worked"] if grey else (p["stale"] if it.get("stale") else p["text"])
+        muted = p["worked"] if grey else p["muted"]
+        for col, x0, x1 in self._xs:
+            anchor = next(k[3] for k in self._cols if k[0] == col)
+            x = x1 - pad if anchor == "e" else x0 + pad
+            if col == "call":
+                mult = int(it.get("mult") or 0)
+                color = p["worked"] if grey else (
+                    p["mult2"] if mult >= 2 else p["mult1"] if mult else
+                    p["stale"] if it.get("stale") else p["call"])
+                t = slot["texts"]["call"]
+                c.coords(t, x, ym)
+                c.itemconfigure(t, text=it.get("call", ""), fill=color, font=call_f,
+                                state="normal")
+                bb = c.bbox(t)
+                bx = (bb[2] if bb else x) + theme.px(5)
+                marks = [(m, mc, f) for m, mc, f in (
+                    (it.get("busted") and "?", p["busted"], mark_f),
+                    (it.get("own") and "\u2605", p["tried"], mark_f),
+                    (it.get("tried"), p["tried"], (theme.FONT, 9, "bold"))) if m]
+                for j, m_id in enumerate(slot["marks"]):
+                    if j < len(marks) and bx < x1:
+                        mark, mc, f = marks[j]
+                        c.coords(m_id, bx, ym)
+                        c.itemconfigure(m_id, text=mark, fill=muted if grey else mc, font=f,
+                                        state="normal")
+                        bb = c.bbox(m_id)
+                        bx = (bb[2] if bb else bx) + theme.px(4)
+                    else:
+                        c.itemconfigure(m_id, state="hidden", text="")
+            elif col == "mult":
+                mult = int(it.get("mult") or 0)
+                t, r = slot["tag_t"], slot["tag_r"]
+                if mult and not grey:
+                    c.coords(t, x + theme.px(5), ym)
+                    c.itemconfigure(t, text="MM" if mult >= 2 else "M", fill=p["tag_fg"],
+                                    font=tag_f, state="normal")
+                    bb = c.bbox(t)
+                    if bb:
+                        c.coords(r, bb[0] - theme.px(4), bb[1] - 1, bb[2] + theme.px(4), bb[3] + 1)
+                        c.itemconfigure(r, fill=p["tag2" if mult >= 2 else "tag1"],
+                                        state="normal")
+                        c.tag_lower(r, t)
+                else:
+                    c.itemconfigure(t, state="hidden", text="")
+                    c.itemconfigure(r, state="hidden")
+            else:
+                t = slot["texts"][col]
+                if col == "run":
                     rare = it.get("rare") and not grey
-                    value = it.get("run", "") + (" ⚡" if rare else "")
-                    c.create_text(x, ym, text=value, anchor="w",
-                                  fill=p["rare"] if rare else text, font=cell_b if rare else cell_f)
+                    value = it.get("run", "") + (" \u26a1" if rare else "")
+                    fill, font = (p["rare"] if rare else text), (cell_b if rare else cell_f)
                 elif col == "snr":
-                    strong = it.get("strong") and not grey
-                    c.create_text(x, ym, text=it.get("snr", ""), anchor="e", fill=text,
-                                  font=cell_b if strong else cell_f)
+                    value = it.get("snr", "")
+                    fill = text
+                    font = cell_b if it.get("strong") and not grey else cell_f
                 else:
                     value = it.get(col, "")
-                    quiet = col in ("age", "spotter", "type")
-                    c.create_text(x, ym, text=value, anchor=anchor,
-                                  fill=muted if quiet else text, font=cell_f)
-            if i == self.selected:
-                c.create_rectangle(1, y0 + 1, w - 2, y1 - 2, outline=p["sel"], width=2)
-            elif it.get("onfreq"):
-                c.create_rectangle(1, y0 + 1, w - 2, y1 - 2, outline=p["onfreq"], width=2)
-        self._height = len(self.items) * rh
-        c.configure(scrollregion=(0, 0, w, max(self._height, c.winfo_height())))
+                    fill = muted if col in ("age", "spotter", "type") else text
+                    font = cell_f
+                c.coords(t, x, ym)
+                c.itemconfigure(t, text=value, fill=fill, font=font, state="normal")
+        sel = slot["sel"]
+        if i == self.selected or it.get("onfreq"):
+            c.coords(sel, 1, y0 + 1, w - 2, y1 - 2)
+            c.itemconfigure(sel, outline=p["sel"] if i == self.selected else p["onfreq"],
+                            state="normal")
+            c.tag_raise(sel)
+        else:
+            c.itemconfigure(sel, state="hidden")

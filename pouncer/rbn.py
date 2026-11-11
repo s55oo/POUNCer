@@ -7,6 +7,7 @@ from . import traffic
 import logging
 import calendar
 import queue
+import functools
 import re
 import socket
 import threading
@@ -134,11 +135,17 @@ def ncdxf_beacon(call: str, khz: float) -> bool:
 
 def beacon_why(spot: Spot) -> str:
     """Why this spot is a beacon ("" = it is not one)."""
-    if ncdxf_beacon(spot.dxcall, spot.freq_khz):
+    return _beacon_why(spot.dxcall, spot.freq_khz, spot.spot_type)
+
+
+@functools.lru_cache(maxsize=32768)
+def _beacon_why(call: str, khz: float, spot_type: str) -> str:
+    # cached (v0.7.182): the list asks it for every spot on every refresh
+    if ncdxf_beacon(call, khz):
         return "NCDXF beacon on its frequency"
-    if spot.spot_type in ("BEACON", "NCDXF"):
-        return f"spot type {spot.spot_type}"
-    if spot.dxcall.upper().endswith("/B"):
+    if spot_type in ("BEACON", "NCDXF"):
+        return f"spot type {spot_type}"
+    if (call or "").upper().endswith("/B"):
         return "call ends in /B"
     return ""
 
