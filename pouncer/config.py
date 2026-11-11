@@ -102,7 +102,7 @@ class Config:
     rbn_pause_on_phone: bool = True
     # Super Check Partial: "?" on spotted calls not in MASTER.SCP; kept fresh
     scp_enabled: bool = True
-    scp_url: str = "https://www.supercheckpartial.com/MASTER.SCP"
+    scp_url: str = "https://azure.s53m.com/cors/MASTER.DTA"   # S53M, every Friday
     scp_refresh_days: int = 7
     scp_update_n1mm: bool = False       # also copy the new file into N1MM's SupportFiles
     # Backup when the chosen skimmer is quiet: listed prefixes, or (empty)
@@ -111,9 +111,9 @@ class Config:
     backup_after_minutes: int = 5
     skimmer_quiet_minutes: int = 3   # own skimmer silent this long = warning
     cty_file: str = ""
-    cty_auto_update: bool = True     # check country-files.com for a newer wl_cty.dat
+    cty_auto_update: bool = True     # S53M's cty.dat, downloaded every Friday
     cty_check_days: int = 5          # ... this often
-    cty_url: str = "https://www.country-files.com/cty/wl_cty.dat"
+    cty_url: str = "https://azure.s53m.com/cors/cty.dat"
     cty_update_n1mm: bool = False    # also copy it into N1MM's SupportFiles
     hide_beacons: bool = True
     follow_modes: tuple[str, ...] = ("CW",)

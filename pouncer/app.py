@@ -19,7 +19,7 @@ from .flow import flow_positions
 from . import lights
 from . import traffic
 from .cty import CtyDB, Entity, default_cty_paths, load_cty, wpx_prefix
-from .ctyupdate import CtyUpdater, newest as newest_file
+from .ctyupdate import CtyUpdater, cache_name as cty_cache_name, newest as newest_file
 from .n1mm import (
     N1MMController, RadioListener, RadioState, cat_macro, next_tune_khz,
 )
@@ -248,18 +248,27 @@ class PouncerApp:
         self._checks: list[dict] = []
         if self.runhist is not None and config.warmup:
             self.runhist.warm_up()  # CQWW / ARRL DX / WPX: CW list + separate SSB list
-        # Callsign -> continent (N1MM's wl_cty.dat) for EU / DX marking.
-        self.cty = load_cty(config.cty_file, config.n1mm_ini)
-        # a newer copy downloaded by POUNCer (cache/wl_cty.dat) wins
-        cache_cty = os.path.join(config.run_history_dir or "cache", "wl_cty.dat")
-        if (getattr(config, "cty_auto_update", False) and not config.cty_file
-                and newest_file([cache_cty, getattr(self.cty, "path", "")]) == cache_cty):
-            try:
-                self.cty = CtyDB.load(cache_cty)
-                log.info("loaded %d cty entries from %s (POUNCer's newer copy)",
-                         len(self.cty), cache_cty)
-            except Exception as exc:  # noqa: BLE001
-                log.warning("cty file %s unreadable: %s", cache_cty, exc)
+        # Callsign -> country / continent / zone for EU / DX marking and mults.
+        # v0.7.187: POUNCer's own download (S53M's cty.dat, every Friday) is
+        # used, not N1MM's file - N1MM's wl_cty.dat only before the first
+        # download ever (or with [cty] file = ... / auto_update = false).
+        self.cty = None
+        if getattr(config, "cty_auto_update", False) and not config.cty_file:
+            cache_dir = config.run_history_dir or "cache"
+            for cache_cty in dict.fromkeys([
+                    os.path.join(cache_dir, cty_cache_name(config.cty_url)),
+                    os.path.join(cache_dir, "wl_cty.dat")]):      # an older download
+                if not os.path.exists(cache_cty):
+                    continue
+                try:
+                    self.cty = CtyDB.load(cache_cty)
+                    log.info("loaded %d cty entries from %s (POUNCer's download)",
+                             len(self.cty), cache_cty)
+                    break
+                except Exception as exc:  # noqa: BLE001
+                    log.warning("cty file %s unreadable: %s", cache_cty, exc)
+        if self.cty is None:
+            self.cty = load_cty(config.cty_file, config.n1mm_ini)
         self._home_call: str | None = None
         self._home_cont = "EU"
         # S53WW, or skimmers on our continent while S53WW is quiet (backup)
@@ -6210,7 +6219,7 @@ class PouncerApp:
                                       url=self.cfg.cty_url, check_days=self.cfg.cty_check_days,
                                       update_n1mm=self.cfg.cty_update_n1mm,
                                       on_new=lambda p: self._web_queue.put(("cty", p)))
-            self._cty_up.start()        # country-files.com every 5 days (If-Modified-Since)
+            self._cty_up.start()        # S53M's cty.dat every Friday (If-Modified-Since)
         self.perf.start()             # cache/perf.csv: CPU / memory / disk, a row a minute
         self.root.after(REFRESH_MS, self._tick)
 

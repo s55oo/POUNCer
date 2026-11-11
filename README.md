@@ -58,7 +58,7 @@ examples: [docs/NETWORK.md](docs/NETWORK.md).
 |---|---|---|---|
 | N1MM Logger+ (127.0.0.1) | UDP **13064** | XML commands: QSY radio A/B, `{WIPE}`, CAT strings (filter). Never transmits | on a click / tap, band, ±Hz, filter |
 | N1MM's windows (same PC) | Windows messages (no network) | the call into the Entry Window, F-keys, Enter, PgUp/PgDn, Ctrl+K CW text; reads the CW speed box | on a click / key; WPM once a second |
-| N1MM's files (same PC) | file read, read-only | the log `.s3db` (+ `-wal`), `N1MM Logger.ini`, `wl_cty.dat`, `MASTER.SCP` | log every 0.5 s, ini every 10 s |
+| N1MM's files (same PC) | file read, read-only | the log `.s3db` (+ `-wal`), `N1MM Logger.ini` (`wl_cty.dat`, `MASTER.SCP` only before POUNCer's first download) | log every 0.5 s, ini every 10 s |
 | telnet.reversebeacon.net | TCP **7000** / 7001 (telnet) | login = your callsign → RBN skimmer spots (CW/RTTY; 7001 = FT8/FT4) | while a radio is on CW; team: the master only |
 | azure.s53m.com | TCP **8000** (telnet) | RBN backup → the same skimmer spots | when RBN's telnet is down |
 | azure.s53m.com | TCP **8000** (telnet) | DX cluster → SSB spots (closed while N1MM sends its own spots) | while a radio is on SSB |
@@ -67,7 +67,7 @@ examples: [docs/NETWORK.md](docs/NETWORK.md).
 | mqtt.pskreporter.info | TCP **1883** (MQTT) | subscribe to one call → its FT8/FT4 reports (is that spot FT8 or SSB?) | only for SSB spots in the 40 m / 160 m FT8 windows and CW spots in an FT8 / FT4 window, max 2 min |
 | api.github.com, github.com | HTTPS **443** | update check → new POUNCer.exe (SHA-256 checked); warm-up lists (CW, SSB) | start + every 6 h; lists every 30 days |
 | raw.githubusercontent.com | HTTPS **443** | S53ZO's public contest-log archive → run history of a call (the call is in the URL) | for spotted calls not in the lists, cached |
-| www.supercheckpartial.com | HTTPS **443** | `MASTER.SCP` (only if newer: 304 otherwise) | at start + every 7 days |
+| azure.s53m.com | HTTPS **443** | `GET /cors/MASTER.DTA` (Super Check Partial) and `/cors/cty.dat` (country file), only if newer (304 otherwise) | every Friday (or the first start after one) |
 | pool.ntp.org, time.windows.com | UDP **123** (NTP) | one 48-byte time request → the PC clock check | at start + every 30 min |
 | api.github.com | HTTPS **443** (`HEAD`) | clock check fallback (its `Date` header) | only if no NTP server answers |
 | 1.1.1.1, 8.8.8.8, 9.9.9.9 | TCP **53** | a plain connect, **nothing sent** → the "Internet down" bar | every 30 s (10 s while down) |
@@ -819,29 +819,35 @@ list **and** out to N1MM / any client of the cluster server (port 10000):
 - Older config.ini with `source = rbn / telnet / http`: that one + Cluster
   (unless `[ssb] mode = off`).
 
-## Country file (wl_cty.dat)
+## Country file (cty.dat)
 
-POUNCer uses N1MM's country file (AD1C's `wl_cty.dat`: continent, country
-and zones of every call - DX marks, mults, skimmer and spotter filters) and
-checks **country-files.com every 5 days** for a newer one (`[cty]
-check_days`; If-Modified-Since, so only a few bytes when it is current). A
-newer file is checked (a few hundred countries), saved as
-`cache/wl_cty.dat` and used **at once**; at the next start the newer of
-N1MM's and POUNCer's copy is used. `[cty] update_n1mm = true` also copies it
-into N1MM's `SupportFiles`. Off: `[cty] auto_update = false`
-(Settings > Country file).
+POUNCer uses its own copy of the country file - AD1C's standard `cty.dat`
+(continent, country and zones of every call: DX marks, mults, skimmer and
+spotter filters; the list CQWW uses) from **S53M's server**
+(`https://azure.s53m.com/cors/cty.dat`), downloaded **every Friday**
+(v0.7.187): at the first start after the most recent Friday 00:00 UTC, and
+checked hourly while POUNCer runs (If-Modified-Since: a few bytes when it is
+current). A newer file is checked (a few hundred countries), saved as
+`cache/cty.dat` and used **at once**. N1MM's `wl_cty.dat` is used only
+before the first download ever (e.g. a first start offline). `[cty]
+update_n1mm` copies a downloaded file into N1MM only if it is a
+`wl_cty.dat` - never S53M's `cty.dat` over N1MM's (it lacks N1MM's WAE
+entries). Off: `[cty] auto_update = false` (Settings > Country file);
+another source: `[cty] url`.
 
 ## Busted calls (Super Check Partial)
 
-A spotted call that is not in the **Super Check Partial** list
-(`MASTER.SCP`, calls active in contests) gets a **?** - in the main window's
-list and on the phone tiles. It is often a skimmer error, one letter wrong
-(PHB9CBR for HB9CBR). At every start POUNCer asks supercheckpartial.com
-whether the list changed and downloads it only when it did (a "not
-modified" answer costs a few bytes); until the first download N1MM's own
-copy is used. `[scp] update_n1mm = true` also copies the new file into
-N1MM's `SupportFiles` (N1MM reads it at its next start). `[scp] enabled =
-false` = no marks.
+A spotted call that is not in the **Super Check Partial** list (calls
+active in contests) gets a **?** - in the main window's list and on the
+phone tiles. It is often a skimmer error, one letter wrong (PHB9CBR for
+HB9CBR). The list is S53M's **`MASTER.DTA`**
+(`https://azure.s53m.com/cors/MASTER.DTA`, ~50 000 calls), downloaded
+**every Friday** like the country file (only when it changed - a "not
+modified" answer costs a few bytes) and kept as `cache/MASTER.DTA`. N1MM's
+own `MASTER.SCP` is used only before the first download ever. `[scp]
+update_n1mm = true` writes N1MM a normal text `MASTER.SCP` from it (never
+the binary file; N1MM reads it at its next start). `[scp] enabled = false`
+= no marks; `[scp] url` can name a text `MASTER.SCP` instead.
 
 ## Spots at start
 
@@ -1430,7 +1436,7 @@ All options live in `config.ini` and are documented there, line by line:
 | `http_backup` | https://azure.s53m.com/cors/rbn/live | The **HTTP** source (RBN over HTTP); empty = none. |
 | `follow_modes` | CW | Modes to show (`CW`, `RTTY`, `FT8`, `FT4`). |
 | `hide_beacons` | true | Drop beacon spots as they come in - not in the list, not on port 10000: the 18 NCDXF beacons (4U1UN, W6WX, OH2B ...) on 14100 / 18110 / 21150 / 24930 / 28200 (±0.5 kHz; the same call elsewhere stays), type BEACON / NCDXF, calls ending in `/B`. Traffic console: **BEACON**. Settings > RBN. |
-| `cty` | N1MM's wl_cty.dat | Country file for continent / DX / mults. |
+| `cty` | POUNCer's download (S53M's cty.dat) | Country file for continent / DX / mults; a path here overrides it. |
 | **[n1mm]** | | |
 | `listen_ip`, `listen_port` | 0.0.0.0, 12060 | Where POUNCer listens for N1MM's RadioInfo. |
 | `control_ip`, `control_port` | 127.0.0.1, 13064 | N1MM's UDP control port (QSY, wipe, CAT). |
@@ -1493,8 +1499,8 @@ All options live in `config.ini` and are documented there, line by line:
 | `enabled`, `port`, `peers` | true, 12079, – | Several POUNCers on a network; extra IPs where broadcasts are dropped. |
 | **[scp]** | | |
 | `enabled` | true | "?" on calls not in Super Check Partial. |
-| `url`, `refresh_days` | supercheckpartial.com/MASTER.SCP, 7 | Where MASTER.SCP comes from; checked at every start (only a newer file is downloaded) and every `refresh_days` while running. |
-| `update_n1mm` | false | Also copy it into N1MM's SupportFiles. |
+| `url` | azure.s53m.com/cors/MASTER.DTA | Where the list comes from (MASTER.DTA, or a text MASTER.SCP); downloaded every Friday, only when it changed. |
+| `update_n1mm` | false | Also write N1MM's SupportFiles\MASTER.SCP (as text). |
 | **[autostart]** | | |
 | `enabled` | true | Start your other programs with POUNCer. |
 | `app1` ... `app8` | empty | Full path of an .exe / .bat / .cmd / shortcut; arguments after a quoted path: `"C:\\x\\tool.exe" --arg`. |

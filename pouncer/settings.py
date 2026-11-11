@@ -234,22 +234,22 @@ SETTINGS: list[dict] = [
      "help": "RBN over HTTP (S53ZO's Azure feed, no login) while the telnet feed is down or "
              "silent for a minute. Empty = off."},
     {"key": "cty.auto_update", "attr": "cty_auto_update", "kind": "bool", "live": False,
-     "group": "Country file", "label": "Check country-files.com for a new wl_cty.dat",
-     "help": "Every few days (below) POUNCer asks country-files.com (AD1C) whether wl_cty.dat "
-             "is newer than its copy (a few bytes when it isn't) and uses a newer one at once."},
-    {"key": "cty.check_days", "attr": "cty_check_days", "kind": "int", "min": 1, "max": 60,
-     "live": False, "group": "Country file", "label": "  ... every (days)",
-     "help": "How often to check (default 5)."},
+     "group": "Country file", "label": "Download S53M's cty.dat every Friday",
+     "help": "Every Friday (or the first start after one) POUNCer asks S53M's server whether "
+             "cty.dat changed (a few bytes when it didn't) and uses a newer one at once. "
+             "N1MM's wl_cty.dat only before the first download. Off = N1MM's file."},
     {"key": "cty.update_n1mm", "attr": "cty_update_n1mm", "kind": "bool", "live": False,
      "group": "Country file", "label": "  ... also copy it into N1MM's SupportFiles",
-     "help": "Then N1MM uses the new wl_cty.dat from its next start too."},
+     "help": "Only when the download is a wl_cty.dat (an own [cty] url) - S53M's cty.dat "
+             "never replaces N1MM's wl_cty.dat."},
     {"key": "scp.enabled", "attr": "scp_enabled", "kind": "bool", "live": False,
      "group": "RBN", "label": "Mark calls not in Super Check Partial (?)",
-     "help": "A '?' after a spotted call that is not in MASTER.SCP - maybe a skimmer error."},
+     "help": "A '?' after a spotted call that is not in Super Check Partial (S53M's "
+             "MASTER.DTA, downloaded every Friday) - maybe a skimmer error."},
     {"key": "scp.update_n1mm", "attr": "scp_update_n1mm", "kind": "bool", "live": False,
      "group": "RBN", "label": "Also update N1MM's MASTER.SCP",
-     "help": "The weekly download is also copied into N1MM's SupportFiles (N1MM reads it at "
-             "its next start)."},
+     "help": "The Friday download is also written into N1MM's SupportFiles\\MASTER.SCP as "
+             "text (N1MM reads it at its next start)."},
     {"key": "ssb.follow_radio_mode", "attr": "follow_radio_mode", "kind": "bool",
      "live": True, "group": "SSB",
      "label": "List follows the radio mode",

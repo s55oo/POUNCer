@@ -9,6 +9,74 @@ from pouncer import scp as S
 
 CALLS = [f"K{i}ABC" for i in range(S.MIN_CALLS)] + ["S50A", "HB9CBR", "EA8AY", "9A1A"]
 TEXT = "# Super Check Partial\n# comment\n" + "\n".join(CALLS) + "\n"
+SCP_TEXT_URL = "https://example.org/MASTER.SCP"
+
+
+def make_dta(calls, groups=6):
+    """A MASTER.DTA like S53M's: 4-byte little-endian offsets of each search
+    group, then every group's calls, each ending in a zero byte (a call is
+    in several groups)."""
+    import struct
+    bodies = []
+    for g in range(groups):
+        part = [c for i, c in enumerate(calls) if i % groups == g or i % 3 == 0]
+        bodies.append(b"".join(c.encode() + b"\0" for c in part))
+    head = 4 * (groups + 2)
+    offsets, at = [], head
+    for b in bodies:
+        offsets.append(at)
+        at += len(b)
+    offsets += [at, at]                       # the end, twice (as in the real file)
+    return struct.pack(f"<{len(offsets)}I", *offsets) + b"".join(bodies)
+
+
+class DtaTests(unittest.TestCase):
+    """v0.7.187: S53M's MASTER.DTA (binary), downloaded every Friday."""
+
+    def test_parse_dta(self) -> None:
+        calls = S.parse_dta(make_dta(CALLS))
+        self.assertEqual(calls, set(CALLS))               # duplicates folded
+        self.assertEqual(S.parse_bytes(make_dta(CALLS), "x/MASTER.DTA"), set(CALLS))
+        self.assertEqual(S.parse_dta(TEXT.encode()), set())          # text is no DTA
+        self.assertEqual(S.parse_dta(b"<html>error</html>" * 3), set())
+
+    def test_default_is_s53m_dta_and_n1mm_gets_text(self) -> None:
+        self.assertEqual(S.SCP_URL, "https://azure.s53m.com/cors/MASTER.DTA")
+        with tempfile.TemporaryDirectory() as d:
+            cache = os.path.join(d, "cache")
+            n1mm = os.path.join(d, "N1MM Logger+")
+            os.makedirs(os.path.join(n1mm, "SupportFiles"))
+            with open(os.path.join(n1mm, "SupportFiles", "MASTER.SCP"), "w") as fh:
+                fh.write(TEXT.replace("S50A\n", ""))
+            sl = S.ScpList(cache, n1mm_ini=os.path.join(n1mm, "N1MM Logger.ini"),
+                           url=S.SCP_URL, fetch=lambda u: make_dta(CALLS), update_n1mm=True)
+            sl.load_and_update()
+            self.assertTrue(os.path.exists(os.path.join(cache, "MASTER.DTA")))
+            self.assertEqual(sl.count(), len(CALLS))
+            self.assertFalse(sl.busted("S50A"))
+            with open(os.path.join(n1mm, "SupportFiles", "MASTER.SCP"), "rb") as fh:
+                n1mm_scp = fh.read()
+            self.assertNotIn(b"\0", n1mm_scp)                 # text, never the binary
+            self.assertIn(b"\nS50A\n", n1mm_scp)
+            sl2 = S.ScpList(cache, n1mm_ini=os.path.join(n1mm, "N1MM Logger.ini"),
+                            url=S.SCP_URL, fetch=lambda u: self.fail("no new week yet"))
+            sl2.load_and_update()                              # our DTA, not N1MM's copy
+            self.assertIn("MASTER.DTA", sl2.source)
+
+    def test_n1mm_copy_only_before_the_first_download(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            n1mm = os.path.join(d, "N1MM Logger+")
+            os.makedirs(os.path.join(n1mm, "SupportFiles"))
+            with open(os.path.join(n1mm, "SupportFiles", "MASTER.SCP"), "w") as fh:
+                fh.write(TEXT)
+
+            def offline(u):
+                raise OSError("offline")
+            sl = S.ScpList(os.path.join(d, "cache"), n1mm_ini=os.path.join(n1mm, "x.ini"),
+                           url=S.SCP_URL, fetch=offline)
+            sl.load_and_update()
+            self.assertTrue(sl.loaded)
+            self.assertIn("N1MM copy", sl.status)
 
 
 class ParseTests(unittest.TestCase):
@@ -55,9 +123,10 @@ class ScpListTests(unittest.TestCase):
             os.makedirs(os.path.join(n1mm, "SupportFiles"))
             urls = []
             sl = S.ScpList(cache, n1mm_ini=os.path.join(n1mm, "N1MM Logger.ini"),
+                           url=SCP_TEXT_URL,
                            fetch=lambda u: urls.append(u) or TEXT.encode(), update_n1mm=True)
             sl.load_and_update()                              # nothing yet: downloads
-            self.assertEqual(urls, [S.SCP_URL])
+            self.assertEqual(urls, [SCP_TEXT_URL])
             self.assertTrue(sl.loaded)
             self.assertTrue(os.path.exists(os.path.join(cache, "MASTER.SCP")))
             with open(os.path.join(n1mm, "SupportFiles", "MASTER.SCP")) as fh:
@@ -104,13 +173,19 @@ class ScpListTests(unittest.TestCase):
                 self.assertTrue(sl.loaded)
                 self.assertAlmostEqual(os.path.getmtime(os.path.join(cache, "MASTER.SCP")),
                                        int(state["mtime"]), delta=1)   # server's date kept
-                S.ScpList(cache, url=url).load_and_update()   # next start: 304
+                S.ScpList(cache, url=url).load_and_update()   # same week: no request
+                self.assertEqual((state["gets"], state["full"]), (1, 1))
+                stamp = os.path.join(cache, "scp-check.txt")
+                S.weekly.write_stamp(stamp, time.time() - 8 * 86400)   # a Friday passed
+                S.ScpList(cache, url=url).load_and_update()   # asks: 304, a few bytes
                 self.assertEqual((state["gets"], state["full"]), (2, 1))
                 state["mtime"] = time.time() - 60          # a new list on the server
                 state["etag"] = '"v2"'
+                S.weekly.write_stamp(stamp, time.time() - 8 * 86400)
                 sl3 = S.ScpList(cache, url=url)
                 sl3.load_and_update()
                 self.assertEqual((state["gets"], state["full"]), (3, 2))
+                S.weekly.write_stamp(stamp, time.time() - 8 * 86400)
                 sl4 = S.ScpList(cache, url=url)
                 sl4.load_and_update()                      # current again: 304
                 self.assertIn("up to date", sl4.status)
@@ -125,7 +200,7 @@ class ScpListTests(unittest.TestCase):
                 fh.write(TEXT)
             old = time.time() - 30 * 86400
             os.utime(os.path.join(cache, "MASTER.SCP"), (old, old))
-            sl = S.ScpList(cache, fetch=lambda u: b"<html>error page</html>")
+            sl = S.ScpList(cache, url=SCP_TEXT_URL, fetch=lambda u: b"<html>error page</html>")
             sl.load_and_update()
             self.assertEqual(sl.count(), len(CALLS))           # old list kept
             with open(os.path.join(cache, "MASTER.SCP")) as fh:

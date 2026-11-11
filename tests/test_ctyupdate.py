@@ -1,4 +1,4 @@
-"""Country file check: every 5 days, If-Modified-Since, a new good file is
+"""Country file check: every Friday, If-Modified-Since, a new good file is
 saved and used, a broken one rejected."""
 
 import os
@@ -19,7 +19,7 @@ def fake_cty(n=320):
 class UpdaterTests(unittest.TestCase):
     def setUp(self) -> None:
         self.d = tempfile.mkdtemp()
-        self.now = [1_800_000_000.0]
+        self.now = [1794398400.0]       # Wed 11 Nov 2026 12:00 UTC (downloads: every Friday)
         self.calls = []
         self.answer = (200, fake_cty())
         self.new = []
@@ -30,17 +30,27 @@ class UpdaterTests(unittest.TestCase):
             return self.answer
         return CtyUpdater(self.d, fetch=fetch, clock=lambda: self.now[0], on_new=self.new.append, **k)
 
-    def test_new_file_saved_and_used_then_5_days(self) -> None:
+    def test_new_file_saved_and_used_then_every_friday(self) -> None:
         u = self.up()
+        self.assertTrue(u.due())                       # no copy yet
+        self.assertTrue(u.check())
+        self.assertTrue(os.path.exists(os.path.join(self.d, "cty.dat")))
+        self.assertEqual(self.new, [os.path.join(self.d, "cty.dat")])
+        self.assertFalse(u.due())
+        self.now[0] += 1 * 86400 + 11 * 3600           # Thursday 23:00 UTC
+        self.assertFalse(u.due())
+        self.now[0] += 3600                            # Friday 00:00 UTC
         self.assertTrue(u.due())
+        u.check()
+        self.now[0] += 6 * 86400                       # Thursday after
+        self.assertFalse(u.due())
+        self.now[0] += 12 * 86400                      # PC off over a Friday
+        self.assertTrue(u.due())                       # catches up at once
+
+    def test_old_wl_cty_url_keeps_its_name(self) -> None:
+        u = self.up(url="https://www.country-files.com/cty/wl_cty.dat")
         self.assertTrue(u.check())
         self.assertTrue(os.path.exists(os.path.join(self.d, "wl_cty.dat")))
-        self.assertEqual(self.new, [os.path.join(self.d, "wl_cty.dat")])
-        self.assertFalse(u.due())
-        self.now[0] += 4 * 86400
-        self.assertFalse(u.due())
-        self.now[0] += 1 * 86400 + 1
-        self.assertTrue(u.due())                       # 5 days later
 
     def test_if_modified_since_and_304(self) -> None:
         u = self.up()
@@ -55,7 +65,7 @@ class UpdaterTests(unittest.TestCase):
         self.answer = (200, b"<html>error</html>")
         u = self.up()
         self.assertFalse(u.check())
-        self.assertFalse(os.path.exists(os.path.join(self.d, "wl_cty.dat")))
+        self.assertFalse(os.path.exists(os.path.join(self.d, "cty.dat")))
         self.assertIn("rejected", u.status)
 
     def test_copy_to_n1mm(self) -> None:
@@ -63,10 +73,22 @@ class UpdaterTests(unittest.TestCase):
         os.makedirs(os.path.dirname(n1mm))
         with open(n1mm, "wb") as fh:
             fh.write(b"old")
-        u = self.up(n1mm_path=n1mm, update_n1mm=True)
+        u = self.up(n1mm_path=n1mm, update_n1mm=True,
+                    url="https://www.country-files.com/cty/wl_cty.dat")
         u.check()
         with open(n1mm, "rb") as fh:
             self.assertGreater(len(fh.read()), 1000)
+
+    def test_full_cty_dat_never_over_n1mms_wl_cty(self) -> None:
+        """S53M's cty.dat lacks the WAE entries N1MM's wl_cty.dat has."""
+        n1mm = os.path.join(self.d, "SupportFiles", "wl_cty.dat")
+        os.makedirs(os.path.dirname(n1mm))
+        with open(n1mm, "wb") as fh:
+            fh.write(b"old")
+        u = self.up(n1mm_path=n1mm, update_n1mm=True)          # default: S53M cty.dat
+        self.assertTrue(u.check())
+        with open(n1mm, "rb") as fh:
+            self.assertEqual(fh.read(), b"old")
 
     def test_offline_tries_again(self) -> None:
         def fail(url, headers):

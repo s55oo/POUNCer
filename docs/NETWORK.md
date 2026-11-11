@@ -35,14 +35,14 @@ in the examples are private example addresses.
 | 11 | **out** | HTTPS | 443 | api.github.com, github.com | update check and download (SHA-256 checked); clock check fallback: `HEAD api.github.com` (`Date` + `Age`) only if no NTP server answers | `[ui] auto_update`; clock: `[ui] check_line` |
 | 12 | **out** | HTTPS | 443 | github.com (release `warmup`) | warm-up lists (CW, SSB) | `[ui] warmup` |
 | 13 | **out** | HTTPS | 443 | raw.githubusercontent.com (S53ZO's log archive) | run history of calls not in the lists | `[ui] run_history` |
-| 14 | **out** | HTTPS | 443 | www.supercheckpartial.com | MASTER.SCP (busted-call marks) | `[scp] url` |
+| 14 | **out** | HTTPS | 443 | azure.s53m.com `/cors/MASTER.DTA` | Super Check Partial (busted-call marks), every Friday | `[scp] url` |
 | 15 | – | UDP connect | – | 8.8.8.8 | finding the PC's LAN address – **nothing is sent** | – |
 | 16 | local | process start | – | your own programs (.exe / .bat / shortcuts) | autostart with POUNCer – no network | `[autostart]` |
 | 16b | **in** (briefly) | UDP | 12060 | N1MM (same PC) | **N1MMautostarter.exe** only (PCs without POUNCer): listens for N1MM's first RadioInfo / AppInfo while waiting for N1MM to start, then closes the port; an exclusive bind, so a port used by another program is never taken | `N1MMautostarter.ini` `[autostarter] n1mm_port` (0 = off) |
 | 17 | **out** | UDP (NTP) | 123 | pool.ntp.org, then time.windows.com | PC clock check every 30 min (SNTP, 48 bytes, no data of yours) | `[ui] check_line` |
 | 18 | **out** | MQTT (TCP) | 1883 | mqtt.pskreporter.info | FT8 or SSB? one call's PSK Reporter reports for up to 2 min (only for an SSB spot on 7074 - 7077 / 1840 - 1843 without a mode, or a CW spot in an FT8 / FT4 window) | `[ssb] pskreporter` |
 | 19 | **out** | HTTPS | 443 | www.hamqth.com `/api/v2/rbn`, `/api/v2/spots` | the **HamQTH** button: RBN skimmer spots / DX cluster spots every 20 s, only while POUNCer's telnet connections are down (no login; data provided by HamQTH.com) | `[rbn] hamqth_backup` |
-| 20 | **out** | HTTPS | 443 | www.country-files.com `/cty/wl_cty.dat` | the country file: every 5 days If-Modified-Since (304 = current, a few bytes); a newer one is downloaded | `[cty] auto_update`, `check_days`, `update_n1mm` |
+| 20 | **out** | HTTPS | 443 | azure.s53m.com `/cors/cty.dat` | the country file: every Friday, If-Modified-Since (304 = current, a few bytes) | `[cty] auto_update`, `url` |
 
 Firewall: inbound **UDP 12060** (only from N1MM on the same PC), **TCP 8080**
 (phones on the LAN) and **UDP 12079** (team) must be allowed; everything
@@ -161,7 +161,7 @@ Not network, but part of working with N1MM – read, never written (except
   `-wal` side file; POUNCer watches both every 0.5 s, so a logged station
   disappears from the list within about half a second. Worked = same call
   **and** same band **and** same mode (SSB/USB/LSB count as one).
-- **`SupportFiles\wl_cty.dat`** – country / continent / zones of a call.
+- **`SupportFiles\wl_cty.dat`** – country / continent / zones of a call; only before POUNCer's first cty.dat download (v0.7.187).
 - **`SupportFiles\MASTER.SCP`** – Super Check Partial, until POUNCer's own
   download (section 14) is there.
 
@@ -421,14 +421,15 @@ callsign is visible in the URL to GitHub. Optional own run list server:
 
 ## 14. Super Check Partial (HTTPS, out)
 
-`GET https://www.supercheckpartial.com/MASTER.SCP` at every start (and every
-`[scp] refresh_days` while running), as a **conditional** request:
-`If-Modified-Since` (the copy's date = the server's `Last-Modified`) and
-`If-None-Match` (its `ETag`). The server answers **304 Not Modified** -
-no body - when the copy is current, so only a newer list is downloaded. Kept
-only if it holds at least 10 000 calls (an error page never replaces a good
-list). Optionally also copied into N1MM's `SupportFiles` (`[scp]
-update_n1mm`).
+`GET https://azure.s53m.com/cors/MASTER.DTA` **every Friday** - at the
+first start after the most recent Friday 00:00 UTC, checked hourly while
+running (v0.7.187) - as a **conditional** request: `If-Modified-Since` (the
+copy's date = the server's `Last-Modified`) and `If-None-Match` (its
+`ETag`). The server answers **304 Not Modified** - no body - when the copy
+is current. MASTER.DTA is binary (an index of 4-byte offsets, then the calls
+each ending in a zero byte); kept only if it holds at least 10 000 calls (an
+error page never replaces a good list). Optionally written into N1MM's
+`SupportFiles` as a text MASTER.SCP (`[scp] update_n1mm`).
 
 ## 15. Finding the LAN address (no traffic)
 

@@ -1,5 +1,25 @@
 # POUNCer — Changelog
 
+## v0.7.187 — 2026-11-11 — Country file and Super Check Partial from S53M, every Friday
+
+- **Country file:** S53M's `cty.dat` (`https://azure.s53m.com/cors/cty.dat`,
+  AD1C's standard file - the list CQWW uses) instead of N1MM's
+  `wl_cty.dat` / country-files.com. Kept as `cache\cty.dat`, used at once.
+- **Super Check Partial:** S53M's `MASTER.DTA`
+  (`https://azure.s53m.com/cors/MASTER.DTA`, ~50 000 calls) instead of
+  supercheckpartial.com's MASTER.SCP. POUNCer reads the binary MASTER.DTA
+  itself (an index, then the calls); kept as `cache\MASTER.DTA`.
+- **Every Friday:** both are downloaded at the first start after the most
+  recent Friday 00:00 UTC and checked hourly while POUNCer runs - a PC that
+  was off on Friday catches up at its next start. Only a changed file is
+  downloaded ("not modified" costs a few bytes).
+- N1MM's own files are used only before the first download ever (e.g. a
+  first start offline). `[scp] update_n1mm` writes N1MM a normal **text**
+  MASTER.SCP from the list (never the binary file); S53M's cty.dat is never
+  copied over N1MM's wl_cty.dat (N1MM needs its WAE entries).
+- Settings > Country file: "Download S53M's cty.dat every Friday" (the
+  "every ... days" setting is gone).
+
 ## v0.7.186 — 2026-11-11 — ZO mode: three priority columns
 
 From S53ZO's pull request #4.

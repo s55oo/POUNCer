@@ -1,13 +1,16 @@
-"""Keep the country file (AD1C's wl_cty.dat, country-files.com) fresh.
+"""Keep the country file fresh: S53M's cty.dat, every Friday (v0.7.187).
 
-Every ``check_days`` (5) POUNCer asks country-files.com whether
-``wl_cty.dat`` is newer than its copy (If-Modified-Since - a few bytes when
-it isn't). A newer file is checked (it must parse to a few hundred
-countries), saved in the cache folder and used at once (``on_new(path)``);
-with ``update_n1mm`` it is also copied into N1MM's ``SupportFiles`` so
-N1MM uses it from its next start. The time of the last check is kept in
-``cty-check.txt`` next to the copy, so a restart doesn't ask again before
-5 days are over. Offline / errors: nothing changes, tried again in an hour.
+The standard AD1C ``cty.dat`` (continents, countries, zones - the list CQWW
+uses) comes from S53M's server. It is downloaded every Friday (``weekly``):
+at the first start after the most recent Friday 00:00 UTC, and checked
+hourly while POUNCer runs; "changed since our copy?" (If-Modified-Since) so
+an unchanged file costs a few bytes. A newer file is checked (it must parse
+to a few hundred countries), saved in the cache folder under its own name
+and used at once (``on_new(path)``). ``update_n1mm`` copies it into N1MM's
+``SupportFiles`` only when it IS a wl_cty.dat (N1MM needs that variant -
+the full cty.dat lacks its WAE entries). The time of the last check is kept
+in ``cty-check.txt``. Offline / errors: nothing changes, tried again in an
+hour.
 """
 
 from __future__ import annotations
@@ -20,12 +23,19 @@ import time
 import urllib.error
 import urllib.request
 
+from . import weekly
 from .cty import CtyDB
 
 log = logging.getLogger(__name__)
 
-CTY_URL = "https://www.country-files.com/cty/wl_cty.dat"
+CTY_URL = "https://azure.s53m.com/cors/cty.dat"
 MIN_ENTITIES = 300          # a real file has ~340 countries; fewer = a broken download
+
+
+def cache_name(url: str) -> str:
+    """The cache file's name: the URL's file name (cty.dat / wl_cty.dat)."""
+    name = os.path.basename((url or "").split("?")[0]) or "cty.dat"
+    return name if name.lower().endswith(".dat") else "cty.dat"
 
 
 def newest(paths) -> str:
@@ -39,7 +49,7 @@ class CtyUpdater:
                  check_days: float = 5, update_n1mm: bool = False, on_new=None,
                  fetch=None, clock=time.time) -> None:
         self.url = url or CTY_URL
-        self.path = os.path.join(cache_dir or "cache", "wl_cty.dat")
+        self.path = os.path.join(cache_dir or "cache", cache_name(self.url))
         self.check_path = os.path.join(cache_dir or "cache", "cty-check.txt")
         self.n1mm_path = n1mm_path
         self.check_days = max(1.0, float(check_days))
@@ -59,7 +69,10 @@ class CtyUpdater:
             return 0.0
 
     def due(self) -> bool:
-        return self.clock() - self.last_check() >= self.check_days * 86400
+        """A Friday has passed since the last check (or there is no copy)."""
+        if not os.path.exists(self.path):
+            return True
+        return weekly.due(self.last_check(), self.clock())
 
     def start(self) -> None:
         def loop():
@@ -87,7 +100,7 @@ class CtyUpdater:
 
     def check(self) -> bool:
         """Ask for a newer file; True if one was installed."""
-        mine = newest([self.path, self.n1mm_path])
+        mine = self.path if os.path.exists(self.path) else ""
         headers = {"User-Agent": "POUNCer"}
         if mine:
             headers["If-Modified-Since"] = email.utils.formatdate(os.path.getmtime(mine),
@@ -114,14 +127,19 @@ class CtyUpdater:
             log.warning("CTY: %s", self.status)
             return False
         self._write(self.path, data)
-        if self.update_n1mm and self.n1mm_path:
+        same_kind = (os.path.basename(self.n1mm_path).lower()
+                     == os.path.basename(self.path).lower())
+        if self.update_n1mm and self.n1mm_path and not same_kind:
+            log.info("CTY: %s not copied into N1MM (it uses %s)", os.path.basename(self.path),
+                     os.path.basename(self.n1mm_path))
+        if self.update_n1mm and self.n1mm_path and same_kind:
             try:
                 self._write(self.n1mm_path, data)
                 log.info("CTY: new wl_cty.dat copied to %s", self.n1mm_path)
             except OSError as exc:
                 log.warning("CTY: could not write %s: %s", self.n1mm_path, exc)
         self.status = time.strftime("new country file %d.%m. %H:%M") + f" ({n} countries)"
-        log.info("CTY: new wl_cty.dat from %s, %d countries", self.url, n)
+        log.info("CTY: new %s from %s, %d countries", os.path.basename(self.path), self.url, n)
         if self.on_new is not None:
             try:
                 self.on_new(self.path)
