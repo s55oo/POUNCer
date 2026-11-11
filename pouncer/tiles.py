@@ -294,8 +294,19 @@ class TileList(ttk.Frame):
                                          (it.get("rare") and "\u26a1", p["rare"]),
                                          (it.get("tried"), p["tried"])) if m]
         if self.zo_mode:
-            self._fill_zo(slot, it, box, p, marks, color, tx, big, small, small_b)
-            return
+            # fit the card's height with any font (Windows fonts are wider:
+            # more wrapped lines) - a smaller call font until it fits
+            size = big[1]
+            one_line = False
+            while True:
+                bottom = self._fill_zo(slot, it, box, p, marks, color, tx,
+                                       (theme.FONT, size, "bold"), small, small_b, one_line)
+                if bottom <= y1 - theme.px(3) or (size <= 7 and one_line):
+                    return
+                if size > 7:
+                    size -= 1
+                else:                       # still too tall: the call on one line, with ...
+                    one_line, size = True, big[1]
         t = slot["call"]
         c.coords(t, tx, (y0 + y1) / 2)
         c.itemconfigure(t, text=it["call"], fill=color, font=big, state="normal",
@@ -332,7 +343,8 @@ class TileList(ttk.Frame):
                 return
         c.itemconfigure(item, text=text[:1])
 
-    def _fill_zo(self, slot, it, box, p, marks, color, tx, big, small, small_b) -> None:
+    def _fill_zo(self, slot, it, box, p, marks, color, tx, big, small, small_b,
+                 one_line: bool = False) -> float:
         """A ZO card, top to bottom, measured with the real fonts so nothing
         leaves the card at any width: the call (wraps), the marks (next line
         when one does not fit, shortened with ... when one alone is too
@@ -345,7 +357,9 @@ class TileList(ttk.Frame):
         t = slot["call"]
         c.coords(t, tx, y0 + pad)
         c.itemconfigure(t, text=it["call"], fill=color, font=big, state="normal",
-                        anchor="nw", width=avail)
+                        anchor="nw", width=0 if one_line else avail)
+        if one_line:
+            self._fit(t, it["call"], right)
         bb = c.bbox(t)
         top = (bb[3] if bb else y0 + pad) + theme.px(2)
         bx, row_top, row_bottom = tx, top, top
@@ -371,12 +385,14 @@ class TileList(ttk.Frame):
         y = row_bottom + theme.px(3)
         rx = x0 + theme.px(10)
         for key, font in (("l1", small_b), ("l2", small)):
+            text = it.get("line" + key[1], "")
             c.coords(slot[key], rx, y)
-            c.itemconfigure(slot[key], text=it.get("line" + key[1], ""), fill=p["detail"],
-                            font=font, anchor="nw", justify="left",
-                            width=max(1, right - rx), state="normal")
+            c.itemconfigure(slot[key], text=text, fill=p["detail"], font=font, anchor="nw",
+                            justify="left", width=0, state="normal")
+            self._fit(slot[key], text, right)            # one line each, ... if too wide
             bb = c.bbox(slot[key])
             y = (bb[3] if bb else y) + theme.px(1)
+        return y
 
 
 def _round_pts(x0, y0, x1, y1, r):
