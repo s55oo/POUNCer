@@ -3204,12 +3204,14 @@ class _Handler(BaseHTTPRequestHandler):
         try:
             if not value or any(c.isspace() for c in value) or any(c in value for c in '\\,@'):
                 return None
+            if any(c in value for c in '?#') or (not origin and '/' in value):
+                return None
             parsed = urlsplit(value if origin else '//' + value)
             if ((origin and parsed.scheme != 'http') or parsed.username is not None
                     or parsed.password is not None or parsed.path or parsed.query or parsed.fragment
                     or not parsed.hostname):
                 return None
-            return parsed.hostname.lower().rstrip('.'), parsed.port or 80
+            return parsed.hostname.lower().rstrip('.'), parsed.port if parsed.port is not None else 80
         except ValueError:
             return None
 

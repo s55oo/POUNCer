@@ -128,7 +128,8 @@ class BrowserIntentTests(unittest.TestCase):
     def test_malformed_host_origin_and_token_headers_are_rejected(self):
         token = self.token()
         for host in ('evil.example', self.host + '@evil.example', self.host + '/path',
-                     self.host + '?query', self.host + '#fragment', '127.0.0.1:1'):
+                     self.host + '?query', self.host + '#fragment', self.host + '?',
+                     self.host + '#', '127.0.0.1:1', '127.0.0.1:0'):
             self.assertEqual(self.request('POST', '/api/key?key=F1', {
                 'Host': host, 'X-POUNCer-Token': token,
             })[0], 403, host)
