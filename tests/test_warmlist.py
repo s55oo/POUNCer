@@ -1,10 +1,13 @@
 """server/warmlist.py: CW and SSB contest sets, measured from log folders."""
 
 import json
+import datetime
 import os
+import sqlite3
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from server import warmlist  # noqa: E402
@@ -18,6 +21,44 @@ def log(call, freqs, mode="PH"):
 
 
 class WarmListTests(unittest.TestCase):
+    def test_built_warmup_preserves_minutes_and_upgrades_rounded_cache(self):
+        from pouncer.runhist import RunHistory
+        from pouncer.urgency import classify
+        with tempfile.TemporaryDirectory() as folder:
+            year = datetime.date.today().year
+            logdir = os.path.join(folder, 'CQWW', 'cw', str(year))
+            os.makedirs(logdir)
+            text = 'CALLSIGN: S53ZO\n' + '\n'.join(
+                f'QSO: 7020.0 CW {year}-11-11 {1700 + i * 15 // 31:04d} '
+                'S53ZO 599 001 OK1WC 599 001' for i in range(32))
+            with open(os.path.join(logdir, 's53zo.log'), 'w') as fh:
+                fh.write(text)
+            out = os.path.join(folder, 'warm.sqlite')
+            with patch.object(warmlist, 'fetch', return_value=folder), patch.object(
+                    sys, 'argv', ['warmlist.py', '--data', folder, '--out', out, '--years', '1']):
+                warmlist.main()
+            rh = RunHistory(os.path.join(folder, 'cache'))
+            key = 'S53ZO|CQWW|CW'
+            legacy = {'run': 97, 'hours': 0.2, 'history_contests': ['CQWW']}
+            rh._results[key] = legacy
+            rh.load_run_list(out)
+            info = rh.get('S53ZO', 'CQWWCW', 'CW', band='40m')
+            self.assertTrue(info['hours_unrounded'])
+            self.assertEqual(info['hours'], 0.25)
+            self.assertEqual(info['band'], '40m')
+            self.assertFalse(classify(info, 'CQWWCW', 60)['rare'])
+            # Old warm-up files cannot bless rounded data or replace precise data.
+            con = sqlite3.connect(out)
+            con.execute("DELETE FROM info WHERE key='hours_unrounded'")
+            con.execute('UPDATE warm SET hours=0.2')
+            con.commit(); con.close()
+            rh.load_run_list(out)
+            self.assertEqual(rh.get('S53ZO', 'CQWWCW', 'CW')['hours'], 0.25)
+            old = RunHistory(os.path.join(folder, 'legacy'), run_list=out)
+            info = old.get('S53ZO', 'CQWWCW', 'CW')
+            self.assertNotIn('hours_unrounded', info)
+            self.assertIsNone(classify(info, 'CQWWCW', 60)['rare_hours_limit'])
+
     def test_ssb_set_uses_phone_folders(self) -> None:
         folders = {f for _c, _m, f in warmlist.SETS["ssb"]}
         self.assertEqual(folders, {"CQWW/ph", "CQWPX/ph", "ARRL/arrl_international_dx_phone_contest"})

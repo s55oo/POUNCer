@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## Unreleased — Preserve activity precision in historical hints
+
+- Keep measured activity unrounded through archive summaries and warm-up
+  builds. Exactly 15 minutes now stays at the one-hour contest threshold and
+  displays as `~15m`.
+- Legacy rounded caches remain readable but do not drive hours-based
+  priority. New warm-up data replaces their values; desktop and browser
+  preserve the rounded hour unit until precise history is available.
+
 ## v0.7.184 — 2026-11-11 — Weekly contest sessions (TTC, Mini-Test, OK1WC); duration-aware ⚡ hints
 
 From S53ZO's pull requests #2 and #3.

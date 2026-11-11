@@ -110,7 +110,7 @@ def on_air_hours(cabrillo: str) -> float:
         gap for gap in ((b - a).total_seconds() / 60 for a, b in zip(times, times[1:]))
         if gap <= OFF_MINUTES
     )
-    return round(minutes / 60, 1)
+    return minutes / 60
 
 
 def qso_count(cabrillo: str) -> int:
@@ -168,7 +168,8 @@ def summarize(stats: list[tuple]) -> dict | None:
             acc[1] += t
     return {
         "run": round(100 * run / total) if total >= MIN_QSOS else None,
-        "hours": round(sum(st[2] for st in stats) / len(stats), 1),
+        "hours": sum(st[2] for st in stats) / len(stats),
+        "hours_unrounded": True,
         "bands": {b: round(100 * r / t) for b, (r, t) in sorted(bands.items())
                   if t >= MIN_BAND_QSOS},
         "logs": len(stats),
@@ -365,12 +366,17 @@ class RunHistory:
                 tables = {r[0] for r in con.execute(
                     "SELECT name FROM sqlite_master WHERE type='table'")}
                 if "warm" in tables:  # warm-up list: aggregated, with hours
+                    unrounded = ("info" in tables and con.execute(
+                        "SELECT value FROM info WHERE key='hours_unrounded'"
+                    ).fetchone() == ("1",))
                     cols = {r[1] for r in con.execute("PRAGMA table_info(warm)")}
                     sel = "SELECT call, contest, mode, run, hours, rec"
                     sel += ", bands FROM warm" if "bands" in cols else ", NULL FROM warm"
                     rows = []
                     for c, ct, m, r, h, rec, bands in con.execute(sel):
                         value = {"run": r, "hours": h, "rec": bool(rec), "history_contests": [ct]}
+                        if unrounded:
+                            value["hours_unrounded"] = True
                         if bands:
                             try:
                                 per_band = json.loads(bands)
@@ -393,9 +399,10 @@ class RunHistory:
             for call, contest, mode, value in rows:
                 key = f"{call.upper()}|{contest}|{mode}"
                 old = self._results.get(key)
-                if (isinstance(old, dict) and "history_contests" not in old
-                        and "history_contests" in value):
-                    self._results[key] = value   # verified warm-up upgrades legacy context
+                if (isinstance(old, dict) and old.get("hours_unrounded") is not True
+                        and (value.get("hours_unrounded") is True or
+                             ("history_contests" not in old and "history_contests" in value))):
+                    self._results[key] = value   # replace legacy numbers, never relabel them
                 else:
                     self._results.setdefault(key, value)
         if not getattr(self, "_warm_states", None):

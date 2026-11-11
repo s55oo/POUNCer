@@ -27,8 +27,9 @@ contests. Repeat-QSO stages are not the event duration.
 | 48 hours | 6 hours | Existing six-hour cap applies |
 
 Unknown duration, unknown/mixed/different source contest, missing/invalid
-hours, or hours exceeding event duration disable the hours criterion. Low
-run share can still generate a hint, explicitly as historical evidence.
+hours, legacy rounded hours, or hours exceeding event duration disable the
+hours criterion. Low run share can still generate a hint, explicitly as
+historical evidence.
 A missing flag is not evidence that a station will remain available.
 
 ## Verified automatic durations
@@ -60,6 +61,9 @@ zero when changing contests. It does not override source-history matching.
 Run percentages/hours are still calculated from the same Cabrillo history.
 Hours represent summed QSO gaps of at most 30 minutes, averaged across
 selected logs. They are an estimate of recorded activity, not exact on-time.
+Measurement and averaging retain the unrounded activity time; only the
+display rounds it. Exactly 15 recorded minutes in a one-hour contest therefore
+remain at the strict threshold and display as `~15m`.
 Reconstructed logs may have incomplete coverage and keep the `*` marker.
 
 Archive lookups now retain `history_contests` for the **actual selected logs**,
@@ -74,10 +78,24 @@ supplies verified context. A verified warm-up row replaces a legacy cached
 value lacking source context rather than attaching a guessed source to old
 numbers. JSON cache and team snapshots retain the new metadata. Old caches,
 older peers and run-only lists remain readable: their R%/hours can be shown,
-but unverified hours cannot create a hint. An old cache entry outside the
-warm-up lists needs to be looked up afresh (remove its cached result or the
-cache file) before the hours criterion can use its provenance; it is not
-silently attributed to the requested contest.
+but unverified or rounded hours cannot create an hours-based hint at either
+priority threshold. Newly measured summaries carry `hours_unrounded: true`;
+new warm-up builds declare the equivalent `hours_unrounded=1` in their
+SQLite `info` table. Loading one replaces legacy cached numbers, including
+entries that already have contest context. Older warm-up files cannot replace
+unrounded results or supply this precision marker. Old sub-hour values keep
+their rounded hour unit (for example `~0.2h`), avoiding a misleading conversion
+to `~12m`. The tooltip explains when rounded hours disable the hint.
+An old cache entry outside the warm-up lists needs to be looked up afresh
+(remove its cached result or the cache file) before the hours criterion can
+use its provenance and precision; it is not silently attributed to the
+requested contest.
+
+Warm-up assets must be rebuilt with `Build warm-up list` after this change
+to supply unrounded hours. Existing downloaded files keep working, with
+hours-based hints disabled until a new build is downloaded (normally after
+the 30-day cache interval; deleting `warm.sqlite` / `warm-ssb.sqlite` forces a
+download at next startup).
 
 The archive lookup contest mappings are unchanged. In particular, selecting
 a TTC/Mini-Test/MWC contest does not claim the archive has matching history;
