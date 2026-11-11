@@ -203,6 +203,7 @@ def _note_tap(app, spot: Spot, nr: int, ok: bool, short: str, full: str = "") ->
 
 
 PIN_S = 60     # a clicked / tapped station keeps its row this long (or until logged)
+DESKTOP_REFRESH_S = 5  # quiet-feed age/fade/CQ/pin updates, without a redraw every tick
 
 class PouncerApp:
     def __init__(self, config: Config) -> None:
@@ -1961,7 +1962,7 @@ class PouncerApp:
         if col == "wpm":
             return lambda s: s.wpm
         if col == "time":
-            return lambda s: s.time_utc
+            return lambda s: s.received
         if col == "call":
             return lambda s: s.dxcall.upper()
         if col == "mode":
@@ -3457,9 +3458,18 @@ class PouncerApp:
             self._dirty = True
         self._update_labels()
         self._maybe_rate_line()
+        revision = getattr(getattr(self, "runhist", None), "revision", None)
+        if revision is not None and revision != getattr(self, "_history_revision", None):
+            self._history_revision = revision
+            self._dirty = True
+            self._web_built = 0.0
+        if (getattr(self, "spots", None) and time.monotonic() -
+                getattr(self, "_desktop_refreshed_at", 0) >= DESKTOP_REFRESH_S):
+            self._dirty = True
         if self._dirty:
             self._rebuild()
             self._dirty = False
+            self._desktop_refreshed_at = time.monotonic()
             self._perf["rebuilds"] += 1
         self._drain_web()
         if self.web is not None and self._web_due():
@@ -3577,6 +3587,7 @@ class PouncerApp:
                 {
                     "call": s.dxcall, "freq": s.freq_khz, "mode": s.mode,
                     "snr": s.snr, "wpm": s.wpm, "time": s.time_utc,
+                    "received": s.received,
                     "cont": self._continent(s.dxcall),
                     "country": self._country(s.dxcall),
                     "dx": self._is_dx(s.dxcall),
@@ -5523,13 +5534,12 @@ class PouncerApp:
 
     def _sorted_visible(self) -> list[Spot]:
         items = self._visible_spots(band=self._view_band_now())
-        if hasattr(self, "_apply_pin"):
-            items = self._apply_pin(items)
         key = self._sort_key(self.sort_col)
         present = [s for s in items if key(s) is not None]
         missing = [s for s in items if key(s) is None]
         present.sort(key=key, reverse=self.sort_reverse)
-        return present + missing
+        ordered = present + missing
+        return self._apply_pin(ordered) if hasattr(self, "_apply_pin") else ordered
 
     def _on_freq_spot(self, spots: list[Spot]) -> Spot | None:
         """The spot we are tuned to: nearest to the radio, within ON_FREQ_KHZ."""
