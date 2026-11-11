@@ -361,7 +361,10 @@ class ClusterServer:
                 return False
             self._dups[dup] = now
             self._served[key] = now
-            if len(self._served) > 5000:
+            # sweep at most every 10 s (v0.7.188): with 10 minutes of spots
+            # kept (> 5000 in a contest) it ran on EVERY spot - 1.3 ms each
+            if len(self._served) > 5000 and now - getattr(self, "_swept", 0.0) > 10:
+                self._swept = now
                 for k in [k for k, t in self._served.items() if now - t > ECHO_S]:
                     del self._served[k]
                 for k in [k for k, t in self._dups.items() if now - t > DUP_S]:

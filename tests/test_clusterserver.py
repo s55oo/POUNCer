@@ -225,3 +225,28 @@ class ClientUpstreamTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SweepCostTests(unittest.TestCase):
+    """v0.7.188: the served / dup memory is swept at most every 10 s, not on
+    every spot once it holds 5000+ (contest: ~30 000 = 1.3 ms a spot)."""
+
+    def test_publish_stays_cheap_with_a_full_memory(self) -> None:
+        import time as _t
+        from pouncer.clusterserver import ClusterServer
+        from pouncer.rbn import Spot
+        srv = ClusterServer(port=0, host="127.0.0.1")
+        srv._sock = object()                      # "running", no clients
+        now = _t.time()
+        for i in range(30000):
+            srv._served[(f"K{i}XX", 140000 + i % 900)] = now - (i % 600)
+            srv._dups[(f"K{i}XX", 140000 + i % 900, "S50A")] = now - (i % 600)
+        calls = []
+        real = srv._served.items
+        t0 = _t.perf_counter()
+        for i in range(200):
+            srv.publish(Spot(dxcall=f"DL{i}ABC", freq_khz=14000 + i / 10, mode="CW", snr=20, wpm=25,
+                             spot_type="CQ", spotter="S53WW", time_utc="1200Z", received=_t.time()))
+        per = (_t.perf_counter() - t0) / 200
+        self.assertLess(per, 0.0005)              # was ~1.3 ms each
+        self.assertGreater(len(srv._served), 30000)   # young entries are kept (echo check)

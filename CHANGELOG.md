@@ -1,6 +1,39 @@
 # POUNCer — Changelog
 
-## v0.7.188 — 2026-11-11 — Layout switch: no error, band chips stay
+## v0.7.188 — 2026-11-11 — Audit fixes (F01-F17), layout switch, faster cluster server
+
+From S53ZO's pull requests #6 - #11 (an audit of 17 findings, each checked
+before and after):
+
+- **Keys never go to the wrong window (F01):** an F-key (transmits) or Enter
+  (logs) is sent only when N1MM's Entry Window really is in front - before,
+  a failed focus sent it to whatever window was there.
+- **Phone page (F02, F04):** band and filter changes from a phone obey
+  *phone control* too; every button is now a POST with a per-server token,
+  checked against Host / Origin - another web site, a HEAD or a plain GET can
+  no longer press anything. **Reload phone pages that are open** after the
+  update (once).
+- **Team key out of diagnostics (F03).**
+- **A slow telnet client can't freeze POUNCer (F05):** the cluster server
+  sends from a queue per client and drops one that stops reading.
+- **Bad packets can't stop reception (F06 N1MM, F07 team).**
+- **Worked status (F08, F09):** deleting one of two QSOs with a call on a band
+  keeps the other one worked; AppInfo decides the open contest (a late
+  contact packet from another contest no longer switches it).
+- **List (F10 - F13):** ages, fading and history refresh while no spots come
+  in (at most every 5 s); a clicked station keeps its row after sorting;
+  Time sorts across 00:00 UTC; a bulk run list no longer overwrites the
+  detailed history.
+- **Team spot age (F14), autostart Stop (F15), country-file recovery after a
+  bad download or a full disk (F16), quoted macOS autostart arguments (F17).**
+
+Also:
+
+- **Faster cluster server:** it swept its 10-minute memory of served spots on
+  every spot once it held 5000+ (a contest: ~1.3 ms a spot on the window
+  thread); now at most every 10 s. Test: `SweepCostTests`.
+
+### Layout switch: no error, band chips stay
 
 - Switching *View > Detailed layout* (clean <-> detailed) gave "window
   callback failed ... bad window path name" in pouncer.log (and the red
