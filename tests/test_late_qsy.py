@@ -1,5 +1,7 @@
 """A tap whose frequency N1MM reports late: no false 'check the radio'."""
 
+from tests.test_so2r import foreground_after_focus
+
 import os
 import tempfile
 import time
@@ -100,6 +102,7 @@ class RadioATimingTests(unittest.TestCase):
             clock[0] += sec
             tick()
         with mock.patch.object(app, "force_foreground", return_value=True), \
+                foreground_after_focus(app), \
                 mock.patch.object(app, "set_focused_edit_text", side_effect=lambda h, t: box.update(t=t) or True), \
                 mock.patch.object(app, "focused_edit_text", side_effect=lambda h: box["t"]), \
                 mock.patch.object(app, "wipe_callsign"), \
@@ -131,6 +134,7 @@ class RadioATimingTests(unittest.TestCase):
         f._settext = app.PouncerApp._settext.__get__(f)
         box = {"t": "OK1XYZ"}
         with mock.patch.object(app, "focused_edit_text", side_effect=lambda h: box["t"]), \
+                mock.patch.object(app.win32mod, "foreground_window", return_value=1111), \
                 mock.patch.object(app, "set_focused_edit_text", side_effect=lambda h, t: box.update(t=t)):
             self.assertFalse(app.PouncerApp._restore_call(f, 1111, "DL5ARM"))
             self.assertEqual(box["t"], "OK1XYZ")             # your typing stays

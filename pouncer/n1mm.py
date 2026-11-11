@@ -12,7 +12,7 @@ import xml.etree.ElementTree as ET
 from xml.sax.saxutils import escape as xml_escape
 
 from .bands import band_from_khz, tens_of_hz_to_khz
-from .contest_rules import profile_for
+from .contest_rules import contest_name_key
 
 log = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ def parse_radio_info(data: bytes) -> dict | None:
     """Parse an N1MM <RadioInfo> datagram. Returns None for other packets."""
     try:
         root = ET.fromstring(data)
-    except ET.ParseError:
+    except (ET.ParseError, LookupError, ValueError):
         return None
     if root.tag != "RadioInfo":
         return None
@@ -81,7 +81,7 @@ def parse_app_info(data: bytes) -> dict | None:
     {"dbname" (AppInfo only), "contest_nr", "contest_name", "kind"}."""
     try:
         root = ET.fromstring(data)
-    except ET.ParseError:
+    except (ET.ParseError, LookupError, ValueError):
         return None
     if root.tag not in _CONTEST_PACKETS:
         return None
@@ -118,7 +118,7 @@ def parse_spot_packet(data: bytes) -> dict | None:
     {call, freq_khz, spotter, comment, mode, action}; None for other packets."""
     try:
         root = ET.fromstring(data)
-    except ET.ParseError:
+    except (ET.ParseError, LookupError, ValueError):
         return None
     if root.tag.lower() != "spot":
         return None
@@ -170,33 +170,43 @@ class RadioState:
         self._active: int | None = None
         self._last = 0.0
         self._app: dict = {}            # open log / contest from AppInfo, contact packets
+        self._have_app_info = False
         self._contact_sequence = 0
         self._contact_events: list = []   # (sequence, kind, call, band, mode, khz, contest_nr, metadata)
 
     def set_app(self, info: dict) -> None:
         """AppInfo: database + contest; a contact packet: the contest only
         (keeps the database AppInfo named)."""
+        if info.get("kind") == "AppInfo" and (isinstance(info.get("contest_nr"), bool)
+                or not isinstance(info.get("contest_nr"), int)):
+            log.warning("N1MM AppInfo without a valid contest number ignored")
+            return
         with self._lock:
             app = dict(self._app)
             if info.get("kind") == "AppInfo":
                 app = {"dbname": info.get("dbname") or ""}
+                self._have_app_info = True
             # AppInfo identifies the open contest. A late packet from an older
             # contest must not switch the active contest back.
-            protected = (profile_for(app.get("contest_name", ""), self.profile_override)
-                         or profile_for(info.get("contest_name", ""), self.profile_override))
-            if (not protected or info.get("kind") == "AppInfo" or not app.get("dbname")
-                    or info.get("contest_nr") == app.get("contest_nr")):
+            if not self._have_app_info or info.get("kind") == "AppInfo":
                 app["contest_nr"] = info.get("contest_nr")
                 app["contest_name"] = info.get("contest_name") or app.get("contest_name", "")
+            elif info.get("contest_nr") == app.get("contest_nr") and not app.get("contest_name"):
+                app["contest_name"] = info.get("contest_name", "")
             app["kind"] = info.get("kind")
             app["t"] = time.time()
-            if str(info.get("kind", "")).startswith("contact"):
+            named_foreign = (app.get("contest_name") and info.get("contest_name") and
+                             contest_name_key(app["contest_name"]) != contest_name_key(info["contest_name"]))
+            selected = (not self._have_app_info or (info.get("contest_nr") == app.get("contest_nr")
+                                                   and not named_foreign))
+            if str(info.get("kind", "")).startswith("contact") and selected:
                 self._contact_sequence += 1
                 app["contacts"] = self._contact_sequence
                 ev = self._contact_events
+                metadata = dict(info, selection_dbname=app.get("dbname", ""))
                 ev.append((app["contacts"], info.get("kind"), info.get("call", ""),
                            info.get("band", ""), info.get("mode", ""), info.get("khz"),
-                           info.get("contest_nr"), dict(info)))
+                           info.get("contest_nr"), metadata))
                 del ev[:-200]
             self._app = app
 
@@ -272,11 +282,11 @@ class RadioListener(threading.Thread):
         self.state = state
         self.on_update = on_update
         self.on_spot = on_spot          # (parse_spot_packet dict) - N1MM's cluster spots
-        self._stop = threading.Event()
+        self._stopped = threading.Event()
         self._sock: socket.socket | None = None
 
     def stop(self) -> None:
-        self._stop.set()
+        self._stopped.set()
         if self._sock is not None:
             try:
                 self._sock.close()
@@ -298,45 +308,40 @@ class RadioListener(threading.Thread):
         sock.settimeout(1.0)
         self._sock = sock
         log.info("listening for N1MM RadioInfo on %s:%s", self.ip, self.port)
-        while not self._stop.is_set():
+        while not self._stopped.is_set():
             try:
                 data, _addr = sock.recvfrom(65535)
             except socket.timeout:
                 continue
             except OSError:
                 break
-            if traffic._sink is not None:            # console open: the packet, squeezed
-                traffic.emit(f"N1MM {_addr[0]}", traffic.squeeze(data.decode("utf-8", "replace")))
-            info = parse_radio_info(data)
-            if info is None:
-                app = parse_app_info(data)
-                if app is not None:
-                    self.state.set_app(app)
-                    if app.get("kind") == "AppInfo":
-                        log.info("N1MM: open contest #%s %s %s", app.get("contest_nr"),
-                                 app.get("contest_name", ""), app.get("dbname", ""))
-                    else:
-                        log.info("N1MM: %s %s %s %s (contest #%s %s)", app.get("kind"),
-                                 app.get("call", ""), app.get("band", ""), app.get("mode", ""),
-                                 app.get("contest_nr"), app.get("contest_name", ""))
-                elif self.on_spot is not None and b"<spot" in data[:200].lower():
-                    pkt = parse_spot_packet(data)
-                    if pkt is not None:
-                        try:
-                            self.on_spot(pkt)
-                        except Exception:
-                            log.exception("N1MM spot callback failed")
-                continue
-            self.state.update(info)
-            if self.on_update is not None:
-                try:
-                    self.on_update(info)
-                except Exception:
-                    log.exception("radio update callback failed")
+            try:
+                if traffic._sink is not None:       # console open: the packet, squeezed
+                    traffic.emit(f"N1MM {_addr[0]}", traffic.squeeze(data.decode("utf-8", "replace")))
+                self._handle_packet(data)
+            except Exception:  # one bad datagram/callback must not stop reception
+                log.exception("N1MM packet from %s rejected", _addr[0])
         try:
             sock.close()
         except OSError:
             pass
+
+    def _handle_packet(self, data: bytes) -> None:
+        info = parse_radio_info(data)
+        if info is not None:
+            self.state.update(info)
+            if self.on_update is not None:
+                self.on_update(info)
+            return
+        app = parse_app_info(data)
+        if app is not None:
+            self.state.set_app(app)
+            log.info("N1MM: %s contest #%s %s", app.get("kind"),
+                     app.get("contest_nr"), app.get("contest_name", ""))
+        elif self.on_spot is not None and b"<spot" in data[:200].lower():
+            pkt = parse_spot_packet(data)
+            if pkt is not None:
+                self.on_spot(pkt)
 
 
 def radio_command_xml(command: str, radio_nr: int = 1, focus_hwnd: int | None = None) -> str:

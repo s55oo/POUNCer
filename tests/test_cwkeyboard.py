@@ -68,6 +68,7 @@ def _fake_app(fg_after_ctrl_k):
         setattr(f, name, getattr(app.PouncerApp, name).__get__(f))
     keys = []
     fg = {"now": 0}
+    f._test_foreground = fg
 
     def front(h):
         fg["now"] = h
@@ -83,6 +84,7 @@ def _fake_app(fg_after_ctrl_k):
         mock.patch.object(app.win32mod, "send_ctrl_k", side_effect=ctrl_k),
         mock.patch.object(app.win32mod, "foreground_window", side_effect=lambda: fg["now"]),
         mock.patch.object(app.win32mod, "is_window", return_value=True),
+        mock.patch.object(app.win32mod, "focused_multiline_edit", side_effect=lambda h: 8888 if h == 7777 else None),
         mock.patch.object(app.win32mod, "send_escape", side_effect=lambda: keys.append("esc")),
         mock.patch.object(app.win32mod, "send_backspace", side_effect=lambda n: keys.append(("bs", n))),
         mock.patch.object(app, "send_enter", side_effect=lambda: keys.append("enter")),
@@ -133,7 +135,7 @@ class CwAppTests(unittest.TestCase):
             p.start()
         try:
             f._cw("open", "", 0, 1)
-            app.win32mod.foreground_window.side_effect = lambda: 1111   # user clicked N1MM
+            f._test_foreground['now'] = 1111   # user clicked N1MM
             f._cw("text", "5NN", 0, 1)
         finally:
             for p in patches:

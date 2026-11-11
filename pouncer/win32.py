@@ -500,6 +500,35 @@ def window_text(hwnd: int, timeout_ms: int = 200) -> str | None:
     return buf.value if ok else None
 
 
+def focused_multiline_edit(window_hwnd: int) -> int | None:
+    """Writable multiline EDIT owned by this window, never a sibling form.
+
+    N1MM documents its Ctrl+K CW input as multiline. Checking the input
+    control avoids relying on localized window captions or WinForms IDs.
+    """
+    if not _WIN or not window_hwnd:
+        return None
+    thread = _user32.GetWindowThreadProcessId(window_hwnd, None)
+    info = _GUITHREADINFO()
+    info.cbSize = ctypes.sizeof(info)
+    if not thread or not _user32.GetGUIThreadInfo(thread, ctypes.byref(info)):
+        return None
+    focus = int(info.hwndFocus or 0)
+    if not focus or 'EDIT' not in class_name(focus).upper():
+        return None
+    parent = focus
+    for _ in range(30):
+        if parent == window_hwnd:
+            break
+        parent = int(_user32.GetParent(parent) or 0)
+        if not parent:
+            return None
+    else:
+        return None
+    style = _GetLong(focus, -16)  # GWL_STYLE, ES_MULTILINE, ES_READONLY
+    return focus if style & 0x0004 and not style & 0x0800 else None
+
+
 def _direct_children(parent: int) -> list[int]:
     out = []
     child = _user32.GetWindow(parent, _GW_CHILD)

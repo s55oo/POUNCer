@@ -1,6 +1,8 @@
 """A tap runs as steps between window updates: _act_on_spot returns at once
 (QSY sent), the rest comes from root.after; a new tap stops the old one."""
 
+from tests.test_so2r import foreground_after_focus
+
 import types
 import unittest
 from unittest import mock
@@ -37,6 +39,7 @@ class TapAsyncTests(unittest.TestCase):
         spot = app.Spot(dxcall="DL5ARM", freq_khz=7008.6, mode="CW", snr=21, wpm=28,
                         spot_type="CQ", spotter="S53WW", time_utc="0857Z", received=0)
         with mock.patch.object(app, "force_foreground", return_value=True), \
+                foreground_after_focus(app), \
                 mock.patch.object(app, "set_focused_edit_text", return_value=True), \
                 mock.patch.object(app, "focused_edit_text", return_value="DL5ARM"), \
                 mock.patch.object(app, "wipe_callsign"), \
