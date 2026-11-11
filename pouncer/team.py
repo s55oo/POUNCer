@@ -41,6 +41,8 @@ ANNOUNCE_S = 2.0      # how often each POUNCer says "I'm here"
 PEER_TIMEOUT_S = 6.0  # not heard for this long = gone
 RBN_SICK_S = 60.0     # master whose RBN is down this long steps aside
 MAX_DATAGRAM = 60000
+MAX_TEAM_COUNT = 2**31 - 1  # well above retained events; bounds UI ratio arithmetic
+MAX_PEER_TEXT = 128
 
 
 def _ver(text: str) -> tuple[int, ...]:
@@ -176,12 +178,14 @@ def _hello(msg: dict) -> dict:
                 counts.setdefault(field, 0)
             for field in ("spots", "calls", "dx", "pct"):
                 if field in counts:
-                    number = _number(counts[field], high=100 if field == "pct" else float("inf"))
+                    number = _number(counts[field], high=100 if field == "pct" else MAX_TEAM_COUNT)
+                    if field != "pct" and not number.is_integer():
+                        raise ValueError("invalid fractional team count")
                     counts[field] = int(number) if number.is_integer() else number
             clean_bands[band] = counts
         bands = clean_bands
     version = msg.get("ver") or ""
-    if not isinstance(version, str):
+    if not isinstance(version, str) or len(version) > MAX_PEER_TEXT:
         raise ValueError("invalid team version")
     return {"web": int(port), "started": started, "ver": version, "bands": bands,
             **flags, "src": _sources(msg["src"]) if isinstance(msg.get("src"), str) else None,
@@ -578,7 +582,7 @@ class Team:
             return
         kind = msg.get("t")
         pid = msg.get("id")
-        if not isinstance(pid, str) or not pid or not isinstance(kind, str):
+        if not isinstance(pid, str) or not pid or len(pid) > MAX_PEER_TEXT or not isinstance(kind, str):
             return
         if kind == "hi":
             try:

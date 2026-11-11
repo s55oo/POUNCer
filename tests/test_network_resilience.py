@@ -164,6 +164,20 @@ class SlowClusterClientTests(unittest.TestCase):
 
 
 class TeamReceiveRecoveryTests(unittest.TestCase):
+    def test_accepted_hello_counts_are_safe_for_real_ui_ratios(self):
+        from pouncer.bandopen import dx_pct, state_of
+        for counts in ({'spots': 1, 'calls': 1, 'dx': team.MAX_TEAM_COUNT},
+                       {'spots': '20', 'calls': '10', 'dx': '5'},
+                       {'spots': 1}, {}):
+            peer = team._hello({'started': 1, 'bands': {'40m': counts}})
+            accepted = peer['bands']['40m']
+            self.assertIn(dx_pct(accepted), range(101))
+            self.assertIn(state_of(accepted), ('open', 'local', 'closed'))
+        for field in ('spots', 'calls', 'dx'):
+            for invalid in (1e308, team.MAX_TEAM_COUNT + 1, 5e-324, 1.5):
+                with self.subTest(field=field, invalid=invalid), self.assertRaises(ValueError):
+                    team._hello({'started': 1, 'bands': {'40m': {field: invalid}}})
+
     def test_malformed_packets_then_valid_traffic_in_unsigned_and_signed_modes(self):
         for key in (b'', team.derive_key('audit-only-password')):
             with self.subTest(signed=bool(key)):
@@ -184,7 +198,10 @@ class TeamReceiveRecoveryTests(unittest.TestCase):
                     for fields in ({'web': 'oops'}, {'started': float('nan')},
                                    {'started': float('inf')}, {'started': []},
                                    {'web': True}, {'web': 65536}, {'healthy': []},
-                                   {'bands': {'40m': {'spots': float('nan')}}}):
+                                   {'bands': {'40m': {'spots': float('nan')}}},
+                                   {'bands': {'40m': {'dx': 1e308, 'calls': 1, 'spots': 1}}},
+                                   {'bands': {'40m': {'dx': 1, 'calls': 5e-324, 'spots': 1}}},
+                                   {'ver': '1' * 5000}):
                         send({'t': 'hi', 'id': 'bad', 'started': time.time(), **fields})
                     sender.sendto(team.seal(b'\xff', key=key), address)
                     sender.sendto(team.seal(b'[' * 2000 + b']' * 2000, key=key), address)
