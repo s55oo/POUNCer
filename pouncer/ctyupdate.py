@@ -67,6 +67,7 @@ class CtyUpdater:
         self.clock = clock
         self.status = ""
         self._stop = threading.Event()
+        self._retry_pending = False
 
     # ---- when -----------------------------------------------------------------------
     def last_check(self) -> float:
@@ -78,6 +79,8 @@ class CtyUpdater:
 
     def due(self) -> bool:
         """A Friday has passed since the last check (or there is no copy)."""
+        if self._retry_pending:
+            return True
         if not os.path.exists(self.path):
             return True
         return weekly.due(self.last_check(), self.clock())
@@ -89,6 +92,7 @@ class CtyUpdater:
                     try:
                         self.check()
                     except Exception as exc:  # a bad local file must not end future checks
+                        self._mark_failed()
                         self.status = f"country file check failed: {exc}"
                         log.exception("CTY: %s", self.status)
                 self._stop.wait(3600)
@@ -142,6 +146,7 @@ class CtyUpdater:
             n = _validate(data)
             self._write(self.path, data)
         except Exception as exc:  # noqa: BLE001 - offline: try again in an hour
+            self._mark_failed()
             self.status = f"country file check failed: {exc}"
             log.info("CTY: %s", self.status)
             return False
@@ -158,6 +163,8 @@ class CtyUpdater:
                 log.warning("CTY: could not write %s: %s", self.n1mm_path, exc)
         if copy_error is None:
             self._mark_checked()
+        else:
+            self._mark_failed()
         self.status = time.strftime("new country file %d.%m. %H:%M") + f" ({n} countries)"
         if copy_error is not None:
             self.status += f"; N1MM copy failed, retry in an hour: {copy_error}"
@@ -170,12 +177,14 @@ class CtyUpdater:
         return True
 
     def _mark_checked(self) -> None:
-        try:
-            os.makedirs(os.path.dirname(self.check_path) or ".", exist_ok=True)
-            with open(self.check_path, "w", encoding="ascii") as fh:
-                fh.write(f"{self.clock():.0f}")
-        except OSError:
-            pass
+        self._retry_pending = False
+        weekly.write_stamp(self.check_path, self.clock())
+
+    def _mark_failed(self) -> None:
+        # A missing/new source cache can force a check despite this week's
+        # marker. Partial success must not let that old marker hide a failure.
+        self._retry_pending = True
+        weekly.write_stamp(self.check_path, 0)
 
     @staticmethod
     def _write(path: str, data: bytes) -> None:

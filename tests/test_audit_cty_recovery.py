@@ -77,6 +77,12 @@ class N1mmCopyRecoveryTests(unittest.TestCase):
             cache = os.path.join(folder, 'cache')
             u = CtyUpdater(cache, n1mm_path=destination, update_n1mm=True, url="https://isolated.invalid/wl_cty.dat",
                            clock=lambda: now[0], fetch=lambda *_: (200, fake_cty()), on_new=installed.append)
+            os.makedirs(cache, exist_ok=True)
+            # A different source filename can be missing even though this
+            # week's shared check marker is recent. A failed copy must still retry.
+            with open(u.check_path, 'w') as fh:
+                fh.write(str(now[0] - 3600))
+            self.assertTrue(u.due())
             original = u._write
             def write(path, data):
                 if path == destination:
