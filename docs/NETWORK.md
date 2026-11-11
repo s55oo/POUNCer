@@ -362,8 +362,15 @@ random id of that POUNCer) and `t` (type):
 
 A small web server on `0.0.0.0:8080` (`[web] host`, `port`): the phone page
 for any browser on the LAN (or ZeroTier). Plain HTTP, no login – keep it on
-your own network. All answers are HTML or JSON; requests are `GET` with
-query parameters (`radio=A|B` = which radio the phone works).
+your own network. All answers are HTML or JSON. Reads use `GET`; every
+state-changing endpoint uses `POST` with `X-POUNCer-Token` from a prior
+same-origin `GET /api/session`. Parameters may be URL query parameters or a
+form-encoded body up to 8 KiB (`radio=A|B` = which radio the phone works).
+HEAD is read-only; GET/HEAD on a mutation returns 405. The token is not LAN
+authentication: trusted station devices may obtain it, with control/settings
+permissions still checked separately. Foreign Origin/Fetch Metadata and
+unrecognized Host values are refused. Reload pages from older versions after
+upgrading; old GET control clients must migrate to POST.
 
 | Path | What |
 |---|---|
@@ -372,15 +379,16 @@ query parameters (`radio=A|B` = which radio the phone works).
 | `/api/timeline?hours=12` | spots / stations / DX stations per band and 10 minutes, heard by skimmers on your continent, up to 48 h back (kept in `cache/timeline.json`) |
 | `/api/spots?since=<tag>` | the list again only if it changed: `{same: true}` (a few bytes) when its tag (a fingerprint without the spots' ages) is the phone's; the phone asks once a second, never two at once, not while hidden |
 | `/api/ping` | phone ping (every minute): answers at once, the page times the round trip |
+| `/api/session` | read-only browser mutation token, renewed after server restart; not exposed through CORS |
 | `/api/explain?call=3B8X&freq=14025.1` | phone Debug (hold a tile): everything POUNCer knows about that spot - entity, zones, each multiplier type new / worked, worked, run history, SCP, tapped, all skimmers that spotted it, the raw spot - read-only, local data |
 | `/api/zones?min=15` | per band and CQ zone 1-40: `hears_me` (skimmers that spotted your call) and `i_hear` (stations heard by skimmers on your continent), best SNR, count, calls, minutes ago - from the RBN / cluster feed POUNCer already has, nothing new on the network |
 | `/api/qsy?call=&freq=&mode=&radio=` | tap: QSY + call into N1MM (the next `/api/spots` carries `tap`: what really happened) |
-| (control) | `/api/qsy`, `/api/key`, `/api/cw`, `/api/tune` answer **403** to other devices when `[web] phone_control = off` (in a team: the master's choice); the PC's own browser always may. `/api/spots` carries `control_ok` and `control_all` (= `all`: every phone, no switch); with `phone` each phone's own switch (band menu, kept in the browser) decides |
+| (control) | `/api/qsy`, `/api/key`, `/api/cw`, `/api/tune`, `/api/band`, `/api/filter` answer **403** to other devices when `[web] phone_control = off` (in a team: the master's choice); the PC's own browser always may. `/api/spots` carries `control_ok` and `control_all` (= `all`: every phone, no switch); with `phone` each phone's own switch (band menu, kept in the browser) decides |
 | `/api/key?key=F2&radio=` | F-key / Enter / PgUp / PgDn to N1MM (F-keys **transmit**) |
 | `/api/minsnr?db=10` | Minimum SNR of the list (0–60; 0 = off, the default) - window and phone, saved to config.ini |
 | `/api/cw?op=open\|text\|back\|done\|stop&text=&n=&radio=` | Phone CW keyboard: open = Ctrl+K in the Entry Window, text = typed into N1MM's CW window (**transmits**; A–Z, 0–9, space, CW punctuation, max 200), back = n × Backspace, done = Enter, stop = Esc. 404 when `[web] cw_keyboard = false` |
 | `/api/tune?hz=-25&radio=` | move the VFO |
-| `/api/band?band=20m&radio=` | look at another band |
+| `/api/band?band=20m&radio=` | change the operating radio to that band's remembered/default frequency; read another band's list with `GET /api/spots?band=20m` |
 | `/api/filter?w=narrow\|wide&fix=` | RX filter |
 | `/api/hide`, `/api/unhide?call=&freq=` | hide a station |
 | `/api/clear?undo=`, `/api/reconnect` | clear spots, re-read the log |

@@ -1,5 +1,7 @@
 """SO2R / SO2V: radio A / B selection (QSY packet, Entry Window, band follow)."""
 
+from tests.web_request import open_web
+
 import time
 import socket
 import sys
@@ -367,7 +369,7 @@ class WebRadioTests(unittest.TestCase):
         base = f"http://127.0.0.1:{web.port}"
         try:
             def get(path):
-                with urllib.request.urlopen(base + path, timeout=5) as r:
+                with open_web(base + path, timeout=5) as r:
                     return json.load(r)
             self.assertEqual(get("/api/spots?radio=2")["band"], "40m")
             self.assertEqual(get("/api/spots")["band"], "20m")
@@ -395,7 +397,7 @@ class WebRadioTests(unittest.TestCase):
         web.start()
         try:
             for path in ("/api/spots?band=15m&radio=B", "/api/spots?band=40m", "/api/spots?radio=2"):
-                with urllib.request.urlopen(f"http://127.0.0.1:{web.port}{path}", timeout=5) as r:
+                with open_web(f"http://127.0.0.1:{web.port}{path}", timeout=5) as r:
                     json.load(r)
         finally:
             web.stop()

@@ -39,7 +39,9 @@ const c=vm.createContext({console,Date,URLSearchParams,window:{innerWidth:320},
   refresh:noop,toast:()=>({}),flash:noop,
   controlAllowed:false,canControl:()=>c.controlAllowed,pin:null,PIN_MS:60000,
   rp:params=>new URLSearchParams({...params,radio:c.myRadio}).toString(),
-  requests:[],fetch:async url=>{c.requests.push(url);return {json:async()=>({ok:false,error:'test'})}}});
+  requests:[],fetch:async url=>{c.requests.push(url);return {json:async()=>({ok:false,error:'test'})}},
+  // Controls use the production authorized POST helper, tested separately.
+  mutationFetch:async url=>{c.requests.push(url);return {json:async()=>({ok:false,error:'test'})}}});
 function code(a,b){const start=source.indexOf(a);assert.ok(start>=0,a);const end=source.indexOf(b,start);assert.ok(end>start,b);return source.slice(start,end)}
 vm.runInContext(code('  function zoGroup(s)','  // Classification is supplied'),c);
 vm.runInContext(code('  function cqText(m)','  function markSort()'),c);

@@ -1,5 +1,7 @@
 """Tests for the local web (phone) server."""
 
+from tests.web_request import open_web
+
 import json
 import unittest
 import urllib.error
@@ -49,7 +51,7 @@ class WebServerTests(unittest.TestCase):
 
     def _get(self, path: str):
         # generous: the macOS CI runners are sometimes very slow (5 s timed out)
-        return urllib.request.urlopen(self.url + path, timeout=30)
+        return open_web(self.url + path, timeout=30)
 
     def test_tiles_are_kept_not_redrawn(self) -> None:
         # the page updates its tiles in place (keyed by call + MHz) instead
@@ -171,7 +173,7 @@ class WebServerTests(unittest.TestCase):
         web.start()
         try:
             with self.assertRaises(urllib.error.HTTPError) as ctx:
-                urllib.request.urlopen(
+                open_web(
                     f"http://127.0.0.1:{web.port}/api/reconnect", timeout=5)
             self.assertEqual(ctx.exception.code, 404)
         finally:
@@ -267,12 +269,12 @@ class WebServerTests(unittest.TestCase):
         web.start()
         try:
             with self.assertRaises(urllib.error.HTTPError) as ctx:
-                urllib.request.urlopen(
+                open_web(
                     f"http://127.0.0.1:{web.port}/api/qsy?call=X", timeout=5
                 )
             self.assertEqual(ctx.exception.code, 500)
             # server is still alive afterwards
-            with urllib.request.urlopen(
+            with open_web(
                 f"http://127.0.0.1:{web.port}/api/spots", timeout=5
             ) as resp:
                 self.assertEqual(resp.status, 200)

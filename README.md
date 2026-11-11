@@ -1285,12 +1285,24 @@ So:
   ZeroTier adapter), or `[team] enabled = false` and `[web] enabled = false`.
 - On ZeroTier keep the network **private** and remove members you no longer
   use.
-- **Known, to be fixed:** a web page opened in a browser **on the shack PC
-  or on a device in the network** could send hidden requests to the phone
-  page (the radio could transmit). The autostart programs are safe from this
-  since v0.7.130 (changed only in the app).
-  Until it is fixed: use that browser for normal surfing as little as
-  possible, or switch the phone page off when you don't need it.
+- Browser controls use **authorized POST requests**, with a token read from
+  this POUNCer instance. Foreign browser origins and unrecognized Host names
+  are rejected; HEAD and GET never execute controls or change settings.
+  The token protects browser intent, **not membership of the station LAN**:
+  trusted devices on that LAN can still obtain it. Band changes and RX filter
+  changes obey the same `phone_control` policy as QSY and keys.
+- After upgrading from the older GET control API, **reload open phone and
+  settings pages**. Old control links return HTTP 405 without acting. Custom
+  clients must first read `GET /api/session`, then send `POST` with its
+  `token` in the `X-POUNCer-Token` header. Parameters can stay in the URL
+  query or use a form-encoded body (maximum 8 KiB). Tokens change on restart;
+  the included pages renew an expired token before retrying a rejected
+  request. They never automatically retry an action after a network failure.
+- Use the displayed LAN/ZeroTier IP, `localhost`, or this computer's local
+  hostname (including its `.local` name). DNS aliases must be explicitly used
+  as `[web] host` when binding the server; arbitrary Host aliases and reverse
+  proxy origins are not accepted. This prevents another domain from rebinding
+  to the station PC to read its control token.
 
 What POUNCer never does: store or send passwords (RBN and the DX cluster get
 your callsign only), send personal data, or accept settings changes from

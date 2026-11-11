@@ -1,5 +1,7 @@
 """Phone CW keyboard: /api/cw and the app's N1MM Ctrl+K window handling."""
 
+from tests.web_request import open_web
+
 import json
 import types
 import unittest
@@ -22,7 +24,7 @@ class CwApiTests(unittest.TestCase):
         self.web.stop()
 
     def _get(self, path):
-        with urllib.request.urlopen(self.url + path, timeout=5) as r:
+        with open_web(self.url + path, timeout=5) as r:
             return json.loads(r.read())
 
     def test_off_until_a_handler_is_set(self) -> None:
@@ -47,7 +49,7 @@ class CwApiTests(unittest.TestCase):
         self.assertEqual(len(clean_cw_text("e" * 500)), 200)
 
     def test_page_has_the_keyboard(self) -> None:
-        with urllib.request.urlopen(self.url + "/", timeout=5) as r:
+        with open_web(self.url + "/", timeout=5) as r:
             page = r.read().decode()
         for part in ('id="cwkb"', 'id="cwin"', "armHold", "/api/cw?", "cwdone", "cwstop"):
             self.assertIn(part, page)
