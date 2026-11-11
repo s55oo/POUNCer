@@ -103,6 +103,27 @@ ON_FREQ_STAY_KHZ = 0.5  # RBN re-spot within this = station still on that freque
 ON_FREQ_GAP_S = 20 * 60  # ... and within 20 min of the last spot (skimmers re-spot sparsely)
 
 
+def _keyboard_ready(app, hwnd, *, allow_focus=True) -> bool:
+    """Confirm the actual keyboard target; optionally bring it to the front.
+
+    With focus disabled, the operator must already have selected that window.
+    A successful API return alone is insufficient after the settling delay.
+    """
+    if not hwnd:
+        return False
+    try:
+        if win32mod.foreground_window() == hwnd:
+            return True
+        if not allow_focus or not getattr(getattr(app, "cfg", None), "focus_n1mm", True):
+            return False
+        if not force_foreground(hwnd):
+            return False
+        time.sleep(0.15)
+        return win32mod.foreground_window() == hwnd
+    except Exception:  # a window may disappear between the two checks
+        return False
+
+
 class FlowFrame(ttk.Frame):
     """Frame that lays its children out left to right, wrapping onto new
     rows when the window gets narrow (see ``flow.flow_positions``).
@@ -3013,10 +3034,13 @@ class PouncerApp:
     def _settext(self) -> bool:
         return getattr(self.cfg, "type_mode", "settext") == "settext"
 
-    def _enter_text(self, hwnd, text: str) -> bool:
+    def _enter_text(self, hwnd, text: str) -> bool | None:
         """Put text into the focused N1MM box: in one go (settext - nothing
         can get mixed up), or cleared + typed key by key. True if the box
-        was set / cleared."""
+        was set / cleared; None if the keyboard target could not be verified."""
+        if not _keyboard_ready(self, hwnd):
+            log.warning("call %s not typed: Entry Window is not the keyboard target", text)
+            return None
         try:   # the log tells which window got the call (call shown twice?)
             fg = win32mod.foreground_window()
         except Exception:  # noqa: BLE001
@@ -3043,6 +3067,8 @@ class PouncerApp:
         want = call.strip().upper()
         for attempt in range(3):
             yield 0.15
+            if not _keyboard_ready(self, hwnd, allow_focus=False):
+                return " [call check stopped: Entry Window focus changed]"
             got = focused_edit_text(hwnd)
             if got is None or got.strip().upper() == want:
                 return " [call put in again]" if attempt else ""
@@ -3063,6 +3089,8 @@ class PouncerApp:
         end = time.time() + GUARD_CALL_S
         landed_at = None
         while time.time() < end:
+            if not _keyboard_ready(self, hwnd, allow_focus=False):
+                return False
             snap = self.state.snapshot(nr)
             f = snap.get("freq_khz") if snap else None
             if landed_at is None and f is not None and abs(f - khz) <= 0.15:
@@ -3078,6 +3106,8 @@ class PouncerApp:
         """After a late N1MM QSY: the callsign box empty (N1MM wiped it)?
         Put the call in again. Anything else in the box is left alone."""
         if not hwnd or not self._settext():
+            return False
+        if not _keyboard_ready(self, hwnd, allow_focus=False):
             return False
         try:
             got = focused_edit_text(hwnd)
@@ -3211,7 +3241,7 @@ class PouncerApp:
         msg = f"QSY {self._radio_tag(nr)}{spot.freq_khz:.1f} kHz -> {spot.dxcall}"
         msg += msg_retry
         if self.set_call_var.get():
-            can_type = focused or not self.cfg.focus_n1mm
+            can_type = _keyboard_ready(self, hwnd)
             if can_type:
                 # Always start from an empty Entry Window: N1MM's wipe, then
                 # empty the focused callsign box directly in case the wipe
@@ -3227,9 +3257,12 @@ class PouncerApp:
                         wipe_callsign()   # Alt+W key: only when typing keys
                     yield 0.2  # let N1MM finish the wipe before we type
                 how = self._enter_text(hwnd, spot.dxcall)
-                msg += " (call typed, no TX)" + ("" if how else " [box not cleared]")
-                msg += yield from self._check_call_steps(hwnd, spot.dxcall)
-                if not landed:
+                if how is None:
+                    msg += " (call skipped: Entry Window not focused)"
+                else:
+                    msg += " (call typed, no TX)" + ("" if how else " [box not cleared]")
+                    msg += yield from self._check_call_steps(hwnd, spot.dxcall)
+                if how is not None and not landed:
                     # N1MM's QSY (and its wipe of the callsign) may still come:
                     # keep the call in the box a little longer - every radio
                     landed = yield from self._guard_call_steps(hwnd, spot.dxcall, nr, spot.freq_khz)
@@ -3654,14 +3687,12 @@ class PouncerApp:
         keyboard - never into the callsign box."""
         win = self._cw_win
         if win and win32mod.is_window(win) and self._cw_radio == nr:
-            force_foreground(win)
-            return True
+            return _keyboard_ready(self, win) or self._cw_fail("N1MM's CW window could not be focused")
         if win:
             self._cw_close(stop=False)
         hwnd = self.state.entry_window_hwnd(nr)
-        if not hwnd or not force_foreground(hwnd):
+        if not _keyboard_ready(self, hwnd):
             return self._cw_fail("N1MM's Entry Window could not be brought to the front")
-        time.sleep(0.15)
         win32mod.send_ctrl_k()
         fg = 0
         for _ in range(10):              # wait for N1MM's CW window (max 0.5 s)
@@ -3685,25 +3716,24 @@ class PouncerApp:
         if not win or self._cw_radio != nr or not win32mod.is_window(win):
             self._cw_win = None
             return self._cw_open(nr)
-        if win32mod.foreground_window() != win:
-            if not force_foreground(win):
-                return self._cw_fail("N1MM's CW window could not be brought to the front")
-            time.sleep(0.05)
-        return True
+        return _keyboard_ready(self, win) or self._cw_fail("N1MM's CW window could not be focused")
 
     def _cw_close(self, stop: bool) -> None:
         """Done: Enter (N1MM sends what's left, closes its CW window).
         Stop: Esc (stops at once)."""
-        win, self._cw_win = self._cw_win, None
+        win = self._cw_win
         if not win or not win32mod.is_window(win):
             if stop:                     # stop anyway: Esc in N1MM stops sending
                 hwnd = self.state.entry_window_hwnd(self._cw_radio or self._radio_nr())
-                if hwnd and force_foreground(hwnd):
+                if _keyboard_ready(self, hwnd):
                     win32mod.send_escape()
             return
-        if win32mod.foreground_window() != win:
-            force_foreground(win)
-            time.sleep(0.05)
+        if not _keyboard_ready(self, win):
+            self._cw_error = "N1MM's CW window could not be focused; close/stop was not sent"
+            self._cw_error_n += 1
+            self.status_label.configure(text="CW keyboard: " + self._cw_error)
+            return
+        self._cw_win = None
         if stop:
             win32mod.send_escape()
         else:
@@ -3864,11 +3894,9 @@ class PouncerApp:
         to the chosen radio's Entry Window (A / B).
         """
         hwnd = self.state.entry_window_hwnd(self._radio_nr(radio))
-        focused = False
-        if self.cfg.focus_n1mm and hwnd:
-            focused = force_foreground(hwnd)
-            if focused:
-                time.sleep(0.15)
+        if not _keyboard_ready(self, hwnd):
+            self.status_label.configure(text=f"{key} not sent: N1MM Entry Window is not focused")
+            return
         if key in ("PgUp", "PgDn") and self.cwspeed is not None:
             self.cwspeed.expect(self._radio_nr(radio), 1 if key == "PgUp" else -1)
         ok_key = self._send_key(key)
@@ -3884,8 +3912,6 @@ class PouncerApp:
             msg = "Spot It (Alt+P) sent to N1MM - it spots the Entry Window call to the cluster"
         elif key != "Enter":
             msg += " (transmitting)"
-        if self.cfg.focus_n1mm and hwnd and not focused:
-            msg += " [N1MM focus failed]"
         self.status_label.configure(text=msg)
 
     @staticmethod
@@ -4503,7 +4529,7 @@ class PouncerApp:
         then tunes the radio of that window (no transmit). False = failed
         (status line says why)."""
         if self._types_qsy(nr):
-            if not (hwnd and focused):
+            if not _keyboard_ready(self, hwnd):
                 self.status_label.configure(
                     text="QSY B failed: Entry Window B not in front (N1MM focus failed)")
                 log.warning("QSY B %.1f failed: Entry Window B not in front", khz)
@@ -4587,8 +4613,9 @@ class PouncerApp:
             self.status_label.configure(text=f"Filter already {width}")
             return
         hwnd = self.state.entry_window_hwnd(self._radio_nr())
-        if self.cfg.focus_n1mm and hwnd and force_foreground(hwnd):
-            time.sleep(0.15)
+        if not _keyboard_ready(self, hwnd):
+            self.status_label.configure(text="Filter not changed: N1MM Entry Window is not focused")
+            return
         if not send_filter_toggle():
             self.status_label.configure(text="Filter toggle needs Windows")
             return

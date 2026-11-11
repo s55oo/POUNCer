@@ -68,6 +68,7 @@ def _fake_app(fg_after_ctrl_k):
         setattr(f, name, getattr(app.PouncerApp, name).__get__(f))
     keys = []
     fg = {"now": 0}
+    f._test_foreground = fg
 
     def front(h):
         fg["now"] = h
@@ -133,7 +134,7 @@ class CwAppTests(unittest.TestCase):
             p.start()
         try:
             f._cw("open", "", 0, 1)
-            app.win32mod.foreground_window.side_effect = lambda: 1111   # user clicked N1MM
+            f._test_foreground['now'] = 1111   # user clicked N1MM
             f._cw("text", "5NN", 0, 1)
         finally:
             for p in patches:

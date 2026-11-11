@@ -173,7 +173,10 @@ class SessionLog:
                 baseline.pop(key, None)
         self.records = baseline
 
-    def event(self, kind: str, record: Contact, oldcall='', oldtimestamp=None) -> bool:
+    def event(self, kind: str, record: Contact, oldcall='', oldtimestamp=None,
+              *, require_timestamp=True) -> bool:
+        # Ordinary contests can use legacy packets without a timestamp;
+        # session eligibility must always wait for a known UTC timestamp.
         current = self.records.get(record.key)
         if kind == 'contactinfo' and (record.key in self.retired or current is not None):
             return False  # duplicate or delayed pre-edit creation
@@ -182,7 +185,7 @@ class SessionLog:
                 or (record.call and current.call != record.call)
                 or (record.band and current.band != record.band)):
             return False  # a delayed delete of the pre-edit record
-        if record.timestamp is None and kind != 'contactdelete':
+        if require_timestamp and record.timestamp is None and kind != 'contactdelete':
             self.warning = 'Contact UTC timestamp missing; waiting for database'
             return False
         if current is not None and kind in ('contactreplace', 'contactdelete'):

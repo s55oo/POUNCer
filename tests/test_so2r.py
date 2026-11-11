@@ -22,6 +22,12 @@ def two_radios() -> RadioState:
     return st
 
 
+def foreground_after_focus(app):
+    """Model the successful foreground change, not just its API return."""
+    return mock.patch.object(app.win32mod, "foreground_window", side_effect=lambda:
+        app.force_foreground.call_args.args[0] if app.force_foreground.call_args else 0)
+
+
 class RadioStateTests(unittest.TestCase):
     def test_per_radio_snapshot_and_hwnd(self) -> None:
         st = two_radios()
@@ -117,6 +123,7 @@ class AppRadioTests(unittest.TestCase):
                         spot_type="CQ", spotter="S53WW", time_utc="1200Z", received=0)
         enters = []
         with mock.patch.object(app, "force_foreground", side_effect=lambda h: focused.append(h) or True), \
+                foreground_after_focus(app), \
                 mock.patch.object(app, "wipe_callsign"), \
                 mock.patch.object(app, "clear_focused_edit", return_value=True), \
                 mock.patch.object(app, "type_text", side_effect=typed.append), \
@@ -145,6 +152,7 @@ class AppRadioTests(unittest.TestCase):
         status = []
         f.status_label = types.SimpleNamespace(configure=lambda **kw: status.append(kw["text"]))
         with mock.patch.object(app, "force_foreground", return_value=True), \
+                foreground_after_focus(app), \
                 mock.patch.object(app, "focus_snapshot", return_value=snap), \
                 mock.patch.object(app, "window_pid", return_value=42), \
                 mock.patch.object(app, "restore_focus", side_effect=lambda s: restored.append(s) or True), \
@@ -184,6 +192,7 @@ class AppRadioTests(unittest.TestCase):
         status = []
         f.status_label = types.SimpleNamespace(configure=lambda **kw: status.append(kw["text"]))
         with mock.patch.object(app, "force_foreground", return_value=True), \
+                foreground_after_focus(app), \
                 mock.patch.object(app, "wipe_callsign", side_effect=lambda: events.append(("altw",))), \
                 mock.patch.object(app, "set_focused_edit_text",
                                   side_effect=lambda h, t: events.append(("set", t)) or True), \
@@ -208,6 +217,7 @@ class AppRadioTests(unittest.TestCase):
         spot = app.Spot(dxcall="HB9CBR/P", freq_khz=14031.0, mode="CW", snr=10, wpm=28,
                         spot_type="CQ", spotter="S53WW", time_utc="1200Z", received=0)
         with mock.patch.object(app, "force_foreground", return_value=True), \
+                foreground_after_focus(app), \
                 mock.patch.object(app, "wipe_callsign"), \
                 mock.patch.object(app, "clear_focused_edit", return_value=True), \
                 mock.patch.object(app, "type_text", side_effect=typed.append), \
@@ -237,6 +247,7 @@ class AppRadioTests(unittest.TestCase):
         spot = app.Spot(dxcall="DL1AA", freq_khz=14025.3, mode="CW", snr=10, wpm=28,
                         spot_type="CQ", spotter="S53WW", time_utc="1200Z", received=0)
         with mock.patch.object(app, "force_foreground", return_value=True), \
+                foreground_after_focus(app), \
                 mock.patch.object(app, "wipe_callsign"), \
                 mock.patch.object(app, "clear_focused_edit", return_value=True), \
                 mock.patch.object(app, "type_text", side_effect=typed.append), \
@@ -252,6 +263,7 @@ class AppRadioTests(unittest.TestCase):
         f = self._fake(app, radio=2)
         f.cfg.radio_b_qsy = "udp"
         with mock.patch.object(app, "force_foreground", return_value=True), \
+                foreground_after_focus(app), \
                 mock.patch.object(app.time, "sleep"):
             app.PouncerApp._qsy(f, 2, 7012.5, 2222, True)
         self.assertIn(("qsy", 7012.5, {"mousebutton": None, "radio_nr": 2}), f.sent)   # Right
@@ -262,6 +274,7 @@ class AppRadioTests(unittest.TestCase):
         f = self._fake(app, radio=2)
         f.cfg.radio_b_qsy = "udp-left"
         with mock.patch.object(app, "force_foreground", return_value=True), \
+                foreground_after_focus(app), \
                 mock.patch.object(app, "type_text") as typed, \
                 mock.patch.object(app, "send_enter") as enter, \
                 mock.patch.object(app.time, "sleep"):
@@ -293,6 +306,7 @@ class AppRadioTests(unittest.TestCase):
         f._send_key = lambda key: True
         focused = []
         with mock.patch.object(app, "force_foreground", side_effect=lambda h: focused.append(h) or True), \
+                foreground_after_focus(app), \
                 mock.patch.object(app.time, "sleep"):
             app.PouncerApp._press_key(f, "F2")
         self.assertEqual(focused, [2222])
@@ -305,6 +319,7 @@ class AppRadioTests(unittest.TestCase):
         focused = []
         typed = []
         with mock.patch.object(app, "force_foreground", side_effect=lambda h: focused.append(h) or True), \
+                foreground_after_focus(app), \
                 mock.patch.object(app, "clear_focused_edit", return_value=True), \
                 mock.patch.object(app, "type_text", side_effect=typed.append), \
                 mock.patch.object(app, "send_enter", return_value=True), \
@@ -480,6 +495,7 @@ class RadioBTimingTests(unittest.TestCase):
             return True
         typed = []
         with mock.patch.object(app, "force_foreground", return_value=True), \
+                foreground_after_focus(app), \
                 mock.patch.object(app, "clear_focused_edit", return_value=True), \
                 mock.patch.object(app, "type_text", side_effect=lambda t: (typed.append(t), box.update(t=t))), \
                 mock.patch.object(app, "set_focused_edit_text", side_effect=settext), \
@@ -526,6 +542,7 @@ class FocusBackToATests(unittest.TestCase):
         spot = app.Spot(dxcall="K1ABC", freq_khz=7011.0, mode="CW", snr=10, wpm=28,
                         spot_type="CQ", spotter="S53WW", time_utc="1200Z", received=0)
         with mock.patch.object(app, "force_foreground", side_effect=lambda h: fronts.append(h) or True), \
+                foreground_after_focus(app), \
                 mock.patch.object(app, "focus_snapshot", return_value=snap), \
                 mock.patch.object(app, "window_pid", return_value=42), \
                 mock.patch.object(app, "restore_focus", side_effect=lambda s: restored.append(s) or True), \
