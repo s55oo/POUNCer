@@ -16,6 +16,7 @@ from .contest_rules import Contact, SessionLog, profile_for, utc_timestamp, cont
 
 import logging
 import calendar
+import ntpath
 import os
 import pathlib
 import re
@@ -30,6 +31,13 @@ from . import mults as multsmod
 from .bands import BANDS, band_from_khz
 
 log = logging.getLogger(__name__)
+
+
+def _same_database(left: str, right: str) -> bool:
+    """Use supplied Windows paths; only bare legacy names need basename matching."""
+    if ntpath.dirname(left) and ntpath.dirname(right):
+        return ntpath.normcase(ntpath.normpath(left)) == ntpath.normcase(ntpath.normpath(right))
+    return ntpath.normcase(ntpath.basename(left)) == ntpath.normcase(ntpath.basename(right))
 
 _PHONE_MODES = {"USB", "LSB", "SSB", "AM", "FM", "PH", "PHONE"}
 
@@ -1081,9 +1089,7 @@ class WorkedLog:
             # Queued events may predate an AppInfo database switch. ContestNR
             # is only unique inside one database, so check the named contest too.
             received_db = info.get("selection_dbname")
-            if (received_db and self._path and
-                    os.path.basename(received_db.replace('\\', '/')).casefold() !=
-                    os.path.basename(self._path).casefold()):
+            if received_db and self._path and not _same_database(received_db, self._path):
                 continue
             if (self.contest_name and info.get("contest_name") and
                     contest_name_key(self.contest_name) != contest_name_key(info["contest_name"])):

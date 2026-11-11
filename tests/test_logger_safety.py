@@ -228,14 +228,15 @@ class ReceiverSafetyTests(unittest.TestCase):
 
 class OrdinaryContactTests(unittest.TestCase):
     def test_queued_old_database_contacts_cannot_cross_same_number_switch(self):
-        for old_name in ('CQWWCW', 'CQWPXCW'):
-            with self.subTest(old_name=old_name), tempfile.TemporaryDirectory() as folder:
+        for old_name, same_basename in (('CQWWCW', False), ('CQWPXCW', False), ('CQWPXCW', True)):
+            with self.subTest(old_name=old_name, same_basename=same_basename), tempfile.TemporaryDirectory() as folder:
                 path = os.path.join(folder, 'new-db.s3db')
                 con = sqlite3.connect(path)
                 con.execute('CREATE TABLE DXLOG (ID TEXT, TS TEXT, Call TEXT, Band REAL, Mode TEXT, ContestNR INT)')
                 con.commit(); con.close()
                 state = RadioState()
-                state.set_app({'kind': 'AppInfo', 'dbname': 'old-db.s3db',
+                old_db = os.path.join(folder, 'old', 'new-db.s3db') if same_basename else 'old-db.s3db'
+                state.set_app({'kind': 'AppInfo', 'dbname': old_db,
                                'contest_nr': 1, 'contest_name': old_name})
                 state.set_app(parse_app_info(f'<contactinfo><contestnr>1</contestnr><contestname>{old_name}</contestname>'
                     '<ID>old</ID><call>OLD</call><band>14</band><mode>CW</mode>'
@@ -314,3 +315,13 @@ class OrdinaryContactTests(unittest.TestCase):
             self.assertTrue(worked.is_worked('W1XYZ', 14025, 'LSB'))
             self.assertFalse(worked._session_log.pending)
             con.close()
+
+
+class DatabaseIdentityTests(unittest.TestCase):
+    def test_windows_paths_and_legacy_bare_names(self):
+        from pouncer.worked import _same_database
+        self.assertTrue(_same_database(r'C:\N1MM\Logs\CONTEST.S3DB', r'c:/n1mm/logs/contest.s3db'))
+        self.assertTrue(_same_database(r'C:\N1MM\Logs\..\contest.s3db', r'c:/n1mm/contest.s3db'))
+        self.assertTrue(_same_database('CONTEST.S3DB', r'C:\N1MM\contest.s3db'))
+        self.assertFalse(_same_database(r'C:\old\contest.s3db', r'C:\new\contest.s3db'))
+        self.assertFalse(_same_database('/old/contest.s3db', '/new/contest.s3db'))
