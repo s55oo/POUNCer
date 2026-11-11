@@ -51,6 +51,33 @@ class TkLayoutTests(unittest.TestCase):
         self._settle("2400x400+10+10")
         self.assertEqual(len({b.winfo_y() for b in buttons}), 1)  # one row again
 
+    def test_flow_survives_a_destroyed_child(self) -> None:
+        """v0.7.188: the band chips are rebuilt on a layout change (clean <->
+        detailed); the row measured the destroyed frame ("bad window path
+        name") and stopped laying out - the new chips were never placed."""
+        from pouncer.app import FlowFrame
+        errors = []
+        old = self.root.report_callback_exception
+        self.root.report_callback_exception = lambda et, ev, tb: errors.append(ev)
+        try:
+            flow = FlowFrame(self.root)
+            flow.pack(fill="x")
+            flow.add(tk.Label(flow, text="Sort"))
+            chips = flow.add(tk.Frame(flow, width=80, height=20))
+            self.root.update()
+            chips.destroy()
+            flow.event_generate("<Configure>")
+            new = flow.add(tk.Frame(flow, width=90, height=20))
+            self.root.update()
+            self.assertEqual(errors, [])
+            self.assertEqual(new.winfo_manager(), "place")      # the new chips are placed
+            self.assertEqual(len(flow._items), 2)
+            flow.destroy()
+            self.root.update()
+            self.assertEqual(errors, [])
+        finally:
+            self.root.report_callback_exception = old
+
     def test_flow_hides_a_button_without_a_gap(self) -> None:
         from pouncer.app import FlowFrame
         flow = FlowFrame(self.root)
