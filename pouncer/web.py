@@ -713,8 +713,9 @@ INDEX_HTML = """<!doctype html>
     return s.snr == null ? -999 : s.snr;
   }
   function timeVal(s) {
-    const m = /([0-9]{2})([0-9]{2})Z/.exec(s.time || '');
-    return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : -1;
+    if (Number.isFinite(s.received)) return s.received;
+    // Older servers already supplied age; clock labels lose the date at midnight.
+    return Number.isFinite(s.age) ? -s.age : -Infinity;
   }
   // Classification is supplied by Python so badges, alerts and desktop
   // use one duration/provenance-aware policy. No local six-hour fallback.
