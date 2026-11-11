@@ -4200,18 +4200,43 @@ class PouncerApp:
 
     @staticmethod
     def _spot_dict(spot: Spot) -> dict:
+        """Relative age keeps startup history old even when peer clocks differ.
+
+        Older peers ignore this extra field. New peers accept their legacy
+        messages without age as fresh, matching the previous wire behavior.
+        """
         d = dataclasses.asdict(spot)
         d.pop("received", None)
+        d["age_s"] = max(0.0, time.time() - spot.received)
         return d
 
     def _team_spot(self, d: dict) -> None:
         """A spot passed on by the team master (slave side; any thread)."""
+        import math
         names = {f.name for f in dataclasses.fields(Spot)} - {"received"}
         try:
-            spot = Spot(**{k: d.get(k) for k in names}, received=time.time())
+            age = d.get("age_s", 0)
+            if isinstance(age, bool) or not isinstance(age, (int, float)) or not math.isfinite(age) or age < 0:
+                return
+            freq = d.get("freq_khz")
+            if isinstance(freq, bool):
+                return
+            spot = Spot(**{k: d.get(k) for k in names}, received=time.time() - age)
             spot.freq_khz = float(spot.freq_khz)
-            spot.dxcall = str(spot.dxcall)
-        except (TypeError, ValueError):
+            if (not math.isfinite(spot.freq_khz * 10) or spot.freq_khz <= 0
+                    or not isinstance(spot.dxcall, str) or not spot.dxcall):
+                return
+            for field in ("mode", "spot_type", "spotter", "time_utc", "source"):
+                value = getattr(spot, field)
+                if value is None:
+                    setattr(spot, field, "")  # older peers can omit newer text fields
+                elif not isinstance(value, str):
+                    return
+            for value in (spot.snr, spot.wpm):
+                if value is not None and (isinstance(value, bool)
+                        or not isinstance(value, (int, float)) or not math.isfinite(value)):
+                    return
+        except (TypeError, ValueError, OverflowError):
             return
         self._last_team_spot = time.time()
         sw = getattr(self, "skimwatch", None)
