@@ -1,7 +1,14 @@
 # POUNCer — Changelog
 
-## Unreleased
+## v0.7.184 — 2026-11-11 — Weekly contest sessions (TTC, Mini-Test, OK1WC); duration-aware ⚡ hints
 
+From S53ZO's pull requests #2 and #3.
+
+- **CQWW, WPX, ARRL DX and every other contest work as before**: the
+  session rules switch on only for the exact N1MM names of TTC, Mini-Test
+  and OK1WC (or when chosen in *Settings > Program > Contest session
+  profile*). See [docs/CONTEST_PROFILES.md](docs/CONTEST_PROFILES.md) and
+  [docs/URGENCY.md](docs/URGENCY.md).
 - PR #2 audit fixes: explicit reference logs load in background even when
   N1MM has another database open; session countdown stays visible in clean
   desktop layout; delayed old-band deletes and ID-less pre-edit creation
