@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import functools
+
 BANDS = (
     ("160m", 1800.0, 2000.0),
     ("80m", 3500.0, 4000.0),
@@ -25,6 +27,7 @@ DEFAULT_BAND_KHZ = {
 }
 
 
+@functools.lru_cache(maxsize=16384)   # pure; asked millions of times a minute (v0.7.182)
 def band_from_khz(khz: float | None) -> str | None:
     """Return the band name for a frequency in kHz, or None if unknown."""
     if khz is None:

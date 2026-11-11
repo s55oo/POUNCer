@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import os
+import functools
 import re
 from dataclasses import dataclass
 
@@ -244,6 +245,7 @@ def load_cty(path: str = "", n1mm_ini: str = "") -> CtyDB | None:
     return None
 
 
+@functools.lru_cache(maxsize=32768)       # pure; asked for every spot each refresh
 def wpx_prefix(call: str) -> str:
     """CQ WPX prefix of a callsign (S55OO -> S55, 3Z75HSC -> 3Z75, K1ABC -> K1).
 
