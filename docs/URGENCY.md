@@ -99,3 +99,62 @@ in minutes (`~12m`) instead of rounding to `~0h` or `~1h`.
 
 This change is independent of PR #2's weekly session/duplicate rules, live CQ
 tracking, clicked-station pinning, selected bands, N1MM control and transmission.
+
+## ZO mode
+
+ZO mode is a live, instance-wide setting under Settings → Program, persisted
+as `[ui] zo_mode = false` by default. It forces desktop tiles without overwriting
+the previous table/tile preference and adds three permanent columns in desktop
+and browser views. Narrow phones retain three columns; callsigns wrap.
+
+The shared Python classifier in `pouncer/urgency.py` supplies both interfaces.
+Run means the percentage of measurable historical QSOs made while running,
+not run length in minutes. It is usable only when finite and between 0 and 100.
+
+| Priority | Historical evidence (either condition suffices) |
+| --- | --- |
+| Urgent | Run share <30%, or comparable hours <min(6 h, 25% of event duration) |
+| Medium | Not Urgent, and run share <60%, or comparable hours <min(12 h, 50%) |
+| Normal | Usable evidence exists without an elevated-priority flag |
+| Unknown | Neither usable run share nor comparable hours exists |
+
+Unknown appears below a labelled divider in Normal. Normal's heading count
+includes Unknown; the divider also shows its own count. Empty column headings
+remain visible. Unknown does not imply low risk, and Normal does not guarantee
+continued availability. No calibrated departure probabilities are calculated.
+
+Hours must be finite, nonnegative, no greater than the event duration, and from
+verified matching-contest history. Missing provenance in old caches, mixed or
+different contests, unknown duration, and invalid values disable the hours rule.
+Run-share evidence can still be used with limited confidence. Reconstructed
+logs may omit activity; their evidence is explicitly marked limited. Provenance,
+confidence, and limitations remain separate from priority in tooltips and browser
+long-press details. History cannot establish whether a station is currently
+calling CQ or when it will leave; current spot information remains separate.
+
+The duration table uses full event duration, not individual operating limits or
+15-minute stages. Supported aliases include CW/SSB variants and `UDC_` names.
+A positive `[ui] urgency_contest_minutes` override supplies a custom event's
+full duration; zero uses the table.
+
+Duration sources:
+
+- [CQ WW rules](https://cqww.com/rules/): Saturday 0000 through Sunday 2359 UTC,
+  48 hours.
+- [CQ WPX rules](https://cqwpx.com/rules/): 48-hour event; individual operating
+  limits do not change its duration here.
+- [ARRL DX rules](https://contests.arrl.org/ContestRules/DX-Rules.pdf): Saturday
+  0000 through Sunday 2359 UTC, 48 hours.
+- [SP TTC rules](https://www.spcwc.pl/ttc/rules/en): one-hour event; its stages
+  do not become the historical-hours comparison duration.
+- [Mini-Test rules](https://minitest.narod.ru/): MINI40 and MINI80 are separate
+  one-hour sessions.
+- [OK1WC Memorial rules](https://memorial-ok1wc.cz/index.php?page=rules2l):
+  one-hour session.
+
+Existing sorting runs independently inside each priority group, including
+browser DX, MLT and lightning options. NEXT follows Urgent → Medium → Normal →
+Unknown. Calm list retains its sorting delay and interaction holds; a change in
+classification moves a station to its new group. Refreshing, sorting and grouping
+never issue radio commands. Existing control permissions still gate clicks and
+NEXT. Desktop canvas items and browser tile elements are reused across refreshes.

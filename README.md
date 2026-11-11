@@ -1550,9 +1550,32 @@ cache entries without source context do not trigger that criterion. Their
 R%/hours can still be displayed, and known low run share can still flag a
 historical hint. Reconstructed logs may have incomplete coverage.
 
-**Settings → Program → History hint: contest duration** (`[ui] urgency_contest_minutes`) accepts an explicit full-event duration in minutes;
+**Settings → Program → History hint: contest duration** (`[ui]
+urgency_contest_minutes`) accepts an explicit full-event duration in minutes;
 **0** uses the verified duration table. Reset overrides when changing contests.
 Tooltips and browser Debug explain the threshold and source-context limitation.
 Sub-hour historical operating time is displayed in minutes (e.g. `~12m`).
 See [the policy and rule sources](docs/URGENCY.md). This feature is independent
 of repeat-QSO periods, logger scoring and click-to-tune behavior.
+
+### ZO mode
+
+Enable **Settings → Program → ZO mode** for three permanent callsign columns:
+**⚡ Urgent**, **Medium**, and **Normal**, on the desktop and all browsers served
+by that instance. The setting is live, defaults off, and is saved as `[ui] zo_mode`.
+Disabling it restores the previous desktop table/tile preference. Phones keep
+all three columns, with full callsigns wrapping as needed; there are no tabs.
+Headings show counts; Normal's count includes the separately labelled Unknown
+section at its bottom.
+
+Urgent means historical run share below 30%, or verified matching-contest hours
+below min(6 h, 25% of event duration). Medium uses 60% and min(12 h, 50%).
+Normal has usable evidence without either flag; **Unknown means insufficient
+usable evidence, not low risk**. These are historical hints, not departure
+probabilities or promises that a station will remain available. Tooltips and
+browser long-press details explain the evidence and limitations.
+
+Existing sorting operates inside each group. NEXT follows Urgent → Medium →
+Normal → Unknown. Calm list keeps its usual sorting delay; changed evidence can
+move a station to its new group. Grouping never tunes or transmits. See
+[the classification policy](docs/URGENCY.md) for provenance and duration rules.

@@ -159,6 +159,7 @@ class Config:
     filter_narrow_cat: str = ""
     filter_wide_cat: str = ""
     # Run/S&P history from the public contest-log archive (runhist.py)
+    zo_mode: bool = False
     urgency_contest_minutes: int = 0  # 0: verified duration table; otherwise explicit override
     run_history: bool = True
     run_history_dir: str = ""  # default: "cache" next to config.ini
@@ -435,6 +436,7 @@ def load_config(path: str) -> Config:
     cfg.filter_start = fs if fs in ("narrow", "wide") else ""
     cfg.filter_narrow_cat = s("ui", "filter_narrow_cat", cfg.filter_narrow_cat).strip()
     cfg.filter_wide_cat = s("ui", "filter_wide_cat", cfg.filter_wide_cat).strip()
+    cfg.zo_mode = b("ui", "zo_mode", cfg.zo_mode)
     cfg.urgency_contest_minutes = max(0, min(10080, i("ui", "urgency_contest_minutes", cfg.urgency_contest_minutes)))
     cfg.run_history = b("ui", "run_history", cfg.run_history)
     cfg.run_server = s("ui", "run_server", cfg.run_server).strip()
