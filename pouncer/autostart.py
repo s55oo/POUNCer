@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import logging
 import os
+import shlex
 import subprocess
 import sys
 import threading
@@ -137,14 +138,15 @@ def _launch(path: str, args: str) -> None:
     if sys.platform == "win32":
         os.startfile(path, arguments=args, cwd=cwd)   # like a double-click
     else:                                              # (tests / macOS)
-        subprocess.Popen([path, *args.split()] if args else [path], cwd=cwd)
+        subprocess.Popen([path, *shlex.split(args)] if args else [path], cwd=cwd)
 
 
 class Autostart:
     """Runs the plan in a background thread; ``status`` = what happened."""
 
     def __init__(self, items: list[dict], running=None, launch=None, sleep=time.sleep,
-                 on_status=None, n1mm_up=None, wait_s: float = 180, clock=time.time) -> None:
+                 on_status=None, n1mm_up=None, wait_s: float = 180, clock=time.time,
+                 cancelled=None) -> None:
         self.items = items
         self._running = running            # -> set of lower-case exe names, or None
         self._launch = launch or _launch
@@ -153,6 +155,7 @@ class Autostart:
         self._n1mm_up = n1mm_up            # -> True once N1MM broadcasts (per-item wait)
         self.wait_s = wait_s
         self._clock = clock
+        self._cancelled = cancelled or (lambda: False)
         self.results: list[tuple[str, str]] = []   # (path, "started" / "running" / error)
         self.status = ""
 
@@ -187,16 +190,22 @@ class Autostart:
             except Exception:  # noqa: BLE001
                 before = set()
         for n, it in enumerate(self.items, 1):
+            if self._cancelled():
+                break
             path, name = it["path"], os.path.basename(it["path"])
             if it.get("wait") and self._n1mm_up is not None and not self._up():
                 self._say(f"{name}: waiting for N1MM ({n}/{total})")
                 end = self._clock() + self.wait_s
-                while not self._up() and self._clock() < end:
+                while not self._cancelled() and not self._up() and self._clock() < end:
                     self._sleep(1)
+                if self._cancelled():
+                    break
                 if not self._up():
                     self._say(f"{name}: N1MM not up after {self.wait_s:.0f} s - starting anyway")
             if it["delay"]:
                 self._sleep(it["delay"])
+            if self._cancelled():
+                break
             if not os.path.exists(path):
                 self.results.append((path, "not found"))
                 self._say(f"{name} not found ({n}/{total})")
@@ -206,6 +215,8 @@ class Autostart:
                 self._say(f"{name} already running ({n}/{total})")
                 continue
             try:
+                if self._cancelled():
+                    break
                 self._launch(path, it["args"])
             except Exception as exc:  # noqa: BLE001 - one bad entry must not stop the rest
                 self.results.append((path, f"failed: {exc}"))
@@ -213,3 +224,5 @@ class Autostart:
                 continue
             self.results.append((path, "started"))
             self._say(f"started {name} ({n}/{total})")
+        if self._cancelled():
+            self._say("stopped")
