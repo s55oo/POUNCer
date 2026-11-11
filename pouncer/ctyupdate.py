@@ -38,6 +38,14 @@ def cache_name(url: str) -> str:
     return name if name.lower().endswith(".dat") else "cty.dat"
 
 
+def _validate(data: bytes) -> int:
+    db = CtyDB.from_text(data.decode("latin-1"))
+    count = len({e.name for e in db._prefixes.values()})
+    if count < MIN_ENTITIES:
+        raise ValueError(f"country file download rejected ({count} countries)")
+    return count
+
+
 def newest(paths) -> str:
     """The newest existing file of ``paths`` ('' if none)."""
     found = [p for p in paths if p and os.path.exists(p)]
@@ -59,6 +67,7 @@ class CtyUpdater:
         self.clock = clock
         self.status = ""
         self._stop = threading.Event()
+        self._retry_pending = False
 
     # ---- when -----------------------------------------------------------------------
     def last_check(self) -> float:
@@ -70,6 +79,8 @@ class CtyUpdater:
 
     def due(self) -> bool:
         """A Friday has passed since the last check (or there is no copy)."""
+        if self._retry_pending:
+            return True
         if not os.path.exists(self.path):
             return True
         return weekly.due(self.last_check(), self.clock())
@@ -78,7 +89,12 @@ class CtyUpdater:
         def loop():
             while not self._stop.is_set():
                 if self.due():
-                    self.check()
+                    try:
+                        self.check()
+                    except Exception as exc:  # a bad local file must not end future checks
+                        self._mark_failed()
+                        self.status = f"country file check failed: {exc}"
+                        log.exception("CTY: %s", self.status)
                 self._stop.wait(3600)
         threading.Thread(target=loop, name="cty-update", daemon=True).start()
 
@@ -100,45 +116,58 @@ class CtyUpdater:
 
     def check(self) -> bool:
         """Ask for a newer file; True if one was installed."""
-        mine = self.path if os.path.exists(self.path) else ""
-        headers = {"User-Agent": "POUNCer"}
-        if mine:
-            headers["If-Modified-Since"] = email.utils.formatdate(os.path.getmtime(mine),
-                                                                  usegmt=True)
+        same_kind = (os.path.basename(self.n1mm_path).casefold()
+                     == os.path.basename(self.path).casefold())
+        copy_n1mm = self.update_n1mm and bool(self.n1mm_path) and same_kind
         try:
+            mine = self.path if os.path.exists(self.path) else ""
+            headers = {"User-Agent": "POUNCer"}
+            if mine:
+                headers["If-Modified-Since"] = email.utils.formatdate(os.path.getmtime(mine),
+                                                                      usegmt=True)
             status, data = self._get(headers)
+            if status == 304:
+                # A previous valid cache install may have failed to copy into
+                # N1MM. Recover even across a restart / unchanged server reply,
+                # without overwriting an independently newer N1MM file.
+                if (copy_n1mm and mine and
+                        (not os.path.exists(self.n1mm_path) or
+                         os.path.getmtime(self.path) >= os.path.getmtime(self.n1mm_path))):
+                    with open(self.path, "rb") as fh:
+                        cached = fh.read()
+                    _validate(cached)
+                    self._write(self.n1mm_path, cached)
+                self._mark_checked()
+                self.status = time.strftime("country file up to date (checked %d.%m. %H:%M)")
+                log.info("CTY: %s is current", self.url)
+                return False
+            if status != 200 or not data:
+                raise ValueError(f"country file download rejected (HTTP {status}, empty or invalid response)")
+            n = _validate(data)
+            self._write(self.path, data)
         except Exception as exc:  # noqa: BLE001 - offline: try again in an hour
+            self._mark_failed()
             self.status = f"country file check failed: {exc}"
             log.info("CTY: %s", self.status)
             return False
-        self._mark_checked()
-        if status == 304 or not data:
-            self.status = time.strftime("country file up to date (checked %d.%m. %H:%M)")
-            log.info("CTY: %s is current", self.url)
-            return False
-        try:
-            db = CtyDB.from_text(data.decode("latin-1"))
-        except Exception as exc:  # noqa: BLE001
-            db = None
-            log.warning("CTY: download unreadable: %s", exc)
-        n = len({e.name for e in getattr(db, "_prefixes", {}).values()}) if db else 0
-        if n < MIN_ENTITIES:
-            self.status = f"country file download rejected ({n} countries)"
-            log.warning("CTY: %s", self.status)
-            return False
-        self._write(self.path, data)
-        same_kind = (os.path.basename(self.n1mm_path).lower()
-                     == os.path.basename(self.path).lower())
+        copy_error = None
         if self.update_n1mm and self.n1mm_path and not same_kind:
             log.info("CTY: %s not copied into N1MM (it uses %s)", os.path.basename(self.path),
                      os.path.basename(self.n1mm_path))
-        if self.update_n1mm and self.n1mm_path and same_kind:
+        if copy_n1mm:
             try:
                 self._write(self.n1mm_path, data)
                 log.info("CTY: new wl_cty.dat copied to %s", self.n1mm_path)
             except OSError as exc:
+                copy_error = exc
                 log.warning("CTY: could not write %s: %s", self.n1mm_path, exc)
+        if copy_error is None:
+            self._mark_checked()
+        else:
+            self._mark_failed()
         self.status = time.strftime("new country file %d.%m. %H:%M") + f" ({n} countries)"
+        if copy_error is not None:
+            self.status += f"; N1MM copy failed, retry in an hour: {copy_error}"
         log.info("CTY: new %s from %s, %d countries", os.path.basename(self.path), self.url, n)
         if self.on_new is not None:
             try:
@@ -148,12 +177,14 @@ class CtyUpdater:
         return True
 
     def _mark_checked(self) -> None:
-        try:
-            os.makedirs(os.path.dirname(self.check_path) or ".", exist_ok=True)
-            with open(self.check_path, "w", encoding="ascii") as fh:
-                fh.write(f"{self.clock():.0f}")
-        except OSError:
-            pass
+        self._retry_pending = False
+        weekly.write_stamp(self.check_path, self.clock())
+
+    def _mark_failed(self) -> None:
+        # A missing/new source cache can force a check despite this week's
+        # marker. Partial success must not let that old marker hide a failure.
+        self._retry_pending = True
+        weekly.write_stamp(self.check_path, 0)
 
     @staticmethod
     def _write(path: str, data: bytes) -> None:
