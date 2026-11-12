@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.7.191 — 2026-11-12 — Settings: help lines cut to the window on Windows
+
+- The grey help line under each setting is now cut to the window's width
+  with *more* on every PC: on Windows it could run past the right edge with
+  no *more* (the font maths there differ from what is drawn, so it is now
+  measured on screen). Checked once more when the window is up.
+
 ## v0.7.190 — 2026-11-12 — Settings window: pages, search, tidy rows
 
 - **Pages on the left** instead of 10 tabs: *Display* (window, spot list,
