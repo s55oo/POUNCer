@@ -1,5 +1,27 @@
 # POUNCer — Changelog
 
+## v0.7.190 — 2026-11-12 — Settings window: pages, search, tidy rows
+
+- **Pages on the left** instead of 10 tabs: *Display* (window, spot list,
+  keys), *Alerts & history*, *N1MM & radios* (Tap -> N1MM, SO2R / SO2V, CW
+  speed), *Phone page*, *Spots* (sources, backups, SSB, spotters, spotted),
+  *Cluster server*, *Startup & updates* (autostart, country file & SCP,
+  auto-update). All of them are on one sheet that scrolls; a page name jumps
+  to it, and the page in view is lit while you scroll.
+- **Search** (Ctrl+F): type "snr", "cluster", "beacon" ... and only the
+  matching settings stay. Pages without a hit go grey. Esc clears the search,
+  a second Esc closes the window.
+- **The box or tick is right next to the name** - before, a long help text
+  could push it out of the window. Clicking the name of a tick setting ticks
+  it too. Sub-options ("... TCP port") are indented under their switch.
+- **Help is one grey line**; *more* opens the rest, *less* closes it.
+- **Settings menu**: *All settings...* (Ctrl+,) or straight to one page.
+  Spotters / Spotted > *Edit the lists...* open the window at those lists.
+  On the Mac the pages are in the POUNCer menu.
+- The browser's /settings page shows the same pages and parts.
+- Save, Discard, Restart, Ctrl+S and the "not saved yet" marks work as
+  before; config.ini is unchanged. Help texts and docs name the new pages.
+
 ## v0.7.189 — 2026-11-11 — Menus grouped by what you do; shortcuts
 
 - The menu bar is grouped by task instead of one long *View* menu:

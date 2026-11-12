@@ -218,7 +218,9 @@ Marks in the call and Mult columns:
 | Spotters / Spotted | the filters | |
 | Tools | summary, CQ zones, timeline, Phone page ▸, Alerts ▸, Traffic console | Ctrl+Shift+D |
 | Team | password, become master, master after restart, update all (master) - grey when not possible | |
-| Settings... | the settings window (Mac: POUNCer > Settings…, ⌘,) | Ctrl+, |
+| Settings ▸ All settings… | the settings window (Mac: POUNCer > Settings…, ⌘,) | Ctrl+, |
+| Settings ▸ Display … Startup & updates | the settings window at that page (Mac: POUNCer > Settings: …) | |
+| Search box in the settings window | keeps the settings whose name / help has every typed word; Esc clears | Ctrl+F |
 | Help | what every button does, GitHub, Versions ▸, Troubleshooting ▸, About | |
 
 ## Phone page

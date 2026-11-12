@@ -191,7 +191,7 @@ team) and UDP 12079 (team); everything else is outgoing.
   usual. "15m list · on 20m ✕" in the small line (tap it to go back to the
   radio's band); once the radio changes band the list follows it again.
 * **TX / log buttons** - the main window and the phone page all
-  show buttons for `[ui] fkeys` (default `F1:CQ F2:RPRT F3:TU F4:CALL F5:HisCALL F7:? F11:.. Enter SpotIt:SPOTit`; on the phone F1 + F3 (at the top) and F5, F7, F11 are half as tall and share one key's place each, SPOTit is half size under ENTER, `[ui] fkeys_half`; both in *Settings > Program*; a list an older POUNCer wrote unchanged is read as the new default; **SPOTit** = N1MM's Spot It, Alt+P: it spots the Entry Window call to the cluster, no TX). An F-key
+  show buttons for `[ui] fkeys` (default `F1:CQ F2:RPRT F3:TU F4:CALL F5:HisCALL F7:? F11:.. Enter SpotIt:SPOTit`; on the phone F1 + F3 (at the top) and F5, F7, F11 are half as tall and share one key's place each, SPOTit is half size under ENTER, `[ui] fkeys_half`; both in *Settings > Display*; a list an older POUNCer wrote unchanged is read as the new default; **SPOTit** = N1MM's Spot It, Alt+P: it spots the Entry Window call to the cluster, no TX). An F-key
   button presses that function key in the focused N1MM Entry Window, so N1MM
   sends its message - e.g. F4 normally sends `{MYCALL}`. Unlike tapping a spot,
   **F-keys transmit over the air**. The `Enter` button logs the current QSO in
@@ -202,7 +202,7 @@ team) and UDP 12079 (team); everything else is outgoing.
 * **Control N1MM** (phone band menu - tap the frequency) - **off** on every
   phone until you switch it on there once (remembered per phone): **look
   only**, tapping a station, NEXT, F-keys, ENTER, Spot It, CW keyboard, tune
-  and CW speed do nothing (keys dimmed). On the PC, *Settings > Tap -> N1MM >
+  and CW speed do nothing (keys dimmed). On the PC, *Settings > Phone page >
   Phones may control N1MM* (`[web] phone_control`): **phone** = each phone's
   own switch, **all** = every phone at once (no switch needed), **off** = no
   phone or other PC can (POUNCer refuses it, HTTP 403). In a team the
@@ -254,7 +254,7 @@ is required.
 **Keys** - F1 ... F7 (transmit), ENTER (log; hold 1.3 s = CW keyboard),
 **F11**, **SPOTit** (N1MM Alt+P, spot to the cluster), WPM − / +, −/+ 25 Hz;
 half-size keys on the phone (F1 + F3, F5, F7, F11, SPOTit); full keys are compact too, so more keys fit. Order and sizes in
-*Settings > Program*.
+*Settings > Display*.
 
 **Pictures of the band**
 - Band chips: DX heard, DX share colour, **new mults waiting** per band.
@@ -377,7 +377,7 @@ Grouped by what you do (v0.7.189):
 * **Team** - team password, Become team master, This PC is the team master,
   Update all POUNCers in the team (on the master). Items that can't do
   anything now are grey (no team, not the master ...).
-* **Settings...** (**Ctrl+,**) - the settings window (below). On a Mac:
+* **Settings** - **All settings...** (**Ctrl+,**) or one page of the settings window (below). On a Mac:
   *POUNCer > Settings… (⌘,)*.
 * **Help** - what every button does, POUNCer on GitHub, **Versions ▸** (check
   for a new version · go back to the previous one · switch version),
@@ -682,13 +682,17 @@ list* tag in the small line to go back to the radio's band.
 
 ## Settings
 
-**Settings...** in the main window's menu bar opens the settings window: the
-most-used settings on tabs (*Tap -> N1MM*, *SO2R / SO2V*, *RBN*, *SSB*,
-*Program*, *Autostart*) - wait times, settext / keys, radio B, focus back to
-A, decimal sign, cursor back, skimmer, backup server, SSB cluster, minimum
-SNR, tried marks, check line, band lights, the TX / log keys and which are
-half size, autostart programs 1-8 and the N1MM wait, auto-update. Every tab
-scrolls (scrollbar / mouse wheel). **Nothing is written until you press
+**Settings** in the main window's menu bar: **All settings...** (**Ctrl+,**)
+or straight to one page. The settings window lists its pages on the left -
+*Display* (window, spot list, keys), *Alerts & history*, *N1MM & radios*
+(Tap -> N1MM, SO2R / SO2V, CW speed), *Phone page*, *Spots* (sources,
+backups, SSB, spotters, spotted), *Cluster server*, *Startup & updates*
+(autostart, country file & SCP, auto-update) - and shows all of them on one
+sheet that scrolls (mouse wheel); a page name jumps to it. **Search** (top
+left, **Ctrl+F**) keeps only the settings whose name or help has every typed
+word (Esc clears it). Each row: the name, its box right next to it, one grey
+help line (**more** opens the rest). Spotters / Spotted > *Edit the lists...*
+open it at those lists. The browser's /settings page has the same pages. **Nothing is written until you press
 Save** (top right, or **Ctrl+S**): a changed box only shows "changed - not
 saved yet" and the button counts them (**Save (3)**); **Discard** puts the
 boxes back; closing the window with unsaved changes asks "Save them?". Save
@@ -742,7 +746,7 @@ band, where N1MM's spots are usually more than 5 s apart: 4 x the usual
 gap), and stays for at least a minute before N1MM takes over again. You then see what N1MM's cluster and filters
 pass - people's spots only (skimmers come from RBN / Telnet / HTTP).
 Only while N1MM is connected to the cluster itself, not through POUNCer.
-`[ssb] use_n1mm_spots = off` (Settings > SSB) always uses POUNCer's own.
+`[ssb] use_n1mm_spots = off` (Settings > Spots > SSB) always uses POUNCer's own.
 
 **FT8 or SSB?** On 20 / 15 / 10 / 80 m the FT8 / FT4 frequencies (14074,
 21074 ...) lie below the SSB segment: a spot there (or the radio on USB there)
@@ -764,7 +768,7 @@ way. PSK Reporter has him on FT8 / FT4 there = the spot leaves the CW list;
 no report = a real CW station (in a CW contest those windows are full of
 them), it stays, and its alert is **not** held back. Cluster spots there
 without a mode word are FT8 / FT4 at once anyway. `[ssb] pskreporter`
-(Settings > SSB). The traffic console shows it as **PSKR**.
+(Settings > Spots > SSB). The traffic console shows it as **PSKR**.
 
 ## Spots: where they come in from
 
@@ -820,7 +824,7 @@ list **and** out to N1MM / any client of the cluster server (port 10000):
   VK`) | Zones (`3, 4, 5`) | Continents (`NA, OC`) | WW (all, the default) -
   separate from Spotters (who spots). Spots of other stations are dropped
   at once, from every source (also not passed on on port 10000). Lists in
-  Settings > Spotted.
+  Settings > Spots > Spotted.
 - **Spotters** (the menu **Spotters**, `[filter]`): **one filter for every
   source**, skimmers and people alike - **Calls** (the listed skimmers /
   spotters, `[rbn] spotter`, S53WW; while all of them are quiet the other
@@ -847,7 +851,7 @@ current). A newer file is checked (a few hundred countries), saved as
 before the first download ever (e.g. a first start offline). `[cty]
 update_n1mm` copies a downloaded file into N1MM only if it is a
 `wl_cty.dat` - never S53M's `cty.dat` over N1MM's (it lacks N1MM's WAE
-entries). Off: `[cty] auto_update = false` (Settings > Country file);
+entries). Off: `[cty] auto_update = false` (Settings > Startup & updates);
 another source: `[cty] url`.
 
 ## Busted calls (Super Check Partial)
@@ -876,7 +880,7 @@ is the best sign you can work him. Tiles show a ★ after the call.
 has sent nothing for 3 minutes while RBN itself works, the check line shows
 an amber **Skimmer** item "TK0C sends nothing (4 min) - skimmer offline or
 its connection down" (⚠ on the phone too) - a crashed SDR / CW Skimmer at
-night shows at once. `[rbn] skimmer_quiet_minutes` (Settings > RBN).
+night shows at once. `[rbn] skimmer_quiet_minutes` (Settings > Spots).
 
 **Several skimmers / whole zones.** `[rbn] spotter` takes a list, all used
 together: callsigns (prefix match - `TK0C` also takes TK0C-1, TK0C-2) and
@@ -1201,7 +1205,7 @@ keyboard and window controls are unavailable on macOS.
 POUNCer can start your other programs when it starts - in order, each a
 number of seconds after the one before:
 
-- **Settings > Autostart** in POUNCer's own window (or `[autostart]` in
+- **Settings > Startup & updates > Autostart** in POUNCer's own window (or `[autostart]` in
   config.ini) - **not** from the browser's settings page (read-only there:
   programs that start with POUNCer are never set over the network): *Program 1-8*
   with the full path of an .exe, .bat, .cmd or shortcut (**Browse...**), and
@@ -1231,7 +1235,7 @@ folder (Program 2's delay counts from then). The status bar shows
 Data > Radio* (or *App Info*) ticked - POUNCer needs that anyway. At most
 `n1mm_timeout` seconds (180), then it goes on anyway; *File > Don't wait
 for N1MM* goes on at once. If N1MM is already running, nothing waits.
-Switch off: *Settings > Autostart > N1MM as program 1: wait until it is up*
+Switch off: *Settings > Startup & updates > Autostart > N1MM as program 1: wait until it is up*
 (`wait_n1mm = false`).
 
 ```ini
@@ -1462,7 +1466,7 @@ All options live in `config.ini` and are documented there, line by line:
 | `backup_host`, `backup_port`, `backup_commands` | azure.s53m.com, 8000, – | The **Telnet** source's server (its skimmer spots); commands sent after login. |
 | `http_backup` | https://azure.s53m.com/cors/rbn/live | The **HTTP** source (RBN over HTTP); empty = none. |
 | `follow_modes` | CW | Modes to show (`CW`, `RTTY`, `FT8`, `FT4`). |
-| `hide_beacons` | true | Drop beacon spots as they come in - not in the list, not on port 10000: the 18 NCDXF beacons (4U1UN, W6WX, OH2B ...) on 14100 / 18110 / 21150 / 24930 / 28200 (±0.5 kHz; the same call elsewhere stays), type BEACON / NCDXF, calls ending in `/B`. Traffic console: **BEACON**. Settings > RBN. |
+| `hide_beacons` | true | Drop beacon spots as they come in - not in the list, not on port 10000: the 18 NCDXF beacons (4U1UN, W6WX, OH2B ...) on 14100 / 18110 / 21150 / 24930 / 28200 (±0.5 kHz; the same call elsewhere stays), type BEACON / NCDXF, calls ending in `/B`. Traffic console: **BEACON**. Settings > Spots. |
 | `cty` | POUNCer's download (S53M's cty.dat) | Country file for continent / DX / mults; a path here overrides it. |
 | **[n1mm]** | | |
 | `listen_ip`, `listen_port` | 0.0.0.0, 12060 | Where POUNCer listens for N1MM's RadioInfo. |
@@ -1535,7 +1539,7 @@ All options live in `config.ini` and are documented there, line by line:
 | `app1_wait_n1mm` ... `app8_wait_n1mm` | false | Start this one only once N1MM is up (it broadcasts), at most `n1mm_timeout` s - for tools that need N1MM running, also when N1MM isn't in the list. |
 | `folder`, `folder_delay` | autostart, 3 | Everything in this folder (next to config.ini) starts after app1-app8, in name order, this many seconds apart. |
 
-Most of these can also be changed in **Settings...** (main window) or on the
+Most of these can also be changed in **Settings** (main window) or on the
 **Settings** page; all connections and ports: [docs/NETWORK.md](docs/NETWORK.md).
 
 ## Tests

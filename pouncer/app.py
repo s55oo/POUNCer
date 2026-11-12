@@ -836,8 +836,8 @@ class PouncerApp:
             spotters.add_radiobutton(label=key, value=key, variable=self._flt_var,
                                      command=lambda k=key: self._menu_filter(k))
         spotters.add_separator()
-        spotters.add_command(label="Edit the lists\u2026 (Settings > Spotters)",
-                             command=self._settings_win.open)
+        spotters.add_command(label="Edit the lists\u2026 (Settings > Spots)",
+                             command=lambda: self._settings_win.open("Spots", "Spotters - who heard it"))
         bar.add_cascade(label="Spotters", menu=spotters)
         self._spotters_menu = spotters
         # -- Spotted: which spotted stations (the DX) - separate from Spotters ---------------
@@ -847,8 +847,8 @@ class PouncerApp:
             spotted.add_radiobutton(label=key, value=key, variable=self._spd_var,
                                     command=lambda k=key: self._menu_spotted(k))
         spotted.add_separator()
-        spotted.add_command(label="Edit the lists\u2026 (Settings > Spotted)",
-                            command=self._settings_win.open)
+        spotted.add_command(label="Edit the lists\u2026 (Settings > Spots)",
+                            command=lambda: self._settings_win.open("Spots", "Spotted - who was heard"))
         bar.add_cascade(label="Spotted", menu=spotted)
         self._spotted_menu = spotted
         # -- Tools: pages and windows ---------------------------------------------------------
@@ -899,8 +899,22 @@ class PouncerApp:
                 self.root.createcommand("tk::mac::ShowPreferences", self._settings_win.open)
             except tk.TclError:
                 pass
+            # the pages also in the POUNCer menu
+            app_menu.add_separator()
+            for page, _parts in settingsmod.PAGES:
+                app_menu.add_command(label=f"Settings: {page}\u2026",
+                                     command=lambda p=page: self._settings_win.open(p))
         else:
-            bar.add_command(label="Settings...", command=self._settings_win.open)
+            # Settings: all of it (Ctrl+,) or straight to one page
+            setm = tk.Menu(bar, tearoff=False)
+            setm.add_command(label="All settings\u2026", accelerator="Ctrl+,",
+                             command=self._settings_win.open)
+            setm.add_separator()
+            for page, _parts in settingsmod.PAGES:
+                setm.add_command(label=f"{page}\u2026",
+                                 command=lambda p=page: self._settings_win.open(p))
+            bar.add_cascade(label="Settings", menu=setm)
+            self._settings_menu = setm
         # -- Help --------------------------------------------------------------------------------
         helpm = tk.Menu(bar, tearoff=False, postcommand=self._refresh_menu_states)
         helpm.add_command(label="What every button does", command=lambda: self._open_browser("help"))
@@ -2727,7 +2741,7 @@ class PouncerApp:
                  "cont": "spotted_conts"}
         if mode in lists and not self._list(getattr(self.cfg, lists[mode], "")):
             self.status_label.configure(text=f"Spotted {self.FILTER_NAMES[mode]}: the list is "
-                                             "empty - fill it in Settings > Spotted")
+                                             "empty - fill it in Settings > Spots > Spotted")
             return
         self._save_setting("spotted.mode", mode)      # applies it (_apply_spotted)
         self.status_label.configure(text=f"Spots of: {self.spotted_filter.label()}")
@@ -2744,7 +2758,7 @@ class PouncerApp:
                  "cont": "filter_conts"}
         if mode in empty and not self._list(getattr(self.cfg, empty[mode], "")):
             self.status_label.configure(text=f"Spotters {self.FILTER_NAMES[mode]}: the list is "
-                                             "empty - fill it in Settings > Spotters")
+                                             "empty - fill it in Settings > Spots > Spotters")
             return
         self._save_setting("filter.mode", mode)      # applies it (_apply_filter)
         self.status_label.configure(text=f"Spots from: {self.spotter_filter.label()}")
@@ -2771,7 +2785,7 @@ class PouncerApp:
                 "cont": "spotters on these continents", "ww": "every spotter, worldwide"}[mode]
         head = f"Spotters: {self.FILTER_NAMES[mode]} - {'ON' if on else 'click = use this'}"
         body = f"{lists.get(mode) or ('-' if mode != 'ww' else 'all')}\n{what}\n" \
-               "For every source: RBN, Telnet, HTTP, HamQTH, Cluster. Lists: Settings > Spotters"
+               "For every source: RBN, Telnet, HTTP, HamQTH, Cluster. Lists: Settings > Spots > Spotters"
         if on and mode != "ww":
             sf = self.spotter_filter
             body += "\nNow: " + ("backup skimmers (the listed ones are quiet)"
@@ -6353,7 +6367,7 @@ class PouncerApp:
             on_spot=self._on_n1mm_spot,
         )
         self._listener.start()
-        # your other programs (Settings > Autostart) - not again after a restart.
+        # your other programs (Settings > Startup & updates > Autostart) - not again after a restart.
         # N1MM listed first and not running yet: start it and wait for it
         # before the rest of POUNCer (and the other programs) starts.
         restarted = os.environ.pop(autostartmod.RESTART_ENV, "") == "1"

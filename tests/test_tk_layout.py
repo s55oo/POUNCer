@@ -199,6 +199,15 @@ class TkSettingsWindowTests(unittest.TestCase):
         w._jump()
         self.root.update()
         self.assertGreater(w.canvas.yview()[0], 0)
+        # open() at a page / part scrolls there and lights it in the list
+        w.open("Cluster server")
+        self.root.update()
+        self.assertEqual(w.side.curselection(), (w.pages.index("Cluster server"),))
+        y_cluster = w.canvas.yview()[0]
+        w.open("Spots", "Spotted - who was heard")
+        self.root.update()
+        self.assertEqual(w.side.curselection(), (w.pages.index("Spots"),))
+        self.assertNotEqual(w.canvas.yview()[0], y_cluster)
         # long help: one line + "more"; "more" opens it all
         h = max(w.helps, key=lambda h: len(h["text"]))
         self.assertTrue(h["label"].cget("text").endswith("…"))
@@ -249,13 +258,14 @@ class TkSettingsWindowTests(unittest.TestCase):
         import types
         from pouncer.app import PouncerApp
 
+        opened = []
         f = types.SimpleNamespace(
             root=self.root, set_call_var=tk.BooleanVar(value=True),
             hide_worked_var=tk.BooleanVar(value=False),
             compact_var=tk.BooleanVar(value=False), topmost_var=tk.BooleanVar(value=False),
             tiles_var=tk.BooleanVar(value=True), detailed_var=tk.BooleanVar(value=False),
             updater=types.SimpleNamespace(exe="C:/x/POUNCer.exe"),
-            _settings_win=types.SimpleNamespace(open=lambda: None),
+            _settings_win=types.SimpleNamespace(open=lambda *a: opened.append(a)),
             _console=types.SimpleNamespace(open=lambda: None),
             cfg=types.SimpleNamespace(config_path="C:/x/config.ini", alert_popup=True, rate_line=True,
                                       alert_sound=False, look="dark", team_key="",
@@ -290,7 +300,7 @@ class TkSettingsWindowTests(unittest.TestCase):
         mac = sys.platform == "darwin"
         self.assertEqual([x for x in labels if x], ["File", "N1MM", "View", "Spots", "Spotters",
                                                     "Spotted", "Tools", "Team"]
-                         + ([] if mac else ["Settings..."]) + ["Help"])
+                         + ([] if mac else ["Settings"]) + ["Help"])
 
         def menu(name):
             return self.root.nametowidget(bar.entrycget(labels.index(name), "menu"))
@@ -305,6 +315,16 @@ class TkSettingsWindowTests(unittest.TestCase):
         def items_all(m):
             return [m.entrycget(i, "label") if m.type(i) != "separator" else "-"
                     for i in range(m.index("end") + 1)]
+        # Settings: all of it, or straight to one page (the Mac: in the POUNCer menu)
+        from pouncer import settings as settingsmod
+        pages = [p for p, _ in settingsmod.PAGES]
+        if not mac:
+            setm = menu("Settings")
+            self.assertEqual(items(setm), ["All settings\u2026"] + [p + "\u2026" for p in pages])
+            setm.invoke(0)
+            setm.invoke(items_all(setm).index("Spots\u2026"))
+            self.assertEqual(opened, [(), ("Spots",)])
+            opened.clear()
         f._refresh_spot_menus()
         spots = menu("Spots")
         slabels = items(spots)
@@ -321,6 +341,11 @@ class TkSettingsWindowTests(unittest.TestCase):
         self.assertEqual(f._flt_var.get(), "calls")
         spd = menu("Spotted")
         self.assertEqual(spd.entrycget(1, "label"), "DXCC: JA")
+        # "Edit the lists..." opens the Settings window at that part of Spots
+        spt.invoke(items_all(spt).index("Edit the lists\u2026 (Settings > Spots)"))
+        spd.invoke(items_all(spd).index("Edit the lists\u2026 (Settings > Spots)"))
+        self.assertEqual(opened, [("Spots", "Spotters - who heard it"),
+                                  ("Spots", "Spotted - who was heard")])
         self.assertEqual(f._spd_var.get(), "ww")
         self.assertEqual(items(menu("N1MM")), ["Reconnect log", "Also enter callsign in N1MM",
                                                "Station test (QSY + callsign, each radio)"])

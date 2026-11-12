@@ -1,6 +1,7 @@
 """Settings window of the exe (Tk): the same settings as the /settings page.
 
-Built from ``settings.SETTINGS``, laid out by ``PAGES``: a list of pages on
+Built from ``settings.SETTINGS``, laid out by ``settings.PAGES`` (the
+/settings page uses the same pages): a list of pages on
 the left (Display, Alerts & history, N1MM & radios, Phone page, Spots,
 Cluster server, Startup & updates), all of them on one scrolling sheet on
 the right - a page name jumps to its part, and the name of the part in view
@@ -23,64 +24,12 @@ import tkinter as tk
 from tkinter import font as tkfont
 from tkinter import ttk
 
-from . import theme
+from . import settings, theme
 
 OK_COLOR, ERR_COLOR, LATER_COLOR = "#2e7d32", "#c62828", "#ef6c00"
 PENDING_COLOR = "#f9a825"
 
-_AUTOSTART = ["autostart.enabled"]
-for _n in range(1, 9):
-    _AUTOSTART += [f"autostart.app{_n}", f"autostart.app{_n}_delay", f"autostart.app{_n}_wait_n1mm"]
-_AUTOSTART += ["autostart.folder", "autostart.folder_delay",
-               "autostart.wait_n1mm", "autostart.n1mm_timeout"]
-
-# page -> [(part, [setting keys])]; a key not listed here lands on "Other"
-PAGES: list[tuple[str, list[tuple[str, list[str]]]]] = [
-    ("Display", [
-        ("Window", ["ui.layout", "ui.look", "ui.zo_mode", "ui.spot_tiles", "ui.band_lights",
-                    "ui.check_line", "ui.rate_line", "ui.internet_check"]),
-        ("Spot list", ["ui.min_snr", "ui.min_snr_keep_mults", "ui.mark_tried",
-                       "ui.tried_minutes", "scp.enabled"]),
-        ("Keys", ["ui.fkeys", "ui.fkeys_half"]),
-    ]),
-    ("Alerts & history", [
-        ("Pop-ups", ["ui.alert_popup", "ui.alert_sound", "ui.self_spot_alert",
-                     "ui.self_spot_band_only"]),
-        ("History hints", ["worked.profile", "ui.urgency_contest_minutes"]),
-    ]),
-    ("N1MM & radios", [
-        ("Tap -> N1MM", ["n1mm.qsy_wait_ms", "n1mm.qsy_settle_ms", "n1mm.type_mode",
-                         "n1mm.wipe_before_call", "n1mm.focus_n1mm"]),
-        ("SO2R / SO2V", ["n1mm.default_radio", "n1mm.radio_b_qsy", "n1mm.freq_decimal",
-                         "n1mm.return_focus", "n1mm.focus_back_to_a"]),
-        ("CW speed", ["n1mm.cw_speed", "n1mm.cw_speed_popup"]),
-    ]),
-    ("Phone page", [
-        ("", ["web.phone_control", "web.cw_keyboard"]),
-    ]),
-    ("Spots", [
-        ("Sources", ["rbn.sources", "rbn.history", "rbn.hide_beacons", "rbn.pause_on_phone",
-                     "rbn.skimmer_quiet_minutes"]),
-        ("Backups", ["rbn.telnet_backup", "rbn.hamqth_backup", "rbn.backup_host",
-                     "rbn.backup_port", "rbn.backup_commands", "rbn.http_backup"]),
-        ("SSB", ["ssb.follow_radio_mode", "ssb.mode", "ssb.use_n1mm_spots", "ssb.pskreporter",
-                 "ssb.host", "ssb.port", "ssb.login", "ssb.self_spot_host", "ssb.self_spot_port",
-                 "ssb.self_spot_filter", "ssb.self_spot_ssid"]),
-        ("Spotters - who heard it", ["filter.mode", "rbn.spotter", "filter.dxcc",
-                                     "filter.zones", "filter.conts"]),
-        ("Spotted - who was heard", ["spotted.mode", "spotted.calls", "spotted.dxcc",
-                                     "spotted.zones", "spotted.conts"]),
-    ]),
-    ("Cluster server", [
-        ("", ["cluster.enabled", "cluster.port", "cluster.relay", "cluster.spots_out"]),
-    ]),
-    ("Startup & updates", [
-        ("Autostart", _AUTOSTART),
-        ("Country file & Super Check Partial", ["cty.auto_update", "cty.update_n1mm",
-                                                "scp.update_n1mm"]),
-        ("Updates", ["ui.auto_update"]),
-    ]),
-]
+PAGES = settings.PAGES
 
 
 def group_items(items: list[dict]) -> list[tuple[str, list[dict]]]:
@@ -157,13 +106,45 @@ class SettingsWindow:
         self.pages: list[str] = []
         self._wrap_w = 0
 
-    def open(self) -> None:
+    def open(self, page: str | None = None, part: str | None = None) -> None:
+        """Open (or bring to the front); ``page`` / ``part`` scroll to it
+        (menu Settings > Spots, Spotters > Edit the lists...)."""
         if self.win is not None and self.win.winfo_exists():
             self.win.deiconify()
             self.win.lift()
             self.win.focus_force()
+        else:
+            self._build()
+        if page:
+            self.show(page, part)
+
+    def show(self, page: str, part: str | None = None) -> None:
+        """Scroll to a page (or one part of it) and light it in the list."""
+        if self.win is None:
             return
-        self._build()
+        if self.search_var.get():
+            self.search_var.set("")            # a search would hide it
+        try:
+            self.win.update_idletasks()
+            total = max(self.inner.winfo_height(), 1)
+            target = None
+            for hd in self.heads:
+                if hd["page"] == page and (hd["part"] == part or (part is None and hd["part"] is None)):
+                    target = hd["widget"]
+                    break
+            if target is None:                 # unknown part: the page itself
+                target = next((hd["widget"] for hd in self.heads
+                               if hd["page"] == page and hd["part"] is None), None)
+            if target is None:
+                return
+            self.canvas.yview_moveto(max(target.winfo_y() - 4, 0) / total)
+            if page in self.pages:
+                i = self.pages.index(page)
+                self.side.selection_clear(0, "end")
+                self.side.selection_set(i)
+                self.side.see(i)
+        except tk.TclError:
+            pass
 
     # ---- building ---------------------------------------------------------
     def _build(self) -> None:
@@ -473,7 +454,10 @@ class SettingsWindow:
         if not sel:
             return
         page = self.pages[sel[0]]
-        try:
+        if not self.search_var.get():
+            self.show(page)
+            return
+        try:                                   # searching: jump within the hits
             self.inner.update_idletasks()
             total = max(self.inner.winfo_height(), 1)
             for p, w in self._page_heads():

@@ -3,7 +3,7 @@
 Two ways, both in order, each after its own delay (seconds after the one
 before; the first after POUNCer's start):
 
-1. ``[autostart] app1`` ... ``app8`` in config.ini / Settings > Autostart:
+1. ``[autostart] app1`` ... ``app8`` in config.ini / Settings > Startup & updates > Autostart:
    the full path of an .exe, .bat, .cmd or shortcut, with ``app1_delay`` ...
    ``app8_delay``, and ``appN_wait_n1mm = true`` = start that one only once
    N1MM is up (it broadcasts; at most ``n1mm_timeout`` s). Arguments: put the path in quotes and the arguments after

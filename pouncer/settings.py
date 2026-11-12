@@ -386,7 +386,71 @@ SETTINGS: list[dict] = [
     {"key": "ui.auto_update", "attr": "auto_update", "kind": "bool", "live": False,
      "group": "Program", "label": "Auto-update from GitHub", "help": ""},
 ]
+# ---- pages: how the Settings window and the /settings page show them ----
+_AUTOSTART = ["autostart.enabled"]
+for _n in range(1, 9):
+    _AUTOSTART += [f"autostart.app{_n}", f"autostart.app{_n}_delay", f"autostart.app{_n}_wait_n1mm"]
+_AUTOSTART += ["autostart.folder", "autostart.folder_delay",
+               "autostart.wait_n1mm", "autostart.n1mm_timeout"]
+
+# page -> [(part, [setting keys])]; a key not listed here lands on "Other"
+PAGES: list[tuple[str, list[tuple[str, list[str]]]]] = [
+    ("Display", [
+        ("Window", ["ui.layout", "ui.look", "ui.zo_mode", "ui.spot_tiles", "ui.band_lights",
+                    "ui.check_line", "ui.rate_line", "ui.internet_check"]),
+        ("Spot list", ["ui.min_snr", "ui.min_snr_keep_mults", "ui.mark_tried",
+                       "ui.tried_minutes", "scp.enabled"]),
+        ("Keys", ["ui.fkeys", "ui.fkeys_half"]),
+    ]),
+    ("Alerts & history", [
+        ("Pop-ups", ["ui.alert_popup", "ui.alert_sound", "ui.self_spot_alert",
+                     "ui.self_spot_band_only"]),
+        ("History hints", ["worked.profile", "ui.urgency_contest_minutes"]),
+    ]),
+    ("N1MM & radios", [
+        ("Tap -> N1MM", ["n1mm.qsy_wait_ms", "n1mm.qsy_settle_ms", "n1mm.type_mode",
+                         "n1mm.wipe_before_call", "n1mm.focus_n1mm"]),
+        ("SO2R / SO2V", ["n1mm.default_radio", "n1mm.radio_b_qsy", "n1mm.freq_decimal",
+                         "n1mm.return_focus", "n1mm.focus_back_to_a"]),
+        ("CW speed", ["n1mm.cw_speed", "n1mm.cw_speed_popup"]),
+    ]),
+    ("Phone page", [
+        ("", ["web.phone_control", "web.cw_keyboard"]),
+    ]),
+    ("Spots", [
+        ("Sources", ["rbn.sources", "rbn.history", "rbn.hide_beacons", "rbn.pause_on_phone",
+                     "rbn.skimmer_quiet_minutes"]),
+        ("Backups", ["rbn.telnet_backup", "rbn.hamqth_backup", "rbn.backup_host",
+                     "rbn.backup_port", "rbn.backup_commands", "rbn.http_backup"]),
+        ("SSB", ["ssb.follow_radio_mode", "ssb.mode", "ssb.use_n1mm_spots", "ssb.pskreporter",
+                 "ssb.host", "ssb.port", "ssb.login", "ssb.self_spot_host", "ssb.self_spot_port",
+                 "ssb.self_spot_filter", "ssb.self_spot_ssid"]),
+        ("Spotters - who heard it", ["filter.mode", "rbn.spotter", "filter.dxcc",
+                                     "filter.zones", "filter.conts"]),
+        ("Spotted - who was heard", ["spotted.mode", "spotted.calls", "spotted.dxcc",
+                                     "spotted.zones", "spotted.conts"]),
+    ]),
+    ("Cluster server", [
+        ("", ["cluster.enabled", "cluster.port", "cluster.relay", "cluster.spots_out"]),
+    ]),
+    ("Startup & updates", [
+        ("Autostart", _AUTOSTART),
+        ("Country file & Super Check Partial", ["cty.auto_update", "cty.update_n1mm",
+                                                "scp.update_n1mm"]),
+        ("Updates", ["ui.auto_update"]),
+    ]),
+]
+
+
+def place(key: str) -> tuple[str, str]:
+    """(page, part) of a setting; not in PAGES: ('Other', its own group)."""
+    return _PLACE.get(key, ("Other", BY_KEY.get(key, {}).get("group", "")))
+
+
 BY_KEY = {s["key"]: s for s in SETTINGS}
+_PLACE = {k: (page, part) for page, parts in PAGES for part, keys in parts for k in keys}
+_ORDER = {k: i for i, k in enumerate(k for _p, parts in PAGES for _q, keys in parts for k in keys)}
+
 
 
 def _show(item: dict, value) -> object:
@@ -410,8 +474,10 @@ def app_only(key: str) -> bool:
 def current(cfg) -> list[dict]:
     """Every setting with its value now (for the page)."""
     out = []
-    for item in SETTINGS:
+    # in page order (PAGES); a setting not placed there comes last, under "Other"
+    for item in sorted(SETTINGS, key=lambda it: _ORDER.get(it["key"], len(_ORDER))):
         d = {k: v for k, v in item.items() if k != "attr"}
+        d["group"], d["part"] = place(item["key"])
         d["app_only"] = app_only(item["key"])
         d["value"] = _show(item, getattr(cfg, item["attr"], None))
         out.append(d)

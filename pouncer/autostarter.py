@@ -2,7 +2,7 @@
 
 For a PC without POUNCer: starts the programs you chose (N1MM Logger+ and
 its helpers) in order, each after its delay - the same rules as POUNCer's
-*Settings > Autostart* (``autostart.py`` does the work):
+*Settings > Startup & updates > Autostart* (``autostart.py`` does the work):
 
 - Program 1-8 (path + arguments, "start after" seconds, "wait for N1MM"),
   then every program in the autostart folder.

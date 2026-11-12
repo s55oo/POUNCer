@@ -906,7 +906,7 @@ INDEX_HTML = """<!doctype html>
   function controlling() { return pcAllows() && (control || forAll()); }
   function labelControl() {
     const pc = pcAllows();
-    ctlBtn.textContent = !pc ? 'Control N1MM: off on the PC (Settings > phone control)'
+    ctlBtn.textContent = !pc ? 'Control N1MM: off on the PC (Settings > Phone page)'
       : forAll() ? 'Control N1MM: on for all phones (set on the PC)'
       : ('Control N1MM (QSY, F-keys, CW): ' + (control ? 'on' : 'off - look only'));
     ctlBtn.disabled = !pc || forAll();
@@ -1953,7 +1953,7 @@ spots you still need there. Nothing here transmits except the F-keys.</p>
 <b>look only</b>: tapping a station, the F-keys, ENTER, Spot It, the CW keyboard,
 tune and CW speed do nothing (the keys are dimmed, a note says so). Switch it
 <b>on</b> once on the phone you work with - it is remembered on that phone. On the
-PC, <i>Settings &gt; Tap -&gt; N1MM &gt; Phones may control N1MM</i>
+PC, <i>Settings &gt; Phone page &gt; Phones may control N1MM</i>
 (<code>[web] phone_control</code>): <b>phone</b> = each phone's own switch,
 <b>all</b> = every phone at once (no switch needed), <b>off</b> = no phone, whatever
 its switch says. In a team the <b>master</b>'s choice counts for every POUNCer.
@@ -2016,7 +2016,7 @@ and contest you opened. Without it POUNCer reads N1MM's ini, which N1MM saves on
 then - after switching contests the counts can belong to the old one until N1MM is restarted.</p>
 
 <h2>Weekly contest sessions</h2>
-<p><b>Settings &gt; Program &gt; Contest session profile</b> (restart required):
+<p><b>Settings &gt; Alerts &amp; history &gt; Contest session profile</b> (restart required):
 <b>auto</b> recognizes verified N1MM IDs; explicit <b>ttc</b>, <b>mini40</b>,
 <b>mini80</b> and <b>mwc</b> support custom UDC names; <b>off</b> uses ordinary
 whole-contest checks. TTC has four 15-minute stages (Tuesday 19:30 UTC);
@@ -2100,7 +2100,7 @@ page. The Windows window has its own two (Tools &gt; Alerts).</p>
   <dd>Press that function key in N1MM - it <b>transmits</b> N1MM's message (F1 CQ,
     F2 report, F3 TU, F4 your call, F5 his call, F7 ?, F11 ..). The label on the key says which.
     <b>Half-size</b> keys: F1 and F3 around F2, F5, F7 and F11 under F4
-    (the order and which are half size: <i>Settings &gt; Program</i>, or
+    (the order and which are half size: <i>Settings &gt; Display</i>, or
     <code>[ui] fkeys</code> / <code>fkeys_half</code>).</dd>
   <dt><span class="k">SNR</span> held 1.3 s</dt>
   <dd>Minimum SNR: tap SNR = sort by SNR; <b>hold it 1.3 s</b> (it fills teal) to set the
@@ -2950,6 +2950,7 @@ SETTINGS_HTML = """<!doctype html>
   .bar button.restart { background: #ef6c00; }
   h1 { font-size: 20px; margin: 6px 0 2px; }
   h2 { font-size: 16px; margin: 22px 0 8px; border-bottom: 1px solid #263238; padding-bottom: 4px; }
+  h3 { font-size: 13px; margin: 14px 0 6px; color: #90a4ae; font-weight: 600; }
   p.lead { opacity: .75; margin: 0 0 8px; font-size: 13px; }
   .row { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center;
     padding: 10px 0; border-bottom: 1px solid #1c2329; }
@@ -3019,11 +3020,14 @@ SETTINGS_HTML = """<!doctype html>
     let h = ro ? '<div class="warn">Read-only here: settings can be changed only in the browser on the PC ' +
       'that runs POUNCer (http://127.0.0.1:' + location.port + '/settings), or set ' +
       '<code>[web] remote_settings = true</code>.</div>' : '';
-    let group = '';
+    let group = '', part = '';
     d.items.forEach(it => {
       const iro = ro || it.app_only;      // autostart: only in the exe's own Settings window
       if (it.group !== group) {
-        group = it.group; h += '<h2>' + esc(group) + '</h2>';
+        group = it.group; part = ''; h += '<h2>' + esc(group) + '</h2>';
+      }
+      if ((it.part || '') !== part) {
+        part = it.part || ''; if (part) h += '<h3>' + esc(part) + '</h3>';
         if (it.app_only) h += '<div class="warn">Shown here only: programs that start with ' +
           'POUNCer can be changed only in the Settings window of the POUNCer app (the exe), never from a browser.</div>';
       }
