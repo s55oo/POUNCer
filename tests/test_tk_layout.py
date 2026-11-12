@@ -208,6 +208,15 @@ class TkSettingsWindowTests(unittest.TestCase):
         self.root.update()
         self.assertEqual(w.side.curselection(), (w.pages.index("Spots"),))
         self.assertNotEqual(w.canvas.yview()[0], y_cluster)
+        # every closed help line fits the sheet as it is on screen (label + "more")
+        w.win.geometry("880x700")
+        self.root.update()
+        w._rewrap()
+        self.root.update()
+        too_wide = [h["text"][:40] for h in w.helps if not h["open"]
+                    and h["label"].master.winfo_reqwidth() > w._avail(h) + 2]
+        self.assertEqual(too_wide, [])
+        self.assertTrue(any(h["more"].winfo_manager() for h in w.helps))
         # long help: one line + "more"; "more" opens it all
         h = max(w.helps, key=lambda h: len(h["text"]))
         self.assertTrue(h["label"].cget("text").endswith("…"))

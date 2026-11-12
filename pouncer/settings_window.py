@@ -262,6 +262,7 @@ class SettingsWindow:
 
         inner.bind("<Configure>", fit)
         canvas.bind("<Configure>", resized)
+        win.after(300, self._rewrap)            # once more at its real size
         win.bind("<Escape>", self._escape)
         win.bind("<Control-s>", lambda _e: self.save_all())
         win.bind("<Control-S>", lambda _e: self.save_all())
@@ -355,28 +356,44 @@ class SettingsWindow:
         for h in self.helps:
             self._show_help(h)
 
+    def _avail(self, h: dict) -> int:
+        """Room for a help line: the sheet as it is on screen now."""
+        w = self._wrap_w
+        try:
+            real = self.canvas.winfo_width()
+            if real > 50:
+                w = real
+        except (tk.TclError, AttributeError):
+            pass
+        return max((w or 600) - h["indent"] - 40, 160)
+
+    @staticmethod
+    def _width(label, text: str) -> int:
+        """Pixels ``text`` takes in this label, as Tk lays it out (not the
+        font maths: those can differ from the screen, e.g. on Windows)."""
+        label.configure(text=text, wraplength=0)
+        return label.winfo_reqwidth()
+
     def _show_help(self, h: dict) -> None:
-        avail = max((self._wrap_w or 600) - h["indent"] - 40, 160)
-        f = self.help_font
         text, label, more = h["text"], h["label"], h["more"]
         try:
+            avail = self._avail(h)
+            if more.winfo_manager():
+                more.pack_forget()
+            more.configure(text="less" if h["open"] else "more")
+            link = more.winfo_reqwidth() + 8
             if h["open"]:
-                label.configure(text=text, wraplength=avail - f.measure(" less ") - 6)
-                more.configure(text="less")
-                if not more.winfo_manager():
-                    more.pack(side="left", anchor="sw", padx=(6, 0))
+                label.configure(text=text, wraplength=max(avail - link, 120))
+                more.pack(side="left", anchor="sw", padx=(6, 0))
                 return
-            if "\n" not in text and f.measure(text) <= avail:
-                label.configure(text=text, wraplength=0)
-                if more.winfo_manager():
-                    more.pack_forget()
-                return
-            room = avail - f.measure("…  more") - 6
+            if "\n" not in text and self._width(label, text) <= avail:
+                return                          # it fits: all of it, no "more"
+            room = avail - link
             first = text.split("\n", 1)[0]
             lo, hi = 0, len(first)
             while lo < hi:                      # longest start that fits
                 mid = (lo + hi + 1) // 2
-                if f.measure(first[:mid]) <= room:
+                if self._width(label, first[:mid].rstrip() + "…") <= room:
                     lo = mid
                 else:
                     hi = mid - 1
@@ -384,9 +401,7 @@ class SettingsWindow:
             if lo < len(first) and " " in cut[-20:]:
                 cut = cut[:cut.rfind(" ")]      # end at a whole word
             label.configure(text=cut.rstrip(" ,;:-") + "…", wraplength=0)
-            more.configure(text="more")
-            if not more.winfo_manager():
-                more.pack(side="left", anchor="nw", padx=(6, 0))
+            more.pack(side="left", anchor="nw", padx=(6, 0))
         except tk.TclError:
             pass
 
