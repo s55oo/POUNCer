@@ -153,7 +153,7 @@ class TkSettingsWindowTests(unittest.TestCase):
     def test_tabs_save_and_restart_button(self) -> None:
         import types
         from pouncer import settings as settingsmod
-        from pouncer.settings_window import SettingsWindow, group_items
+        from pouncer.settings_window import SettingsWindow, page_items
 
         cfg = types.SimpleNamespace(**{it["attr"]: None for it in settingsmod.SETTINGS})
         cfg.qsy_wait_ms, cfg.focus_back_to_a, cfg.radio_b_qsy = 1500, False, "udp-left"
@@ -171,9 +171,41 @@ class TkSettingsWindowTests(unittest.TestCase):
                            restart=lambda: restarted.append(1), config_path="C:/x/config.ini")
         w.open()
         self.root.update()
-        groups = [g for g, _ in group_items(settingsmod.current(cfg))]
-        book = [c for c in w.win.winfo_children() if c.winfo_class() == "TNotebook"][0]
-        self.assertEqual([book.tab(t, "text") for t in book.tabs()], groups)
+        # every setting is on a page (none falls to "Other"), pages listed on the left
+        pages = page_items(settingsmod.current(cfg))
+        self.assertNotIn("Other", [p for p, _ in pages])
+        self.assertEqual(sum(len(its) for _p, parts in pages for _q, its in parts),
+                         len(settingsmod.SETTINGS))
+        self.assertEqual(w.side.get(0, "end"), tuple("  " + p for p, _ in pages))
+        self.assertEqual(len(w.rows), len(settingsmod.SETTINGS))
+        # search keeps only the matching rows; Esc clears it, not the window
+        w.search_var.set("snr")
+        self.root.update()
+        shown = [r["item"]["key"] for r in w.rows if r["frame"].winfo_manager()]
+        self.assertEqual(sorted(shown), ["ui.min_snr", "ui.min_snr_keep_mults"])
+        w.search_var.set("zzzz nothing")
+        self.root.update()
+        self.assertIn("No setting matches", w.empty.cget("text"))
+        self.assertTrue(w.empty.winfo_manager())
+        w._escape()
+        self.assertEqual(w.search_var.get(), "")
+        self.assertIsNotNone(w.win)
+        self.root.update()
+        self.assertEqual(len([r for r in w.rows if r["frame"].winfo_manager()]),
+                         len(settingsmod.SETTINGS))
+        # the page list jumps to its page
+        w.side.selection_clear(0, "end")
+        w.side.selection_set(len(pages) - 1)
+        w._jump()
+        self.root.update()
+        self.assertGreater(w.canvas.yview()[0], 0)
+        # long help: one line + "more"; "more" opens it all
+        h = max(w.helps, key=lambda h: len(h["text"]))
+        self.assertTrue(h["label"].cget("text").endswith("…"))
+        self.assertEqual(h["more"].cget("text"), "more")
+        w._toggle_help(h)
+        self.assertEqual(h["label"].cget("text"), h["text"])
+        self.assertEqual(h["more"].cget("text"), "less")
         # a change is only marked - nothing saved before Save
         w.vars["n1mm.qsy_wait_ms"].set("2000")
         w._change(settingsmod.BY_KEY["n1mm.focus_back_to_a"], "true")
