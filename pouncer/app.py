@@ -794,6 +794,11 @@ class PouncerApp:
         view.add_checkbutton(label="Spot list as tiles (like the phone)",
                              variable=self.tiles_var, accelerator="Ctrl+T",
                              command=lambda: self._toggle_tiles(flip=False))
+        # ZO mode: the three history columns (Urgent / Medium / Normal) - [ui] zo_mode
+        self.zo_var = tk.BooleanVar(value=bool(getattr(self.cfg, "zo_mode", False)))
+        view.add_checkbutton(label="ZO mode (Urgent / Medium / Normal columns)",
+                             variable=self.zo_var, accelerator="Ctrl+Z",
+                             command=lambda: self._toggle_zo(flip=False))
         self.rate_var = tk.BooleanVar(value=bool(getattr(self.cfg, "rate_line", True)))
         view.add_checkbutton(label="Rate / QSOs / mults per band line", variable=self.rate_var,
                              command=self._toggle_rate_line)
@@ -944,6 +949,8 @@ class PouncerApp:
         for seq, fn in (("<Control-h>", self._key_hide_worked), ("<Control-H>", self._key_hide_worked),
                         ("<Control-l>", lambda: self._clear_spots()),
                         ("<Control-L>", lambda: self._clear_spots()),
+                        ("<Control-z>", lambda: self._toggle_zo(flip=True)),
+                        ("<Control-Z>", lambda: self._toggle_zo(flip=True)),
                         ("<Control-comma>", self._settings_win.open)):
             self.root.bind_all(seq, lambda e, f=fn: self._menu_key(e, f))
 
@@ -3548,6 +3555,8 @@ class PouncerApp:
         zo_mode = bool(getattr(self.cfg, "zo_mode", False))
         if zo_mode != getattr(self, "_zo_mode_seen", False):
             self._zo_mode_seen = zo_mode
+            if getattr(self, "zo_var", None) is not None and self.zo_var.get() != zo_mode:
+                self.zo_var.set(zo_mode)         # changed in Settings / the phone page
             self._show_tiles()
         self.updater.maybe_check()
         self._check_auto_restart()
@@ -5978,6 +5987,21 @@ class PouncerApp:
         except Exception as exc:  # noqa: BLE001
             log.info("tiles setting not saved: %s", exc)
         return "break"
+
+    def _toggle_zo(self, flip: bool) -> None:
+        """View > ZO mode / Ctrl+Z: saved in config.ini ([ui] zo_mode), shown at once."""
+        var = getattr(self, "zo_var", None)
+        if var is None:
+            return
+        if flip:
+            var.set(not var.get())
+        try:
+            self._save_setting("ui.zo_mode", "true" if var.get() else "false")
+        except Exception as exc:  # noqa: BLE001
+            log.info("ZO mode setting not saved: %s", exc)
+        self._zo_mode_seen = bool(getattr(self.cfg, "zo_mode", False))
+        self._show_tiles()
+        self._dirty = True
 
     def _apply_pin(self, items: list) -> list:
         """The clicked / tapped station stays on its row (``PIN_S``)."""

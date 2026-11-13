@@ -364,7 +364,8 @@ Grouped by what you do (v0.7.189):
   test** (QSY + callsign, each radio).
 * **View** - this window: **Compact window (beside N1MM)** (tick,
   **Ctrl+M**), **Always on top**, **Detailed layout** (every status line and
-  the old table), **Spot list as tiles** (**Ctrl+T**), **Rate / QSOs / mults
+  the old table), **Spot list as tiles** (**Ctrl+T**), **ZO mode** (**Ctrl+Z**, the
+  Urgent / Medium / Normal columns), **Rate / QSOs / mults
   per band line**, Look ▸ (Dark / Light / Classic).
 * **Spots** - the sources (RBN / Telnet / HTTP / Cluster, TelBck, HamQTH),
   **Hide worked** (**Ctrl+H**), **Clear spots** (**Ctrl+L**), the connections

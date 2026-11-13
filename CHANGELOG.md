@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.7.192 — 2026-11-13 — ZO mode in the View menu
+
+- **View > ZO mode** (Ctrl+Z): the three history columns (Urgent / Medium /
+  Normal) on and off without opening Settings. Saved in config.ini
+  (`[ui] zo_mode`) like before; the tick follows a change made in Settings or
+  on the phone's /settings page. Ctrl+Z does nothing while you type in a box.
+
 ## v0.7.191 — 2026-11-12 — Settings: help lines cut to the window on Windows
 
 - The grey help line under each setting is now cut to the window's width

@@ -361,7 +361,9 @@ class TkSettingsWindowTests(unittest.TestCase):
         vlabels = items(menu("View"))
         for label in ("Compact window (beside N1MM)", "Always on top",
                       "Detailed layout (every status line, the old table)",
-                      "Spot list as tiles (like the phone)", "Rate / QSOs / mults per band line",
+                      "Spot list as tiles (like the phone)",
+                      "ZO mode (Urgent / Medium / Normal columns)",
+                      "Rate / QSOs / mults per band line",
                       "Look (from the next start)"):
             self.assertIn(label, vlabels)
         tools = menu("Tools")

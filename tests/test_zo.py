@@ -90,6 +90,30 @@ class LayoutTests(unittest.TestCase):
             self.assertEqual(app.PouncerApp._list_kind(f),'tiles')
 
 
+    def test_view_menu_toggle_saves_and_shows(self):
+        """View > ZO mode / Ctrl+Z: flips, saves [ui] zo_mode, shows the tiles."""
+        from tests.test_so2r import _import_app
+        P = _import_app().PouncerApp
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, 'config.ini')
+            Path(path).write_text('[ui]\nspot_tiles = false\n')
+            cfg = load_config(path)
+            var = types.SimpleNamespace(v=False)
+            var.get = lambda: var.v
+            var.set = lambda x: setattr(var, 'v', x)
+            shown = []
+            f = types.SimpleNamespace(cfg=cfg, zo_var=var, _dirty=False,
+                                      _show_tiles=lambda: shown.append(cfg.zo_mode),
+                                      _save_setting=lambda k, v: settings.save(cfg, path, k, v))
+            P._toggle_zo(f, flip=True)                  # Ctrl+Z
+            self.assertTrue(cfg.zo_mode)
+            self.assertTrue(load_config(path).zo_mode)
+            self.assertTrue(f._zo_mode_seen)
+            var.set(False)                              # the menu tick flips it first
+            P._toggle_zo(f, flip=False)
+            self.assertFalse(load_config(path).zo_mode)
+            self.assertEqual(shown, [True, False])
+
     def test_tick_applies_live_layout_on_main_thread_once_per_change(self):
         from tests.test_so2r import _import_app
         P = _import_app().PouncerApp
