@@ -251,6 +251,7 @@ class Team:
         on_src=None,          # (master) a slave's button: called with "rbn" / "telnet"
         auto_master: bool = False,  # take the master back on (re)joining the team
         get_pc=None,          # -> 'phone' / 'all' / 'off': (master) phones may control N1MM
+        on_cfg=None,          # (master) called with (pid, ip, report): a POUNCer's settings
     ) -> None:
         self.id = uuid.uuid4().hex[:12]
         self.started = time.time()
@@ -275,6 +276,7 @@ class Team:
         self._on_update = on_update
         self._get_src = get_src
         self._get_pc = get_pc
+        self._on_cfg = on_cfg
         self._on_src = on_src
         self._fixed_targets = send_to  # tests: only these
         self._manual_peers = [p.strip() for p in (peers or []) if p.strip()]
@@ -547,6 +549,11 @@ class Team:
         if self.alive_peers():
             self._send({"t": "self", "d": d}, broadcast=False)
 
+    def send_cfg(self, d: dict) -> None:
+        """A slave: my settings, for the master's team settings log."""
+        if self.alive_peers() and not self.is_master():
+            self._send({"t": "cfg", "d": d}, broadcast=False)
+
     def send_runhist(self, key: str, value) -> None:
         """Tell everyone what we just learned about a call."""
         if self.alive_peers():
@@ -605,6 +612,10 @@ class Team:
         elif kind == "self" and self._on_self and isinstance(msg.get("d"), dict) \
                 and pid == self.master_id():
             self._on_self(msg["d"])
+        elif kind == "cfg" and getattr(self, "_on_cfg", None) and self.is_master():
+            from .teamsettings import valid
+            if valid(msg.get("d")):
+                self._on_cfg(pid, ip, msg["d"])
         elif kind == "rh" and self._on_runhist and isinstance(msg.get("d"), dict) and _history_valid(msg["d"]):
             self._on_runhist(msg["d"])
 

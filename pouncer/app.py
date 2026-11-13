@@ -55,6 +55,7 @@ from . import diag as diagmod
 from . import win32 as win32mod
 from . import summary as summarymod
 from . import settings as settingsmod
+from . import teamsettings
 from . import winstate
 from .settings_window import SettingsWindow
 from .team import Team, derive_key
@@ -3559,6 +3560,8 @@ class PouncerApp:
                 self.zo_var.set(zo_mode)         # changed in Settings / the phone page
             self._show_tiles()
         self.updater.maybe_check()
+        if getattr(self, "_settings_report_at", 0):      # a Save a few seconds ago
+            self._maybe_send_settings_report()
         self._check_auto_restart()
         self._drain_status()
         if hasattr(self, "_self_spot_q"):
@@ -4416,16 +4419,63 @@ class PouncerApp:
                 on_src=lambda v: self._web_queue.put(("src", v)),
                 auto_master=bool(getattr(self.cfg, "team_master", False)),
                 get_pc=lambda: self.cfg.web_phone_control,
+                on_cfg=lambda pid, ip, d: self._note_team_settings(ip, d),
             )
             self.team.start()
         except OSError as exc:
             log.warning("team disabled: %s", exc)
             self.team = None
             return
+        self.root.after(30_000, self._settings_report_loop)   # once the team has formed
         if self.runhist is not None:
             self.runhist.on_learn = self.team.send_runhist
             if self.web is not None:
                 self.web.set_runhist_provider(self.runhist.snapshot)
+
+    # ---- team settings log: every POUNCer's settings, kept on the master ----
+    def _settings_report(self, why: str) -> dict:
+        return {"v": __version__, "call": (self.own_call() or "")[:20], "why": why,
+                "s": teamsettings.report(self.cfg)}
+
+    def _send_settings_report(self, why: str = "timer") -> None:
+        """Master: into its own log; a slave: to the master (Team 'cfg')."""
+        if self.team is None:
+            return
+        try:
+            d = self._settings_report(why)
+            if self.team.is_master():
+                self._note_team_settings("", d)
+            else:
+                self.team.send_cfg(d)
+        except Exception as exc:  # noqa: BLE001
+            log.debug("settings report not sent: %s", exc)
+
+    def _note_team_settings(self, ip: str, d: dict) -> None:
+        """Master (any thread): write a POUNCer's settings to the log file."""
+        if not hasattr(self, "_team_settings"):
+            self._team_settings = teamsettings.SettingsLog(self.cfg.run_history_dir or "cache")
+        if self._team_settings.add(d.get("call", ""), ip, d.get("v", ""), d.get("s", {}),
+                                   d.get("why", "")):
+            log.info("team settings: %s (%s) noted", d.get("call") or ip or "this PC",
+                     d.get("why", ""))
+
+    def _send_settings_report_soon(self) -> None:
+        """After a Save (any thread): one report a few seconds later, sent
+        from the tick (several Saves = one report)."""
+        self._settings_report_at = time.time() + 5
+
+    def _maybe_send_settings_report(self) -> None:
+        at = getattr(self, "_settings_report_at", 0)
+        if at and time.time() >= at:
+            self._settings_report_at = 0
+            self._send_settings_report("change")
+
+    def _settings_report_loop(self) -> None:
+        """Every 10 minutes (the first one soon after the start)."""
+        self._send_settings_report("start" if not getattr(self, "_settings_reported", False)
+                                   else "timer")
+        self._settings_reported = True
+        self.root.after(teamsettings.REPORT_S * 1000, self._settings_report_loop)
 
     def _update_session_label(self) -> None:
         """A wrapping session/countdown line outside the optional details panel."""
@@ -5397,6 +5447,8 @@ class PouncerApp:
         old = getattr(self.cfg, item.get("attr", ""), None) if item else None
         res = settingsmod.save(self.cfg, self.cfg.config_path, key, value)
         if res.get("ok"):
+            if getattr(self, "team", None) is not None:
+                self._send_settings_report_soon()
             new = res.get("value")
             show = (lambda v: "***") if any(w in key.lower() for w in ("pass", "token", "secret")) \
                 else (lambda v: ", ".join(v) if isinstance(v, (list, tuple)) else repr(v))

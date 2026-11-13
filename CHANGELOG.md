@@ -1,5 +1,17 @@
 # POUNCer — Changelog
 
+## v0.7.194 — 2026-11-13 — Team settings log
+
+- Every POUNCer of a team now tells the master which settings it runs with:
+  at start, a few seconds after a Save in Settings, and every 10 minutes.
+  The master keeps them in `cache\team-settings.jsonl` - the whole set the
+  first time, then only what changed (old -> new), with call, IP, version
+  and time. *Help > Troubleshooting > Save diagnostics* puts the file in the
+  zip, so the settings operators really choose can tune the defaults.
+- Private things never leave a PC: program paths, host names, logins and
+  command lines are sent only as "(set)" or empty. Without a team nothing
+  is sent or written.
+
 ## v0.7.193 — 2026-11-13 — HamFiles light
 
 - New light **HamFiles** in the lights row (before Update): the country file
