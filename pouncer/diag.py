@@ -28,7 +28,7 @@ SECRET_RE = re.compile(r"^(\s*[;#]?\s*)([\w.]*(?:pass|password|passwd|token|secr
 SECTION_RE = re.compile(r"^\s*\[([^]]+)\]")
 TEAM_KEY_RE = re.compile(r"^(\s*[;#]?\s*)(key)(\s*[=:]\s*)(.*)$", re.IGNORECASE)
 EXTRA_FILES = ("cwspeed.txt", "warm-up.txt", "warm-up-ssb.txt", "window.json",
-               "perf.csv", "perf.csv.1")
+               "perf.csv", "perf.csv.1", "team-settings.jsonl")
 
 _handler: logging.Handler | None = None
 

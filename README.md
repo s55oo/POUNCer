@@ -1376,7 +1376,16 @@ no spots).
 - **Diagnostics:** *Help > Troubleshooting > Save diagnostics (zip)* puts the log, a facts
   list (version, radios, log, team, checks, last tap) and config.ini with
   any password / token / key removed into one zip next to config.ini and
-  opens the folder - send that zip when you report a problem.
+  opens the folder - send that zip when you report a problem. On the team
+  master it also holds `team-settings.jsonl` (below).
+- **Team settings log:** every POUNCer of a team sends its settings to the
+  master - at start, a few seconds after a Save in Settings, and every
+  10 minutes. The master writes them to `cache\team-settings.jsonl`: the
+  whole set the first time a POUNCer reports, then only what changed
+  (old -> new), one line each, with the call, IP, version and time (kept
+  under 1 MB). It goes into the diagnostics zip, so the settings people
+  really choose can be used to tune POUNCer's defaults. Program paths, host
+  names, logins and command lines are never sent: only "(set)" or empty.
 - **Performance log:** once a minute POUNCer writes a row to
   `cache\perf.csv` (opens in Excel; *Help > Troubleshooting > Open the performance log*):
   POUNCer's CPU (% of one core and of the whole PC), the PC's CPU, POUNCer's
