@@ -34,6 +34,13 @@ class LightsTests(unittest.TestCase):
         self.assertEqual(L.web_light(True, True)[0], L.OK)
         self.assertEqual(L.web_light(True, False)[0], L.BAD)
         self.assertEqual(L.web_light(False, False)[0], L.OFF)
+        # HamFiles: cty.dat + MASTER.DTA
+        self.assertEqual(L.hamfiles_light(True, True, True), (L.OK, "HamFiles"))
+        self.assertEqual(L.hamfiles_light(True, False, False), (L.OK, "HamFiles"))   # SCP off
+        self.assertEqual(L.hamfiles_light(True, True, False), (L.WAIT, "HamFiles: no MASTER.DTA"))
+        self.assertEqual(L.hamfiles_light(False, True, True), (L.WAIT, "HamFiles: no cty.dat"))
+        self.assertEqual(L.hamfiles_light(False, False, False), (L.WAIT, "HamFiles: no cty.dat"))
+        self.assertEqual(L.hamfiles_light(False, True, False), (L.BAD, "HamFiles NOK"))
         self.assertEqual(L.warm_light(True, "")[0], L.WAIT)
         self.assertEqual(L.warm_light(True, "46044 stations known in advance (downloaded x)")[0], L.OK)
         self.assertEqual(L.warm_light(True, "warm-up download failed: offline")[0], L.BAD)

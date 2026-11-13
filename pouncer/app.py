@@ -5323,7 +5323,9 @@ class PouncerApp:
                 self._n1mm_quiet_limit()),
             lights.warm_light(self.runhist is not None and self.cfg.warmup,
                               self.runhist.warm_status if self.runhist else ""),
-            lights.update_light(self.updater.state, self.updater.text()),
+            lights.hamfiles_light(bool(self.cty), self.scp is not None,
+                                  bool(self.scp is not None and self.scp.loaded)),
+            lights.update_light(self.updater.state, self.updater.text()),   # last: a button
         ]
 
     def _update_lights(self, snap) -> None:

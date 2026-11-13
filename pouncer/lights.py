@@ -124,6 +124,18 @@ def warm_light(enabled: bool, status: str) -> tuple[str, str]:
     return WAIT, "Warm-up"
 
 
+def hamfiles_light(cty_loaded: bool, scp_on: bool, scp_loaded: bool) -> tuple[str, str]:
+    """HamFiles: the country file (cty.dat) and Super Check Partial (MASTER.DTA).
+    Green = both loaded (or SCP switched off and cty.dat loaded), amber = one
+    missing, red = both missing."""
+    missing = ([] if cty_loaded else ["cty.dat"]) + ([] if scp_loaded or not scp_on else ["MASTER.DTA"])
+    if not missing:
+        return OK, "HamFiles"
+    if len(missing) == 2:
+        return BAD, "HamFiles NOK"
+    return WAIT, "HamFiles: no " + missing[0]
+
+
 def update_light(state: str, text: str) -> tuple[str, str]:
     """state from pouncer.update: off/checking/current/downloading/ready/failed."""
     return {"off": OFF, "current": OK, "ready": NEW, "available": NEW}.get(state, WAIT), text

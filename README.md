@@ -584,6 +584,7 @@ now), amber = connecting, red = connection problem, grey = off.
 | Team | master or slave (count) | alone on the network, or a team POUNCer runs another version (says which IP / version) | - | team off |
 | Phone | web view running | - | port in use | disabled |
 | Warm-up | list loaded | downloading | download failed | off |
+| HamFiles | cty.dat and MASTER.DTA loaded (only cty.dat with Super Check Partial off) | one of them missing (says which) | both missing (NOK) | - |
 | Update | up to date | checking / check failed | - | off (blue = new version ready: **Restart** button) |
 
 **Auto-update:** click the **Update** light ("Up to date (…) ↻") to check

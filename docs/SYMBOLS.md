@@ -58,7 +58,8 @@ One coloured dot per connection, under the top bar:
 | 🔵 blue | Update only: a new version is downloaded - click it (or **Restart**) |
 
 The lights are RBN, N1MM, Log, Team, Phone, Cluster (the DX cluster's
-spots of people), HTTP, N1MM spots, Warm-up and Update. What each colour means per light is in the
+spots of people), HTTP, N1MM spots, Warm-up, HamFiles (cty.dat + MASTER.DTA: green both there, amber one
+missing, red both missing) and Update. What each colour means per light is in the
 [README](../README.md#connection-lights-windows-window). Click the
 **Update** light to check for a new version now.
 

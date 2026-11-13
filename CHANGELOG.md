@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## v0.7.193 — 2026-11-13 — HamFiles light
+
+- New light **HamFiles** in the lights row (before Update): the country file
+  (cty.dat) and the Super Check Partial list (MASTER.DTA). **Green** = both
+  loaded, **amber** = one missing ("HamFiles: no MASTER.DTA" / "no cty.dat"),
+  **red** = both missing ("HamFiles NOK"). With Super Check Partial switched
+  off only cty.dat counts. Right after a start MASTER.DTA is still loading,
+  so the light can be amber for a moment.
+
 ## v0.7.192 — 2026-11-13 — ZO mode in the View menu
 
 - **View > ZO mode** (Ctrl+Z): the three history columns (Urgent / Medium /
