@@ -281,6 +281,8 @@ POUNCer, N1MM and Windows, a row a minute), **traffic console** (Tools menu,
 Ctrl+Shift+D: the raw data of every source, only while open), phone *Reset
 this page*.
 
+**Quick reference to print** (2 pages, PC + phone):
+[docs/POUNCer-quick-reference.pdf](docs/POUNCer-quick-reference.pdf) ·
 Every symbol and colour: [docs/SYMBOLS.md](docs/SYMBOLS.md) · network
 connections: [docs/NETWORK.md](docs/NETWORK.md) · code:
 [ARCHITECTURE.md](ARCHITECTURE.md) · changes: [CHANGELOG.md](CHANGELOG.md).

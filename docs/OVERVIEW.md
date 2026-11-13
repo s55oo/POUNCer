@@ -52,4 +52,4 @@ Several of POUNCer's strongest parts come from **S53ZO**:
 - `cache\pouncer.log` says what POUNCer did; `cache\perf.csv` holds CPU, memory and disk for POUNCer, N1MM and Windows, one row a minute.
 - The phone acts oddly in one browser only: **? > Reset this page**.
 
-**Read more**: the [README](../README.md) on GitHub (every feature), [SYMBOLS.md](SYMBOLS.md) (every mark and colour), and the **?** help page on the phone.
+**Read more**: the [README](../README.md) on GitHub (every feature), [SYMBOLS.md](SYMBOLS.md) (every mark and colour), the [quick reference](POUNCer-quick-reference.pdf) to print (2 pages), and the **?** help page on the phone.
