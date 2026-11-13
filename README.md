@@ -1586,7 +1586,7 @@ only changes the spot list. Tapping a spot tunes the selected radio when
 
 ### Weekly contests and repeat-QSO periods
 
-**Settings → Program → Contest session profile** (`[worked] profile`, restart
+**Settings → Alerts & history → Contest session profile** (`[worked] profile`, restart
 required) supports TTC-SPCWC, MINI40, MINI80 and OK1WC Memorial. The default
 **auto** recognizes exact verified N1MM names; use **mini40** explicitly for
 40m Mini-Test, or choose another explicit profile for a custom UDC name.
@@ -1632,7 +1632,7 @@ cache entries without source context do not trigger that criterion. Their
 R%/hours can still be displayed, and known low run share can still flag a
 historical hint. Reconstructed logs may have incomplete coverage.
 
-**Settings → Program → History hint: contest duration** (`[ui]
+**Settings → Alerts & history → History hint: contest duration** (`[ui]
 urgency_contest_minutes`) accepts an explicit full-event duration in minutes;
 **0** uses the verified duration table. Reset overrides when changing contests.
 Tooltips and browser Debug explain the threshold and source-context limitation.
@@ -1642,7 +1642,7 @@ of repeat-QSO periods, logger scoring and click-to-tune behavior.
 
 ### ZO mode
 
-Enable **Settings → Program → ZO mode** for three permanent callsign columns:
+Turn on **View → ZO mode** (**Ctrl+Z**, or **Settings → Display → ZO mode**) for three permanent callsign columns:
 **⚡ Urgent**, **Medium**, and **Normal**, on the desktop and all browsers served
 by that instance. The setting is live, defaults off, and is saved as `[ui] zo_mode`.
 Disabling it restores the previous desktop table/tile preference. Phones keep

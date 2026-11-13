@@ -34,3 +34,7 @@ are kept here until they are in. Tick them off and delete this file when done.
   Check for a new version."
 - [ ] **New - Main features > Station or the lights:** the HamFiles light
   (v0.7.193) is in the lights row before Update.
+- [ ] **New - Main features > Station:** "the team master keeps a log of
+  every POUNCer's settings (in the diagnostics zip)" (v0.7.194).
+
+The GitHub copy, `docs/OVERVIEW.md`, already has all of these (v0.7.194).

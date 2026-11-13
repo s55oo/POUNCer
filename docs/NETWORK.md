@@ -30,7 +30,7 @@ in the examples are private example addresses.
 | 8b | **out** | TCP (telnet) | 8000 | azure.s53m.com (`[ssb] self_spot_host`) | spots of MY call only (node filter `accept/spots call <call>`, login `<call>-77`, team: the master only) for the SPOTTED pop-up | `[ssb] self_spot_host`, `self_spot_port`, `self_spot_filter` - the log says once whether the node applies the filter ("self-spot feed: the node filter works" / "does NOT apply") |
 | 8d | **in** | TCP | 10000 | N1MM's Telnet window, other cluster clients (LAN / ZeroTier) | POUNCer as a DX cluster: `login:` -> call, then the spots of the switched-on sources as `DX de` lines (Relay on); never N1MM's own spots. A client's commands go over POUNCer's own telnet connection (row 6 / 8) | `[cluster] enabled` (off), `port`, `relay` |
 | 8c | **out** | TCP | 53 | 1.1.1.1, 8.8.8.8, 9.9.9.9 (by IP, no DNS) | internet check: a plain connect every 30 s (10 s while down), **nothing is sent**, closed at once - one answer = internet up; no answer twice = the red "Internet down" bar | `[ui] internet_check` (off = no check) |
-| 9 | **in** + out | UDP broadcast | 12079 | other POUNCers on the network | team: who is master, who needs RBN, spots, run history; the master's band-open counts | `[team] port`, `peers` |
+| 9 | **in** + out | UDP broadcast | 12079 | other POUNCers on the network | team: who is master, who needs RBN, spots, run history; the master's band-open counts; each POUNCer's settings for the master's team settings log | `[team] port`, `peers` |
 | 10 | **in** | HTTP (TCP) | 8080 | phones, tablets, browsers on the LAN; other POUNCers | phone page, its API, settings, team sync | `[web] host`, `port` |
 | 11 | **out** | HTTPS | 443 | api.github.com, github.com | update check and download (SHA-256 checked); clock check fallback: `HEAD api.github.com` (`Date` + `Age`) only if no NTP server answers | `[ui] auto_update`; clock: `[ui] check_line` |
 | 12 | **out** | HTTPS | 443 | github.com (release `warmup`) | warm-up lists (CW, SSB) | `[ui] warmup` |
@@ -340,6 +340,7 @@ random id of that POUNCer) and `t` (type):
 | `update` | master, *Team > Update all POUNCers in the team* | nothing else - every POUNCer checks GitHub, downloads the newest and restarts (accepted only from the master) | directly to each POUNCer |
 | `self` | master, when your call is spotted | `d`: `{call, spotter, khz, comment}` - the slaves show the SPOTTED pop-up too | directly to each POUNCer |
 | `rh` | when a call's run history is learned | `d`: `{"CALL\|CONTEST\|MODE": {run, hours, rec, bands…}}` | directly to each POUNCer |
+| `cfg` | slave: at start (30 s), 5 s after a Save in Settings, every 10 min (v0.7.194) | `d`: `{v, call, why, s: {setting: value}}` - program paths, hosts, logins and commands only as `(set)` / empty; only the master acts on it and writes `cache/team-settings.jsonl` | directly to each POUNCer |
 
 ```json
 {"t":"hi","started":1786112000.5,"web":8080,"healthy":true,"ver":"0.7.41","id":"3f2a…"}

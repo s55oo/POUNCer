@@ -50,7 +50,7 @@ can still be a repeat-QSO opportunity without being a new multiplier.
 
 Separate N1MM identifiers for MINI40 and MINI80 were not verified. Do not
 infer a schedule from a substring or a selected band. Choose `mini40` or
-`mini80` explicitly in **Settings → Program → Contest session profile** for
+`mini80` explicitly in **Settings → Alerts & history → Contest session profile** for
 those sessions, including when reusing MINITESTCW for 40m. Restart POUNCer
 after changing this setting. Explicit profiles also support differently
 named user-defined contests. `off` disables profile handling. Unknown names

@@ -2211,7 +2211,7 @@ private ZeroTier network; never forward port 8080 on a router or open it on a sh
 </dl>
 
 <h2>ZO mode</h2>
-<p>Enable <b>Settings → Program → ZO mode</b> on POUNCer for three permanent
+<p>Turn on <b>View → ZO mode</b> (Ctrl+Z) on POUNCer for three permanent
 columns: <b>⚡ Urgent / Medium / Normal</b>, even on phones. This live setting
 controls the desktop and all its browsers; it defaults off. Existing sorting and
 DX / MLT / ⚡ options apply inside each group. NEXT follows Urgent, Medium,

@@ -50,7 +50,7 @@ CW/SSB variants are explicit; an unlisted RTTY or similarly named contest does
 not inherit a duration. Archive names CQWW, CQWPX and ARRL also work.
 This recognition is for historical hints, not a new logger contest definition.
 
-Other events can set **Settings → Program → History hint: contest duration**
+Other events can set **Settings → Alerts & history → History hint: contest duration**
 (`[ui] urgency_contest_minutes`). Zero means the verified automatic table;
 a positive integer supplies the full event duration in minutes (maximum one
 week). The setting is live and does not change logging/scoring. Reset it to
@@ -120,7 +120,8 @@ tracking, clicked-station pinning, selected bands, N1MM control and transmission
 
 ## ZO mode
 
-ZO mode is a live, instance-wide setting under Settings → Program, persisted
+ZO mode is a live, instance-wide setting: View → ZO mode (Ctrl+Z) or
+Settings → Display → ZO mode, persisted
 as `[ui] zo_mode = false` by default. It forces desktop tiles without overwriting
 the previous table/tile preference and adds three permanent columns in desktop
 and browser views. Narrow phones retain three columns; callsigns wrap.
