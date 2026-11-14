@@ -39,7 +39,8 @@ def shot(out_dir: str, layout: str, look: str) -> str:
     app._ensure_rbn_clients = lambda: None
     app._tick = lambda: None
     app.state.update(radio_info(1, 14025.0, 1111))
-    app.web = types.SimpleNamespace(port=8080, load=lambda: (0, 0))
+    app.web = types.SimpleNamespace(port=8080, load=lambda: (0, 0),
+                                    set_phone_control=lambda *a, **k: None)
     appmod.pick_web_address = lambda host: ("10.66.66.5", "ZeroTier")
     app._refresh_web_address()
     random.seed(7)
@@ -110,6 +111,43 @@ def shot(out_dir: str, layout: str, look: str) -> str:
             con.close()
         except Exception as exc:  # noqa: BLE001
             print(f"console tip screenshot failed: {exc!r}")
+    def grab_root(name):
+        for _ in range(4):
+            app._tick_body()
+            app.root.update()
+            time.sleep(0.2)
+        gx, gy = app.root.winfo_rootx(), app.root.winfo_rooty()
+        ImageGrab.grab(bbox=(gx, gy, gx + app.root.winfo_width(), gy + app.root.winfo_height()),
+                       all_screens=True).save(os.path.join(out_dir, name))
+
+    if layout == "clean" and look in ("dark", "light"):   # tiles, ZO mode, compact, settings
+        for name, on, off in (
+                (f"tiles-{look}.png", lambda: (app.tiles_var.set(True), app._toggle_tiles(flip=False)),
+                 lambda: (app.tiles_var.set(False), app._toggle_tiles(flip=False))),
+                (f"zo-{look}.png", lambda: setattr(cfg, "zo_mode", True),
+                 lambda: setattr(cfg, "zo_mode", False)),
+                (f"compact-{look}.png", app._toggle_compact, app._toggle_compact)):
+            try:
+                on()
+                grab_root(name)
+                off()
+                for _ in range(2):
+                    app._tick_body()
+                    app.root.update()
+            except Exception as exc:  # noqa: BLE001
+                print(f"screenshot {name} failed: {exc!r}")
+        try:
+            sw = app._settings_win
+            sw.open()
+            for _ in range(6):
+                app.root.update()
+                time.sleep(0.2)
+            sx, sy = sw.win.winfo_rootx(), sw.win.winfo_rooty()
+            ImageGrab.grab(bbox=(sx, sy, sx + sw.win.winfo_width(), sy + sw.win.winfo_height()),
+                           all_screens=True).save(os.path.join(out_dir, f"settings-{look}.png"))
+            sw.close()
+        except Exception as exc:  # noqa: BLE001
+            print(f"settings screenshot failed: {exc!r}")
     if layout == "clean" and look == "dark":          # the phone page QR window too
         appmod.phone_addresses = lambda host: [("LAN", "192.168.1.20"), ("ZeroTier", "10.66.66.5")]
         app._show_phone_qr()
