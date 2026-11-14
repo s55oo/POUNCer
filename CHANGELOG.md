@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.7.195 — 2026-11-14 — Nicer looks
+
+- Band chips are quieter: closed bands show in the look's own grey, open
+  ones keep their colours.
+- Yes/no settings in the Settings window are switches (light and dark).
+- More room around the band chips and between the MyCall and Relay buttons.
+
 ## v0.7.194 — 2026-11-13 — Team settings log
 
 - Every POUNCer of a team now tells the master which settings it runs with:

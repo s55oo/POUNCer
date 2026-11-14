@@ -618,7 +618,7 @@ class PouncerApp:
         for key, label in (("mycall", "MyCall"), ("relay", "Relay")):
             b = ttk.Button(cn, text=label, style="Sort.TButton", takefocus=False,
                            width=self.BTN_W, command=lambda k=key: self._set_source(k))
-            b.pack(side="left", padx=(0, 6))
+            b.pack(side="left", padx=(0, 12))
             self._src_buttons[key] = b
             self._source_hover(b, key)
         flow.add(cn, gap=16)
