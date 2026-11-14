@@ -618,7 +618,7 @@ class PouncerApp:
         for key, label in (("mycall", "MyCall"), ("relay", "Relay")):
             b = ttk.Button(cn, text=label, style="Sort.TButton", takefocus=False,
                            width=self.BTN_W, command=lambda k=key: self._set_source(k))
-            b.pack(side="left")
+            b.pack(side="left", padx=(0, 6))
             self._src_buttons[key] = b
             self._source_hover(b, key)
         flow.add(cn, gap=16)
@@ -1057,7 +1057,7 @@ class PouncerApp:
             return
         for band, lbl in chips.items():
             c = data.get(band) or {"state": "closed", "dx": 0, "spots": 0}
-            bg, fg = self._band_chip_color(c)
+            bg, fg = self._chip_color(c)
             m = c.get("mults") or 0
             viewed = band == self._view_band
             lbl.configure(text=("\u25b6" if viewed else "") + band.rstrip("m")
@@ -5279,6 +5279,13 @@ class PouncerApp:
             return "#bdbdbd", "#424242"
         return share_color(dx_pct(c))
 
+    def _chip_color(self, c: dict) -> tuple[str, str]:
+        """The window's chips: as ``_band_chip_color``, a quiet band in the
+        look's own colours (dark chip in the dark look, not a grey slab)."""
+        if c.get("state") == "closed" or not c.get("calls"):
+            return theme.CHIP_OFF
+        return self._band_chip_color(c)
+
     def _view_band_now(self) -> str | None:
         """The band the window's list shows instead of the radio's - until
         the radio changes band (then it follows the radio again)."""
@@ -5332,14 +5339,14 @@ class PouncerApp:
                          fg=theme.MUTED,
                          font=(theme.FONT, 9)).pack(side="left", padx=(0, 4))
             for band in CONTEST_BANDS:
-                lbl = tk.Label(self.bands_frame, text=band, padx=6, pady=1,
+                lbl = tk.Label(self.bands_frame, text=band, padx=8, pady=2,
                                font=(theme.FONT, 9, "bold"), relief="flat", cursor="hand2")
                 lbl.pack(side="left", padx=1)
                 lbl.bind("<Button-1>", lambda _e, b=band: self._on_band_chip(b))
                 self._band_lights[band] = lbl
         for band, lbl in self._band_lights.items():
             c = data.get(band) or {"state": "closed", "dx": 0, "spots": 0}
-            bg, fg = self._band_chip_color(c)
+            bg, fg = self._chip_color(c)
             viewed = band == self._view_band
             text = (self._band_chip_short(band, c) if clean else self._band_chip_text(band, c))
             lbl.configure(text=("\u25b6 " if viewed else "") + text,

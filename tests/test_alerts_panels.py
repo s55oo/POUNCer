@@ -230,6 +230,7 @@ class TkCompactChipsTests(unittest.TestCase):
         f = types.SimpleNamespace(_compact_chips=chips, compact_var=tk.BooleanVar(value=True),
                                   _view_band="40m")
         f._band_chip_color = PouncerApp._band_chip_color
+        f._chip_color = PouncerApp._chip_color.__get__(f)
         f._update_compact_bands = PouncerApp._update_compact_bands.__get__(f)
         f._update_compact_bands({"40m": {"state": "open", "dx": 5, "calls": 8, "spots": 9,
                                          "mults": 3}}, "20m")

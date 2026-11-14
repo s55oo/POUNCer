@@ -38,9 +38,10 @@ _CLASSIC = dict(
     CHECK={"ok": ("#e8f5e9", "#1b5e20"), "warn": ("#fff8e1", "#8d6e00"),
            "bad": ("#ffebee", "#b71c1c")},
     HELP_TEXT="#555555",
+    CHIP_OFF=("#bdbdbd", "#424242"),      # band chip: nothing heard
 )
 _LIGHT = dict(_CLASSIC, BG="#fafafa", PANEL="#ffffff", BAR_BG="#f0f0f0", LINE="#e0e0e0",
-              ACCENT="#005fb8", SELECT="#cce4f7")
+              ACCENT="#005fb8", SELECT="#cce4f7", CHIP_OFF=("#e3e7ec", "#5f6b7a"))
 _DARK = dict(
     BG="#1c1c1c", PANEL="#202020", TEXT="#f2f2f2", MUTED="#a5adb5", LINE="#333333",
     ACCENT="#57c8ff", TOP_BG="#0b0f12", TOP_FG="#ffffff", TOP_MUTED="#90a4ae",
@@ -51,12 +52,14 @@ _DARK = dict(
     CHECK={"ok": ("#16301a", "#a5d6a7"), "warn": ("#332a0d", "#ffd54f"),
            "bad": ("#3b1418", "#ff8a80")},
     HELP_TEXT="#a5adb5",
+    CHIP_OFF=("#2b3138", "#8f9aa5"),
 )
 _PALETTES = {"classic": _CLASSIC, "light": _LIGHT, "dark": _DARK}
 
 BG = PANEL = TEXT = MUTED = LINE = ACCENT = TOP_BG = TOP_FG = TOP_MUTED = ""
 BAR_BG = STRIPE = SELECT = T_STRONG = T_DX = T_ONFREQ = T_MULT = T_WORKED = HELP_TEXT = ""
 CHECK: dict = {}
+CHIP_OFF: tuple = ("#bdbdbd", "#424242")
 
 # keys on the window (modern looks): like the phone - F-keys green, ENTER
 # green, Spot It blue, red while pressed

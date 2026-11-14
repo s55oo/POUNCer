@@ -315,8 +315,14 @@ class SettingsWindow:
         if kind == "bool":
             var = tk.BooleanVar(value=bool(it.get("value")))
             self.vars[key] = var
-            return ttk.Checkbutton(parent, variable=var,
-                                   command=lambda: self._change(it, "true" if var.get() else "false"))
+            cb = ttk.Checkbutton(parent, variable=var,
+                                 command=lambda: self._change(it, "true" if var.get() else "false"))
+            if theme.MODERN:                 # dark / light: an on / off switch
+                try:
+                    cb.configure(style="Switch.TCheckbutton")
+                except tk.TclError:
+                    pass
+            return cb
         var = tk.StringVar(value=text)
         self.vars[key] = var
         # every keystroke marks the row changed (Save then takes what is typed,
