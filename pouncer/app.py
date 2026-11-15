@@ -2029,7 +2029,7 @@ class PouncerApp:
     def _about(self) -> None:
         from tkinter import messagebox
         messagebox.showinfo("About POUNCer", (
-            f"POUNCer {__version__}\n"
+            f"POUNCer {__version__} - S55OO software\n"
             "Search & pounce helper for N1MM Logger+: RBN / DX-cluster spots for "
             "your band, one tap to tune radio A or B and put the call in.\n\n"
             f"Settings: {self.cfg.config_path or 'config.ini'}\n{GITHUB_URL}"), parent=self.root)

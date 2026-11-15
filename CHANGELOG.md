@@ -1,5 +1,9 @@
 # POUNCer — Changelog
 
+## v0.7.196 — 2026-11-15 — About
+
+- *Help > About* now says "S55OO software".
+
 ## v0.7.195 — 2026-11-14 — Nicer looks
 
 - Band chips are quieter: closed bands show in the look's own grey, open
