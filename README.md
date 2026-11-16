@@ -361,7 +361,8 @@ Grouped by what you do (v0.7.189):
 
 * **File** - open the config folder (Explorer), Allow POUNCer in Windows
   Firewall…, Restart POUNCer, Exit.
-* **N1MM** - Reconnect log, *Also enter callsign in N1MM* (tick), **Station
+* **N1MM** - Reconnect log, *Clicking a spot enters its callsign in the N1MM
+  Entry Window* (tick; off = a click only tunes the radio), **Station
   test** (QSY + callsign, each radio).
 * **View** - this window: **Compact window (beside N1MM)** (tick,
   **Ctrl+M**), **Always on top**, **Detailed layout** (every status line and

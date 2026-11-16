@@ -213,7 +213,7 @@ Marks in the call and Mult columns:
 | Menu | What | Shortcut |
 |---|---|---|
 | File | config folder, firewall, restart, exit | |
-| N1MM | Reconnect log, Also enter callsign, Station test | |
+| N1MM | Reconnect log, Clicking a spot enters its callsign, Station test | |
 | View | Compact window, Always on top, Detailed layout, Tiles, Rate line, Look ▸ | Ctrl+M, Ctrl+T |
 | Spots | sources, Hide worked, Clear spots, connections | Ctrl+H, Ctrl+L |
 | Spotters / Spotted | the filters | |
@@ -221,7 +221,7 @@ Marks in the call and Mult columns:
 | Team | password, become master, master after restart, update all (master) - grey when not possible | |
 | View ▸ ZO mode | the three history columns: Urgent / Medium / Normal (`[ui] zo_mode`, also Settings > Display) | Ctrl+Z |
 | Settings ▸ All settings… | the settings window (Mac: POUNCer > Settings…, ⌘,) | Ctrl+, |
-| Settings ▸ Display … Startup & updates | the settings window at that page (Mac: POUNCer > Settings: …) | |
+| Settings ▸ Display … Updates | the settings window at that page (Mac: POUNCer > Settings: …) | |
 | Search box in the settings window | keeps the settings whose name / help has every typed word; Esc clears | Ctrl+F |
 | Help | what every button does, GitHub, Versions ▸, Troubleshooting ▸, About | |
 

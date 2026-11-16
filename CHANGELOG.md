@@ -12,6 +12,8 @@
   starts.
 - No setting of POUNCer starts a program any more, so the web page's
   "autostart only in the app" exception is gone too.
+- N1MM menu: "Also enter callsign in N1MM" is now called **Clicking a spot
+  enters its callsign in the N1MM Entry Window** (same tick, same setting).
 
 ## v0.7.199 — 2026-11-16 — P and A icons
 
