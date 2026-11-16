@@ -213,7 +213,7 @@ Marks in the call and Mult columns:
 | Menu | What | Shortcut |
 |---|---|---|
 | File | config folder, firewall, restart, exit | |
-| N1MM | Reconnect log, Also enter callsign, Station test | |
+| N1MM | Reconnect log, Clicking a spot enters its callsign, Station test | |
 | View | Compact window, Always on top, Detailed layout, Tiles, Rate line, Look ▸ | Ctrl+M, Ctrl+T |
 | Spots | sources, Hide worked, Clear spots, connections | Ctrl+H, Ctrl+L |
 | Spotters / Spotted | the filters | |

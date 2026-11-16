@@ -355,7 +355,7 @@ class TkSettingsWindowTests(unittest.TestCase):
         self.assertEqual(opened, [("Spots", "Spotters - who heard it"),
                                   ("Spots", "Spotted - who was heard")])
         self.assertEqual(f._spd_var.get(), "ww")
-        self.assertEqual(items(menu("N1MM")), ["Reconnect log", "Also enter callsign in N1MM",
+        self.assertEqual(items(menu("N1MM")), ["Reconnect log", "Clicking a spot enters its callsign in the N1MM Entry Window",
                                                "Station test (QSY + callsign, each radio)"])
         vlabels = items(menu("View"))
         for label in ("Compact window (beside N1MM)", "Always on top",

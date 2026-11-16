@@ -770,7 +770,7 @@ class PouncerApp:
         # -- N1MM: how POUNCer works with N1MM -----------------------------------------
         n1mm = tk.Menu(bar, tearoff=False)
         n1mm.add_command(label="Reconnect log", command=self._reconnect_log)
-        n1mm.add_checkbutton(label="Also enter callsign in N1MM", variable=self.set_call_var)
+        n1mm.add_checkbutton(label="Clicking a spot enters its callsign in the N1MM Entry Window", variable=self.set_call_var)
         n1mm.add_separator()
         n1mm.add_command(label="Station test (QSY + callsign, each radio)",
                          command=self._station_test)
