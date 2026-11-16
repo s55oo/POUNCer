@@ -37,7 +37,7 @@ class WatchTests(unittest.TestCase):
             GOOD, skimmers={"names": "TK0C", "quiet": "TK0C sends nothing (4 min)"}))}
         self.assertEqual(items["Skimmer"]["state"], "warn")
         self.assertIn("offline or its connection down", items["Skimmer"]["text"])
-        self.assertEqual(items["RBN"]["state"], "ok")
+        self.assertEqual(items["SPOTS"]["state"], "ok")
         items = {i["name"]: i for i in checks.build(dict(GOOD, skimmers={"names": "S53WW", "quiet": ""}))}
         self.assertEqual((items["Skimmer"]["state"], items["Skimmer"]["text"]), ("ok", "S53WW"))
         self.assertNotIn("Skimmer", {i["name"] for i in checks.build(GOOD)})

@@ -11,50 +11,58 @@ LINE = "DX de EA8BFK-#:   14025.0  DL1ABC         CW    24 dB  28 WPM  CQ      1
 OTHER_SKIMMER = "DX de W3LPL-#:    14025.0  DL1ABC         CW    18 dB  28 WPM  CQ      1802Z"
 
 
-def _app():
+def _app(zones=(14, 15), spotted=None):
+    """A stand-in app with the real Spotters filter: skimmers in the zones."""
     from tests.test_so2r import _import_app
+    from pouncer.rbn import SpotterFilter
     P = _import_app().PouncerApp
-    visible = []
-    f = types.SimpleNamespace(radio=1, _last_weak=7)
-    f._visible_spots = lambda radio=None, band=None: list(visible)
-    for name in ("_note_accepted", "_console_shown"):
+    zone = {"EA8BFK": 33, "DL1ABC": 14, "W3LPL": 5, "F5ABC": 14, "S50ABC": 15}
+    sf = SpotterFilter("", zone_of=lambda c: zone.get(c), continent_of=lambda c: "EU",
+                       home_cont=lambda: "EU")
+    sf.configure("zones", zones=zones)
+    f = types.SimpleNamespace(spotter_filter=sf, spotted_filter=spotted,
+                              cfg=types.SimpleNamespace(hide_beacons=True))
+    for name in ("_console_spot", "_console_shown"):
         setattr(f, name, getattr(P, name).__get__(f))
-    f._accepted_key = P._accepted_key
-    f.ACCEPTED_KEEP_S = P.ACCEPTED_KEEP_S
-    return f, visible
+    return f
+
+
+IN_ZONE = "DX de DL1ABC-#:   14025.0  K1ABC          CW    24 dB  28 WPM  CQ      1802Z"
+OUT_ZONE = "DX de W3LPL-#:    14025.0  K1ABC          CW    18 dB  28 WPM  CQ      1802Z"
 
 
 class ShownTests(unittest.TestCase):
     def setUp(self) -> None:
         try:
-            self.f, self.visible = _app()
+            self.f = _app()
         except Exception as exc:  # noqa: BLE001 - the app needs tkinter
             self.skipTest(f"app not importable here: {exc}")
-        traffic.start()
 
-    def tearDown(self) -> None:
-        traffic.stop()
-
-    def test_only_accepted_and_listed_spots(self) -> None:
+    def test_spotter_zones_decide(self) -> None:
         f = self.f
         self.assertIsNone(f._console_shown("telnet", "Hello S55OO, this is a node"))
-        self.assertFalse(f._console_shown("telnet", LINE))           # not taken in (yet)
-        spot = parse_spot(LINE)
-        f._note_accepted(spot)
-        self.assertFalse(f._console_shown("telnet", LINE))           # taken in, not listed
-        self.visible.append(spot)
-        f._shown_cache = None
-        self.assertTrue(f._console_shown("telnet", LINE))
-        # the same station from a skimmer outside the zones: never taken in
-        self.assertFalse(f._console_shown("rbn", OTHER_SKIMMER))
-        # a prompt in front of the line is fine
-        self.assertTrue(f._console_shown("telnet", "S55OO de NODE >" + LINE))
-        self.assertEqual(f._last_weak, 7)                            # the phone's count kept
+        self.assertTrue(f._console_shown("telnet", IN_ZONE))          # skimmer in zone 14
+        self.assertFalse(f._console_shown("rbn", OUT_ZONE))           # zone 5: filtered out
+        self.assertTrue(f._console_shown("telnet", "S55OO de NODE >" + IN_ZONE))
+        # every source: HamQTH, the HTTP feed (JSON), N1MM's spot packets
+        self.assertTrue(f._console_shown("HAMQTH", "DL1ABC-# 14025.0 K1ABC CW 24"))
+        self.assertFalse(f._console_shown("HAMQTH", "W3LPL-# 14025.0 K1ABC CW 18"))
+        self.assertTrue(f._console_shown(
+            "N1MM 127.0.0.1", "<spot><dxcall>K1ABC</dxcall><frequency>1420500</frequency>"
+            "<spottercall>F5ABC</spottercall><action>add</action></spot>"))
 
-    def test_nothing_noted_while_the_console_is_closed(self) -> None:
-        traffic.stop()
-        self.f._note_accepted(parse_spot(LINE))
-        self.assertFalse(getattr(self.f, "_accepted", {}))
+    def test_spotted_filter_and_beacons(self) -> None:
+        f = _app(spotted=types.SimpleNamespace(accept=lambda call: call.startswith("K1")))
+        self.assertTrue(f._console_shown("telnet", IN_ZONE))
+        other = IN_ZONE.replace("K1ABC", "G3XYZ")
+        self.assertFalse(f._console_shown("telnet", other))          # not a Spotted station
+        beacon = "DX de DL1ABC-#:   14100.0  4U1UN          CW    24 dB  22 WPM  NCDXF B 1802Z"
+        self.assertFalse(_app()._console_shown("telnet", beacon))
+
+    def test_all_pass_without_filters(self) -> None:
+        f = _app(zones=())
+        f.spotter_filter.configure("ww")
+        self.assertTrue(f._console_shown("rbn", OUT_ZONE))
 
 
 try:

@@ -2,6 +2,14 @@
 
 ## v0.7.203 — 2026-11-16 — SPOTS check: READY with any working source
 
+- Traffic console: **yellow = the spot matches your filters** - from every
+  enabled source (RBN, Telnet, Cluster, HTTP, HamQTH, N1MM's spot packets):
+  its spotter passes the Spotters filter (skimmers / zones, or the backups
+  while those are quiet; people's spots the people rule) and its station the
+  Spotted filter, and it isn't a dropped beacon. Modes, Min SNR, Hide worked
+  and duplicates no longer matter for the colour (in v0.7.201 - .202 only the
+  spots then in the list were yellow), so the filtering itself can be checked.
+
 - The pre-contest check's **RBN** item is now called **SPOTS**, and it no
   longer says **NOT READY** because RBN itself isn't logged in while another
   source brings spots: one source delivering is enough - RBN, **Telnet**, the

@@ -5,10 +5,11 @@ lines, and the commands sent), N1MM (UDP packets in, QSY / call commands
 out), the HTTP backup feed, the team, the phone page's requests. The taps
 (``traffic.emit``) only work while this window is open; closed = no work.
 
-Spot lines that POUNCer shows (they passed every filter - skimmers / zones,
-Spotted, modes, beacons, Min SNR, Hide worked) are drawn in **yellow**
-(``shown`` from the app; a line is looked at again for ``SHOWN_WAIT_S``, as
-the spot can reach the list a moment after its line).
+Spot lines - of every source - that match the filters (the Spotters filter:
+skimmers / zones, and the Spotted filter; not a dropped beacon) are drawn in
+**yellow** (``shown`` from the app, v0.7.203), so the filtering can be
+watched; a line that doesn't is looked at again for ``SHOWN_WAIT_S`` (the
+backup skimmers can switch on meanwhile).
 
 Sources can be ticked off (they keep being counted; a line in the view marks
 the switch), a filter word (a call, "DX de", "RadioInfo" ...) shows matching
@@ -103,7 +104,7 @@ class TrafficConsole:
         if self.shown is not None:
             # the look's own text colour (yellow on the light look's grey bar
             # could not be read); only the lines below are yellow (v0.7.202)
-            ttk.Label(bar, text="yellow = spots POUNCer shows",
+            ttk.Label(bar, text="yellow = spots that match your filters",
                       font=(theme.FONT, 9)).pack(side="left", padx=(10, 0))
         # one chip per source: coloured dot (green = lines now, amber = quiet,
         # red = quiet long, grey = quiet for a known reason) + count / why

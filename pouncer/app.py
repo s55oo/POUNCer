@@ -223,33 +223,6 @@ def _note_tap(app, spot: Spot, nr: int, ok: bool, short: str, full: str = "") ->
 PIN_S = 60     # a clicked / tapped station keeps its row this long (or until logged)
 DESKTOP_REFRESH_S = 5  # quiet-feed age/fade/CQ/pin updates, without a redraw every tick
 
-ACCEPTED_KEEP_S = 120
-
-
-def accepted_key(spotter: str, call: str, khz: float) -> tuple:
-    return (str(spotter or "").upper(), str(call or "").upper(), int(round(float(khz) * 10)))
-
-
-def note_accepted(app, spot) -> None:
-    """A spot that went into the list: remembered on ``app._accepted`` (only
-    while the traffic console is open) so its raw line can be drawn yellow
-    there. A plain function: works with any app object (tests use stand-ins)."""
-    if traffic._sink is None:
-        return
-    acc = getattr(app, "_accepted", None)
-    if acc is None:
-        acc = {}
-        try:
-            app._accepted = acc
-        except AttributeError:
-            return
-    now = time.time()
-    acc[accepted_key(spot.spotter, spot.dxcall, spot.freq_khz)] = now
-    if len(acc) > 3000:
-        for k in [k for k, t in acc.items() if now - t > ACCEPTED_KEEP_S]:
-            del acc[k]
-
-
 class PouncerApp:
     def __init__(self, config: Config) -> None:
         self.cfg = config
@@ -4098,7 +4071,6 @@ class PouncerApp:
             self._note_own(spot)
             self._check_overlap(spot)
             self.spots[spot.key] = spot
-            note_accepted(self, spot)
             self._track_on_freq(spot)
             got += 1
             if getattr(self, "net", None) is not None:
@@ -4127,7 +4099,6 @@ class PouncerApp:
             self._check_overlap(spot)
             self._serve(spot)
             self.spots[spot.key] = spot
-            note_accepted(self, spot)
             self._track_on_freq(spot)
             got += 1
         self._relabel_overlap()
@@ -4135,47 +4106,74 @@ class PouncerApp:
             self._dirty = True
 
     # ---- the traffic console's yellow lines --------------------------------------
-    ACCEPTED_KEEP_S = ACCEPTED_KEEP_S
-
-    @staticmethod
-    def _accepted_key(spotter: str, call: str, khz: float) -> tuple:
-        return accepted_key(spotter, call, khz)
-
-    def _note_accepted(self, spot: Spot) -> None:
-        note_accepted(self, spot)
-
-    def _console_shown(self, src: str, txt: str):
-        """Traffic console: is this raw line a spot that POUNCer shows now?
-        None = not a spot line. Shown = it went into the list (it passed the
-        skimmer / zone, Spotted, beacon and duplicate filters) and its station is
-        listed now (modes, Min SNR, Hide worked) - on any contest band."""
+    def _console_spot(self, src: str, txt: str):
+        """A raw console line as a spot: (Spot or None, spotter, call, kHz,
+        skimmer?) - telnet "DX de" lines (RBN, Telnet, Cluster), the HTTP feed's
+        JSON, HamQTH's lines, N1MM's spot packets. None = not a spot line."""
+        import json as _json
         from .rbn import parse_cluster_spot, parse_spot
         line = str(txt or "")
+        g = traffic.group_of(src)
         at = line.find("DX de ")
-        if at < 0:
-            return None
-        line = line[at:]
-        spot = parse_spot(line) or parse_cluster_spot(line)
-        if spot is None:
-            return None
-        acc = getattr(self, "_accepted", None) or {}
-        if self._accepted_key(spot.spotter, spot.dxcall, spot.freq_khz) not in acc:
-            return False
-        now = time.time()
-        cache = getattr(self, "_shown_cache", None)
-        if cache is None or now - cache[0] > 0.5:
-            weak = getattr(self, "_last_weak", 0)   # _visible_spots sets it: keep the phone's
+        if at >= 0:
+            line = line[at:]
+            sp = parse_spot(line) or parse_cluster_spot(line)
+            if sp is None:
+                return None
+            return sp, sp.spotter, sp.dxcall, sp.freq_khz, sp.spotter.endswith("-#")
+        if g == "HTTP" and line.startswith("{"):
             try:
-                # radio given (never None): no side effects on the window's counters
-                r = getattr(self, "radio", None) or 1
-                keys = {(s.dxcall.upper(), band_from_khz(s.freq_khz))
-                        for s in self._visible_spots(radio=r, band=ALL_BANDS)}
-            except Exception:  # noqa: BLE001 - colour only
-                keys = set()
-            finally:
-                self._last_weak = weak
-            cache = self._shown_cache = (now, keys)
-        return (spot.dxcall.upper(), band_from_khz(spot.freq_khz)) in cache[1]
+                from .rbnhttp import to_spot
+                sp = to_spot(_json.loads(line))
+            except Exception:  # noqa: BLE001 - cut long JSON etc.
+                return None
+            if sp is None:
+                return None
+            return sp, sp.spotter, sp.dxcall, sp.freq_khz, True
+        if src.upper().startswith("HAMQTH"):
+            parts = line.split()
+            if len(parts) < 3:
+                return None
+            try:
+                khz = float(parts[1])
+            except ValueError:
+                return None
+            snr = len(parts) > 4 and parts[4].lstrip("-").isdigit()
+            return None, parts[0], parts[2], khz, snr or parts[0].endswith("-#")
+        if g == "N1MM" and "<spot" in line:
+            from .n1mm import parse_spot_packet
+            pkt = parse_spot_packet(line.encode("utf-8"))
+            if not pkt or str(pkt.get("action", "add")).lower() not in ("add", ""):
+                return None
+            sp_call = str(pkt.get("spotter") or "")
+            return None, sp_call, str(pkt.get("call") or ""), float(pkt.get("freq_khz") or 0), \
+                sp_call.endswith("-#")
+        return None
+
+    def _console_shown(self, src: str, txt: str):
+        """Traffic console: does this spot line match the filters? None = not a
+        spot line. True = its spotter passes the Spotters filter (the chosen
+        skimmers / zones - or, while they are quiet, the backups; people's
+        spots: the same filter for people) and its station the Spotted
+        filter, and it isn't a dropped beacon. Every enabled source counts;
+        the list's own extras (modes, Min SNR, Hide worked, duplicates) don't -
+        so the yellow lines show what the filters let through (v0.7.203)."""
+        got = self._console_spot(src, txt)
+        if got is None:
+            return None
+        spot, spotter, call, khz, skimmer = got
+        sf = getattr(self, "spotter_filter", None)
+        if sf is not None:
+            ok = sf.matches(spotter) if skimmer and hasattr(sf, "matches") else (
+                sf.people_accept(spotter) if hasattr(sf, "people_accept") else sf.accept(spotter))
+            if not ok:
+                return False
+        spf = getattr(self, "spotted_filter", None)
+        if spf is not None and not spf.accept(call):
+            return False
+        if spot is not None and getattr(self.cfg, "hide_beacons", False) and is_beacon(spot):
+            return False
+        return True
 
     def _beacon_out(self, spot: Spot) -> bool:
         """[rbn] hide_beacons: a beacon spot (an NCDXF beacon on its

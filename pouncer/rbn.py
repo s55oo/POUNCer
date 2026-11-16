@@ -614,6 +614,22 @@ class SpotterFilter:
             return self.continent_of is not None and self.continent_of(base) in self.conts
         return False
 
+    def matches(self, spotter: str) -> bool:
+        """``accept`` without its side effects (the traffic console asks it):
+        a chosen skimmer, or - while the chosen ones are quiet - a backup."""
+        sp = (spotter or "").upper()
+        if not self.active():
+            return True
+        if self.chosen(sp):
+            return True
+        if not self.backup_active():
+            return False
+        if self.backups:
+            return any(sp.startswith(b) for b in self.backups)
+        if self.continent_of is None:
+            return False
+        return self.continent_of(sp.split("-")[0]) == self.home_cont()
+
     def people_accept(self, spotter: str) -> bool:
         """A person's cluster spot (Cluster, HamQTH): the same filter - with
         Calls (skimmers, no person is S53WW) their continent."""
