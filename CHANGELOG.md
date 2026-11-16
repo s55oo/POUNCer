@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## v0.7.201 — 2026-11-16 — Yellow spots in the traffic console
+
+- *Tools > Traffic console*: the raw lines of the spots POUNCer shows are
+  **yellow and bold** - the spot passed every filter (skimmers / zones such
+  as `ZONE14, ZONE15`, Spotted, beacons, duplicates) and its station is in the
+  list now (modes, Min SNR, Hide worked; any contest band). Spots from
+  skimmers outside your zones, or of filtered-out stations, stay white. A
+  line is looked at again for 5 s (its spot may reach the list a moment
+  later). Only while the console is open - nothing extra otherwise.
+
 ## v0.7.200 — 2026-11-16 — Programs start with the N1MM Autostarter only
 
 - POUNCer no longer starts programs: *File > Autostart*, the Autostart part of

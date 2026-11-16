@@ -458,7 +458,8 @@ class PouncerApp:
         self._timeline_win = TimelineWindow(self.root, self._timeline,
                                             browser=lambda: self._open_browser("timeline"))
         # Tools > Traffic console: the taps only work while it is open
-        self._console = TrafficConsole(self.root, notes=self._console_notes, info=self._console_info)
+        self._console = TrafficConsole(self.root, notes=self._console_notes, info=self._console_info,
+                                       shown=self._console_shown)
         self.root.bind_all("<Control-Shift-D>", lambda _e: self._console.open())
         self.root.bind_all("<Control-Shift-d>", lambda _e: self._console.open())
 
@@ -4040,6 +4041,7 @@ class PouncerApp:
             self._note_own(spot)
             self._check_overlap(spot)
             self.spots[spot.key] = spot
+            self._note_accepted(spot)
             self._track_on_freq(spot)
             got += 1
             if getattr(self, "net", None) is not None:
@@ -4068,11 +4070,66 @@ class PouncerApp:
             self._check_overlap(spot)
             self._serve(spot)
             self.spots[spot.key] = spot
+            self._note_accepted(spot)
             self._track_on_freq(spot)
             got += 1
         self._relabel_overlap()
         if got:
             self._dirty = True
+
+    # ---- the traffic console's yellow lines --------------------------------------
+    ACCEPTED_KEEP_S = 120
+
+    @staticmethod
+    def _accepted_key(spotter: str, call: str, khz: float) -> tuple:
+        return (str(spotter or "").upper(), str(call or "").upper(), int(round(float(khz) * 10)))
+
+    def _note_accepted(self, spot: Spot) -> None:
+        """A spot that went into the list: remembered (only while the traffic
+        console is open) so its raw line can be drawn yellow there."""
+        if traffic._sink is None:
+            return
+        acc = getattr(self, "_accepted", None)
+        if acc is None:
+            acc = self._accepted = {}
+        now = time.time()
+        acc[self._accepted_key(spot.spotter, spot.dxcall, spot.freq_khz)] = now
+        if len(acc) > 3000:
+            for k in [k for k, t in acc.items() if now - t > self.ACCEPTED_KEEP_S]:
+                del acc[k]
+
+    def _console_shown(self, src: str, txt: str):
+        """Traffic console: is this raw line a spot that POUNCer shows now?
+        None = not a spot line. Shown = it went into the list (it passed the
+        skimmer / zone, Spotted, beacon and duplicate filters) and its station is
+        listed now (modes, Min SNR, Hide worked) - on any contest band."""
+        from .rbn import parse_cluster_spot, parse_spot
+        line = str(txt or "")
+        at = line.find("DX de ")
+        if at < 0:
+            return None
+        line = line[at:]
+        spot = parse_spot(line) or parse_cluster_spot(line)
+        if spot is None:
+            return None
+        acc = getattr(self, "_accepted", None) or {}
+        if self._accepted_key(spot.spotter, spot.dxcall, spot.freq_khz) not in acc:
+            return False
+        now = time.time()
+        cache = getattr(self, "_shown_cache", None)
+        if cache is None or now - cache[0] > 0.5:
+            weak = getattr(self, "_last_weak", 0)   # _visible_spots sets it: keep the phone's
+            try:
+                # radio given (never None): no side effects on the window's counters
+                r = getattr(self, "radio", None) or 1
+                keys = {(s.dxcall.upper(), band_from_khz(s.freq_khz))
+                        for s in self._visible_spots(radio=r, band=ALL_BANDS)}
+            except Exception:  # noqa: BLE001 - colour only
+                keys = set()
+            finally:
+                self._last_weak = weak
+            cache = self._shown_cache = (now, keys)
+        return (spot.dxcall.upper(), band_from_khz(spot.freq_khz)) in cache[1]
 
     def _beacon_out(self, spot: Spot) -> bool:
         """[rbn] hide_beacons: a beacon spot (an NCDXF beacon on its

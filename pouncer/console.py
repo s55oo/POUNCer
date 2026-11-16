@@ -5,6 +5,11 @@ lines, and the commands sent), N1MM (UDP packets in, QSY / call commands
 out), the HTTP backup feed, the team, the phone page's requests. The taps
 (``traffic.emit``) only work while this window is open; closed = no work.
 
+Spot lines that POUNCer shows (they passed every filter - skimmers / zones,
+Spotted, modes, beacons, Min SNR, Hide worked) are drawn in **yellow**
+(``shown`` from the app; a line is looked at again for ``SHOWN_WAIT_S``, as
+the spot can reach the list a moment after its line).
+
 Sources can be ticked off (they keep being counted; a line in the view marks
 the switch), a filter word (a call, "DX de", "RadioInfo" ...) shows matching
 lines only, Pause freezes the view (lines keep counting), Clear empties it.
@@ -28,6 +33,8 @@ KEEP = 3000
 EVERY_MS = 250
 QUIET_S = 5          # no line this long = "quiet" (amber dot)
 DEAD_S = 30          # this long = red dot (unless the app says why: grey)
+SHOWN_WAIT_S = 5     # a spot line: look again this long whether POUNCer shows it
+SHOWN_COLOR = "#ffeb3b"
 DOT = {"live": "#43a047", "quiet": "#f9a825", "dead": "#e53935", "why": "#78909c"}
 GROUPS = traffic.GROUPS
 group_of = traffic.group_of
@@ -37,9 +44,11 @@ COLORS = {"RBN": "#81c784", "TELNET": "#80cbc4", "SSB": "#ffb74d", "HTTP": "#4fc
 
 
 class TrafficConsole:
-    def __init__(self, root, notes=None, info=None) -> None:
+    def __init__(self, root, notes=None, info=None, shown=None) -> None:
         self.root = root
         self.notes = notes            # () -> {group: "paused - radio on SSB", ...}
+        self.shown = shown            # (source, line) -> True / False / None (not a spot)
+        self._pending: list = []      # [(mark, source, line, until)] not yet shown
         self.info_text = info         # (group) -> what it is + its settings (hover)
         self._tip: tk.Toplevel | None = None
         self.win: tk.Toplevel | None = None
@@ -91,6 +100,9 @@ class TrafficConsole:
         self.pause_btn.pack(side="left", padx=2)
         ttk.Button(bar, text="Clear", command=self._clear).pack(side="left", padx=2)
         ttk.Button(bar, text="Reset counters", command=self.reset_counts).pack(side="left", padx=2)
+        if self.shown is not None:
+            tk.Label(bar, text="yellow = spots POUNCer shows", fg=SHOWN_COLOR,
+                     bg=theme.BG or "#1c1c1c", font=(theme.FONT, 9, "bold")).pack(side="left", padx=(10, 0))
         # one chip per source: coloured dot (green = lines now, amber = quiet,
         # red = quiet long, grey = quiet for a known reason) + count / why
         self.info = ttk.Frame(win, padding=(8, 0, 8, 4))
@@ -134,6 +146,8 @@ class TrafficConsole:
             self.text.tag_configure(g, foreground=col)
         self.text.tag_configure("time", foreground="#607d8b")
         self.text.tag_configure("mark", foreground="#607d8b", font=("Consolas", 9, "italic"))
+        self.text.tag_configure("shown", foreground=SHOWN_COLOR, font=("Consolas", 9, "bold"))
+        self._pending = []
         self._tick()
 
     # ---- hover: what a source is and its settings ---------------------------------
@@ -255,6 +269,7 @@ class TrafficConsole:
 
     def _clear(self) -> None:
         self.text.delete("1.0", "end")
+        self._drop_pending()
         self._follow()
 
     def reset_counts(self) -> None:
@@ -305,6 +320,47 @@ class TrafficConsole:
             if self.is_open():
                 self._after = self.root.after(EVERY_MS, self._tick)
 
+    # ---- yellow: the spots POUNCer shows ---------------------------------------
+    def _is_shown(self, src: str, txt: str):
+        if self.shown is None:
+            return None
+        try:
+            return self.shown(src, txt)
+        except Exception:  # noqa: BLE001 - colour only: never stops the console
+            return None
+
+    def _mark_shown(self, mark: str) -> None:
+        try:
+            self.text.tag_add("shown", f"{mark} linestart", f"{mark} lineend")
+        except tk.TclError:
+            pass
+
+    def _drop_pending(self) -> None:
+        for mark, *_ in self._pending:
+            try:
+                self.text.mark_unset(mark)
+            except tk.TclError:
+                pass
+        self._pending = []
+
+    def recheck(self, now: float | None = None) -> None:
+        """Spot lines not yellow yet: shown by now? (until SHOWN_WAIT_S)."""
+        if not self._pending:
+            return
+        now = time.time() if now is None else now
+        keep = []
+        for mark, src, txt, until in self._pending:
+            if self._is_shown(src, txt):
+                self._mark_shown(mark)
+            elif now < until:
+                keep.append((mark, src, txt, until))
+                continue
+            try:
+                self.text.mark_unset(mark)
+            except tk.TclError:
+                pass
+        self._pending = keep
+
     def add(self, lines: list) -> None:
         """Show drained (time, source, text) lines - filtered, at the end."""
         want = self.filter.get().strip().upper()
@@ -326,10 +382,25 @@ class TrafficConsole:
             self.text.insert("end", f"{src:<16} ", "OUT" if out else g)
             self.text.insert("end", txt + "\n")
             shown += 1
+            if not out:
+                yes = self._is_shown(src, txt)
+                if yes is not None:
+                    line = int(self.text.index("end-1c").split(".")[0]) - 1
+                    mark = f"sp{id(txt)}_{t}_{shown}"
+                    self.text.mark_set(mark, f"{line}.0")
+                    if yes:
+                        self._mark_shown(mark)
+                        self.text.mark_unset(mark)
+                    elif len(self._pending) < 500:
+                        self._pending.append((mark, src, txt, time.time() + SHOWN_WAIT_S))
+                    else:
+                        self.text.mark_unset(mark)
+        self.recheck()
         if shown:
             n = int(self.text.index("end-1c").split(".")[0])
             if n > KEEP:
                 self.text.delete("1.0", f"{n - KEEP}.0")
+                self._drop_pending()          # their lines may be gone
             if at_end:
                 self.text.see("end")
             else:

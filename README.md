@@ -466,7 +466,15 @@ out, the HTTP feed, the team, the cluster server (**SERVER**), FT8 / FT4
 spots kept out of port 10000 (**FT8**), beacon spots kept out (**BEACON**: the NCDXF beacons on their frequencies, /B calls), the phone page's requests (WEB, off
 at first). Tick sources on / off - **None** unticks them all, to then tick
 only the one to watch (**All** ticks them back) - type a filter word (a call, `DX de`, `RadioInfo` ...),
-Pause, Clear; outgoing lines are yellow (`>`). **Hover over a source** (its
+Pause, Clear; outgoing lines have a yellow source name (`>`). **Spot lines
+that POUNCer shows are yellow and bold** (v0.7.201): the spot passed every
+filter - your skimmers / zones (e.g. `ZONE14, ZONE15`), Spotted, beacons,
+duplicates - and the station is in the list now (modes, Min SNR, Hide
+worked; any contest band). A line from a skimmer outside your zones, or of
+a station that is filtered out, stays white - so the console shows at a
+glance what the filters let through ("yellow = spots POUNCer shows" in the
+bar). A line is looked at again for 5 s, as the spot can reach the list a
+moment after its line. **Hover over a source** (its
 switch or its dot): a pop-up says what that source is and what POUNCer is
 monitoring with which settings right now - server and port, login call,
 mode, filters, listen address, team role and peers, Relay on / off (a team
