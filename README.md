@@ -853,7 +853,7 @@ current). A newer file is checked (a few hundred countries), saved as
 before the first download ever (e.g. a first start offline). `[cty]
 update_n1mm` copies a downloaded file into N1MM only if it is a
 `wl_cty.dat` - never S53M's `cty.dat` over N1MM's (it lacks N1MM's WAE
-entries). Off: `[cty] auto_update = false` (Settings > Startup & updates);
+entries). Off: `[cty] auto_update = false` (Settings > Updates);
 another source: `[cty] url`.
 
 ## Busted calls (Super Check Partial)

@@ -192,12 +192,12 @@ s.append(P("Hints from past logs, not a prediction of who leaves the band.", sma
 
 s.append(section("Menus", [
     ("File", "config folder, Windows Firewall, restart, exit"),
-    ("N1MM", "reconnect log, also enter callsign, station test"),
+    ("N1MM", "reconnect log, clicking a spot enters its callsign, station test"),
     ("View", "compact, always on top, detailed layout, tiles, ZO mode, rate line, look ▸"),
     ("Spots / Spotters / Spotted", "sources on / off · whose spots (skimmers) · which DX"),
     ("Tools", "summary, CQ zones, timeline, phone page ▸ (QR), alerts ▸, traffic console"),
     ("Team", "password, become master, master after restart, update all"),
-    ("Settings", "All settings… or straight to a page: Display, Alerts & history, N1MM & radios, Phone page, Spots, Cluster server, Startup & updates"),
+    ("Settings", "All settings… or straight to a page: Display, Alerts & history, N1MM & radios, Phone page, Spots, Cluster server, Updates"),
     ("Help", "Versions ▸ (check for a new version, go back), Troubleshooting ▸"),
 ], 25 * mm, W))
 

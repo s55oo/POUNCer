@@ -1,7 +1,7 @@
 """Log file and diagnostics: what POUNCer did, kept on disk.
 
 ``setup_file_log`` adds a rotating ``cache/pouncer.log`` (1 MB, 3 old ones
-kept) to the normal logging, so taps, QSYs, autostart, team and connection
+kept) to the normal logging, so taps, QSYs, team and connection
 problems can be read afterwards - the exe has no console window.
 
 ``build_zip`` makes *Help > Troubleshooting > Save diagnostics*: one zip with the log files,

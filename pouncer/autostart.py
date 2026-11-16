@@ -1,9 +1,10 @@
-"""Start your other programs together with POUNCer.
+"""Starting programs in order - the engine of N1MMautostarter.exe.
 
-Two ways, both in order, each after its own delay (seconds after the one
-before; the first after POUNCer's start):
+(POUNCer used it itself up to v0.7.199; since v0.7.200 only the
+Autostarter does.) Two ways, both in order, each after its own delay
+(seconds after the one before):
 
-1. ``[autostart] app1`` ... ``app8`` in config.ini / Settings > Startup & updates > Autostart:
+1. ``app1`` ... ``app8`` in N1MMautostarter.ini (the window's Edit):
    the full path of an .exe, .bat, .cmd or shortcut, with ``app1_delay`` ...
    ``app8_delay``, and ``appN_wait_n1mm = true`` = start that one only once
    N1MM is up (it broadcasts; at most ``n1mm_timeout`` s). Arguments: put the path in quotes and the arguments after
@@ -12,17 +13,14 @@ before; the first after POUNCer's start):
    .lnk / .vbs / .ps1 in it, in name order (``1 rotor.lnk``, ``2 cw.bat``),
    ``folder_delay`` seconds apart.
 
-An .exe that was already running before POUNCer started its list is not
-started again (listing the same program 4 times starts 4 copies), and when POUNCer
-restarts itself (update, File > Restart) nothing is started - it all runs
-already. Every program starts in its own folder, like a double-click.
+An .exe that was already running before the list started is not started
+again (listing the same program 4 times starts 4 copies). Every program
+starts in its own folder, like a double-click.
 
 N1MM first: when the first program is N1MM Logger+ (``N1MMLogger.net.exe``,
-wherever it is installed) and it isn't running yet, POUNCer starts it and
-WAITS until N1MM is up - its first RadioInfo or AppInfo broadcast - and
-only then starts the rest of itself (RBN, log, team, phone page, ...) and
-the other programs (``[autostart] wait_n1mm``; ``n1mm_timeout`` seconds at
-most). ``N1mmWait`` is that decision, without tkinter.
+wherever it is installed) and it isn't running yet, it is started first and
+the rest WAITS until N1MM is up - its first RadioInfo or AppInfo broadcast
+(``wait_n1mm``; ``n1mm_timeout`` seconds at most). ``N1mmWait`` is that decision, without tkinter.
 """
 
 from __future__ import annotations
@@ -39,7 +37,6 @@ log = logging.getLogger(__name__)
 
 APPS = 8
 FOLDER_TYPES = (".exe", ".bat", ".cmd", ".lnk", ".vbs", ".ps1", ".url")
-RESTART_ENV = "POUNCER_RESTARTED"     # set by POUNCer when it restarts itself
 N1MM_EXE_PREFIX = "n1mmlogger"        # N1MMLogger.net.exe (any install folder)
 N1MM_SETTLE_S = 3        # after N1MM's first broadcast: let it finish opening
 N1MM_NO_PROCESS_S = 45   # N1MM still not running after this long: it didn't start
