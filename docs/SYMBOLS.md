@@ -17,7 +17,7 @@ them in the window (or long-press on the phone) for a short explanation.
 | **▶ list: 20m** | you clicked a band chip: the list shows that band, not the radio's band. It goes back by itself when the radio changes band; click the chip again to go back now |
 | **✓ READY** (green) | the pre-contest check is all good |
 | **⚠ CHECK** (amber) | something should be looked at (an old country file, the clock a few seconds off, ...) |
-| **✗ NOT READY** (red) | something POUNCer needs is not working (no radio info, no log, no RBN, ...) |
+| **✗ NOT READY** (red) | something POUNCer needs is not working (no radio info, no log, no spots from any source, ...) |
 | red line at the bottom **⚠ Error in ... - click: open pouncer.log** | something failed (the refresh, a button, reading the N1MM log): when, how often, the error. Click = pouncer.log opens, the line goes away (v0.7.176) |
 | **MASTER** (green) | team: this POUNCer holds the RBN connection and feeds the others |
 | **SLAVE** (blue) | team: this POUNCer gets its spots from the master. **Click it** to become the master yourself (asks first; Team > Become team master does the same) |

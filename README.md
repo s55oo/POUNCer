@@ -548,14 +548,15 @@ counts. `[ui] band_lights = false` hides them.
 for 30 minutes (`[ui] mark_tried`, `tried_minutes`; Settings).
 
 **Pre-contest check line** (top of the window): **READY** / **CHECK** /
-**NOT READY** with ✓ / ⚠ / ✗ for N1MM radio info, log, station call, RBN,
+**NOT READY** with ✓ / ⚠ / ✗ for N1MM radio info, log, station call, SPOTS,
 country file (⚠ > 60 days old), Super Check Partial (⚠ > 30 days), phone
-page and PC clock (checked against an NTP time server every 30 min). **RBN**
-is ✓ as long as **one** spot source delivers - RBN, or Telnet, the HTTP
-backup, HamQTH or the Cluster (a spot line in the last 2 min): "✓ RBN via
-Telnet" when RBN itself isn't logged in but Telnet brings spots (v0.7.203). Each item
+page and PC clock (checked against an NTP time server every 30 min). **SPOTS**
+(called RBN up to v0.7.202) is ✓ as long as **one** spot source delivers -
+RBN, Telnet, the HTTP backup, HamQTH or the Cluster (connected, a spot line in
+the last 2 min): "✓ SPOTS via Telnet" when RBN itself isn't logged in but
+Telnet brings spots; ✗ only when no source brings any (v0.7.203). Each item
 has its own colour: **red** = not working, **amber** = check it, **green** = OK
-(N1MM closed: N1MM red, RBN / SCP still green). The phone
+(N1MM closed: N1MM red, SPOTS / SCP still green). The phone
 shows ⚠ in its top line only when something is wrong; tap it for details.
 `[ui] check_line = false` hides it.
 

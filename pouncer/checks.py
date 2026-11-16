@@ -63,16 +63,17 @@ def build(f: dict) -> list[dict]:
 
     add("Call", "ok", f["call"]) if f.get("call") else add("Call", "bad", "no station call")
 
-    # "ok" / "telnet" / "http" / "hamqth" / "cluster" / "team" / "paused" / text
-    # of the problem: any one source delivering spots is enough (v0.7.203)
+    # SPOTS (was "RBN" up to v0.7.202): "ok" (RBN) / "telnet" / "http" /
+    # "hamqth" / "cluster" / "team" / "paused" / text of the problem - any one
+    # source delivering spots is enough (v0.7.203)
     rbn = f.get("rbn")
-    via = {"ok": "", "telnet": "via Telnet", "http": "via HTTP backup", "hamqth": "via HamQTH",
-           "cluster": "via Cluster", "team": "via team master",
+    via = {"ok": "via RBN", "telnet": "via Telnet", "http": "via HTTP backup",
+           "hamqth": "via HamQTH", "cluster": "via Cluster", "team": "via team master",
            "paused": "paused - SSB, not needed"}
     if rbn in via:
-        add("RBN", "ok", via[rbn])
+        add("SPOTS", "ok", via[rbn])
     else:
-        add("RBN", "bad", rbn or "no spots")
+        add("SPOTS", "bad", f"no source brings spots (RBN: {rbn})" if rbn else "no source brings spots")
 
     sk = f.get("skimmers")        # None = not watched; {"names", "quiet": "" or text}
     if sk:

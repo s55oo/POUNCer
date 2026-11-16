@@ -33,19 +33,23 @@ class BuildTests(unittest.TestCase):
         states = {t.split(" ")[1] if t[0] in "✓⚠✗" else t: st for t, st in segs}
         self.assertEqual(segs[0], ("NOT READY", "bad"))
         self.assertEqual(states["N1MM"], "bad")
-        self.assertEqual(states["RBN"], "ok")
+        self.assertEqual(states["SPOTS"], "ok")
         self.assertEqual(states["SCP"], "ok")
 
     def test_any_source_with_spots_is_enough(self) -> None:
-        """RBN not logged in, but Telnet (or another source) brings spots: READY."""
+        """RBN not logged in, but Telnet (or another source) brings spots: READY.
+        The item is called SPOTS (v0.7.203)."""
         for via, text in (("telnet", "via Telnet"), ("hamqth", "via HamQTH"),
                           ("cluster", "via Cluster"), ("http", "via HTTP backup")):
             items = checks.build(dict(GOOD, rbn=via))
-            self.assertEqual(by_name(items)["RBN"]["state"], "ok", via)
-            self.assertIn(text, by_name(items)["RBN"]["text"])
+            self.assertEqual(by_name(items)["SPOTS"]["state"], "ok", via)
+            self.assertIn(text, by_name(items)["SPOTS"]["text"])
             self.assertTrue(checks.line(items).startswith("READY"), via)
+        self.assertEqual(by_name(checks.build(GOOD))["SPOTS"]["text"], "via RBN")
+        self.assertNotIn("RBN", [i["name"] for i in checks.build(GOOD)])
         items = checks.build(dict(GOOD, rbn="connecting"))
-        self.assertEqual(by_name(items)["RBN"]["state"], "bad")
+        self.assertEqual(by_name(items)["SPOTS"]["state"], "bad")
+        self.assertIn("RBN: connecting", by_name(items)["SPOTS"]["text"])
         self.assertTrue(checks.line(items).startswith("NOT READY"))
 
     def test_old_files_and_clock_warn(self) -> None:
@@ -62,7 +66,7 @@ class BuildTests(unittest.TestCase):
         f = dict(GOOD, n1mm_age=None, log_open=False, log_msg="log not found", call="",
                  rbn="connecting...", cty_loaded=False, web="bad", clock_offset=300)
         items = by_name(checks.build(f))
-        for name in ("N1MM", "Log", "Call", "RBN", "cty", "Phone", "Clock"):
+        for name in ("N1MM", "Log", "Call", "SPOTS", "cty", "Phone", "Clock"):
             self.assertEqual(items[name]["state"], "bad", name)
         self.assertEqual(items["Log"]["text"], "log not found")
         self.assertTrue(checks.line(list(items.values())).startswith("NOT READY"))
@@ -84,7 +88,7 @@ class BuildTests(unittest.TestCase):
 
     def test_team_slave_and_http_backup_count_as_rbn(self) -> None:
         for rbn, txt in (("team", "via team master"), ("http", "via HTTP backup")):
-            it = by_name(checks.build(dict(GOOD, rbn=rbn)))["RBN"]
+            it = by_name(checks.build(dict(GOOD, rbn=rbn)))["SPOTS"]
             self.assertEqual((it["state"], it["text"]), ("ok", txt))
 
 
