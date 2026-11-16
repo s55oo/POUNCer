@@ -587,7 +587,7 @@ now), amber = connecting, red = connection problem, grey = off.
 
 | Light | Green | Yellow (on hold) | Amber | Red | Grey |
 |---|---|---|---|---|---|
-| RBN | skimmer spots coming - from RBN or Telnet (slave: via master; "RBN via HTTP" with only HTTP on) | SSB contest / every radio on SSB | connecting | disconnected | no skimmer source on |
+| SPOTS (called RBN up to v0.7.202) | **one** source brings spots - "SPOTS via RBN / Telnet / HTTP / HamQTH / Cluster" (a spot line in the last 2 min; slave: via master) | SSB contest / every radio on SSB | connecting | no source brings spots | no source on |
 | Cluster | logged in, its spots of people used | N1MM's spots used instead (N1MM on the cluster itself) | connecting | disconnected | *Spots: Cluster* off |
 | HTTP | the HTTP feed delivers | - | starting | running, nothing comes | *Spots: HTTP* off / no URL / team slave |
 | N1MM spots | used for Cluster (own connection closed) | N1MM sends, own cluster still kept (a minute after a fallback) | - | stopped (20 s+) | Broadcast Data > Spots not ticked / off |

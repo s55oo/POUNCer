@@ -11,7 +11,13 @@ class LightsTests(unittest.TestCase):
         self.assertEqual(L.rbn_light("connecting to x:7000", None, "off")[0], L.WAIT)
         self.assertEqual(L.rbn_light("disconnected, reconnecting", None, "off")[0], L.BAD)
         self.assertEqual(L.rbn_light("disconnected, reconnecting", 30, "off")[0], L.OK)
-        self.assertEqual(L.rbn_light("starting", None, "slave"), (L.OK, "RBN via master"))
+        self.assertEqual(L.rbn_light("starting", None, "slave"), (L.OK, "SPOTS via master"))
+        # RBN not logged in, but Telnet brings spots: green, named after it
+        self.assertEqual(L.rbn_light("disconnected, reconnecting", None, "solo", working="telnet"),
+                         (L.OK, "SPOTS via Telnet"))
+        self.assertEqual(L.rbn_light("logged in as S55OO", None, "solo", working="ok"),
+                         (L.OK, "SPOTS via RBN"))
+        self.assertEqual(L.rbn_light("paused", None, "solo", working="telnet")[0], L.HOLD)
 
     def test_n1mm_log(self) -> None:
         self.assertEqual(L.n1mm_light(None)[0], L.BAD)
@@ -54,11 +60,11 @@ class LightsTests(unittest.TestCase):
 class SharedAndStandbyTests(unittest.TestCase):
     def test_via_n1mm_and_standby(self) -> None:
         self.assertEqual(L.rbn_light("via N1MM's connection to azure.s53m.com:8000", None, "solo"),
-                         (L.OK, "RBN via N1MM's login"))
+                         (L.OK, "SPOTS via N1MM's login"))
         self.assertEqual(L.rbn_light("standby - the HTTP feed delivers", None, "solo", http=True),
-                         (L.OK, "RBN via HTTP"))
+                         (L.OK, "SPOTS via HTTP"))
         self.assertEqual(L.rbn_light("standby - the HTTP feed delivers", None, "solo"),
-                         (L.HOLD, "RBN standby (HTTP)"))
+                         (L.HOLD, "SPOTS standby (HTTP)"))
 
 
 if __name__ == "__main__":

@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.204 — 2026-11-16 — The SPOTS light
+
+- The first light in the row (before N1MM, Log, Team ...) is now **SPOTS**
+  (was RBN) and is **green as long as one source brings spots** - "SPOTS via
+  Telnet", "via RBN", "via HTTP", "via HamQTH", "via Cluster" (connected, a
+  spot line in the last 2 min). Red only when no source brings any; yellow
+  on hold (SSB) as before.
+
 ## v0.7.203 — 2026-11-16 — SPOTS check: READY with any working source
 
 - Traffic console: **yellow = the spot matches your filters** - from every

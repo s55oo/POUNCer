@@ -1,7 +1,7 @@
 """Connection lights for the main window: one coloured dot per connection.
 
 green = working (this stream delivers), yellow = on hold (ready, not
-needed now: RBN on SSB, the SSB cluster while N1MM sends, the HTTP backup
+needed now: SPOTS (RBN) on SSB, the SSB cluster while N1MM sends, the HTTP backup
 while telnet works), amber = connecting / partly there, red = not working
 (connection problem), grey = switched off. Pure logic (no tkinter), so it is
 testable anywhere; ``app.py`` draws the dots.
@@ -19,30 +19,38 @@ N1MM_QUIET_S = 120   # no radio info this long = N1MM probably closed
 RBN_SPOT_S = 120     # a spot this recently = RBN works whatever the status says
 
 
+VIA = {"ok": "RBN", "telnet": "Telnet", "http": "HTTP", "hamqth": "HamQTH", "cluster": "Cluster"}
+
+
 def rbn_light(status: str, last_spot_age: float | None, role: str,
-              http: bool = False) -> tuple[str, str]:
+              http: bool = False, working: str = "") -> tuple[str, str]:
+    """The SPOTS light (called RBN up to v0.7.202): green as long as ONE source
+    brings spots - ``working`` = ``app._spot_source_working()`` ("ok" = RBN,
+    "telnet", "http", "hamqth", "cluster") - else from RBN's own status."""
     s0 = (status or "").lower()
     if s0.startswith("paused"):
-        return HOLD, "RBN on hold (SSB)"  # SSB contest / every radio on SSB: not needed
+        return HOLD, "SPOTS on hold (SSB)"  # SSB contest / every radio on SSB: not needed
     if role == "slave":
-        return OK, "RBN via master"
+        return OK, "SPOTS via master"
+    if working in VIA:
+        return OK, f"SPOTS via {VIA[working]}"
     if http and last_spot_age is not None and last_spot_age < RBN_SPOT_S:
-        return OK, "RBN via HTTP"       # telnet down, the HTTP backup delivers
+        return OK, "SPOTS via HTTP"     # telnet down, the HTTP backup delivers
     s = (status or "").lower()
-    name = "RBN via backup" if "backup" in s and "trying rbn" not in s else "RBN"
+    name = "SPOTS via backup" if "backup" in s and "trying rbn" not in s else "SPOTS"
     if last_spot_age is not None and last_spot_age < RBN_SPOT_S:
         return OK, name
     if s.startswith("logged in"):
         return OK, name
     if s.startswith("via n1mm"):
-        return OK, "RBN via N1MM's login"     # one login on the node, shared with N1MM
+        return OK, "SPOTS via N1MM's login"   # one login on the node, shared with N1MM
     if s.startswith("off"):
-        return OFF, "RBN: no skimmer source on"
+        return OFF, "SPOTS: no source on"
     if s.startswith("standby"):
-        return (OK if http else HOLD), ("RBN via HTTP" if http else "RBN standby (HTTP)")
+        return (OK if http else HOLD), ("SPOTS via HTTP" if http else "SPOTS standby (HTTP)")
     if s.startswith(("starting", "connecting")):
-        return WAIT, "RBN"
-    return BAD, "RBN"
+        return WAIT, "SPOTS"
+    return BAD, "SPOTS"
 
 
 def n1mm_light(radio_age: float | None) -> tuple[str, str]:

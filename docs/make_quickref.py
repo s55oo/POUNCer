@@ -150,7 +150,7 @@ s.append(KeepTogether([P("Lights", h2), table([
     (dot(GREY) + " grey", "switched off (the clean layout hides these)"),
     (dot(BLUE) + " blue", "Update: a new version is downloaded"),
 ], 15 * mm, W, keycol=False),
-    P("RBN · N1MM · Log · Team · Phone · Cluster · HTTP · N1MM spots · Warm-up · "
+    P("SPOTS · N1MM · Log · Team · Phone · Cluster · HTTP · N1MM spots · Warm-up · "
       "HamFiles · Update - then the <b>Radio A/B</b> badge.", small)]))
 
 s.append(section("Top bar badges", [

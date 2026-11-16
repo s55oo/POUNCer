@@ -35,7 +35,7 @@ colour - green, amber, red - so one red item doesn't colour the whole line:
 | N1MM | radio info arrives | ✗ no radio info for 30 s (N1MM: Config > Broadcast Data > Radio) |
 | Log | a contest log is open | ⚠ N1MM's ini names another contest than today's QSOs · ✗ no log open |
 | Call | your station call is known | ✗ no station call |
-| RBN | skimmer spots arrive (RBN, Telnet or HTTP - the Spots menu - or from the team master), or "paused - SSB, not needed" | ✗ no spots / no skimmer source on |
+| SPOTS (was RBN) | one source brings spots - RBN, Telnet, HTTP, HamQTH or Cluster (the Spots menu) or the team master - "✓ SPOTS via Telnet"; or "paused - SSB, not needed" | ✗ no source brings spots |
 | Skimmer | your listed skimmers (S53WW, TK0C) send spots | ⚠ one sent nothing for 3 min while RBN works - offline or its connection down |
 | cty | country file loaded, 60 days old or less | ⚠ older · ✗ not loaded (no mults / DX) |
 | SCP | Super Check Partial loaded, 30 days old or less | ⚠ older or not loaded (no **?** marks) |
@@ -57,7 +57,7 @@ One coloured dot per connection, under the top bar:
 | ⚪ grey | switched off / not needed |
 | 🔵 blue | Update only: a new version is downloaded - click it (or **Restart**) |
 
-The lights are RBN, N1MM, Log, Team, Phone, Cluster (the DX cluster's
+The lights are SPOTS (any source bringing spots; called RBN up to v0.7.202), N1MM, Log, Team, Phone, Cluster (the DX cluster's
 spots of people), HTTP, N1MM spots, Warm-up, HamFiles (cty.dat + MASTER.DTA: green both there, amber one
 missing, red both missing) and Update. What each colour means per light is in the
 [README](../README.md#connection-lights-windows-window). Click the

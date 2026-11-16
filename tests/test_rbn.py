@@ -279,8 +279,8 @@ class BackupServerTests(unittest.TestCase):
     def test_light_says_backup(self) -> None:
         from pouncer.lights import OK, rbn_light
         self.assertEqual(rbn_light("logged in as S55OO (backup azure.s53m.com)", None, "solo"),
-                         (OK, "RBN via backup"))
-        self.assertEqual(rbn_light("logged in as S55OO", None, "solo"), (OK, "RBN"))
+                         (OK, "SPOTS via backup"))
+        self.assertEqual(rbn_light("logged in as S55OO", None, "solo"), (OK, "SPOTS"))
 
 
 class SsbClusterTests(unittest.TestCase):

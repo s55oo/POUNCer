@@ -5343,7 +5343,8 @@ class PouncerApp:
             lights.rbn_light("paused" if getattr(self, "_rbn_pause_on", False) or (
                 role == "slave" and self.team.master_paused()) else self.rbn_status,
                              spot_age, role,
-                             http=self._http_feed is not None and bool(self._http_feed.spots_in)),
+                             http=self._http_feed is not None and bool(self._http_feed.spots_in),
+                             working=self._spot_source_working()),
             lights.n1mm_light(snap["age"] if snap and snap.get("freq_khz") else None),
             lights.log_light(self.worked.log_open, self.worked.log_state),
             lights.team_light(role, n, self.team.version_mismatch() if self.team else None),
