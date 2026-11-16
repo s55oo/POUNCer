@@ -1,5 +1,10 @@
 # POUNCer — Changelog
 
+## v0.7.198 — 2026-11-16 — An icon
+
+- POUNCer and the N1MM Autostarter have an icon: a bold C on a blue tile with
+  an orange spot in its mouth - in Explorer, the taskbar and the title bar.
+
 ## v0.7.197 — 2026-11-16 — A small N1MM Autostarter window
 
 - N1MMautostarter.exe (1.1.0) has a new, small window: your programs as a
