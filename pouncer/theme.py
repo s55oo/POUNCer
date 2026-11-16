@@ -81,6 +81,31 @@ def px(n: float) -> int:
     return int(round(n * SCALE))
 
 
+def icon_dir() -> str:
+    """The app icon (.ico for Windows, .png elsewhere): bundled or from source."""
+    base = getattr(sys, "_MEIPASS", None)
+    if base:
+        cand = os.path.join(base, "pouncer", "icon")
+        if os.path.isdir(cand):
+            return cand
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "icon")
+
+
+def set_icon(root) -> None:
+    """The big C in the title bar and the taskbar. Only looks: never fails."""
+    folder = icon_dir()
+    try:
+        if sys.platform == "win32":
+            root.iconbitmap(default=os.path.join(folder, "pouncer.ico"))
+        else:
+            import tkinter as tk
+            img = tk.PhotoImage(master=root, file=os.path.join(folder, "pouncer.png"))
+            root.iconphoto(True, img)
+            root._pouncer_icon = img          # keep it alive
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def sunvalley_dir() -> str:
     """The vendored Sun Valley theme (next to this file, or in the exe)."""
     base = getattr(sys, "_MEIPASS", None)

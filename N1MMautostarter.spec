@@ -1,3 +1,4 @@
+import sys
 # -*- mode: python ; coding: utf-8 -*-
 # N1MM Autostarter - POUNCer's autostart as a program of its own (Windows).
 # Build with:  python -m PyInstaller --noconfirm N1MMautostarter.spec
@@ -7,7 +8,7 @@ a = Analysis(
     ['autostarter_main.py'],
     pathex=[],
     binaries=[],
-    datas=[('pouncer/sunvalley', 'pouncer/sunvalley')],
+    datas=[('pouncer/sunvalley', 'pouncer/sunvalley'), ('pouncer/icon', 'pouncer/icon')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -32,6 +33,7 @@ exe = EXE(
     upx_exclude=[],
     runtime_tmpdir=None,
     console=False,
+    icon='pouncer/icon/pouncer.ico' if sys.platform == 'win32' else None,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

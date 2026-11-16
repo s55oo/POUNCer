@@ -423,6 +423,7 @@ class PouncerApp:
 
     def _build_ui(self) -> None:
         self.root = tk.Tk()
+        theme.set_icon(self.root)
         # a failing button / timer callback goes to pouncer.log (no console in the exe)
         def _cb_failed(et, ev, tb) -> None:
             log.error("window callback failed", exc_info=(et, ev, tb))
