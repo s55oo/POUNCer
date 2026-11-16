@@ -463,7 +463,7 @@ class App:
             self._countdown = COUNTDOWN_S
             self._tick_countdown()
         else:
-            self._status("Ready - Start, or the pencil to change the list.")
+            self._status("Ready - Start, or Edit to change the list.")
 
     # -- looks
     def _apply_look(self) -> None:
@@ -506,7 +506,7 @@ class App:
                                  command=lambda: self._edit(not self.editing))
         self.b_edit.pack(side="right")
         dark = self.s.get("look", "dark") == "dark"
-        ttk.Button(head, text="\u2600" if dark else "\u263e", width=3,
+        ttk.Button(head, text="Light" if dark else "Dark",
                    command=self._toggle_look).pack(side="right", padx=(0, P(6)))
 
         self.status = ttk.Label(outer, text=self._status_text, style="Muted.TLabel",
@@ -571,7 +571,7 @@ class App:
                     sub.append("when N1MM is up")
             if it["from"] == "folder":
                 sub.append("from the folder")
-            tk.Label(mid, text=" \u00b7 ".join(sub), bg=panel, fg=muted, anchor="w",
+            tk.Label(mid, text=", ".join(sub), bg=panel, fg=muted, anchor="w",
                      font=self._font(8)).pack(fill="x")
             state = tk.Label(row, text="", bg=panel, fg=muted, font=self._font(9))
             state.pack(side="right")
