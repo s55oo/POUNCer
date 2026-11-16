@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## v0.7.208 — 2026-11-16 — No yellow FT8 lines
+
+- Traffic console: an FT8 / FT4 spot is never yellow unless FT8 / FT4 is in
+  your Spots modes - also a person's spot without a mode in an FT8 window
+  (e.g. `DX de W7O: 14074.4 JH8ESQ`, which POUNCer reads as FT8). Such spots
+  were never in the list or on port 10000; only the colour said otherwise.
+
 ## v0.7.207 — 2026-11-16 — Relay is the one switch
 
 - Settings > Cluster server: **Relay** now decides everything, both ways.

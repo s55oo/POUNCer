@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import dataclasses
+import types
 import queue
 import sys
 import threading
@@ -4140,7 +4141,9 @@ class PouncerApp:
             except ValueError:
                 return None
             snr = len(parts) > 4 and parts[4].lstrip("-").isdigit()
-            return None, parts[0], parts[2], khz, snr or parts[0].endswith("-#")
+            mode = parts[3].upper() if len(parts) > 3 else ""
+            sp = types.SimpleNamespace(mode=mode) if mode else None
+            return sp, parts[0], parts[2], khz, snr or parts[0].endswith("-#")
         if g == "N1MM" and "<spot" in line:
             from .n1mm import parse_spot_packet
             pkt = parse_spot_packet(line.encode("utf-8"))
@@ -4159,6 +4162,8 @@ class PouncerApp:
         filter, and it isn't a dropped beacon. Every enabled source counts;
         the list's own extras (modes, Min SNR, Hide worked, duplicates) don't -
         so the yellow lines show what the filters let through (v0.7.203).
+        An FT8 / FT4 spot (its mode, or a person's spot in an FT8 window) is
+        never yellow unless FT8 / FT4 is in the Spots modes (v0.7.208).
         "backup" (orange, v0.7.206) = taken only because the chosen skimmers
         are quiet and the backup skimmers are in use."""
         got = self._console_spot(src, txt)
@@ -4178,7 +4183,10 @@ class PouncerApp:
         spf = getattr(self, "spotted_filter", None)
         if spf is not None and not spf.accept(call):
             return False
-        if spot is not None and getattr(self.cfg, "hide_beacons", False) and is_beacon(spot):
+        mode = (getattr(spot, "mode", "") or "").upper()
+        if mode in traffic.DIGITAL and mode not in self._digi_wanted():
+            return False                  # FT8 / FT4 (by its mode or the FT8 window): kept out
+        if isinstance(spot, Spot) and getattr(self.cfg, "hide_beacons", False) and is_beacon(spot):
             return False
         if getattr(self.cfg, "hide_warc", False) and is_warc(khz):
             return False                  # Remove WARC spots

@@ -22,8 +22,8 @@ def _app(zones=(14, 15), spotted=None, clock=None):
                        home_cont=lambda: "EU", quiet_s=300, **kw)
     sf.configure("zones", zones=zones)
     f = types.SimpleNamespace(spotter_filter=sf, spotted_filter=spotted,
-                              cfg=types.SimpleNamespace(hide_beacons=True))
-    for name in ("_console_spot", "_console_shown"):
+                              cfg=types.SimpleNamespace(hide_beacons=True, follow_modes=("CW",)))
+    for name in ("_console_spot", "_console_shown", "_digi_wanted"):
         setattr(f, name, getattr(P, name).__get__(f))
     return f
 
@@ -71,6 +71,16 @@ class ShownTests(unittest.TestCase):
         f.spotter_filter.backup_off = True                        # Disable backup spots
         self.assertFalse(f._console_shown("telnet", IN_ZONE))
         self.assertIs(f._console_shown("telnet", s5), True)
+
+    def test_ft8_never_yellow_unless_wanted(self) -> None:
+        f = _app(zones=())
+        f.spotter_filter.configure("ww")
+        ft8 = "DX de W7O:       14074.4  JH8ESQ"            # a person, no mode, FT8 window
+        self.assertFalse(f._console_shown("telnet", ft8))
+        self.assertFalse(f._console_shown("HAMQTH", "W7O 14074.4 JH8ESQ FT8"))
+        self.assertTrue(f._console_shown("telnet", IN_ZONE))      # CW on 14025: yellow
+        f.cfg.follow_modes = ("CW", "FT8")                        # FT8 wanted: yellow
+        self.assertTrue(f._console_shown("telnet", ft8))
 
     def test_all_pass_without_filters(self) -> None:
         f = _app(zones=())
