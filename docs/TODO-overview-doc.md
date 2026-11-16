@@ -13,6 +13,16 @@ are kept here until they are in. Tick them off and delete this file when done.
 - [ ] **10 - When something goes wrong:** "Help > Save diagnostics" →
   "Help > Troubleshooting > Save diagnostics".
 
+## Agreed later (v0.7.200)
+
+- [ ] **Main features > Station:** drop "autostart of N1MM first and up to 8
+  other programs"; add "N1MM and your other programs start with
+  **N1MMautostarter.exe**".
+- [ ] **Getting started, step 3:** "Set your skimmer, keys and autostart" →
+  "Set your skimmer and keys".
+- [ ] **N1MM menu name:** "Also enter callsign in N1MM" → "Clicking a spot
+  enters its callsign in the N1MM Entry Window".
+
 ## Suggested (not yet agreed)
 
 - [ ] **1 - Header:** version 0.7.80 → the current version, today's date.
@@ -37,4 +47,4 @@ are kept here until they are in. Tick them off and delete this file when done.
 - [ ] **New - Main features > Station:** "the team master keeps a log of
   every POUNCer's settings (in the diagnostics zip)" (v0.7.194).
 
-The GitHub copy, `docs/OVERVIEW.md`, already has all of these (v0.7.194).
+The GitHub copy, `docs/OVERVIEW.md`, already has all of these (v0.7.200).
