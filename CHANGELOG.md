@@ -6,6 +6,8 @@
   your Spots modes - also a person's spot without a mode in an FT8 window
   (e.g. `DX de W7O: 14074.4 JH8ESQ`, which POUNCer reads as FT8). Such spots
   were never in the list or on port 10000; only the colour said otherwise.
+- Releases are built for **Windows only** for now (the macOS builds only when
+  asked: the workflow's new `macos` input); v0.7.207 is the newest with Mac files.
 
 ## v0.7.207 — 2026-11-16 — Relay is the one switch
 

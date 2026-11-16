@@ -17,6 +17,11 @@ on:
         description: "Publish a GitHub Release with this tag (e.g. v0.2.0); blank = build only"
         required: false
         default: ""
+      macos:
+        description: "Also build the macOS versions (off until S55OO asks again, 2026-11-16)"
+        type: boolean
+        required: false
+        default: false
   push:
     tags: ["v*"]
 
@@ -170,6 +175,8 @@ jobs:
 
   build-macos:
     name: Build macOS (${{ matrix.arch }})
+    # only when asked (the "macos" input) or for a pushed v* tag
+    if: inputs.macos || github.event_name == 'push'
     strategy:
       fail-fast: false
       matrix:
@@ -229,7 +236,7 @@ jobs:
   release-macos:
     # Wait for the Windows job to create the release before attaching assets.
     needs: [build, build-macos]
-    if: startsWith(github.ref, 'refs/tags/v') || inputs.release != ''
+    if: (startsWith(github.ref, 'refs/tags/v') || inputs.release != '') && needs.build-macos.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v6
