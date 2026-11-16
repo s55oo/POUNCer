@@ -63,10 +63,14 @@ def build(f: dict) -> list[dict]:
 
     add("Call", "ok", f["call"]) if f.get("call") else add("Call", "bad", "no station call")
 
-    rbn = f.get("rbn")            # "ok" / "http" / "team" / text of the problem
-    if rbn in ("ok", "http", "team", "paused"):
-        add("RBN", "ok", {"ok": "", "http": "via HTTP backup", "team": "via team master",
-                          "paused": "paused - SSB, not needed"}[rbn])
+    # "ok" / "telnet" / "http" / "hamqth" / "cluster" / "team" / "paused" / text
+    # of the problem: any one source delivering spots is enough (v0.7.203)
+    rbn = f.get("rbn")
+    via = {"ok": "", "telnet": "via Telnet", "http": "via HTTP backup", "hamqth": "via HamQTH",
+           "cluster": "via Cluster", "team": "via team master",
+           "paused": "paused - SSB, not needed"}
+    if rbn in via:
+        add("RBN", "ok", via[rbn])
     else:
         add("RBN", "bad", rbn or "no spots")
 

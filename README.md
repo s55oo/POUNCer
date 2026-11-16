@@ -550,7 +550,10 @@ for 30 minutes (`[ui] mark_tried`, `tried_minutes`; Settings).
 **Pre-contest check line** (top of the window): **READY** / **CHECK** /
 **NOT READY** with ✓ / ⚠ / ✗ for N1MM radio info, log, station call, RBN,
 country file (⚠ > 60 days old), Super Check Partial (⚠ > 30 days), phone
-page and PC clock (checked against an NTP time server every 30 min). Each item
+page and PC clock (checked against an NTP time server every 30 min). **RBN**
+is ✓ as long as **one** spot source delivers - RBN, or Telnet, the HTTP
+backup, HamQTH or the Cluster (a spot line in the last 2 min): "✓ RBN via
+Telnet" when RBN itself isn't logged in but Telnet brings spots (v0.7.203). Each item
 has its own colour: **red** = not working, **amber** = check it, **green** = OK
 (N1MM closed: N1MM red, RBN / SCP still green). The phone
 shows ⚠ in its top line only when something is wrong; tap it for details.

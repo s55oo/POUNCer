@@ -2517,6 +2517,36 @@ class PouncerApp:
         return any(c is not None and c.connected() and now - getattr(c, "_last_dx", 0) < 120
                    for c in clients)
 
+    SOURCE_QUIET_S = 120     # a connection with no spot line this long isn't "working"
+
+    def _spot_source_working(self) -> str:
+        """Which source brings spots now - any one is enough for the
+        pre-contest check (v0.7.203): "ok" (RBN), "telnet", "http", "hamqth",
+        "cluster"; "" = none. A telnet source counts when connected and a
+        "DX de" line came in the last SOURCE_QUIET_S."""
+        if self._rbn_healthy():
+            return "ok"
+        now = time.monotonic()
+
+        def live(c) -> bool:
+            try:
+                return (c is not None and c.connected()
+                        and now - getattr(c, "_last_dx", 0) < self.SOURCE_QUIET_S)
+            except Exception:  # noqa: BLE001
+                return False
+        if any(live(c) for c in self._rbn_clients.values()) or \
+                live(getattr(self, "_telnet_client", None)):
+            return "telnet" if live(getattr(self, "_telnet_client", None)) else "ok"
+        hf = getattr(self, "_http_feed", None)
+        if hf is not None and hf.spots_in:
+            return "http"
+        for f in (getattr(self, "_hq_feeds", None) or {}).values():
+            if f is not None and f.spots_in and time.time() - f.last_ok < self.SOURCE_QUIET_S:
+                return "hamqth"
+        if live(getattr(self, "_ssb_client", None)) or getattr(self, "_ssb_via_n1mm", False):
+            return "cluster"
+        return ""
+
     def _cluster_telnet_ok(self) -> bool:
         if getattr(self, "_ssb_via_n1mm", False):
             return True
@@ -4971,12 +5001,8 @@ class PouncerApp:
             rbn = "paused" if self.team.master_paused() else "team"
         elif getattr(self, "_rbn_pause_on", False):
             rbn = "paused"
-        elif self._rbn_healthy():
-            rbn = "ok"
-        elif self._http_feed is not None and self._http_feed.spots_in:
-            rbn = "http"
         else:
-            rbn = self.rbn_status or "no spots"
+            rbn = self._spot_source_working() or self.rbn_status or "no spots"
         cty_days = scp_days = None
         cty_path = getattr(self.cty, "path", "") if self.cty else ""
         try:

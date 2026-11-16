@@ -36,6 +36,18 @@ class BuildTests(unittest.TestCase):
         self.assertEqual(states["RBN"], "ok")
         self.assertEqual(states["SCP"], "ok")
 
+    def test_any_source_with_spots_is_enough(self) -> None:
+        """RBN not logged in, but Telnet (or another source) brings spots: READY."""
+        for via, text in (("telnet", "via Telnet"), ("hamqth", "via HamQTH"),
+                          ("cluster", "via Cluster"), ("http", "via HTTP backup")):
+            items = checks.build(dict(GOOD, rbn=via))
+            self.assertEqual(by_name(items)["RBN"]["state"], "ok", via)
+            self.assertIn(text, by_name(items)["RBN"]["text"])
+            self.assertTrue(checks.line(items).startswith("READY"), via)
+        items = checks.build(dict(GOOD, rbn="connecting"))
+        self.assertEqual(by_name(items)["RBN"]["state"], "bad")
+        self.assertTrue(checks.line(items).startswith("NOT READY"))
+
     def test_old_files_and_clock_warn(self) -> None:
         items = by_name(checks.build(dict(GOOD, cty_days=75, scp_days=40, clock_offset=-12,
                                           clock_source="NTP pool.ntp.org")))
@@ -174,3 +186,44 @@ class TriedTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SpotSourceTests(unittest.TestCase):
+    """The app: which source brings spots (RBN, Telnet, HTTP, HamQTH, Cluster)."""
+
+    def setUp(self) -> None:
+        try:
+            from tests.test_so2r import _import_app
+            P = _import_app().PouncerApp
+        except Exception as exc:  # noqa: BLE001 - needs tkinter
+            self.skipTest(f"app not importable here: {exc}")
+        self.f = types.SimpleNamespace(_rbn_clients={}, SOURCE_QUIET_S=P.SOURCE_QUIET_S,
+                                       _http_feed=None, _hq_feeds={}, _ssb_client=None,
+                                       _telnet_client=None, _rbn_healthy=lambda: False)
+        self.f._spot_source_working = P._spot_source_working.__get__(self.f)
+
+    @staticmethod
+    def conn(up=True, quiet=0.0):
+        import time as _t
+        return types.SimpleNamespace(connected=lambda: up, _last_dx=_t.monotonic() - quiet)
+
+    def test_telnet_alone_is_enough(self) -> None:
+        f = self.f
+        self.assertEqual(f._spot_source_working(), "")
+        f._rbn_clients = {7000: self.conn(up=False)}          # RBN: not logged in
+        f._telnet_client = self.conn()                         # Telnet: spots coming
+        self.assertEqual(f._spot_source_working(), "telnet")
+        f._telnet_client = self.conn(quiet=300)                # Telnet quiet 5 min
+        self.assertEqual(f._spot_source_working(), "")
+        f._ssb_client = self.conn()
+        self.assertEqual(f._spot_source_working(), "cluster")
+        f._rbn_healthy = lambda: True
+        self.assertEqual(f._spot_source_working(), "ok")
+
+    def test_http_and_hamqth(self) -> None:
+        import time as _t
+        f = self.f
+        f._hq_feeds = {"rbn": types.SimpleNamespace(spots_in=5, last_ok=_t.time())}
+        self.assertEqual(f._spot_source_working(), "hamqth")
+        f._http_feed = types.SimpleNamespace(spots_in=3)
+        self.assertEqual(f._spot_source_working(), "http")

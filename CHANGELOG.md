@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.203 — 2026-11-16 — READY with any working spot source
+
+- The pre-contest check no longer says **NOT READY** because RBN itself isn't
+  logged in while another source brings spots: one source delivering is
+  enough - RBN, **Telnet**, the HTTP backup, **HamQTH** or the **Cluster**
+  (connected and a spot line in the last 2 min). The item then reads e.g.
+  "✓ RBN via Telnet". With no source delivering it stays red as before.
+
 ## v0.7.202 — 2026-11-16 — Readable console legend
 
 - Traffic console: the note "yellow = spots POUNCer shows" in the bar is in the
