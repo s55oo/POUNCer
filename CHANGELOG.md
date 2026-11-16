@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## v0.7.207 — 2026-11-16 — Relay is the one switch
+
+- Settings > Cluster server: **Relay** now decides everything, both ways.
+  On = the spots go to N1MM's Telnet window **and** whatever you type in N1MM
+  (Alt+P / Spot It spots, sh/dx, filters) goes on to the DX cluster. Off =
+  nothing either way; a spot made in N1MM gets "*** POUNCer: spot not sent -
+  Relay is off" (before it went nowhere without a word).
+- The separate *Send spots made in N1MM to the DX cluster* setting
+  (`[cluster] spots_out`) is gone; an old line in config.ini is ignored.
+
 ## v0.7.206 — 2026-11-16 — Backup skimmers: orange, and a switch
 
 - Traffic console: a spot taken only because your chosen skimmers are quiet

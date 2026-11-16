@@ -46,16 +46,12 @@ SETTINGS: list[dict] = [
              "the same PC) and this port. Allow it in the firewall for other PCs."},
     {"key": "cluster.relay", "attr": "cluster_relay", "kind": "bool", "live": True,
      "group": "Cluster server", "label": "  ... Relay: hand out the spots",
-     "help": "On = the spots of the sources switched on in the Spots menu go out to "
-             "the clients on the port above; what a client sends (DX spots, sh/dx) goes over "
-             "POUNCer's own telnet connection (Telnet / Cluster on), the answers come back. "
-             "Opens no connection of its own. Off = nothing goes out. Also the Relay button."},
-    {"key": "cluster.spots_out", "attr": "cluster_spots_out", "kind": "bool", "live": True,
-     "group": "Cluster server", "label": "  ... send spots made in N1MM to the DX cluster",
-     "help": "On = a spot you make in N1MM (Alt+P / Spot It, 'DX ...') goes over POUNCer's "
-             "telnet connection to the DX cluster network. Off = it stays here: N1MM gets "
-             "'*** POUNCer: spot not sent' and nobody else sees it. Other commands (sh/dx, "
-             "filters) still go."},
+     "help": "On = everything both ways: the spots of the sources switched on in the "
+             "Spots menu go out to the clients on the port above, and whatever a client "
+             "types (spots made in N1MM - Alt+P / Spot It, sh/dx, filters) goes over "
+             "POUNCer's own telnet connection to the DX cluster (Telnet / Cluster on); the "
+             "answers come back. Off = nothing either way (a spot gets '*** POUNCer: spot "
+             "not sent - Relay is off'). Also the Relay button."},
     {"key": "n1mm.qsy_wait_ms", "attr": "qsy_wait_ms", "kind": "int", "min": 0, "max": 10000,
      "live": True, "group": "Tap -> N1MM",
      "label": "Wait for N1MM's new frequency (ms)",
@@ -395,7 +391,7 @@ PAGES: list[tuple[str, list[tuple[str, list[str]]]]] = [
                                      "spotted.zones", "spotted.conts"]),
     ]),
     ("Cluster server", [
-        ("", ["cluster.enabled", "cluster.port", "cluster.relay", "cluster.spots_out"]),
+        ("", ["cluster.enabled", "cluster.port", "cluster.relay"]),
     ]),
     ("Updates", [
         ("Country file & Super Check Partial", ["cty.auto_update", "cty.update_n1mm",

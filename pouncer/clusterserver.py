@@ -173,11 +173,10 @@ class _Client:
 
 class ClusterServer:
     def __init__(self, port: int = 10000, host: str = "0.0.0.0", node: str = "POUNCER",
-                 version: str = "", relay=None, send_upstream=None, spots_out=None) -> None:
+                 version: str = "", relay=None, send_upstream=None) -> None:
         self.port, self.host = int(port), host
         self.relay = relay or (lambda: True)        # () -> bool: spots go out
         self.send_upstream = send_upstream          # (line) -> "" sent / why not
-        self.spots_out = spots_out or (lambda: True)  # () -> bool: a client's DX spots go on
         self.node = node
         self.version = version
         self.clients: list[_Client] = []
@@ -314,11 +313,11 @@ class ClusterServer:
         if cmd in ("bye", "quit", "q", "b", "exit"):
             c.send("73\r\n")
             return False
-        if cmd.startswith("dx ") and not self.spots_out():
-            # Settings > Cluster server: spots made in N1MM stay here
-            traffic.emit("server", f"{c.call}: spot kept local (not sent to the cluster)")
-            c.send(f"*** POUNCer: spot not sent to the DX cluster (Settings > Cluster "
-                   f"server)\r\n{self._prompt(c)}")
+        if cmd.startswith("dx ") and not self.relay():
+            # Relay off (v0.7.207: the only switch): nothing goes either way -
+            # say so, else N1MM's spot looks sent
+            traffic.emit("server", f"{c.call}: spot kept local (Relay off)")
+            c.send(f"*** POUNCer: spot not sent - Relay is off\r\n{self._prompt(c)}")
             return True
         if self.relay() and self.send_upstream is not None:
             why = self.send_upstream(line)            # over POUNCer's telnet connection

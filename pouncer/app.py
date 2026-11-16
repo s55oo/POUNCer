@@ -6227,8 +6227,7 @@ class PouncerApp:
             return
         srv = ClusterServer(port=self.cfg.cluster_port, node="POUNCER", version=__version__,
                             relay=lambda: bool(getattr(self.cfg, "cluster_relay", True)),
-                            send_upstream=self._relay_send,
-                            spots_out=lambda: bool(getattr(self.cfg, "cluster_spots_out", True)))
+                            send_upstream=self._relay_send)
         if srv.start():
             self._dxc = srv
             self.status_label.configure(text=f"Cluster server on TCP {srv.port}: in N1MM's "
