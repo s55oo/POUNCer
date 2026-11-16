@@ -18,6 +18,15 @@ BANDS = (
     ("6m", 50000.0, 54000.0),
 )
 
+# WARC bands (and 60 m): no contests there - "Remove WARC spots" drops them
+WARC_BANDS = frozenset(("60m", "30m", "17m", "12m"))
+
+
+def is_warc(khz: float | None) -> bool:
+    """A frequency on 60, 30, 17 or 12 m."""
+    return band_from_khz(khz) in WARC_BANDS
+
+
 # The contest bands offered by the band picker (no WARC / 60 m / 6 m), with
 # the frequency used when we have not been on that band yet (CW segment).
 CONTEST_BANDS = ("160m", "80m", "40m", "20m", "15m", "10m")

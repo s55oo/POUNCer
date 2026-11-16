@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## Next release (not released yet)
+
+- **Settings > Spots > Remove WARC spots** (`[rbn] hide_warc`, off by
+  default): no spots on 60 m, 30 m, 17 m and 12 m - not in the list or on the
+  phone, not on port 10000 (N1MM's Telnet window), not yellow in the traffic
+  console. Switch it off and they show again.
+
 ## v0.7.204 — 2026-11-16 — The SPOTS light
 
 - The first light in the row (before N1MM, Log, Team ...) is now **SPOTS**

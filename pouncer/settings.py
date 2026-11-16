@@ -169,6 +169,11 @@ SETTINGS: list[dict] = [
              "14100 / 18110 / 21150 / 24930 / 28200 (+-0.5 kHz; the same call elsewhere is "
              "a real station and stays), spots of type BEACON / NCDXF, calls ending in /B. "
              "Each one is a line in the traffic console (BEACON)."},
+    {"key": "rbn.hide_warc", "attr": "hide_warc", "kind": "bool", "live": True,
+     "group": "RBN", "label": "Remove WARC spots",
+     "help": "No spots on the WARC bands 60 m, 30 m, 17 m and 12 m (no contests there): "
+             "not in the list or on the phone, not on port 10000 (N1MM's Telnet window), "
+             "not yellow in the traffic console. Off again = they show again."},
     {"key": "rbn.history", "attr": "rbn_history", "kind": "int", "min": 0, "max": 500,
      "live": False, "group": "RBN", "label": "Last spots at start (SH/DX)",
      "help": "0 = off."},
@@ -368,7 +373,8 @@ PAGES: list[tuple[str, list[tuple[str, list[str]]]]] = [
         ("", ["web.phone_control", "web.cw_keyboard"]),
     ]),
     ("Spots", [
-        ("Sources", ["rbn.sources", "rbn.history", "rbn.hide_beacons", "rbn.pause_on_phone",
+        ("Sources", ["rbn.sources", "rbn.history", "rbn.hide_beacons", "rbn.hide_warc",
+                     "rbn.pause_on_phone",
                      "rbn.skimmer_quiet_minutes"]),
         ("Backups", ["rbn.telnet_backup", "rbn.hamqth_backup", "rbn.backup_host",
                      "rbn.backup_port", "rbn.backup_commands", "rbn.http_backup"]),

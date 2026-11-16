@@ -116,6 +116,7 @@ class Config:
     cty_url: str = "https://azure.s53m.com/cors/cty.dat"
     cty_update_n1mm: bool = False    # also copy it into N1MM's SupportFiles
     hide_beacons: bool = True
+    hide_warc: bool = False        # [rbn] hide_warc: no spots on 60 / 30 / 17 / 12 m
     follow_modes: tuple[str, ...] = ("CW",)
     rbn_ft8_port: int = 7001
 
@@ -329,6 +330,7 @@ def load_config(path: str) -> Config:
     cfg.cty_url = s("cty", "url", cfg.cty_url).strip() or cfg.cty_url
     cfg.cty_update_n1mm = b("cty", "update_n1mm", cfg.cty_update_n1mm)
     cfg.hide_beacons = b("rbn", "hide_beacons", cfg.hide_beacons)
+    cfg.hide_warc = b("rbn", "hide_warc", cfg.hide_warc)
     cfg.follow_modes = parse_modes(
         s("rbn", "follow_modes", ",".join(cfg.follow_modes))
     )

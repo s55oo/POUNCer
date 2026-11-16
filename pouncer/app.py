@@ -13,7 +13,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from . import __version__
-from .bands import CONTEST_BANDS, DEFAULT_BAND_KHZ, band_from_khz, normalize_band_view
+from .bands import CONTEST_BANDS, DEFAULT_BAND_KHZ, band_from_khz, is_warc, normalize_band_view
 from .config import Config
 from .flow import flow_positions
 from . import lights
@@ -4173,6 +4173,8 @@ class PouncerApp:
             return False
         if spot is not None and getattr(self.cfg, "hide_beacons", False) and is_beacon(spot):
             return False
+        if getattr(self.cfg, "hide_warc", False) and is_warc(khz):
+            return False                  # Remove WARC spots
         return True
 
     def _beacon_out(self, spot: Spot) -> bool:
@@ -4203,6 +4205,8 @@ class PouncerApp:
         dxc = getattr(self, "_dxc", None)
         if dxc is None:
             return
+        if getattr(self.cfg, "hide_warc", False) and is_warc(spot.freq_khz):
+            return                    # Remove WARC spots: not to port 10000 either
         mode = (spot.mode or "").upper()
         if mode in traffic.DIGITAL and mode not in self._digi_wanted():
             if getattr(spot, "source", "") != "n1mm" and dxc.relay():
@@ -5658,6 +5662,7 @@ class PouncerApp:
                 or (every and band_from_khz(s.freq_khz) in CONTEST_BANDS))
             and s.mode.upper() in modes
             and not (self.cfg.hide_beacons and is_beacon(s))
+            and not (getattr(self.cfg, "hide_warc", False) and is_warc(s.freq_khz))
             and (s.dxcall.upper(), band_from_khz(s.freq_khz)) not in self._removed
             and not same_station(s.dxcall, own)  # never list ourselves
         ]
