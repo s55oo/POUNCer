@@ -1,6 +1,6 @@
 # POUNCer — Changelog
 
-## Next release (not released yet)
+## v0.7.205 — 2026-11-16 — Remove WARC spots
 
 - **Settings > Spots > Remove WARC spots** (`[rbn] hide_warc`, off by
   default): no spots on 60 m, 30 m, 17 m and 12 m - not in the list or on the

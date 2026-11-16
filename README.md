@@ -1416,7 +1416,7 @@ All options live in `config.ini` and are documented there, line by line:
 | `http_backup` | https://azure.s53m.com/cors/rbn/live | The **HTTP** source (RBN over HTTP); empty = none. |
 | `follow_modes` | CW | Modes to show (`CW`, `RTTY`, `FT8`, `FT4`). |
 | `hide_beacons` | true | Drop beacon spots as they come in - not in the list, not on port 10000: the 18 NCDXF beacons (4U1UN, W6WX, OH2B ...) on 14100 / 18110 / 21150 / 24930 / 28200 (±0.5 kHz; the same call elsewhere stays), type BEACON / NCDXF, calls ending in `/B`. Traffic console: **BEACON**. Settings > Spots. |
-| `hide_warc` | false | **Remove WARC spots** (Settings > Spots > Sources): no spots on 60 m, 30 m, 17 m and 12 m (no contests there) - not in the list or on the phone, not on port 10000, not yellow in the traffic console. Off again = they show again (next release after v0.7.204). |
+| `hide_warc` | false | **Remove WARC spots** (Settings > Spots > Sources): no spots on 60 m, 30 m, 17 m and 12 m (no contests there) - not in the list or on the phone, not on port 10000, not yellow in the traffic console. Off again = they show again (v0.7.205). |
 | `cty` | POUNCer's download (S53M's cty.dat) | Country file for continent / DX / mults; a path here overrides it. |
 | **[n1mm]** | | |
 | `listen_ip`, `listen_port` | 0.0.0.0, 12060 | Where POUNCer listens for N1MM's RadioInfo. |
