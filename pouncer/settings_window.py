@@ -3,7 +3,7 @@
 Built from ``settings.SETTINGS``, laid out by ``settings.PAGES`` (the
 /settings page uses the same pages): a list of pages on
 the left (Display, Alerts & history, N1MM & radios, Phone page, Spots,
-Cluster server, Startup & updates), all of them on one scrolling sheet on
+Cluster server, Updates), all of them on one scrolling sheet on
 the right - a page name jumps to its part, and the name of the part in view
 is lit while scrolling. The search box at the top (Ctrl+F) keeps only the
 settings whose name or help has every typed word.

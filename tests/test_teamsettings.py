@@ -27,19 +27,16 @@ class ReportTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             path = os.path.join(folder, "config.ini")
             Path(path).write_text(
-                "[autostart]\napp1 = C:\\Secret\\Path\\prog.exe\n"
                 "[ssb]\nhost = cluster.example.org\nlogin = DL1ABC\n"
                 "[ui]\nmin_snr = 12\n")
             r = ts.report(load_config(path))
         from pouncer import settings
         self.assertEqual(set(r), {it["key"] for it in settings.SETTINGS})
-        self.assertEqual(r["autostart.app1"], "(set)")
-        self.assertEqual(r["autostart.app2"], "")
         self.assertEqual(r["ssb.host"], "(set)")
         self.assertEqual(r["ssb.login"], "(set)")
         self.assertEqual(r["ui.min_snr"], "12")
         text = json.dumps(r)
-        for secret in ("Secret", "prog.exe", "example.org", "DL1ABC"):
+        for secret in ("example.org", "DL1ABC"):
             self.assertNotIn(secret, text)
         self.assertTrue(ts.valid({"v": "0.7.194", "call": "S5", "why": "start", "s": r}))
 

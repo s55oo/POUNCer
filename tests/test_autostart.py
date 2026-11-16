@@ -1,12 +1,10 @@
-"""Autostart: your programs start with POUNCer, in order, after their delays."""
+"""Autostart (used by N1MMautostarter.exe): programs in order, after their delays."""
 
 import os
 import tempfile
 import unittest
 
 from pouncer import autostart as a
-from pouncer import settings
-from pouncer.config import load_config
 
 
 class SplitTests(unittest.TestCase):
@@ -72,21 +70,6 @@ class PlanRunTests(unittest.TestCase):
         self.assertEqual([res for _, res in r.results], ["failed: access denied", "started"])
 
 
-class ConfigTests(unittest.TestCase):
-    def test_ini_and_settings(self) -> None:
-        with tempfile.TemporaryDirectory() as d:
-            p = os.path.join(d, "config.ini")
-            with open(p, "w", encoding="utf-8") as fh:
-                fh.write("[autostart]\nenabled = true\napp1 = C:\\HAM\\100% tools\\x.exe\napp1_delay = 8\n")
-            cfg = load_config(p)
-            self.assertEqual(cfg.autostart_app1, "C:\\HAM\\100% tools\\x.exe")   # % is fine
-            self.assertEqual(cfg.autostart_delay1, 8)
-            res = settings.save(cfg, p, "autostart.app2", '"C:\\HAM\\cw.bat" --fast')
-            self.assertTrue(res["ok"])
-            self.assertEqual(load_config(p).autostart_app2, '"C:\\HAM\\cw.bat" --fast')
-            self.assertFalse(settings.save(cfg, p, "autostart.app2_delay", "9999")["ok"])
-
-
 class PerItemWaitTests(unittest.TestCase):
     def test_waits_for_n1mm_then_starts(self) -> None:
         with tempfile.TemporaryDirectory() as d:
@@ -120,19 +103,6 @@ class PerItemWaitTests(unittest.TestCase):
             run.run()
             self.assertEqual(started, [10.0])
             self.assertIn("started", run.status)
-
-    def test_eight_programs_in_ini_and_settings(self) -> None:
-        with tempfile.TemporaryDirectory() as d:
-            p = os.path.join(d, "config.ini")
-            with open(p, "w", encoding="utf-8") as fh:
-                fh.write("[autostart]\napp8 = C:\\t\\eight.exe\napp8_wait_n1mm = true\n")
-            cfg = load_config(p)
-            self.assertEqual(cfg.autostart_app8, "C:\\t\\eight.exe")
-            self.assertTrue(cfg.autostart_wait8)
-            self.assertFalse(cfg.autostart_wait1)
-            self.assertTrue(settings.save(cfg, p, "autostart.app6_wait_n1mm", "yes")["ok"])
-            self.assertTrue(load_config(p).autostart_wait6)
-
 
 class N1mmFirstTests(unittest.TestCase):
     def test_is_n1mm_anywhere(self) -> None:
@@ -171,105 +141,6 @@ class N1mmFirstTests(unittest.TestCase):
         done, text = w.check(60, running=True)
         self.assertTrue(done)
         self.assertIn("Broadcast Data", text)
-
-    def test_ini_and_settings(self) -> None:
-        with tempfile.TemporaryDirectory() as d:
-            p = os.path.join(d, "config.ini")
-            with open(p, "w", encoding="utf-8") as fh:
-                fh.write("[autostart]\nwait_n1mm = false\nn1mm_timeout = 5\n")
-            cfg = load_config(p)
-            self.assertFalse(cfg.autostart_wait_n1mm)
-            self.assertEqual(cfg.autostart_n1mm_timeout, 10)       # at least 10 s
-            self.assertTrue(load_config(os.path.join(d, "none.ini")).autostart_wait_n1mm)
-            self.assertTrue(settings.save(cfg, p, "autostart.n1mm_timeout", "240")["ok"])
-            self.assertEqual(load_config(p).autostart_n1mm_timeout, 240)
-
-
-class AppWaitTests(unittest.TestCase):
-    """PouncerApp: N1MM first -> start it, the rest of POUNCer only when it is up."""
-
-    def _fake(self, items, running):
-        import types
-        from tests.test_so2r import _import_app
-        PouncerApp = _import_app().PouncerApp
-        from pouncer.n1mm import RadioState
-        calls = {"launch": [], "services": 0, "rest": None, "after": []}
-
-        class Label:
-            text = ""
-
-            def configure(self, text=""):
-                Label.text = text
-
-        class Root:
-            def after(self, ms, fn):
-                calls["after"].append(fn)
-
-        f = types.SimpleNamespace(
-            cfg=types.SimpleNamespace(autostart_wait_n1mm=True, autostart_n1mm_timeout=180,
-                                      autostart_folder_delay=3,
-                                      **{f"autostart_app{n}": "" for n in range(1, 5)},
-                                      **{f"autostart_delay{n}": 0 for n in range(1, 5)}),
-            state=RadioState(), status_label=Label(), root=Root(),
-            _autostart_folder=lambda: "", _n1mm_running=lambda: running)
-        for n, (path, delay) in enumerate(items, 1):
-            setattr(f.cfg, f"autostart_app{n}", path)
-            setattr(f.cfg, f"autostart_delay{n}", delay)
-        f._start_services = lambda: calls.__setitem__("services", calls["services"] + 1)
-        f._run_autostart = lambda rest: calls.__setitem__("rest", rest)
-        for name in ("_start_autostart", "_launch_n1mm", "_n1mm_wait_tick",
-                     "_n1mm_wait_done", "_stop_waiting_n1mm"):
-            setattr(f, name, types.MethodType(getattr(PouncerApp, name), f))
-        return f, calls, Label
-
-    def setUp(self) -> None:
-        self.tmp = tempfile.TemporaryDirectory()
-        self.n1mm = os.path.join(self.tmp.name, "N1MMLogger.net.exe")
-        self.router = os.path.join(self.tmp.name, "router.exe")
-        for p in (self.n1mm, self.router):
-            open(p, "w").close()
-        self._orig = a._launch
-
-    def tearDown(self) -> None:
-        a._launch = self._orig
-        self.tmp.cleanup()
-
-    def test_waits_for_n1mm_then_starts_the_rest(self) -> None:
-        f, calls, label = self._fake([(self.n1mm, 0), (self.router, 5)], running=False)
-        a._launch = lambda path, args: calls["launch"].append(path)
-        self.assertTrue(f._start_autostart(defer_pouncer=True))
-        self.assertEqual(calls["services"], 0)
-        calls["after"].pop(0)()                         # app1 delay over: N1MM starts
-        self.assertEqual(calls["launch"], [self.n1mm])
-        self.assertIn("waiting for N1MM", label.text)
-        self.assertEqual(calls["services"], 0)          # POUNCer still waits
-        f.state.update({"radio_nr": 1, "freq": 1400000})  # N1MM's first RadioInfo
-        f._n1mm_wait.heard = 1.0                        # (settle time over)
-        f._n1mm_wait_tick()
-        self.assertEqual(calls["services"], 1)
-        self.assertEqual([i["path"] for i in calls["rest"]], [self.router])
-
-    def test_no_wait_when_n1mm_runs_or_not_first(self) -> None:
-        f, calls, _ = self._fake([(self.n1mm, 0), (self.router, 5)], running=True)
-        self.assertFalse(f._start_autostart(defer_pouncer=True))
-        self.assertEqual(len(calls["rest"]), 2)         # normal list (N1MM skipped there)
-        f, calls, _ = self._fake([(self.router, 0), (self.n1mm, 5)], running=False)
-        self.assertFalse(f._start_autostart(defer_pouncer=True))
-        f, calls, _ = self._fake([(self.n1mm, 0)], running=False)
-        f.cfg.autostart_wait_n1mm = False
-        self.assertFalse(f._start_autostart(defer_pouncer=True))
-
-    def test_dont_wait_menu(self) -> None:
-        f, calls, _ = self._fake([(self.n1mm, 0), (self.router, 5)], running=False)
-        a._launch = lambda path, args: None
-        f._start_autostart(defer_pouncer=True)
-        calls["after"].pop(0)()
-        f._stop_waiting_n1mm()
-        self.assertEqual(calls["services"], 1)
-        f._stop_waiting_n1mm()                          # only once
-        f._n1mm_wait_tick()
-        self.assertEqual(calls["services"], 1)
-
 
 if __name__ == "__main__":
     unittest.main()

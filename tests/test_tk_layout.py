@@ -286,8 +286,7 @@ class TkSettingsWindowTests(unittest.TestCase):
                                       rbn_backup_port=8000, ssb_host="azure.s53m.com", ssb_port=8000,
                                       spotted_mode="ww", spotted_calls="", spotted_dxcc="JA",
                                       spotted_zones="", spotted_conts=""),
-            _start_autostart=lambda: None, _stop_waiting_n1mm=lambda: None, _save_diagnostics=lambda: None, _open_path=lambda p: None,
-            _autostart_folder=lambda: "",
+            _save_diagnostics=lambda: None, _open_path=lambda p: None,
         )
         for name in ("_open_config_folder", "_reconnect_log", "_restart_now", "_shutdown_and_quit",
                      "_on_toggle_worked", "_clear_spots", "_open_browser", "_on_update_click",
@@ -376,10 +375,7 @@ class TkSettingsWindowTests(unittest.TestCase):
         self.assertEqual(items(sub(tools, "Alerts")), ["Pop-up (history hint + new mult)", "Sound"])
         file = menu("File")
         flabels = items(file)
-        self.assertIn("Autostart", flabels)
-        self.assertEqual(items(sub(file, "Autostart")), [
-            "Start autostart programs now", "Don't wait for N1MM (start the rest now)",
-            "Open the autostart folder"])
+        self.assertNotIn("Autostart", flabels)      # N1MMautostarter.exe does it now
         team = menu("Team")
         self.assertIn("Update all POUNCers in the team (from the master)", items(team))
         helpm = menu("Help")

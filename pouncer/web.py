@@ -3022,14 +3022,12 @@ SETTINGS_HTML = """<!doctype html>
       '<code>[web] remote_settings = true</code>.</div>' : '';
     let group = '', part = '';
     d.items.forEach(it => {
-      const iro = ro || it.app_only;      // autostart: only in the exe's own Settings window
+      const iro = ro;
       if (it.group !== group) {
         group = it.group; part = ''; h += '<h2>' + esc(group) + '</h2>';
       }
       if ((it.part || '') !== part) {
         part = it.part || ''; if (part) h += '<h3>' + esc(part) + '</h3>';
-        if (it.app_only) h += '<div class="warn">Shown here only: programs that start with ' +
-          'POUNCer can be changed only in the Settings window of the POUNCer app (the exe), never from a browser.</div>';
       }
       h += '<div class="row' + (iro ? ' ro' : '') + '"><label for="f_' + it.key.replace('.', '_') + '">' +
         esc(it.label) + (it.live ? '' : ' <span class="later" title="used after a restart">&#8635;</span>') +
@@ -3040,7 +3038,6 @@ SETTINGS_HTML = """<!doctype html>
     out.innerHTML = h;
     if (ro) return;
     d.items.forEach(it => {
-      if (it.app_only) return;
       const el = document.getElementById('f_' + it.key.replace('.', '_'));
       const state = document.getElementById('s_' + it.key.replace('.', '_'));
       el.addEventListener('change', () => save(it, el, state));
@@ -3187,12 +3184,6 @@ class _Handler(BaseHTTPRequestHandler):
         q = parse_qs(parsed.query)
         key = (q.get("key") or [""])[0]
         value = (q.get("value") or [""])[0]
-        from .settings import app_only
-        if app_only(key):
-            # starts programs: only in POUNCer's own Settings window, never from a browser
-            self._send_json({"ok": False, "error": "Autostart can be changed only in POUNCer's "
-                                                   "own Settings window (the exe), not here"}, 403)
-            return
         try:
             self._send_json(srv.save_setting(key, value))
         except Exception as exc:

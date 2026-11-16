@@ -37,7 +37,7 @@ in the examples are private example addresses.
 | 13 | **out** | HTTPS | 443 | raw.githubusercontent.com (S53ZO's log archive) | run history of calls not in the lists | `[ui] run_history` |
 | 14 | **out** | HTTPS | 443 | azure.s53m.com `/cors/MASTER.DTA` | Super Check Partial (busted-call marks), every Friday | `[scp] url` |
 | 15 | – | UDP connect | – | 8.8.8.8 | finding the PC's LAN address – **nothing is sent** | – |
-| 16 | local | process start | – | your own programs (.exe / .bat / shortcuts) | autostart with POUNCer – no network | `[autostart]` |
+| 16 | local | process start | – | your own programs (.exe / .bat / shortcuts) | **N1MMautostarter.exe** starts them (POUNCer no longer does) – no network | `N1MMautostarter.ini` |
 | 16b | **in** (briefly) | UDP | 12060 | N1MM (same PC) | **N1MMautostarter.exe** only (PCs without POUNCer): listens for N1MM's first RadioInfo / AppInfo while waiting for N1MM to start, then closes the port; an exclusive bind, so a port used by another program is never taken | `N1MMautostarter.ini` `[autostarter] n1mm_port` (0 = off) |
 | 17 | **out** | UDP (NTP) | 123 | pool.ntp.org, then time.windows.com | PC clock check every 30 min (SNTP, 48 bytes, no data of yours) | `[ui] check_line` |
 | 18 | **out** | MQTT (TCP) | 1883 | mqtt.pskreporter.info | FT8 or SSB? one call's PSK Reporter reports for up to 2 min (only for an SSB spot on 7074 - 7077 / 1840 - 1843 without a mode, or a CW spot in an FT8 / FT4 window) | `[ssb] pskreporter` |
@@ -447,11 +447,13 @@ To show the phone address, POUNCer opens a UDP socket and *connects* it to
 **no packet is sent**. ZeroTier addresses are shown first when ZeroTier
 runs.
 
-## 16. Autostart (local, no network)
+## 16. N1MM Autostarter (local, no network)
 
-`[autostart]`: POUNCer can start your other programs (.exe, .bat, shortcuts)
-with it - N1MM first, waiting for it. Local process starts only; nothing goes
-over the network.
+**N1MMautostarter.exe** starts N1MM Logger+ and your other programs (.exe,
+.bat, shortcuts) - N1MM first, waiting for it (16b). Local process starts
+only; nothing goes over the network. POUNCer itself starts no programs since
+v0.7.200; an old `[autostart]` list in config.ini is only read by the
+Autostarter, once, to copy it over.
 
 ## 17. PC clock (NTP, UDP 123, out)
 

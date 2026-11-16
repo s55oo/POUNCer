@@ -36,7 +36,7 @@ from . import autostart as am
 
 log = logging.getLogger("autostarter")
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 INI_NAME = "N1MMautostarter.ini"
 LOG_NAME = "N1MMautostarter.log"
 COUNTDOWN_S = 5          # at start: this long to press Stop
@@ -124,6 +124,32 @@ def save(path: str, s: dict) -> None:
     with open(tmp, "w", encoding="utf-8", newline="\r\n" if os.name == "nt" else "\n") as fh:
         fh.write("\n".join(lines))
     os.replace(tmp, path)
+
+
+def import_from_pouncer(ini: str, pouncer_ini: str = "") -> int:
+    """No N1MMautostarter.ini yet, but POUNCer's config.ini next to it has an
+    [autostart] list (POUNCer started them itself up to v0.7.199): copy that
+    list into a new N1MMautostarter.ini. config.ini is only read, never changed.
+    Returns how many programs were copied (0 = nothing done)."""
+    if os.path.exists(ini):
+        return 0
+    src = pouncer_ini or os.path.join(os.path.dirname(ini) or ".", "config.ini")
+    if not os.path.isfile(src):
+        return 0
+    s = load(src)
+    n = sum(1 for cmd, _d, _w in s["apps"] if str(cmd).strip())
+    if not n and not s["folder"]:
+        return 0
+    if s["folder"] == "autostart" and not os.path.isdir(
+            os.path.join(os.path.dirname(src) or ".", "autostart")):
+        s["folder"] = ""                     # POUNCer's default, never made: no folder
+    try:
+        save(ini, s)
+    except OSError as exc:
+        log.warning("could not copy POUNCer's [autostart] list: %s", exc)
+        return 0
+    log.info("copied %d program(s) from %s", n, src)
+    return n
 
 
 def make_plan(s: dict) -> list[dict]:
@@ -371,7 +397,13 @@ def main(argv=None) -> int:
         pass
     logging.getLogger().setLevel(logging.INFO)
     log.info("N1MM Autostarter %s start, settings %s", VERSION, ini)
-    App(ini, setup=args.setup or not os.path.exists(ini)).run()
+    first = not os.path.exists(ini)
+    copied = import_from_pouncer(ini) if first else 0
+    app = App(ini, setup=args.setup or first)
+    if copied:
+        app._status(f"Your {copied} program(s) were copied from POUNCer's config.ini - "
+                    "check them, then Start.")
+    app.run()
     return 0
 
 
