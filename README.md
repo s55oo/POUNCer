@@ -269,9 +269,9 @@ half-size keys on the phone (F1 + F3, F5, F7, F11, SPOTit); full keys are compac
 LAN (one RBN feed for all), pre-contest check (READY / CHECK, each item in
 its own colour; **skimmer offline** warning), stream lights (green working,
 yellow on hold, red problem), **station test** (QSY + callsign per radio),
-CW speed popup, autostart of your other programs (**N1MM first**,
-then the rest when N1MM is up; 8 programs, each optionally "only when N1MM is
-up"), auto-update from GitHub.
+CW speed popup, auto-update from GitHub. N1MM and your other programs
+start with **N1MMautostarter.exe**, a small program of its own (see *N1MM
+Autostarter* below).
 
 **When something is wrong** - a **red line** at the bottom of the window
 says what failed (the refresh, a button, reading the N1MM log), when and
@@ -359,9 +359,8 @@ F-keys stay as buttons - they're used all contest long):
 
 Grouped by what you do (v0.7.189):
 
-* **File** - open the config folder (Explorer), **Autostart ▸** (start the
-  programs now · don't wait for N1MM · open the autostart folder), Allow
-  POUNCer in Windows Firewall…, Restart POUNCer, Exit.
+* **File** - open the config folder (Explorer), Allow POUNCer in Windows
+  Firewall…, Restart POUNCer, Exit.
 * **N1MM** - Reconnect log, *Also enter callsign in N1MM* (tick), **Station
   test** (QSY + callsign, each radio).
 * **View** - this window: **Compact window (beside N1MM)** (tick,
@@ -690,8 +689,8 @@ list* tag in the small line to go back to the radio's band.
 or straight to one page. The settings window lists its pages on the left -
 *Display* (window, spot list, keys), *Alerts & history*, *N1MM & radios*
 (Tap -> N1MM, SO2R / SO2V, CW speed), *Phone page*, *Spots* (sources,
-backups, SSB, spotters, spotted), *Cluster server*, *Startup & updates*
-(autostart, country file & SCP, auto-update) - and shows all of them on one
+backups, SSB, spotters, spotted), *Cluster server*, *Updates*
+(country file & SCP, auto-update) - and shows all of them on one
 sheet that scrolls (mouse wheel); a page name jumps to it. **Search** (top
 left, **Ctrl+F**) keeps only the settings whose name or help has every typed
 word (Esc clears it). Each row: the name, its box right next to it, one grey
@@ -708,9 +707,7 @@ from the phone's settings page and the View menu).
 
 The same settings are on the **Settings** page in the browser (the phone's
 band menu, `/settings`) - only from the browser on the PC itself unless
-`[web] remote_settings = true`. **Autostart** (programs, folder) is shown
-there read-only: it can be changed only in POUNCer's own Settings window,
-never from a browser.
+`[web] remote_settings = true`.
 
 **CW keyboard on the phone**: hold **ENTER** for 1.3 s (it fills up
 yellow) and a text box opens at the top. POUNCer opens N1MM's CW window
@@ -1184,9 +1181,9 @@ bootloader compiled from source, so Windows Defender doesn't flag them
 (locally built exes can be flagged `Trojan:Win32/Wacatac.B!ml` - a false
 positive). Each release lists the exe's SHA-256.
 
-On a PC **without** POUNCer that should still start N1MM and your other
-programs: **N1MMautostarter.exe** from the same release (see *N1MM
-Autostarter* below).
+To start N1MM Logger+ and your other programs (POUNCer too): put
+**N1MMautostarter.exe** from the same release next to them (see *N1MM
+Autostarter* below). POUNCer itself no longer starts programs.
 
 For macOS, download **POUNCer-macos-arm64.tar.gz** (Apple Silicon) or
 **POUNCer-macos-x86_64.tar.gz** (Intel) from the same release. Extract the
@@ -1204,89 +1201,6 @@ tag. N1MM Logger+ still runs on Windows; configure its broadcast destination
 to the Mac's IP address when using POUNCer on another computer. Local Windows
 keyboard and window controls are unavailable on macOS.
 
-## Autostart: your other programs
-
-POUNCer can start your other programs when it starts - in order, each a
-number of seconds after the one before:
-
-- **Settings > Startup & updates > Autostart** in POUNCer's own window (or `[autostart]` in
-  config.ini) - **not** from the browser's settings page (read-only there:
-  programs that start with POUNCer are never set over the network): *Program 1-8*
-  with the full path of an .exe, .bat, .cmd or shortcut (**Browse...**), and
-  for each *start after (seconds)* - Program 1 after POUNCer's start, the
-  others after the program before. Arguments: put the path in quotes and the
-  arguments after it, `"C:\HAM\My Tool\tool.exe" --port 9000`.
-- The **autostart folder** next to config.ini (made at the first start,
-  *File > Autostart > Open the autostart folder*): everything in it starts after
-  programs 1-8, in name order (`1 rotor.lnk`, `2 cw.bat`), `folder_delay`
-  seconds apart.
-
-Each program starts in its own folder, like a double-click. The same
-program can be listed more than once (e.g. 4 copies of a log router): all
-copies start. An .exe that was already running before POUNCer started its
-list is not started again, and when POUNCer restarts itself
-(update, File > Restart) nothing is started again - so right after an
-auto-update use *File > Autostart > Start autostart programs now* if they aren't
-running yet (it runs the list by hand); the status bar shows what started.
-
-**N1MM first.** Put N1MM Logger+ (`N1MMLogger.net.exe`, wherever it is
-installed) as **Program 1** and POUNCer starts N1MM first and **waits until
-N1MM is up** - its first RadioInfo / AppInfo broadcast, i.e. the Entry
-Window and the log are open - before it starts the rest of itself (RBN,
-reading the log, team, phone page, CW speed, SCP) and programs 2-4 and the
-folder (Program 2's delay counts from then). The status bar shows
-"waiting for N1MM to start (23 s)". It needs N1MM's *Config > Broadcast
-Data > Radio* (or *App Info*) ticked - POUNCer needs that anyway. At most
-`n1mm_timeout` seconds (180), then it goes on anyway; *File > Don't wait
-for N1MM* goes on at once. If N1MM is already running, nothing waits.
-Switch off: *Settings > Startup & updates > Autostart > N1MM as program 1: wait until it is up*
-(`wait_n1mm = false`).
-
-```ini
-[autostart]
-app1 = C:\Program Files (x86)\N1MM Logger+\N1MMLogger.net.exe
-app1_delay = 0
-app2 = C:\HAM\LogRouter\router.exe
-app2_delay = 5
-wait_n1mm = true
-n1mm_timeout = 180
-```
-
-**Which config.ini?** POUNCer reads the config.ini **next to the
-POUNCer.exe you start** (or the one given with `--config`). With two copies
-of POUNCer.exe (e.g. one in a `dist` folder) each has its own config.ini and
-its own autostart list - *File > Open the config folder* shows the one in use.
-
-**More than 8 programs:** put the rest in the autostart folder - a shortcut,
-or a small .bat that starts the program in its own folder:
-
-```bat
-@echo off
-start "" /D "C:\HAM\LogRouter" "C:\HAM\LogRouter\router.exe"
-```
-
-Name them `1 ....bat`, `2 ....bat` for the order; they start after
-programs 1-8 (and, with N1MM first, only when N1MM is up).
-
-**Only when N1MM is up**, per program: tick *... only when N1MM is up*
-(`appN_wait_n1mm = true`) and that program waits until N1MM broadcasts -
-useful for a log router that needs N1MM, also when you start N1MM yourself.
-
-Example - four copies of a log router, 5 s apart:
-
-```ini
-[autostart]
-enabled = true
-app1 = C:\HAM\LogRouter\router.exe
-app1_delay = 5
-app2 = C:\HAM\LogRouter\router.exe
-app2_delay = 5
-app3 = C:\HAM\LogRouter\router.exe
-app3_delay = 5
-app4 = C:\HAM\LogRouter\router.exe
-app4_delay = 5
-```
-
 ## Security: use it on your own network only
 
 POUNCer is built for a **station network you control**: an isolated shack LAN
@@ -1296,8 +1210,7 @@ network every device that can reach the PC is trusted - there is no login:
 - **Phone page (TCP 8080):** anyone who can open `http://<PC>:8080` can QSY
   the radio, press the F-keys and use the CW keyboard - **F-keys and CW
   transmit**. Settings can be changed only from the PC itself (unless
-  `[web] remote_settings = true`), and **autostart never** from the web page -
-  only in POUNCer's own Settings window.
+  `[web] remote_settings = true`), and no setting starts a program.
 - **Team (UDP 12079):** without a team password messages are not signed - a
   device on the network could pretend to be the master (spots, SPOTTED
   pop-ups, "update all"). With **Team > Team password…** (v0.7.140) every
@@ -1339,40 +1252,49 @@ another PC by default. Updates come only from this repository's GitHub
 releases over HTTPS and are checked with their SHA-256 before they replace
 the exe.
 
-## N1MM Autostarter (PCs without POUNCer)
+## N1MM Autostarter: N1MM and your other programs
 
-**N1MMautostarter.exe** (on every release, Windows) is POUNCer's autostart as
-a small program of its own - for a PC where you run N1MM Logger+ but not
-POUNCer. It only starts the programs you chose; nothing else (no network,
-no spots).
+**N1MMautostarter.exe** (on every release, Windows; the **A** icon) starts
+N1MM Logger+ and your other programs - POUNCer too - in order, each after
+its delay. Up to v0.7.199 POUNCer did this itself (`[autostart]` in
+config.ini); now it is only here. It starts programs and nothing else (no
+spots; only the brief N1MM listen below).
 
-- Put **N1MMautostarter.exe** in a folder of its own and run it. The first
-  time the window opens empty: fill in **Program 1-8** (Browse..., or the
-  path with arguments after it: `"C:\HAM\My Tool\tool.exe" --port 9000`),
-  each with **start after (s)** and **wait for N1MM**, optionally a
-  **Folder** (every program in it, in name order), and **Save**. The
-  settings are in `N1MMautostarter.ini` next to the exe (the same keys as
-  POUNCer's `[autostart]`, so a list can be copied either way); what it did
-  goes to `N1MMautostarter.log`.
+- Put **N1MMautostarter.exe** in a folder and run it. The window shows your
+  programs as a list, each with a light: grey = not yet, amber = starting
+  next / waiting for N1MM, green = started (or was already running), red =
+  not found or failed. **Start** and **Stop** below.
+- **Edit** (top right): four rows - the program (**…** to browse, or the path
+  with arguments after it: `"C:\HAM\My Tool\tool.exe" --port 9000`), **after
+  s** (seconds after the one before) and the **N1MM up** switch (start this one
+  only when N1MM is up). **+ Add program** goes up to eight. **More options**:
+  a **folder** (everything in it, in name order, after the eight), N1MM
+  first, the N1MM port and wait, **Close when everything is started**,
+  **Start with Windows…**. **Save** writes `N1MMautostarter.ini` next to the
+  exe; what it did goes to `N1MMautostarter.log`.
+- **Coming from an older POUNCer:** the first time, when there is no
+  N1MMautostarter.ini yet but a POUNCer `config.ini` with an `[autostart]`
+  list sits in the same folder, the list is copied over (config.ini is only
+  read) - check it and **Start**. POUNCer's pouncer.log notes an old
+  `[autostart]` list it no longer starts.
 - Every later start: a 5 s countdown (**Stop** to change something first),
-  then your programs, in order. An .exe that already runs is not started
-  again. **Close when everything is started** closes the window 5 s after
-  the last one.
-- **N1MM first:** with N1MM Logger+ as Program 1 (and *N1MM as Program 1:
-  start the rest when N1MM is up* ticked), N1MM is started and the others
-  wait until it is up - its first Radio / App Info broadcast on UDP **12060**
-  (*Config > Configure Ports... > Broadcast Data*), or, if that port is used
-  by another program or the broadcasts are off, N1MM running for **30 s**.
-  The Autostarter listens on the port only while it waits, frees it at once,
-  and never takes it from another program. Port 0 = don't listen.
-- **At Windows logon:** *Windows Startup folder* opens the folder; put a
-  shortcut to N1MMautostarter.exe in it.
+  then your programs. An .exe that already runs is not started again.
+- **N1MM first:** with N1MM Logger+ as the first program (and *N1MM first*
+  on), N1MM is started and the others wait until it is up - its first Radio /
+  App Info broadcast on UDP **12060** (*Config > Configure Ports... >
+  Broadcast Data*), or, if that port is used by another program or the
+  broadcasts are off, N1MM running for **30 s**. The Autostarter listens on
+  the port only while it waits, frees it at once, and never takes it from
+  another program. Port 0 = don't listen.
+- **Light / Dark** (top) changes its look.
+- **At Windows logon:** *More options > Start with Windows…* opens the
+  Startup folder; put a shortcut to N1MMautostarter.exe in it.
 - `N1MMautostarter.exe --setup` opens the window without starting anything.
 
 ## When something doesn't work
 
 - **Log file:** POUNCer writes what it does - taps and QSYs (and whether N1MM
-  reported the new frequency), which window got the call, autostart,
+  reported the new frequency), which window got the call,
   connection problems - to `cache\pouncer.log` next to config.ini (1 MB,
   3 older ones kept). *Help > Troubleshooting > Open the log file*.
 - **Diagnostics:** *Help > Troubleshooting > Save diagnostics (zip)* puts the log, a facts
@@ -1527,7 +1449,7 @@ All options live in `config.ini` and are documented there, line by line:
 | `touch_view` | false | Open the phone page in the browser at start. |
 | **[web]** | | |
 | `enabled`, `host`, `port` | true, 0.0.0.0, 8080 | The phone / browser page. |
-| `remote_settings` | false | Allow settings changes from other devices too (never the autostart ones). |
+| `remote_settings` | false | Allow settings changes from other devices too. |
 | `cw_keyboard` | true | Hold ENTER 1.3 s on the phone = CW keyboard (N1MM Ctrl+K window, transmits). |
 | **[ssb]** | | |
 | `mode` | auto | Only read from an older config.ini without `[rbn] sources` (`off` = no Cluster there). |
@@ -1545,12 +1467,6 @@ All options live in `config.ini` and are documented there, line by line:
 | `enabled` | true | "?" on calls not in Super Check Partial. |
 | `url` | azure.s53m.com/cors/MASTER.DTA | Where the list comes from (MASTER.DTA, or a text MASTER.SCP); downloaded every Friday, only when it changed. |
 | `update_n1mm` | false | Also write N1MM's SupportFiles\MASTER.SCP (as text). |
-| **[autostart]** | | |
-| `enabled` | true | Start your other programs with POUNCer. |
-| `app1` ... `app8` | empty | Full path of an .exe / .bat / .cmd / shortcut; arguments after a quoted path: `"C:\\x\\tool.exe" --arg`. |
-| `app1_delay` ... `app8_delay` | 5 | Seconds after the one before (app1: after POUNCer's start). |
-| `app1_wait_n1mm` ... `app8_wait_n1mm` | false | Start this one only once N1MM is up (it broadcasts), at most `n1mm_timeout` s - for tools that need N1MM running, also when N1MM isn't in the list. |
-| `folder`, `folder_delay` | autostart, 3 | Everything in this folder (next to config.ini) starts after app1-app8, in name order, this many seconds apart. |
 
 Most of these can also be changed in **Settings** (main window) or on the
 **Settings** page; all connections and ports: [docs/NETWORK.md](docs/NETWORK.md).

@@ -206,6 +206,32 @@ class ListTests(unittest.TestCase):
         self.assertEqual(A.load(p)["look"], "dark")
 
 
+class ImportTests(unittest.TestCase):
+    def test_copies_pouncers_old_list_once(self) -> None:
+        d = tempfile.mkdtemp()
+        cfg = os.path.join(d, "config.ini")
+        text = ("[autostart]\napp1 = C:\\HAM\\N1MM Logger+\\N1MMLogger.net.exe\napp1_delay = 0\n"
+                "app2 = C:\\HAM\\POUNCer\\POUNCer.exe\napp2_delay = 7\napp2_wait_n1mm = true\n")
+        with open(cfg, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        ini = os.path.join(d, A.INI_NAME)
+        self.assertEqual(A.import_from_pouncer(ini), 2)
+        s = A.load(ini)
+        self.assertEqual(s["apps"][1], (r"C:\HAM\POUNCer\POUNCer.exe", 7, True))
+        self.assertEqual(s["folder"], "")                 # POUNCer's default, never made
+        self.assertEqual(open(cfg, encoding="utf-8").read(), text)   # only read
+        self.assertEqual(A.import_from_pouncer(ini), 0)   # never over an existing one
+
+    def test_nothing_to_copy(self) -> None:
+        d = tempfile.mkdtemp()
+        ini = os.path.join(d, A.INI_NAME)
+        self.assertEqual(A.import_from_pouncer(ini), 0)
+        with open(os.path.join(d, "config.ini"), "w", encoding="utf-8") as fh:
+            fh.write("[ui]\nmin_snr = 9\n")
+        self.assertEqual(A.import_from_pouncer(ini), 0)
+        self.assertFalse(os.path.exists(ini))
+
+
 class WindowTests(unittest.TestCase):
     def setUp(self) -> None:
         try:

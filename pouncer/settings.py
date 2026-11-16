@@ -14,30 +14,6 @@ import re
 from .config import parse_radio
 
 # kind: int / bool / choice / text ; live: used at once without a restart
-def _autostart_apps(count: int = 8) -> list[dict]:
-    """Settings for autostart programs 1..count: path, delay, wait for N1MM."""
-    out = []
-    for n in range(1, count + 1):
-        out += [
-            {"key": f"autostart.app{n}", "attr": f"autostart_app{n}", "kind": "file", "live": True,
-             "group": "Autostart", "label": f"Program {n}",
-             "help": ("Full path of an .exe, .bat or shortcut. Arguments: "
-                      "\"C:\\path\\tool.exe\" --arg") if n == 1 else ""},
-            {"key": f"autostart.app{n}_delay", "attr": f"autostart_delay{n}", "kind": "int",
-             "min": 0, "max": 600, "live": True, "group": "Autostart",
-             "label": "  ... start after (seconds)",
-             "help": "after POUNCer's start" if n == 1 else f"after program {n - 1}"},
-            {"key": f"autostart.app{n}_wait_n1mm", "attr": f"autostart_wait{n}", "kind": "bool",
-             "live": True, "group": "Autostart", "label": "  ... only when N1MM is up",
-             "help": "waits (up to the N1MM wait below) until N1MM broadcasts - for tools "
-                     "that need N1MM running" if n == 1 else ""},
-        ]
-    return out
-
-
-_AUTOSTART_APPS = _autostart_apps()
-
-
 SETTINGS: list[dict] = [
     {"key": "worked.profile", "attr": "worked_profile", "kind": "choice",
      "choices": ["auto", "off", "ttc", "mini40", "mini80", "mwc"],
@@ -356,26 +332,6 @@ SETTINGS: list[dict] = [
      "live": True, "group": "Program", "label": "Alert sound",
      "help": "Window: two short beeps for the same alert - on its own, with or without "
              "the pop-up."},
-    {"key": "autostart.enabled", "attr": "autostart", "kind": "bool", "live": True,
-     "group": "Autostart", "label": "Start my programs with POUNCer",
-     "help": "Programs 1-8 below, then everything in the autostart folder - each after its "
-             "delay. Used at the next start of POUNCer (a restart starts nothing again)."},
-    *_AUTOSTART_APPS,
-    {"key": "autostart.folder", "attr": "autostart_folder", "kind": "text", "live": True,
-     "group": "Autostart", "label": "Autostart folder",
-     "help": "Everything in it (.exe .bat .cmd .lnk ...) starts after programs 1-8, in name "
-             "order. A name like 'autostart' = next to config.ini. Empty = no folder."},
-    {"key": "autostart.folder_delay", "attr": "autostart_folder_delay", "kind": "int", "min": 0,
-     "max": 600, "live": True, "group": "Autostart", "label": "  ... seconds between them",
-     "help": ""},
-    {"key": "autostart.wait_n1mm", "attr": "autostart_wait_n1mm", "kind": "bool", "live": True,
-     "group": "Autostart", "label": "N1MM as program 1: wait until it is up",
-     "help": "When program 1 is N1MMLogger.net.exe and N1MM isn't running: start it, wait for "
-             "its first broadcast (Entry Window / log open), then start the rest of POUNCer "
-             "and programs 2-8. N1MM: Config > Broadcast Data > Radio / App Info."},
-    {"key": "autostart.n1mm_timeout", "attr": "autostart_n1mm_timeout", "kind": "int",
-     "min": 10, "max": 900, "live": True, "group": "Autostart",
-     "label": "  ... wait at most (seconds)", "help": "then POUNCer goes on anyway"},
     {"key": "ui.fkeys", "attr": "fkeys_text", "kind": "text", "live": False,
      "group": "Program", "label": "TX / log keys",
      "help": "In this order, KEY:label - F1-F12 (transmit), Enter (log), SpotIt (N1MM Alt+P). "
@@ -387,12 +343,6 @@ SETTINGS: list[dict] = [
      "group": "Program", "label": "Auto-update from GitHub", "help": ""},
 ]
 # ---- pages: how the Settings window and the /settings page show them ----
-_AUTOSTART = ["autostart.enabled"]
-for _n in range(1, 9):
-    _AUTOSTART += [f"autostart.app{_n}", f"autostart.app{_n}_delay", f"autostart.app{_n}_wait_n1mm"]
-_AUTOSTART += ["autostart.folder", "autostart.folder_delay",
-               "autostart.wait_n1mm", "autostart.n1mm_timeout"]
-
 # page -> [(part, [setting keys])]; a key not listed here lands on "Other"
 PAGES: list[tuple[str, list[tuple[str, list[str]]]]] = [
     ("Display", [
@@ -433,8 +383,7 @@ PAGES: list[tuple[str, list[tuple[str, list[str]]]]] = [
     ("Cluster server", [
         ("", ["cluster.enabled", "cluster.port", "cluster.relay", "cluster.spots_out"]),
     ]),
-    ("Startup & updates", [
-        ("Autostart", _AUTOSTART),
+    ("Updates", [
         ("Country file & Super Check Partial", ["cty.auto_update", "cty.update_n1mm",
                                                 "scp.update_n1mm"]),
         ("Updates", ["ui.auto_update"]),
@@ -461,16 +410,6 @@ def _show(item: dict, value) -> object:
     return value
 
 
-# Settings that start programs: changed only in the exe's own Settings
-# window, never through the web page (not even with [web] remote_settings).
-APP_ONLY_PREFIXES = ("autostart.",)
-
-
-def app_only(key: str) -> bool:
-    """True = this setting can't be changed from the web page."""
-    return str(key or "").strip().lower().startswith(APP_ONLY_PREFIXES)
-
-
 def current(cfg) -> list[dict]:
     """Every setting with its value now (for the page)."""
     out = []
@@ -478,7 +417,6 @@ def current(cfg) -> list[dict]:
     for item in sorted(SETTINGS, key=lambda it: _ORDER.get(it["key"], len(_ORDER))):
         d = {k: v for k, v in item.items() if k != "attr"}
         d["group"], d["part"] = place(item["key"])
-        d["app_only"] = app_only(item["key"])
         d["value"] = _show(item, getattr(cfg, item["attr"], None))
         out.append(d)
     return out

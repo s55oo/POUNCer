@@ -1,5 +1,18 @@
 # POUNCer — Changelog
 
+## v0.7.200 — 2026-11-16 — Programs start with the N1MM Autostarter only
+
+- POUNCer no longer starts programs: *File > Autostart*, the Autostart part of
+  Settings (the page is now just **Updates**) and `[autostart]` in config.ini
+  are gone. N1MM Logger+ and your other programs start with
+  **N1MMautostarter.exe**.
+- N1MMautostarter.exe 1.2.0: the first time (no N1MMautostarter.ini yet) it
+  copies an `[autostart]` list from a POUNCer config.ini in the same folder -
+  config.ini is only read. POUNCer's log notes an old list it no longer
+  starts.
+- No setting of POUNCer starts a program any more, so the web page's
+  "autostart only in the app" exception is gone too.
+
 ## v0.7.199 — 2026-11-16 — P and A icons
 
 - POUNCer's icon is now a **P**, the N1MM Autostarter's an **A** - same blue

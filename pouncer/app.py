@@ -50,7 +50,6 @@ from .pskr import PskChecker
 from .tiles import TileList
 from .rowlist import RowList
 from . import theme
-from . import autostart as autostartmod
 from . import diag as diagmod
 from . import win32 as win32mod
 from . import summary as summarymod
@@ -758,14 +757,6 @@ class PouncerApp:
         # -- File: the program itself ----------------------------------------------
         file = tk.Menu(bar, tearoff=False, postcommand=self._refresh_menu_states)
         file.add_command(label="Open the config folder", command=self._open_config_folder)
-        auto = tk.Menu(file, tearoff=False, postcommand=self._refresh_menu_states)
-        auto.add_command(label="Start autostart programs now", command=self._start_autostart)
-        auto.add_command(label="Don't wait for N1MM (start the rest now)",
-                         command=self._stop_waiting_n1mm)
-        auto.add_command(label="Open the autostart folder",
-                         command=lambda: self._open_path(self._autostart_folder()))
-        file.add_cascade(label="Autostart", menu=auto)
-        self._auto_menu = auto
         file.add_separator()
         file.add_command(label="Allow POUNCer in Windows Firewall\u2026", command=self._allow_firewall,
                          state="normal" if sys.platform == "win32" else "disabled")
@@ -990,8 +981,6 @@ class PouncerApp:
         state(tm, "Become team master", team is not None and role != "master")
         state(tm, "This PC is the team master", team is not None)
         state(tm, "Update all POUNCers", role == "master" and bool(self.updater.exe))
-        state(getattr(self, "_auto_menu", None), "Don't wait for N1MM",
-              getattr(self, "_n1mm_wait_rest", None) is not None)
 
     COMPACT_COLUMNS = ("freq", "call", "mult")
     COMPACT_GEOMETRY = "330x430"
@@ -1472,111 +1461,6 @@ class PouncerApp:
     def _web_min_snr(self, db: int) -> None:
         self._web_queue.put(("minsnr", int(db)))
 
-    # ---- autostart -----------------------------------------------------------
-
-    def _autostart_folder(self) -> str:
-        f = self.cfg.autostart_folder
-        if not f:
-            return ""
-        if not os.path.isabs(f):
-            f = os.path.join(os.path.dirname(self.cfg.config_path or ".") or ".", f)
-        if not os.path.isdir(f):          # make it, so it is easy to find
-            try:
-                os.makedirs(f, exist_ok=True)
-                with open(os.path.join(f, "README.txt"), "w", encoding="utf-8") as fh:
-                    fh.write("Put programs (.exe .bat .cmd) or shortcuts (.lnk) here: POUNCer\n"
-                             "starts them when it starts, in name order (1 rotor.lnk, 2 cw.bat),\n"
-                             "[autostart] folder_delay seconds apart, after app1-app8.\n")
-            except OSError:
-                return ""
-        return f
-
-    def _start_autostart(self, defer_pouncer: bool = False) -> bool:
-        """Start programs 1-8 and the autostart folder, each after its delay.
-
-        Program 1 = N1MM Logger+ that isn't running yet (and [autostart]
-        wait_n1mm): start it, wait until it is up, then the other programs -
-        and with ``defer_pouncer`` the rest of POUNCer too. True = waiting."""
-        apps = [(getattr(self.cfg, f"autostart_app{n}", ""), getattr(self.cfg, f"autostart_delay{n}", 5),
-                 getattr(self.cfg, f"autostart_wait{n}", False))
-                for n in range(1, autostartmod.APPS + 1)]
-        items = autostartmod.plan(apps, self._autostart_folder(), self.cfg.autostart_folder_delay)
-        if not items:
-            return False
-        if (getattr(self.cfg, "autostart_wait_n1mm", True) and autostartmod.n1mm_first(items)
-                and self._n1mm_running() is not True and os.path.exists(items[0]["path"])):
-            first, rest = items[0], items[1:]
-            self._n1mm_wait = None
-            self._n1mm_wait_defer = defer_pouncer
-            self._n1mm_wait_rest = rest
-            self.status_label.configure(
-                text=f"Autostart: N1MM first, in {first['delay']} s - the rest when N1MM is up")
-            self.root.after(first["delay"] * 1000, lambda: self._launch_n1mm(first))
-            return True
-        self._run_autostart(items)
-        return False
-
-    def _run_autostart(self, items: list[dict]) -> None:
-        if not items:
-            return
-        self._autostart = autostartmod.Autostart(
-            items, running=running_process_names,
-            on_status=lambda t: self._web_queue.put(("status", "Autostart: " + t)),
-            n1mm_up=self._n1mm_up, wait_s=getattr(self.cfg, "autostart_n1mm_timeout", 180))
-        self._autostart.start()
-        self.status_label.configure(text=f"Autostart: {len(items)} program(s) - "
-                                         f"first in {items[0]['delay']} s")
-
-    def _n1mm_up(self) -> bool:
-        """N1MM broadcasts (RadioInfo in the last 30 s, or AppInfo) - thread-safe."""
-        last = self.state.last_update()
-        if last and time.time() - last < 30:
-            return True
-        app = self.state.app() or {}
-        return app.get("kind") == "AppInfo" and time.time() - app.get("t", 0) < 120
-
-    def _launch_n1mm(self, item: dict) -> None:
-        try:
-            autostartmod._launch(item["path"], item["args"])
-        except Exception as exc:  # noqa: BLE001 - go on without it
-            log.warning("autostart: N1MM failed to start: %s", exc)
-            self.status_label.configure(text=f"Autostart: N1MM failed to start: {exc}")
-            self._n1mm_wait_done()
-            return
-        self._n1mm_wait = autostartmod.N1mmWait(
-            time.time(), timeout_s=getattr(self.cfg, "autostart_n1mm_timeout", 180))
-        self._n1mm_wait_tick()
-
-    def _n1mm_wait_tick(self) -> None:
-        w = getattr(self, "_n1mm_wait", None)
-        if w is None:
-            return
-        app = self.state.app() or {}
-        done, text = w.check(time.time(), self.state.last_update(), app.get("t", 0.0),
-                             self._n1mm_running())
-        self.status_label.configure(text="Autostart: " + text + (
-            "" if done else "   (File > Autostart > Don't wait for N1MM)"))
-        if done:
-            self._n1mm_wait_done()
-        else:
-            self.root.after(1000, self._n1mm_wait_tick)
-
-    def _n1mm_wait_done(self) -> None:
-        """N1MM is up (or we stop waiting): the rest of POUNCer, then the
-        other programs (program 2's delay counts from now)."""
-        if getattr(self, "_n1mm_wait_rest", None) is None:
-            return
-        self._n1mm_wait = None
-        rest, self._n1mm_wait_rest = self._n1mm_wait_rest, None
-        if self._n1mm_wait_defer:
-            self._start_services()
-        self._run_autostart(rest)
-
-    def _stop_waiting_n1mm(self) -> None:
-        """File > Autostart > Don't wait for N1MM: go on now."""
-        if getattr(self, "_n1mm_wait_rest", None) is not None:
-            self._n1mm_wait_done()
-
     def _apply_topmost(self) -> None:
         try:
             self.root.attributes("-topmost", bool(self.topmost_var.get()))
@@ -1967,7 +1851,7 @@ class PouncerApp:
 
     def _open_path(self, path: str) -> None:
         if not path:
-            self.status_label.configure(text="No autostart folder ([autostart] folder is empty)")
+            self.status_label.configure(text="Nothing to open")
             return
         try:
             if sys.platform == "win32":
@@ -2006,7 +1890,6 @@ class PouncerApp:
             f["rbn"] = self.rbn_status
             f["phone page"] = self._local_web_url() or "off"
             f["last tap"] = getattr(self, "_last_tap", None)
-            f["autostart"] = getattr(getattr(self, "_autostart", None), "results", None)
             f["checks"] = [(i["name"], i["state"], i["text"])
                            for i in checksmod.build(self._check_facts())]
         except Exception as exc:  # noqa: BLE001 - the zip still helps
@@ -5440,12 +5323,7 @@ class PouncerApp:
             self.lights_frame.add(self._restart_btn)
 
     def _save_setting_web(self, key: str, value: str) -> dict:
-        """A change from the web page: never the autostart programs / folder
-        (they start programs) - those only in the exe's Settings window."""
-        if settingsmod.app_only(key):
-            log.warning("web: change of %s refused (autostart only in the app)", key)
-            return {"ok": False, "error": "Autostart can be changed only in POUNCer's own "
-                                          "Settings window (the exe)"}
+        """A change from the web page."""
         return self._save_setting(key, value)
 
     def _save_setting(self, key: str, value: str) -> dict:
@@ -6453,15 +6331,11 @@ class PouncerApp:
             on_spot=self._on_n1mm_spot,
         )
         self._listener.start()
-        # your other programs (Settings > Startup & updates > Autostart) - not again after a restart.
-        # N1MM listed first and not running yet: start it and wait for it
-        # before the rest of POUNCer (and the other programs) starts.
-        restarted = os.environ.pop(autostartmod.RESTART_ENV, "") == "1"
-        waiting = False
-        if self.cfg.autostart and not restarted:
-            waiting = self._start_autostart(defer_pouncer=True)
-        if not waiting:
-            self._start_services()
+        self._start_services()
+        if getattr(self.cfg, "legacy_autostart", 0):
+            # an old config.ini with [autostart] programs: they no longer start from here
+            log.info("[autostart] has %d program(s): POUNCer no longer starts them - "
+                     "use N1MMautostarter.exe", self.cfg.legacy_autostart)
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
         try:
             self.root.mainloop()

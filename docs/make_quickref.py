@@ -191,7 +191,7 @@ s.append(section("ZO mode (View › ZO mode, Ctrl+Z)", [
 s.append(P("Hints from past logs, not a prediction of who leaves the band.", small))
 
 s.append(section("Menus", [
-    ("File", "config folder, Autostart ▸, Windows Firewall, restart, exit"),
+    ("File", "config folder, Windows Firewall, restart, exit"),
     ("N1MM", "reconnect log, also enter callsign, station test"),
     ("View", "compact, always on top, detailed layout, tiles, ZO mode, rate line, look ▸"),
     ("Spots / Spotters / Spotted", "sources on / off · whose spots (skimmers) · which DX"),

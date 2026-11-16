@@ -34,13 +34,13 @@ Several of POUNCer's strongest parts come from **S53ZO**:
 | Phone | Big tiles you tap to QSY and call; F1-F7, ENTER, SPOTit and half-size keys; WPM - / +, ±25 Hz, NEXT; stacked messages; DX / MLT / ⚡ first. **Control N1MM** switch: look only until switched on - or on for all phones from the PC / team master. |
 | Alerts | A rare CQ that is also a new mult: pop-up (click = QSY and call) and sound, each switched on its own - in the window and on the phone. **SPOTTED**: someone spotted your call on a cluster (3 s, on the PC on that band). **Skimmer offline**: your skimmer stopped sending. |
 | Band pictures | Band open chips (DX share), **CQ zones** (who hears you / what you hear), **band opening timeline** (48 h), contest summary - as windows and as phone pages. |
-| Station | SO2R / SO2V, a team of POUNCers sharing one RBN feed (none when all are on SSB; click SLAVE to take the master role back, or let the radio PC take it back by itself after a restart), pre-contest READY check, **station test** (QSY + callsign per radio), CW speed popup, autostart of N1MM first and up to 8 other programs, auto-update from GitHub; the team master keeps a log of every POUNCer's settings (in the diagnostics zip). |
+| Station | SO2R / SO2V, a team of POUNCers sharing one RBN feed (none when all are on SSB; click SLAVE to take the master role back, or let the radio PC take it back by itself after a restart), pre-contest READY check, **station test** (QSY + callsign per radio), CW speed popup, auto-update from GitHub (N1MM and your other programs start with **N1MMautostarter.exe**); the team master keeps a log of every POUNCer's settings (in the diagnostics zip). |
 
 ## Getting started
 
 1. Download **POUNCer.exe** and **config.ini** from the [latest GitHub release](https://github.com/s55oo/POUNCer/releases/latest) into one folder, e.g. next to N1MM.
 2. In N1MM: Config > Config Ports > **Broadcast Data**, tick **Radio**, **App Info**, **Contacts** (worked stations leave the list at once) and **Spots**, all to the same address (127.0.0.1:12060) ([details](../README.md#n1mm-logger-setup)). When Windows asks, allow POUNCer through the firewall (the phone needs TCP 8080).
-3. Start POUNCer. Set your skimmer, keys and autostart in the **Settings** menu - *All settings…* (Ctrl+,) or straight to one page; the search box finds any setting (no need to edit config.ini by hand).
+3. Start POUNCer. Set your skimmer and keys in the **Settings** menu - *All settings…* (Ctrl+,) or straight to one page; the search box finds any setting (no need to edit config.ini by hand).
 4. On the phone, scan the QR code from **Tools > Phone page > QR code…** (or type the address shown at the top of the window; same Wi-Fi or ZeroTier). A phone starts look-only: switch on **Control N1MM** in its band menu to tune and send keys.
 
 **Updating**: when the Update light shows, click it, then **Restart**. Your config.ini is kept; the phone page reloads by itself. To look for one at once: **Help > Versions > Check for a new version**.

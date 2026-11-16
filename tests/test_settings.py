@@ -98,25 +98,32 @@ class PageTests(unittest.TestCase):
             web.stop()
         self.assertEqual(saved, [("n1mm.qsy_wait_ms", "900")])
 
-    def test_autostart_never_from_the_web(self) -> None:
-        web, saved = self._web(remote=True)          # even with remote_settings on
-        base = f"http://127.0.0.1:{web.port}"
-        try:
-            for key, value in (("autostart.folder", r"C:\\Users\\x\\Downloads"),
-                               ("autostart.app1", r"C:\\evil.exe"), ("Autostart.enabled", "true")):
-                with self.assertRaises(urllib.error.HTTPError) as cm:
-                    open_web(base + "/api/settings/set?" + urllib.parse.urlencode(
-                        {"key": key, "value": value}), timeout=5)
-                self.assertEqual(cm.exception.code, 403)
-        finally:
-            web.stop()
-        self.assertEqual(saved, [])
+    def test_no_autostart_settings_any_more(self) -> None:
+        """Programs start with N1MMautostarter.exe now: POUNCer has no setting
+        that starts a program, and an [autostart] key is refused as unknown."""
         from pouncer import settings
-        self.assertTrue(settings.app_only("autostart.app3_delay"))
-        self.assertFalse(settings.app_only("ui.look"))
-        items = {i["key"]: i for i in settings.current(load_config(""))}
-        self.assertTrue(items["autostart.folder"]["app_only"])
-        self.assertFalse(items["n1mm.qsy_wait_ms"]["app_only"])
+        self.assertFalse([it["key"] for it in settings.SETTINGS
+                          if it["key"].lower().startswith("autostart") or it["kind"] == "file"])
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "config.ini")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write("[ui]\nmin_snr = 9\n")
+            cfg = load_config(path)
+            for key in ("autostart.app1", "autostart.folder", "autostart.enabled"):
+                r = settings.save(cfg, path, key, r"C:\\evil.exe")
+                self.assertFalse(r["ok"], key)
+            with open(path, encoding="utf-8") as fh:
+                self.assertNotIn("evil", fh.read())
+        self.assertNotIn("Startup & updates", [p for p, _ in settings.PAGES])
+
+    def test_old_autostart_list_only_counted(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "config.ini")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write("[autostart]\napp1 = C:\\HAM\\N1MM Logger+\\N1MMLogger.net.exe\n"
+                         "app2 = C:\\HAM\\x.exe\napp3 =\n")
+            self.assertEqual(load_config(path).legacy_autostart, 2)
+        self.assertEqual(load_config("").legacy_autostart, 0)
 
     def test_other_devices_read_only_unless_allowed(self) -> None:
         from pouncer.web import _Handler
