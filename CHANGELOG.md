@@ -1,5 +1,16 @@
 # POUNCer — Changelog
 
+## v0.7.197 — 2026-11-16 — A small N1MM Autostarter window
+
+- N1MMautostarter.exe (1.1.0) has a new, small window: your programs as a
+  list with a light each - grey waiting, amber starting / waiting for N1MM,
+  green started, red not found or failed - and one Start and Stop.
+- **Edit** shows four programs (path, delay, "wait for N1MM" switch);
+  **+ Add program** goes up to eight; **More options** has the folder, the
+  N1MM timing, "close when done" and "Start with Windows...".
+- **Light / Dark** changes its look (saved as `look` in N1MMautostarter.ini).
+  Your existing N1MMautostarter.ini works unchanged.
+
 ## v0.7.196 — 2026-11-15 — About
 
 - *Help > About* now says "S55OO software".
