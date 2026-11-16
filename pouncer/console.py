@@ -101,8 +101,10 @@ class TrafficConsole:
         ttk.Button(bar, text="Clear", command=self._clear).pack(side="left", padx=2)
         ttk.Button(bar, text="Reset counters", command=self.reset_counts).pack(side="left", padx=2)
         if self.shown is not None:
-            tk.Label(bar, text="yellow = spots POUNCer shows", fg=SHOWN_COLOR,
-                     bg=theme.BG or "#1c1c1c", font=(theme.FONT, 9, "bold")).pack(side="left", padx=(10, 0))
+            # the look's own text colour (yellow on the light look's grey bar
+            # could not be read); only the lines below are yellow (v0.7.202)
+            ttk.Label(bar, text="yellow = spots POUNCer shows",
+                      font=(theme.FONT, 9)).pack(side="left", padx=(10, 0))
         # one chip per source: coloured dot (green = lines now, amber = quiet,
         # red = quiet long, grey = quiet for a known reason) + count / why
         self.info = ttk.Frame(win, padding=(8, 0, 8, 4))

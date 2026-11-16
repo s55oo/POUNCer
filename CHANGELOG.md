@@ -1,5 +1,11 @@
 # POUNCer — Changelog
 
+## v0.7.202 — 2026-11-16 — Readable console legend
+
+- Traffic console: the note "yellow = spots POUNCer shows" in the bar is in the
+  normal text colour (it was yellow, unreadable on the light look's grey bar).
+  The shown spot lines in the dark traffic view stay yellow.
+
 ## v0.7.201 — 2026-11-16 — Yellow spots in the traffic console
 
 - *Tools > Traffic console*: the raw lines of the spots POUNCer shows are
