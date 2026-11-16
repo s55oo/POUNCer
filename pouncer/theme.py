@@ -91,15 +91,16 @@ def icon_dir() -> str:
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), "icon")
 
 
-def set_icon(root) -> None:
-    """The big C in the title bar and the taskbar. Only looks: never fails."""
+def set_icon(root, name: str = "pouncer") -> None:
+    """The app icon (P for POUNCer, A for the Autostarter) in the title bar and
+    the taskbar. Only looks: never fails."""
     folder = icon_dir()
     try:
         if sys.platform == "win32":
-            root.iconbitmap(default=os.path.join(folder, "pouncer.ico"))
+            root.iconbitmap(default=os.path.join(folder, name + ".ico"))
         else:
             import tkinter as tk
-            img = tk.PhotoImage(master=root, file=os.path.join(folder, "pouncer.png"))
+            img = tk.PhotoImage(master=root, file=os.path.join(folder, name + ".png"))
             root.iconphoto(True, img)
             root._pouncer_icon = img          # keep it alive
     except Exception:  # noqa: BLE001

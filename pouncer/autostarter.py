@@ -442,7 +442,7 @@ class App:
         root = self.root = tk.Tk()
         root.title("N1MM Autostarter")
         if theme is not None:
-            theme.set_icon(root)
+            theme.set_icon(root, "autostarter")
         root.resizable(True, False)
         # the values (kept when the window is rebuilt for Edit / the look)
         self.v_app, self.v_delay, self.v_wait = [], [], []

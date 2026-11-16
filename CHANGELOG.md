@@ -1,5 +1,10 @@
 # POUNCer — Changelog
 
+## v0.7.199 — 2026-11-16 — P and A icons
+
+- POUNCer's icon is now a **P**, the N1MM Autostarter's an **A** - same blue
+  tile, orange spot and waves - so the two are easy to tell apart.
+
 ## v0.7.198 — 2026-11-16 — An icon
 
 - POUNCer and the N1MM Autostarter have an icon: a bold C on a blue tile with
