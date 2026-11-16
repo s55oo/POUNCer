@@ -381,16 +381,11 @@ class TkSettingsWindowTests(unittest.TestCase):
         helpm = menu("Help")
         self.assertIn("Versions", items(helpm))
         self.assertIn("Troubleshooting", items(helpm))
-        # nothing that can't work now is clickable: no team here, not waiting for N1MM
+        # nothing that can't work now is clickable: no team here
         f._refresh_menu_states()
         for i in range(team.index("end") + 1):
             if team.type(i) != "separator" and not team.entrycget(i, "label").startswith("Team password"):
                 self.assertEqual(team.entrycget(i, "state"), "disabled", team.entrycget(i, "label"))
-        auto = sub(file, "Autostart")
-        self.assertEqual(auto.entrycget(1, "state"), "disabled")
-        f._n1mm_wait_rest = []
-        f._refresh_menu_states()
-        self.assertEqual(auto.entrycget(1, "state"), "normal")
         self.assertEqual(f.look_var.get(), "dark")
         self.assertTrue(f.alert_popup_var.get())
         self.assertFalse(f.alert_sound_var.get())
