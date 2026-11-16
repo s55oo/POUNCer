@@ -7,7 +7,7 @@ a = Analysis(
     ['autostarter_main.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('pouncer/sunvalley', 'pouncer/sunvalley')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

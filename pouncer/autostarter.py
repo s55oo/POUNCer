@@ -36,7 +36,7 @@ from . import autostart as am
 
 log = logging.getLogger("autostarter")
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 INI_NAME = "N1MMautostarter.ini"
 LOG_NAME = "N1MMautostarter.log"
 COUNTDOWN_S = 5          # at start: this long to press Stop
@@ -44,7 +44,7 @@ CLOSE_AFTER_S = 5        # "close when done": this long after the last one
 
 DEFAULTS = {
     "folder": "", "folder_delay": 3, "wait_n1mm": True, "n1mm_timeout": 180,
-    "n1mm_port": 12060, "n1mm_settle": 30, "close_when_done": False,
+    "n1mm_port": 12060, "n1mm_settle": 30, "close_when_done": False, "look": "dark",
 }
 
 
@@ -94,6 +94,8 @@ def load(path: str) -> dict:
     s["n1mm_port"] = max(0, min(65535, get("autostarter", "n1mm_port", 12060)))
     s["n1mm_settle"] = max(5, min(300, get("autostarter", "n1mm_settle", 30)))
     s["close_when_done"] = get("autostarter", "close_when_done", False)
+    look = str(get("autostarter", "look", "dark")).lower()
+    s["look"] = look if look in ("dark", "light") else "dark"
     return s
 
 
@@ -115,7 +117,9 @@ def save(path: str, s: dict) -> None:
               f"n1mm_port = {int(s['n1mm_port'])}",
               "; Without a broadcast: N1MM counts as up after running this many seconds.",
               f"n1mm_settle = {int(s['n1mm_settle'])}",
-              f"close_when_done = {'true' if s['close_when_done'] else 'false'}", ""]
+              f"close_when_done = {'true' if s['close_when_done'] else 'false'}",
+              "; the window: dark or light",
+              f"look = {s.get('look', 'dark')}", ""]
     tmp = path + ".part"
     with open(tmp, "w", encoding="utf-8", newline="\r\n" if os.name == "nt" else "\n") as fh:
         fh.write("\n".join(lines))
@@ -249,7 +253,7 @@ class Runner:
     def __init__(self, s: dict, say, launch=None, running=running_names,
                  n1mm_is_running=n1mm_running, sleep=None, clock=time.time) -> None:
         self.s = s
-        self.say = say
+        self._say = say
         self._launch = launch or am._launch
         self._running = running
         self._n1mm_is_running = n1mm_is_running
@@ -260,6 +264,20 @@ class Runner:
         self.up = N1mmUp(self.beacon, s["n1mm_settle"], n1mm_is_running, clock)
         self.done = threading.Event()
         self.results: list[tuple[str, str]] = []
+        self.auto: am.Autostart | None = None      # the rest, while it runs
+        self._base = 0
+        self.last = ""                             # the last thing said
+
+    def progress(self) -> list[tuple[str, str]]:
+        """(path, result) of every program handled so far, in plan order."""
+        a, r = self.auto, list(self.results)
+        if a is None:
+            return r
+        return r[:self._base] + list(a.results)
+
+    def say(self, text: str) -> None:
+        self.last = text
+        self._say(text)
 
     def stop(self) -> None:
         self._stop.set()
@@ -325,8 +343,11 @@ class Runner:
         a = am.Autostart(items, running=self._running, launch=self._launch, sleep=self._sleep,
                          on_status=self.say, n1mm_up=self.up, wait_s=self.s["n1mm_timeout"],
                          clock=self._clock, cancelled=self._stop.is_set)
+        self._base = len(self.results)
+        self.auto = a
         a.run()
         self.results += a.results
+        self.auto = None
         if not self._stop.is_set():
             bad = [r for r in a.results if r[1] not in ("started", "running")]
             self.say("all started" if not bad else f"done - {len(bad)} not started (see the list)")
@@ -354,7 +375,52 @@ def main(argv=None) -> int:
     return 0
 
 
+def display_name(path: str) -> str:
+    """'C:\\HAM\\N1MM Logger+\\N1MMLogger.net.exe' -> 'N1MM Logger+',
+    'C:\\HAM\\POUNCer\\POUNCer.exe' -> 'POUNCer'."""
+    if am.is_n1mm(path):
+        return "N1MM Logger+"
+    name = os.path.basename(str(path or "").replace("\\", "/"))
+    stem, ext = os.path.splitext(name)
+    return stem if ext.lower() in am.FOLDER_TYPES else name
+
+
+def row_states(items: list[dict], done: list[tuple[str, str]], running: bool,
+               last: str = "") -> list[tuple[str, str]]:
+    """(kind, text) per program for the list: kind = idle / next / ok / bad.
+
+    ``done`` = Runner.progress() (in plan order); the first one not done yet
+    is the one being started now."""
+    out = []
+    for n, it in enumerate(items):
+        if n < len(done):
+            res = done[n][1]
+            if res == "started":
+                out.append(("ok", "started"))
+            elif res == "running":
+                out.append(("ok", "was running"))
+            elif res == "not found":
+                out.append(("bad", "not found"))
+            else:
+                out.append(("bad", "failed"))
+        elif running and n == len(done):
+            low = last.lower()
+            if "waiting" in low or "n1mm in" in low:
+                out.append(("next", "waiting for N1MM" if "waiting" in low else "starting"))
+            else:
+                out.append(("next", f"in {it['delay']} s" if it["delay"] else "starting"))
+        else:
+            out.append(("idle", ""))
+    return out
+
+
 class App:
+    """A small window: your programs as a list with a light each, Start /
+    Stop - and a pencil to change the list (Edit)."""
+
+    SHOWN = 4               # program rows in Edit before "+ Add program"
+    DOT = {"idle": "#7a838c", "next": "#f9a825", "ok": "#43a047", "bad": "#e53935"}
+
     def __init__(self, ini: str, setup: bool = False) -> None:
         import tkinter as tk
         from tkinter import ttk
@@ -363,93 +429,242 @@ class App:
             from . import theme
             theme.dpi_aware()
         except Exception:  # noqa: BLE001
-            pass
+            theme = None
+        self.theme = theme
         self.ini = ini
         self.s = load(ini)
         self.runner: Runner | None = None
         self._countdown = 0
         self._after = None
+        self._close_at = None
+        self.editing = False
+        self.more = False
         root = self.root = tk.Tk()
-        root.title(f"N1MM Autostarter {VERSION}")
-        root.minsize(720, 300)
-        self._build()
+        root.title("N1MM Autostarter")
+        root.resizable(True, False)
+        # the values (kept when the window is rebuilt for Edit / the look)
+        self.v_app, self.v_delay, self.v_wait = [], [], []
+        for _ in range(am.APPS):
+            self.v_app.append(tk.StringVar()), self.v_delay.append(tk.StringVar())
+            self.v_wait.append(tk.BooleanVar())
+        self.v_folder, self.v_fdelay = tk.StringVar(), tk.StringVar()
+        self.v_waitn1mm, self.v_close = tk.BooleanVar(), tk.BooleanVar()
+        self.v_timeout, self.v_port, self.v_settle = tk.StringVar(), tk.StringVar(), tk.StringVar()
         self._fill()
-        if not setup and make_plan(self.s):
+        self.shown = max(self.SHOWN, self._last_used())
+        self._status_text = ""
+        self._apply_look()
+        self._build()
+        self.root.protocol("WM_DELETE_WINDOW", self._close)
+        if not make_plan(self.s):
+            self._edit(True)
+            self._status("Add your programs - N1MM Logger+ first - then Save.")
+        elif not setup:
             self._countdown = COUNTDOWN_S
             self._tick_countdown()
-        elif not make_plan(self.s):
-            self._status("Add your programs (N1MM Logger+ as Program 1), then Save.")
+        else:
+            self._status("Ready - Start, or the pencil to change the list.")
+
+    # -- looks
+    def _apply_look(self) -> None:
+        t = self.theme
+        if t is None:
+            return
+        try:
+            t.apply(self.root, self.s.get("look", "dark"))
+        except Exception:  # noqa: BLE001 - only looks
+            pass
+
+    def _c(self, name: str, fallback: str) -> str:
+        return getattr(self.theme, name, "") or fallback if self.theme else fallback
+
+    def _font(self, size: int = 10, weight: str = "normal"):
+        return (self._c("FONT", "Segoe UI"), size, weight)
+
+    def _px(self, n: float) -> int:
+        return self.theme.px(n) if self.theme else int(n)
 
     # -- layout
     def _build(self) -> None:
         tk, ttk = self.tk, self.ttk
-        root = self.root
-        pad = {"padx": 4, "pady": 2}
-        top = ttk.Frame(root, padding=8)
-        top.pack(fill="both", expand=True)
-        ttk.Label(top, text="Programs, started in this order (path, then arguments after "
-                  "it; a path with spaces may be in quotes)").grid(row=0, column=0, columnspan=5,
-                                                                    sticky="w", **pad)
-        ttk.Label(top, text="start after (s)").grid(row=1, column=3, sticky="w", **pad)
-        ttk.Label(top, text="wait for N1MM").grid(row=1, column=4, sticky="w", **pad)
-        self.v_app, self.v_delay, self.v_wait = [], [], []
-        for n in range(am.APPS):
-            r = n + 2
-            ttk.Label(top, text=f"Program {n + 1}").grid(row=r, column=0, sticky="w", **pad)
-            va, vd, vw = tk.StringVar(), tk.StringVar(), tk.BooleanVar()
-            ttk.Entry(top, textvariable=va, width=60).grid(row=r, column=1, sticky="we", **pad)
-            ttk.Button(top, text="Browse...",
-                       command=lambda v=va: self._browse_file(v)).grid(row=r, column=2, **pad)
-            ttk.Spinbox(top, from_=0, to=600, textvariable=vd, width=6).grid(row=r, column=3,
-                                                                           sticky="w", **pad)
-            ttk.Checkbutton(top, variable=vw).grid(row=r, column=4, **pad)
-            self.v_app.append(va), self.v_delay.append(vd), self.v_wait.append(vw)
-        r = am.APPS + 2
-        ttk.Label(top, text="Folder").grid(row=r, column=0, sticky="w", **pad)
-        self.v_folder, self.v_fdelay = tk.StringVar(), tk.StringVar()
-        ttk.Entry(top, textvariable=self.v_folder, width=60).grid(row=r, column=1, sticky="we", **pad)
-        ttk.Button(top, text="Browse...", command=self._browse_folder).grid(row=r, column=2, **pad)
-        ttk.Spinbox(top, from_=0, to=600, textvariable=self.v_fdelay, width=6).grid(
-            row=r, column=3, sticky="w", **pad)
-        ttk.Label(top, text="(every program in it, by name, this many s apart)").grid(
-            row=r, column=4, sticky="w", **pad)
-        top.columnconfigure(1, weight=1)
+        for w in self.root.winfo_children():
+            w.destroy()
+        bg, panel = self._c("BG", "#1c1c1c"), self._c("PANEL", "#202020")
+        text, muted, line = self._c("TEXT", "#f2f2f2"), self._c("MUTED", "#a5adb5"), self._c("LINE", "#333333")
+        P = self._px
+        outer = ttk.Frame(self.root, padding=(P(14), P(12), P(14), P(12)))
+        outer.pack(fill="both", expand=True)
+        self.outer = outer
 
-        opt = ttk.Frame(top)
-        opt.grid(row=r + 1, column=0, columnspan=5, sticky="we", pady=(6, 2))
-        self.v_waitn1mm, self.v_close = tk.BooleanVar(), tk.BooleanVar()
-        self.v_timeout, self.v_port, self.v_settle = tk.StringVar(), tk.StringVar(), tk.StringVar()
-        ttk.Checkbutton(opt, text="N1MM as Program 1: start the rest when N1MM is up, at most",
-                        variable=self.v_waitn1mm).pack(side="left")
-        ttk.Spinbox(opt, from_=10, to=900, textvariable=self.v_timeout, width=5).pack(side="left")
-        ttk.Label(opt, text="s").pack(side="left", padx=(2, 12))
-        ttk.Checkbutton(opt, text="Close when everything is started",
-                        variable=self.v_close).pack(side="left")
-        opt2 = ttk.Frame(top)
-        opt2.grid(row=r + 2, column=0, columnspan=5, sticky="we", pady=2)
-        ttk.Label(opt2, text="N1MM is up: its broadcast on UDP port").pack(side="left")
-        ttk.Spinbox(opt2, from_=0, to=65535, textvariable=self.v_port, width=7).pack(side="left")
-        ttk.Label(opt2, text="(0 = off), or after it runs").pack(side="left", padx=4)
-        ttk.Spinbox(opt2, from_=5, to=300, textvariable=self.v_settle, width=5).pack(side="left")
-        ttk.Label(opt2, text="s").pack(side="left", padx=2)
+        # header: title + the look + Edit
+        head = ttk.Frame(outer)
+        head.pack(fill="x")
+        ttk.Label(head, text="N1MM Autostarter", font=self._font(13, "bold")).pack(side="left")
+        ttk.Label(head, text=VERSION, style="Muted.TLabel", font=self._font(9)).pack(
+            side="left", padx=(P(6), 0), pady=(P(4), 0))
+        self.b_edit = ttk.Button(head, text="Done" if self.editing else "\u270e  Edit",
+                                 command=lambda: self._edit(not self.editing))
+        self.b_edit.pack(side="right")
+        dark = self.s.get("look", "dark") == "dark"
+        ttk.Button(head, text="\u2600" if dark else "\u263e", width=3,
+                   command=self._toggle_look).pack(side="right", padx=(0, P(6)))
 
-        btn = ttk.Frame(top)
-        btn.grid(row=r + 3, column=0, columnspan=5, sticky="we", pady=(8, 4))
-        ttk.Button(btn, text="Save", command=self._save).pack(side="left")
-        self.b_start = ttk.Button(btn, text="Start now", command=self._start)
-        self.b_start.pack(side="left", padx=6)
-        self.b_stop = ttk.Button(btn, text="Stop", command=self._stop, state="disabled")
-        self.b_stop.pack(side="left")
-        ttk.Button(btn, text="Windows Startup folder",
-                   command=self._open_startup).pack(side="right")
-        self.status = ttk.Label(top, text="", anchor="w")
-        self.status.grid(row=r + 4, column=0, columnspan=5, sticky="we", **pad)
-        self.logbox = tk.Text(top, height=7, wrap="word", state="disabled", relief="flat",
-                              background="#f3f6f8")
-        self.logbox.grid(row=r + 5, column=0, columnspan=5, sticky="nsew", **pad)
-        top.rowconfigure(r + 5, weight=1)
-        self.root.protocol("WM_DELETE_WINDOW", self._close)
+        self.status = ttk.Label(outer, text=self._status_text, style="Muted.TLabel",
+                                anchor="w", font=self._font(9))
+        self.status.pack(fill="x", pady=(P(2), P(8)))
 
+        if self.editing:
+            self._build_edit(outer)
+        else:
+            self._build_list(outer, bg, panel, text, muted, line)
+
+        # buttons
+        btn = ttk.Frame(outer)
+        btn.pack(fill="x", pady=(P(10), 0))
+        if self.editing:
+            ttk.Button(btn, text="Save", style="Accent.TButton", command=self._save_and_close_edit
+                       ).pack(side="left", fill="x", expand=True)
+            ttk.Button(btn, text="Cancel", command=self._cancel_edit).pack(
+                side="left", padx=(P(8), 0))
+            self.b_start = self.b_stop = None
+        else:
+            busy = self.runner is not None and not self.runner.done.is_set()
+            self.b_start = ttk.Button(btn, text="Start", style="Accent.TButton",
+                                      command=self._start,
+                                      state="disabled" if busy else "normal")
+            self.b_start.pack(side="left", fill="x", expand=True)
+            self.b_stop = ttk.Button(btn, text="Stop", command=self._stop,
+                                     state="normal" if busy or self._after else "disabled")
+            self.b_stop.pack(side="left", padx=(P(8), 0))
+        self.root.update_idletasks()
+        self.root.geometry("")                     # fit the new content
+        self.root.minsize(P(560) if self.editing else P(340), 1)
+
+    def _build_list(self, parent, bg, panel, text, muted, line) -> None:
+        tk = self.tk
+        P = self._px
+        card = tk.Frame(parent, bg=panel, highlightthickness=1, highlightbackground=line)
+        card.pack(fill="x")
+        self.rows = []
+        items = make_plan(self.s)
+        if not items:
+            tk.Label(card, text="No programs yet - press Edit.", bg=panel, fg=muted,
+                     font=self._font(10), pady=P(14)).pack()
+        for n, it in enumerate(items):
+            if n:
+                tk.Frame(card, bg=line, height=1).pack(fill="x", padx=P(10))
+            row = tk.Frame(card, bg=panel)
+            row.pack(fill="x", padx=P(10), pady=P(7))
+            dot = tk.Canvas(row, width=P(12), height=P(12), bg=panel, highlightthickness=0)
+            dot.create_oval(P(1), P(1), P(11), P(11), fill=self.DOT["idle"], outline="", tags="d")
+            dot.pack(side="left", padx=(0, P(10)))
+            mid = tk.Frame(row, bg=panel)
+            mid.pack(side="left", fill="x", expand=True)
+            tk.Label(mid, text=display_name(it["path"]), bg=panel, fg=text, anchor="w",
+                     font=self._font(10, "bold")).pack(fill="x")
+            sub = []
+            if n == 0 and am.is_n1mm(it["path"]) and self.s["wait_n1mm"]:
+                sub.append("first - the rest waits until it is up")
+            else:
+                sub.append(f"after {it['delay']} s" if it["delay"] else "at once")
+                if it.get("wait"):
+                    sub.append("when N1MM is up")
+            if it["from"] == "folder":
+                sub.append("from the folder")
+            tk.Label(mid, text=" \u00b7 ".join(sub), bg=panel, fg=muted, anchor="w",
+                     font=self._font(8)).pack(fill="x")
+            state = tk.Label(row, text="", bg=panel, fg=muted, font=self._font(9))
+            state.pack(side="right")
+            self.rows.append((dot, state))
+        self.items = items
+        self._show_states()
+
+    def _build_edit(self, parent) -> None:
+        tk, ttk = self.tk, self.ttk
+        P = self._px
+        grid = ttk.Frame(parent)
+        grid.pack(fill="x")
+        ttk.Label(grid, text="Program (path, then its arguments)", style="Muted.TLabel",
+                  font=self._font(8)).grid(row=0, column=1, sticky="w")
+        ttk.Label(grid, text="after s", style="Muted.TLabel", font=self._font(8)).grid(
+            row=0, column=3, sticky="w", padx=(P(6), 0))
+        ttk.Label(grid, text="N1MM up", style="Muted.TLabel", font=self._font(8)).grid(
+            row=0, column=4, sticky="w", padx=(P(6), 0))
+        for n in range(self.shown):
+            r = n + 1
+            ttk.Label(grid, text=str(n + 1), style="Muted.TLabel", font=self._font(9)).grid(
+                row=r, column=0, sticky="e", padx=(0, P(6)))
+            ttk.Entry(grid, textvariable=self.v_app[n]).grid(row=r, column=1, sticky="we", pady=P(2))
+            ttk.Button(grid, text="\u2026", width=3,
+                       command=lambda v=self.v_app[n]: self._browse_file(v)).grid(
+                row=r, column=2, padx=(P(4), 0))
+            ttk.Spinbox(grid, from_=0, to=600, textvariable=self.v_delay[n], width=4).grid(
+                row=r, column=3, padx=(P(6), 0))
+            cb = ttk.Checkbutton(grid, variable=self.v_wait[n])
+            self._switch(cb)
+            cb.grid(row=r, column=4, padx=(P(10), 0))
+        grid.columnconfigure(1, weight=1)
+        links = ttk.Frame(parent)
+        links.pack(fill="x", pady=(P(6), 0))
+        if self.shown < am.APPS:
+            ttk.Button(links, text="+ Add program", command=self._add_row).pack(side="left")
+        ttk.Button(links, text=("\u25be More options" if self.more else "\u25b8 More options"),
+                   command=self._toggle_more).pack(side="right")
+        if self.more:
+            self._build_more(parent)
+
+    def _build_more(self, parent) -> None:
+        ttk = self.ttk
+        P = self._px
+        box = ttk.Frame(parent)
+        box.pack(fill="x", pady=(P(8), 0))
+        f = ttk.Frame(box)
+        f.pack(fill="x", pady=P(2))
+        ttk.Label(f, text="Folder").pack(side="left")
+        ttk.Entry(f, textvariable=self.v_folder).pack(side="left", fill="x", expand=True, padx=P(6))
+        ttk.Button(f, text="\u2026", width=3, command=self._browse_folder).pack(side="left")
+        ttk.Spinbox(f, from_=0, to=600, textvariable=self.v_fdelay, width=4).pack(
+            side="left", padx=(P(6), P(2)))
+        ttk.Label(f, text="s apart").pack(side="left")
+        for text, var, extra in (
+                ("N1MM first: start the rest when it is up, at most", self.v_waitn1mm,
+                 (self.v_timeout, 10, 900, "s")),
+                ("Close when everything is started", self.v_close, None)):
+            r = ttk.Frame(box)
+            r.pack(fill="x", pady=P(2))
+            cb = ttk.Checkbutton(r, text=text, variable=var)
+            self._switch(cb)
+            cb.pack(side="left")
+            if extra:
+                v, lo, hi, unit = extra
+                ttk.Spinbox(r, from_=lo, to=hi, textvariable=v, width=5).pack(
+                    side="left", padx=(P(6), P(2)))
+                ttk.Label(r, text=unit).pack(side="left")
+        r = ttk.Frame(box)
+        r.pack(fill="x", pady=P(2))
+        ttk.Label(r, text="N1MM is up: its broadcast on UDP").pack(side="left")
+        ttk.Spinbox(r, from_=0, to=65535, textvariable=self.v_port, width=7).pack(
+            side="left", padx=P(6))
+        ttk.Label(r, text="or after it runs").pack(side="left")
+        ttk.Spinbox(r, from_=5, to=300, textvariable=self.v_settle, width=5).pack(
+            side="left", padx=(P(6), P(2)))
+        ttk.Label(r, text="s").pack(side="left")
+        r = ttk.Frame(box)
+        r.pack(fill="x", pady=(P(6), 0))
+        ttk.Button(r, text="Start with Windows\u2026", command=self._open_startup).pack(side="left")
+
+    def _switch(self, cb) -> None:
+        if self.theme is not None and getattr(self.theme, "MODERN", False):
+            try:
+                cb.configure(style="Switch.TCheckbutton")
+            except self.tk.TclError:
+                pass
+
+    def _last_used(self) -> int:
+        used = [n + 1 for n in range(am.APPS) if self.v_app[n].get().strip()]
+        return max(used) if used else 0
+
+    # -- values
     def _fill(self) -> None:
         s = self.s
         for n, (cmd, delay, wait) in enumerate(s["apps"]):
@@ -472,9 +687,46 @@ class App:
                 "n1mm_timeout": num(self.v_timeout, 10, 900, 180),
                 "n1mm_port": num(self.v_port, 0, 65535, 12060),
                 "n1mm_settle": num(self.v_settle, 5, 300, 30),
-                "close_when_done": bool(self.v_close.get())}
+                "close_when_done": bool(self.v_close.get()),
+                "look": self.s.get("look", "dark")}
 
     # -- actions
+    def _edit(self, on: bool) -> None:
+        if on:
+            self._cancel_countdown("Not started - change the list, then Save.")
+        self.editing = on
+        self.shown = max(self.SHOWN, self._last_used())
+        self._build()
+
+    def _add_row(self) -> None:
+        self.shown = min(am.APPS, self.shown + 1)
+        self._build()
+
+    def _toggle_more(self) -> None:
+        self.more = not self.more
+        self._build()
+
+    def _toggle_look(self) -> None:
+        self.s["look"] = "light" if self.s.get("look", "dark") == "dark" else "dark"
+        try:
+            save(self.ini, dict(load(self.ini), look=self.s["look"]) if os.path.exists(self.ini)
+                 else self._read())
+        except OSError:
+            pass
+        self._apply_look()
+        self._build()
+
+    def _save_and_close_edit(self) -> None:
+        if self._save():
+            self.editing = False
+            self._build()
+
+    def _cancel_edit(self) -> None:
+        self._fill()
+        self.editing = False
+        self._status("Not changed.")
+        self._build()
+
     def _browse_file(self, var) -> None:
         from tkinter import filedialog
         p = filedialog.askopenfilename(parent=self.root, title="Program to start",
@@ -494,9 +746,9 @@ class App:
         try:
             save(self.ini, self.s)
         except OSError as exc:
-            self._status(f"not saved: {exc}")
+            self._status(f"Not saved: {exc}")
             return False
-        self._status(f"Saved: {self.ini}")
+        self._status("Saved.")
         log.info("settings saved")
         return True
 
@@ -505,7 +757,7 @@ class App:
         there to have it start at Windows logon."""
         folder = os.path.join(os.environ.get("APPDATA", ""),
                               r"Microsoft\Windows\Start Menu\Programs\Startup")
-        self._status("Startup folder: drag a shortcut to N1MMautostarter.exe in here "
+        self._status("Drag a shortcut to N1MMautostarter.exe into this folder "
                      "to start it at Windows logon.")
         try:
             os.startfile(folder)                 # noqa: S606 - Explorer only
@@ -517,58 +769,90 @@ class App:
         if self._countdown <= 0:
             self._start()
             return
-        self._status(f"Starting your programs in {self._countdown} s - press Stop to change "
-                     "the list first")
-        self.b_stop.configure(state="normal")
+        self._status(f"Starting in {self._countdown} s - Stop to change the list first.")
+        if self.b_start is not None:
+            self.b_start.configure(text=f"Start now ({self._countdown})")
+        if self.b_stop is not None:
+            self.b_stop.configure(state="normal")
         self._countdown -= 1
         self._after = self.root.after(1000, self._tick_countdown)
+
+    def _cancel_countdown(self, text: str) -> bool:
+        if self._after is None:
+            return False
+        self.root.after_cancel(self._after)
+        self._after = None
+        if self.b_start is not None:
+            self.b_start.configure(text="Start")
+        self._status(text)
+        return True
 
     def _start(self) -> None:
         if self.runner is not None and not self.runner.done.is_set():
             return
-        if self._after is not None:
-            self.root.after_cancel(self._after)
-            self._after = None
+        self._cancel_countdown("")
+        if self.editing:
+            self.editing = False
+            self._build()
         self.s = self._read()
-        self.b_start.configure(state="disabled")
-        self.b_stop.configure(state="normal")
         self.runner = Runner(self.s, say=lambda t: self.root.after(0, self._note, t))
+        if self.b_start is not None:
+            self.b_start.configure(state="disabled", text="Starting\u2026")
+            self.b_stop.configure(state="normal")
         self.runner.start()
         self._watch()
+
+    def _show_states(self) -> None:
+        r = self.runner
+        rows = getattr(self, "rows", [])
+        if not rows:
+            return
+        running = r is not None and not r.done.is_set()
+        states = row_states(self.items, r.progress() if r else [], running, r.last if r else "")
+        muted = self._c("MUTED", "#a5adb5")
+        colours = {"ok": self.DOT["ok"], "bad": self.DOT["bad"], "next": self.DOT["next"],
+                   "idle": muted}
+        for (dot, label), (kind, text) in zip(rows, states):
+            try:
+                dot.itemconfigure("d", fill=self.DOT[kind])
+                label.configure(text=text, fg=colours[kind])
+            except self.tk.TclError:
+                pass
 
     def _watch(self) -> None:
         r = self.runner
         if r is None:
             return
+        if not self.editing:
+            self._show_states()
         if r.done.is_set():
-            self.b_start.configure(state="normal")
-            self.b_stop.configure(state="disabled")
+            if self.b_start is not None:
+                self.b_start.configure(state="normal", text="Start again")
+                self.b_stop.configure(state="disabled")
             if self.s["close_when_done"] and not r._stop.is_set():
                 self._status(f"Done - closing in {CLOSE_AFTER_S} s")
-                self.root.after(CLOSE_AFTER_S * 1000, self._close)
+                self._close_at = self.root.after(CLOSE_AFTER_S * 1000, self._close)
             return
-        self.root.after(500, self._watch)
+        self.root.after(300, self._watch)
 
     def _stop(self) -> None:
-        if self._after is not None:
-            self.root.after_cancel(self._after)
-            self._after = None
-            self._status("Not started - change the list, Save, or Start now")
+        self._cancel_countdown("Not started - Edit to change the list, or Start.")
         if self.runner is not None:
             self.runner.stop()
-        self.b_stop.configure(state="disabled")
-        self.b_start.configure(state="normal")
+        if self.b_stop is not None:
+            self.b_stop.configure(state="disabled")
+            self.b_start.configure(state="normal", text="Start")
 
     def _note(self, text: str) -> None:
-        self._status(text)
-        self.logbox.configure(state="normal")
-        self.logbox.insert("end", time.strftime("%H:%M:%S  ") + text + "\n")
-        self.logbox.see("end")
-        self.logbox.configure(state="disabled")
+        self._status(text[:1].upper() + text[1:] if text else text)
         log.info("%s", text)
 
     def _status(self, text: str) -> None:
-        self.status.configure(text=text)
+        self._status_text = text
+        try:
+            self.status.configure(text=text)
+        except (AttributeError, self.tk.TclError):
+            pass
 
     def _close(self) -> None:
         if self.runner is not None:

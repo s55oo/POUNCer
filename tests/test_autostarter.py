@@ -155,17 +155,71 @@ class RunTests(unittest.TestCase):
         self.assertEqual(started, ["N1MMLogger.net.exe"])         # the rest never started
 
 
+class ListTests(unittest.TestCase):
+    def test_display_names(self) -> None:
+        self.assertEqual(A.display_name(r"C:\HAM\N1MM Logger+\N1MMLogger.net.exe"), "N1MM Logger+")
+        self.assertEqual(A.display_name(r"C:\HAM\POUNCer\POUNCer.exe"), "POUNCer")
+        self.assertEqual(A.display_name(r"C:\Tools\2 rotor.lnk"), "2 rotor")
+        self.assertEqual(A.display_name("/x/readme.txt"), "readme.txt")
+
+    def test_row_states(self) -> None:
+        items = [{"path": "a.exe", "delay": 0}, {"path": "b.exe", "delay": 5},
+                 {"path": "c.exe", "delay": 0}, {"path": "d.exe", "delay": 0}]
+        self.assertEqual(A.row_states(items, [], False), [("idle", "")] * 4)
+        st = A.row_states(items, [("a.exe", "started")], True, "started a.exe (1/4)")
+        self.assertEqual(st[0], ("ok", "started"))
+        self.assertEqual(st[1], ("next", "in 5 s"))
+        self.assertEqual(st[2], ("idle", ""))
+        st = A.row_states(items, [("a.exe", "started")], True, "waiting for N1MM to start (12 s)")
+        self.assertEqual(st[1], ("next", "waiting for N1MM"))
+        st = A.row_states(items, [("a.exe", "running"), ("b.exe", "not found"),
+                                  ("c.exe", "failed: x"), ("d.exe", "started")], False)
+        self.assertEqual([k for k, _ in st], ["ok", "bad", "bad", "ok"])
+        self.assertEqual(st[0][1], "was running")
+
+    def test_progress_is_live_and_in_order(self) -> None:
+        d = tempfile.mkdtemp()
+        paths = []
+        for n in range(3):
+            p = os.path.join(d, f"app{n}.exe")
+            open(p, "w").close()
+            paths.append(p)
+        s = dict(A.load(os.path.join(d, "none.ini")), wait_n1mm=False, n1mm_port=0)
+        s["apps"] = [(p, 0, False) for p in paths] + [("", 5, False)] * 5
+        seen = []
+        r = A.Runner(s, lambda t: None, running=lambda: set(),
+                     launch=lambda p, a: seen.append(len(r.progress())))
+        r.run()
+        self.assertEqual(seen, [0, 1, 2])                 # each one sees those before it
+        self.assertEqual([x[1] for x in r.progress()], ["started"] * 3)
+        self.assertEqual(r.last, "all started")
+
+    def test_look_saved(self) -> None:
+        d = tempfile.mkdtemp()
+        p = os.path.join(d, A.INI_NAME)
+        self.assertEqual(A.load(p)["look"], "dark")
+        A.save(p, dict(A.load(p), look="light"))
+        self.assertEqual(A.load(p)["look"], "light")
+        with open(p, "a", encoding="utf-8") as fh:
+            fh.write("")
+        A.save(p, dict(A.load(p), look="pink"))
+        self.assertEqual(A.load(p)["look"], "dark")
+
+
 class WindowTests(unittest.TestCase):
-    def test_window_builds_and_saves(self) -> None:
+    def setUp(self) -> None:
         try:
             import tkinter
             tkinter.Tk().destroy()
         except Exception:  # noqa: BLE001
             self.skipTest("no Tk display")
+
+    def test_window_builds_and_saves(self) -> None:
         d = tempfile.mkdtemp()
         p = os.path.join(d, A.INI_NAME)
         app = A.App(p, setup=True)
         try:
+            self.assertTrue(app.editing)                  # nothing saved yet: the list to fill
             app.v_app[0].set(r"C:\HAM\N1MM Logger+\N1MMLogger.net.exe")
             app.v_delay[0].set("0")
             app.v_port.set("12061")
@@ -173,6 +227,35 @@ class WindowTests(unittest.TestCase):
             s = A.load(p)
             self.assertEqual(s["apps"][0][0], r"C:\HAM\N1MM Logger+\N1MMLogger.net.exe")
             self.assertEqual(s["n1mm_port"], 12061)
+            app.root.update()
+        finally:
+            app.root.destroy()
+
+    def test_list_edit_more_and_look(self) -> None:
+        d = tempfile.mkdtemp()
+        p = os.path.join(d, A.INI_NAME)
+        s = A.load(p)
+        s["apps"] = [(r"C:\HAM\N1MM Logger+\N1MMLogger.net.exe", 0, False),
+                     (r"C:\HAM\POUNCer\POUNCer.exe", 5, True),
+                     (r"C:\HAM\QSOrouter\router.exe", 3, True),
+                     (r"C:\HAM\CW\cw.bat", 2, False)] + [("", 5, False)] * 4
+        A.save(p, s)
+        app = A.App(p, setup=True)
+        try:
+            app.root.update()
+            self.assertFalse(app.editing)
+            self.assertEqual(len(app.rows), 4)
+            app._edit(True)
+            self.assertEqual(app.shown, 4)
+            app._add_row()
+            self.assertEqual(app.shown, 5)
+            app._toggle_more()
+            app.root.update()
+            app._cancel_edit()
+            self.assertFalse(app.editing)
+            app._toggle_look()
+            self.assertEqual(A.load(p)["look"], "light")
+            self.assertEqual(A.load(p)["apps"][1][0], r"C:\HAM\POUNCer\POUNCer.exe")
             app.root.update()
         finally:
             app.root.destroy()

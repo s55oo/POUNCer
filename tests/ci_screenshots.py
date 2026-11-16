@@ -162,6 +162,53 @@ def shot(out_dir: str, layout: str, look: str) -> str:
     return path
 
 
+def autostarter_shots(out_dir: str) -> None:
+    """The N1MM Autostarter window: the list (dark, light; mid-start) and Edit."""
+    import tempfile
+    import threading
+    import types
+    from PIL import ImageGrab
+    from pouncer import autostarter as A
+    d = tempfile.mkdtemp()
+    ini = os.path.join(d, A.INI_NAME)
+    s = A.load(ini)
+    s["apps"] = [(r"C:\HAM\N1MM Logger+\N1MMLogger.net.exe", 0, False),
+                 (r"C:\HAM\POUNCer\POUNCer.exe", 5, True),
+                 (r"C:\HAM\Router\router.exe", 3, True),
+                 (r"C:\HAM\Rotor\PstRotator.exe", 2, False)] + [("", 5, False)] * 4
+    for look in ("dark", "light"):
+        A.save(ini, dict(s, look=look))
+        for name, edit in ((f"autostarter-{look}.png", False), (f"autostarter-edit-{look}.png", True)):
+            app = A.App(ini, setup=True)
+            try:
+                if edit:
+                    app._edit(True)
+                else:
+                    done = threading.Event()
+                    app.items = [dict(it, path=it["path"]) for it in A.am.plan(list(s["apps"]))]
+                    app.runner = types.SimpleNamespace(
+                        done=done, last="started POUNCer.exe (2/4)",
+                        progress=lambda: [("n1mm", "started"), ("pouncer", "started")])
+                    app._show_states()
+                    app._status("Started POUNCer.exe (2/4)")
+                    app.b_start.configure(state="disabled", text="Starting\u2026")
+                    app.b_stop.configure(state="normal")
+                app.root.geometry("+40+40")
+                app.root.update()
+                app.root.lift()
+                app.root.attributes("-topmost", True)
+                app.root.update()
+                time.sleep(0.6)
+                app.root.update()
+                x, y = app.root.winfo_rootx(), app.root.winfo_rooty()
+                ImageGrab.grab(bbox=(x, y, x + app.root.winfo_width(), y + app.root.winfo_height()),
+                               all_screens=True).save(os.path.join(out_dir, name))
+                print("saved", name)
+            finally:
+                app.runner = None
+                app.root.destroy()
+
+
 def main() -> int:
     out = sys.argv[1] if len(sys.argv) > 1 else "screenshots"
     os.makedirs(out, exist_ok=True)
@@ -170,6 +217,10 @@ def main() -> int:
             print("saved", shot(out, layout, look))
         except Exception as exc:  # noqa: BLE001 - screenshots never fail the build
             print(f"screenshot {layout}-{look} failed: {exc!r}")
+    try:
+        autostarter_shots(out)
+    except Exception as exc:  # noqa: BLE001
+        print(f"autostarter screenshots failed: {exc!r}")
     return 0
 
 
