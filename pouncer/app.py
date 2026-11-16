@@ -223,6 +223,33 @@ def _note_tap(app, spot: Spot, nr: int, ok: bool, short: str, full: str = "") ->
 PIN_S = 60     # a clicked / tapped station keeps its row this long (or until logged)
 DESKTOP_REFRESH_S = 5  # quiet-feed age/fade/CQ/pin updates, without a redraw every tick
 
+ACCEPTED_KEEP_S = 120
+
+
+def accepted_key(spotter: str, call: str, khz: float) -> tuple:
+    return (str(spotter or "").upper(), str(call or "").upper(), int(round(float(khz) * 10)))
+
+
+def note_accepted(app, spot) -> None:
+    """A spot that went into the list: remembered on ``app._accepted`` (only
+    while the traffic console is open) so its raw line can be drawn yellow
+    there. A plain function: works with any app object (tests use stand-ins)."""
+    if traffic._sink is None:
+        return
+    acc = getattr(app, "_accepted", None)
+    if acc is None:
+        acc = {}
+        try:
+            app._accepted = acc
+        except AttributeError:
+            return
+    now = time.time()
+    acc[accepted_key(spot.spotter, spot.dxcall, spot.freq_khz)] = now
+    if len(acc) > 3000:
+        for k in [k for k, t in acc.items() if now - t > ACCEPTED_KEEP_S]:
+            del acc[k]
+
+
 class PouncerApp:
     def __init__(self, config: Config) -> None:
         self.cfg = config
@@ -4041,7 +4068,7 @@ class PouncerApp:
             self._note_own(spot)
             self._check_overlap(spot)
             self.spots[spot.key] = spot
-            self._note_accepted(spot)
+            note_accepted(self, spot)
             self._track_on_freq(spot)
             got += 1
             if getattr(self, "net", None) is not None:
@@ -4070,7 +4097,7 @@ class PouncerApp:
             self._check_overlap(spot)
             self._serve(spot)
             self.spots[spot.key] = spot
-            self._note_accepted(spot)
+            note_accepted(self, spot)
             self._track_on_freq(spot)
             got += 1
         self._relabel_overlap()
@@ -4078,25 +4105,14 @@ class PouncerApp:
             self._dirty = True
 
     # ---- the traffic console's yellow lines --------------------------------------
-    ACCEPTED_KEEP_S = 120
+    ACCEPTED_KEEP_S = ACCEPTED_KEEP_S
 
     @staticmethod
     def _accepted_key(spotter: str, call: str, khz: float) -> tuple:
-        return (str(spotter or "").upper(), str(call or "").upper(), int(round(float(khz) * 10)))
+        return accepted_key(spotter, call, khz)
 
     def _note_accepted(self, spot: Spot) -> None:
-        """A spot that went into the list: remembered (only while the traffic
-        console is open) so its raw line can be drawn yellow there."""
-        if traffic._sink is None:
-            return
-        acc = getattr(self, "_accepted", None)
-        if acc is None:
-            acc = self._accepted = {}
-        now = time.time()
-        acc[self._accepted_key(spot.spotter, spot.dxcall, spot.freq_khz)] = now
-        if len(acc) > 3000:
-            for k in [k for k, t in acc.items() if now - t > self.ACCEPTED_KEEP_S]:
-                del acc[k]
+        note_accepted(self, spot)
 
     def _console_shown(self, src: str, txt: str):
         """Traffic console: is this raw line a spot that POUNCer shows now?
