@@ -2633,6 +2633,7 @@ class PouncerApp:
         self.spotter_filter.configure(getattr(c, "filter_mode", "calls"), calls=calls,
                                       dxcc=self._list(getattr(c, "filter_dxcc", "")),
                                       zones=sorted(zones), conts=conts)
+        self.spotter_filter.backup_off = bool(getattr(c, "backup_off", False))
         sw = getattr(self, "skimwatch", None)
         if sw is not None:
             sw.calls = tuple(self.spotter_filter.calls)
@@ -4157,17 +4158,23 @@ class PouncerApp:
         spots: the same filter for people) and its station the Spotted
         filter, and it isn't a dropped beacon. Every enabled source counts;
         the list's own extras (modes, Min SNR, Hide worked, duplicates) don't -
-        so the yellow lines show what the filters let through (v0.7.203)."""
+        so the yellow lines show what the filters let through (v0.7.203).
+        "backup" (orange, v0.7.206) = taken only because the chosen skimmers
+        are quiet and the backup skimmers are in use."""
         got = self._console_spot(src, txt)
         if got is None:
             return None
         spot, spotter, call, khz, skimmer = got
         sf = getattr(self, "spotter_filter", None)
+        result = True
         if sf is not None:
             ok = sf.matches(spotter) if skimmer and hasattr(sf, "matches") else (
                 sf.people_accept(spotter) if hasattr(sf, "people_accept") else sf.accept(spotter))
             if not ok:
                 return False
+            if (skimmer and hasattr(sf, "chosen") and sf.active()
+                    and not sf.chosen((spotter or "").upper())):
+                result = "backup"          # only while the chosen ones are quiet: orange
         spf = getattr(self, "spotted_filter", None)
         if spf is not None and not spf.accept(call):
             return False
@@ -4175,7 +4182,7 @@ class PouncerApp:
             return False
         if getattr(self.cfg, "hide_warc", False) and is_warc(khz):
             return False                  # Remove WARC spots
-        return True
+        return result
 
     def _beacon_out(self, spot: Spot) -> bool:
         """[rbn] hide_beacons: a beacon spot (an NCDXF beacon on its
@@ -5443,7 +5450,7 @@ class PouncerApp:
             if old != new:
                 log.info("setting changed: %s (%s): %s -> %s%s", item.get("label", key), key,
                          show(old), show(new), "" if res.get("live") else "  [after a restart]")
-            if key.startswith("filter.") or key == "rbn.spotter":
+            if key.startswith("filter.") or key in ("rbn.spotter", "rbn.backup_off"):
                 self._apply_filter()
             if key.startswith("spotted."):
                 self._apply_spotted()

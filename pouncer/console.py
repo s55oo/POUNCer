@@ -9,7 +9,9 @@ Spot lines - of every source - that match the filters (the Spotters filter:
 skimmers / zones, and the Spotted filter; not a dropped beacon) are drawn in
 **yellow** (``shown`` from the app, v0.7.203), so the filtering can be
 watched; a line that doesn't is looked at again for ``SHOWN_WAIT_S`` (the
-backup skimmers can switch on meanwhile).
+backup skimmers can switch on meanwhile). A spot taken only because the
+chosen skimmers are quiet and the backup skimmers are in use is **orange**
+(v0.7.206).
 
 Sources can be ticked off (they keep being counted; a line in the view marks
 the switch), a filter word (a call, "DX de", "RadioInfo" ...) shows matching
@@ -36,6 +38,7 @@ QUIET_S = 5          # no line this long = "quiet" (amber dot)
 DEAD_S = 30          # this long = red dot (unless the app says why: grey)
 SHOWN_WAIT_S = 5     # a spot line: look again this long whether POUNCer shows it
 SHOWN_COLOR = "#ffeb3b"
+BACKUP_COLOR = "#ff9800"   # taken via the backup skimmers (chosen ones quiet)
 DOT = {"live": "#43a047", "quiet": "#f9a825", "dead": "#e53935", "why": "#78909c"}
 GROUPS = traffic.GROUPS
 group_of = traffic.group_of
@@ -104,7 +107,8 @@ class TrafficConsole:
         if self.shown is not None:
             # the look's own text colour (yellow on the light look's grey bar
             # could not be read); only the lines below are yellow (v0.7.202)
-            ttk.Label(bar, text="yellow = spots that match your filters",
+            ttk.Label(bar, text="yellow = spots that match your filters, "
+                                "orange = via backup skimmers",
                       font=(theme.FONT, 9)).pack(side="left", padx=(10, 0))
         # one chip per source: coloured dot (green = lines now, amber = quiet,
         # red = quiet long, grey = quiet for a known reason) + count / why
@@ -150,6 +154,7 @@ class TrafficConsole:
         self.text.tag_configure("time", foreground="#607d8b")
         self.text.tag_configure("mark", foreground="#607d8b", font=("Consolas", 9, "italic"))
         self.text.tag_configure("shown", foreground=SHOWN_COLOR, font=("Consolas", 9, "bold"))
+        self.text.tag_configure("backup", foreground=BACKUP_COLOR, font=("Consolas", 9, "bold"))
         self._pending = []
         self._tick()
 
@@ -332,9 +337,11 @@ class TrafficConsole:
         except Exception:  # noqa: BLE001 - colour only: never stops the console
             return None
 
-    def _mark_shown(self, mark: str) -> None:
+    def _mark_shown(self, mark: str, how=True) -> None:
+        """Yellow (matches the filters) or orange (``how == "backup"``)."""
         try:
-            self.text.tag_add("shown", f"{mark} linestart", f"{mark} lineend")
+            self.text.tag_add("backup" if how == "backup" else "shown",
+                              f"{mark} linestart", f"{mark} lineend")
         except tk.TclError:
             pass
 
@@ -353,8 +360,9 @@ class TrafficConsole:
         now = time.time() if now is None else now
         keep = []
         for mark, src, txt, until in self._pending:
-            if self._is_shown(src, txt):
-                self._mark_shown(mark)
+            how = self._is_shown(src, txt)
+            if how:
+                self._mark_shown(mark, how)
             elif now < until:
                 keep.append((mark, src, txt, until))
                 continue
@@ -392,7 +400,7 @@ class TrafficConsole:
                     mark = f"sp{id(txt)}_{t}_{shown}"
                     self.text.mark_set(mark, f"{line}.0")
                     if yes:
-                        self._mark_shown(mark)
+                        self._mark_shown(mark, yes)
                         self.text.mark_unset(mark)
                     elif len(self._pending) < 500:
                         self._pending.append((mark, src, txt, time.time() + SHOWN_WAIT_S))

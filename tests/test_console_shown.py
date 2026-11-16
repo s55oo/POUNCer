@@ -11,14 +11,15 @@ LINE = "DX de EA8BFK-#:   14025.0  DL1ABC         CW    24 dB  28 WPM  CQ      1
 OTHER_SKIMMER = "DX de W3LPL-#:    14025.0  DL1ABC         CW    18 dB  28 WPM  CQ      1802Z"
 
 
-def _app(zones=(14, 15), spotted=None):
+def _app(zones=(14, 15), spotted=None, clock=None):
     """A stand-in app with the real Spotters filter: skimmers in the zones."""
     from tests.test_so2r import _import_app
     from pouncer.rbn import SpotterFilter
     P = _import_app().PouncerApp
     zone = {"EA8BFK": 33, "DL1ABC": 14, "W3LPL": 5, "F5ABC": 14, "S50ABC": 15}
+    kw = {"clock": clock} if clock is not None else {}
     sf = SpotterFilter("", zone_of=lambda c: zone.get(c), continent_of=lambda c: "EU",
-                       home_cont=lambda: "EU")
+                       home_cont=lambda: "EU", quiet_s=300, **kw)
     sf.configure("zones", zones=zones)
     f = types.SimpleNamespace(spotter_filter=sf, spotted_filter=spotted,
                               cfg=types.SimpleNamespace(hide_beacons=True))
@@ -58,6 +59,18 @@ class ShownTests(unittest.TestCase):
         self.assertFalse(f._console_shown("telnet", other))          # not a Spotted station
         beacon = "DX de DL1ABC-#:   14100.0  4U1UN          CW    24 dB  22 WPM  NCDXF B 1802Z"
         self.assertFalse(_app()._console_shown("telnet", beacon))
+
+    def test_backup_skimmers_are_orange_and_can_be_switched_off(self) -> None:
+        now = [1000.0]
+        f = _app(zones=(15,), clock=lambda: now[0])     # only zone 15 skimmers chosen
+        self.assertFalse(f._console_shown("telnet", IN_ZONE))        # DL1ABC: zone 14
+        now[0] += 120                                             # 2 min, none heard: backup
+        self.assertEqual(f._console_shown("telnet", IN_ZONE), "backup")   # EU skimmer: orange
+        s5 = IN_ZONE.replace("DL1ABC-#", "S50ABC-#")
+        self.assertIs(f._console_shown("telnet", s5), True)          # a chosen one: yellow
+        f.spotter_filter.backup_off = True                        # Disable backup spots
+        self.assertFalse(f._console_shown("telnet", IN_ZONE))
+        self.assertIs(f._console_shown("telnet", s5), True)
 
     def test_all_pass_without_filters(self) -> None:
         f = _app(zones=())
@@ -101,6 +114,14 @@ class ConsoleYellowTests(unittest.TestCase):
         self.c.recheck()
         self.assertIn("W3LPL", self.tagged())
         self.assertEqual(self.c._pending, [])
+
+    def test_orange_for_backup(self) -> None:
+        self.c.shown = lambda src, txt: "backup" if "W3LPL" in txt else (
+            None if "DX de" not in txt else False)
+        self.c.add([(time.time(), "rbn", OTHER_SKIMMER)])
+        r = self.c.text.tag_ranges("backup")
+        self.assertIn("W3LPL", "".join(self.c.text.get(r[i], r[i + 1]) for i in range(0, len(r), 2)))
+        self.assertEqual(self.tagged(), "")
 
     def test_given_up_after_the_wait(self) -> None:
         self.c.add([(time.time(), "rbn", OTHER_SKIMMER)])

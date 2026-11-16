@@ -109,6 +109,7 @@ class Config:
     # all skimmers on our continent; after this many minutes of silence
     backup_spotters: tuple[str, ...] = ()
     backup_after_minutes: int = 5
+    backup_off: bool = False      # [rbn] backup_off: never the backup skimmers
     skimmer_quiet_minutes: int = 3   # own skimmer silent this long = warning
     cty_file: str = ""
     cty_auto_update: bool = True     # S53M's cty.dat, downloaded every Friday
@@ -323,6 +324,7 @@ def load_config(path: str) -> Config:
         b for b in s("rbn", "backup_spotters", "").replace(";", ",").replace(" ", ",").split(",") if b
     )
     cfg.backup_after_minutes = max(1, i("rbn", "backup_after_minutes", cfg.backup_after_minutes))
+    cfg.backup_off = b("rbn", "backup_off", cfg.backup_off)
     cfg.skimmer_quiet_minutes = max(1, i("rbn", "skimmer_quiet_minutes", cfg.skimmer_quiet_minutes))
     cfg.cty_file = s("rbn", "cty", cfg.cty_file).strip()
     cfg.cty_auto_update = b("cty", "auto_update", cfg.cty_auto_update)

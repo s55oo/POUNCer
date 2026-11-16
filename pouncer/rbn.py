@@ -645,7 +645,11 @@ class SpotterFilter:
             return self._zone(base) in self.zones
         return self._area(base)
 
+    backup_off = False      # Settings > Spots > Disable backup spots (v0.7.206)
+
     def backup_active(self) -> bool:
+        if self.backup_off:
+            return False                 # only the chosen skimmers, always
         wait = self.quiet_s if self.heard_primary else self.start_s
         return self.active() and self.clock() - self.last_primary > wait
 

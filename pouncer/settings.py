@@ -169,6 +169,13 @@ SETTINGS: list[dict] = [
              "14100 / 18110 / 21150 / 24930 / 28200 (+-0.5 kHz; the same call elsewhere is "
              "a real station and stays), spots of type BEACON / NCDXF, calls ending in /B. "
              "Each one is a line in the traffic console (BEACON)."},
+    {"key": "rbn.backup_off", "attr": "backup_off", "kind": "bool", "live": True,
+     "group": "RBN", "label": "Disable backup spots",
+     "help": "Only your chosen skimmers (Spotters: calls / DXCC / zones / continents), "
+             "always. Off (default): while they all send nothing for "
+             "backup_after_minutes (5), the backup skimmers - [rbn] backup_spotters, or "
+             "every skimmer on your continent - are used too (orange in the traffic "
+             "console)."},
     {"key": "rbn.hide_warc", "attr": "hide_warc", "kind": "bool", "live": True,
      "group": "RBN", "label": "Remove WARC spots",
      "help": "No spots on the WARC bands 60 m, 30 m, 17 m and 12 m (no contests there): "
@@ -374,6 +381,7 @@ PAGES: list[tuple[str, list[tuple[str, list[str]]]]] = [
     ]),
     ("Spots", [
         ("Sources", ["rbn.sources", "rbn.history", "rbn.hide_beacons", "rbn.hide_warc",
+                     "rbn.backup_off",
                      "rbn.pause_on_phone",
                      "rbn.skimmer_quiet_minutes"]),
         ("Backups", ["rbn.telnet_backup", "rbn.hamqth_backup", "rbn.backup_host",

@@ -55,3 +55,26 @@ class WarcTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BackupOffTests(unittest.TestCase):
+    def test_setting_and_filter(self) -> None:
+        from pouncer.rbn import SpotterFilter
+        self.assertFalse(load_config("").backup_off)
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "config.ini")
+            with open(p, "w", encoding="utf-8") as fh:
+                fh.write("[rbn]\nspotter = S53WW\n")
+            cfg = load_config(p)
+            self.assertTrue(settings.save(cfg, p, "rbn.backup_off", "true")["ok"])
+            self.assertTrue(load_config(p).backup_off)
+        now = [0.0]
+        sf = SpotterFilter("S53WW", continent_of=lambda c: "EU", home_cont=lambda: "EU",
+                           quiet_s=300, clock=lambda: now[0])
+        now[0] = 1000                                  # S53WW quiet long: backup on
+        self.assertTrue(sf.backup_active())
+        self.assertTrue(sf.accept("DL1ABC-#"))
+        sf.backup_off = True                           # Disable backup spots
+        self.assertFalse(sf.backup_active())
+        self.assertFalse(sf.accept("DL1ABC-#"))
+        self.assertTrue(sf.accept("S53WW-#"))

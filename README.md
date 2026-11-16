@@ -475,7 +475,12 @@ filter (not a dropped beacon). RBN, Telnet, Cluster, HTTP, HamQTH and N1MM's
 spot packets all count; the list's own extras (modes, Min SNR, Hide worked,
 the same spot from two sources) don't. A line from a skimmer outside your
 zones stays white - so you can watch at a glance whether the filtering is
-right ("yellow = spots that match your filters" in the bar). **Hover over a source** (its
+right ("yellow = spots that match your filters" in the bar). **Orange**
+(v0.7.206) = taken only because your chosen skimmers sent nothing for
+`backup_after_minutes` (5) and the **backup skimmers** are in use
+(`backup_spotters`, or every skimmer on your continent) - the window then
+says "... quiet - using skimmers in EU". *Settings > Spots > Disable backup
+spots* keeps it to the chosen skimmers always. **Hover over a source** (its
 switch or its dot): a pop-up says what that source is and what POUNCer is
 monitoring with which settings right now - server and port, login call,
 mode, filters, listen address, team role and peers, Relay on / off (a team
@@ -1417,6 +1422,7 @@ All options live in `config.ini` and are documented there, line by line:
 | `follow_modes` | CW | Modes to show (`CW`, `RTTY`, `FT8`, `FT4`). |
 | `hide_beacons` | true | Drop beacon spots as they come in - not in the list, not on port 10000: the 18 NCDXF beacons (4U1UN, W6WX, OH2B ...) on 14100 / 18110 / 21150 / 24930 / 28200 (±0.5 kHz; the same call elsewhere stays), type BEACON / NCDXF, calls ending in `/B`. Traffic console: **BEACON**. Settings > Spots. |
 | `hide_warc` | false | **Remove WARC spots** (Settings > Spots > Sources): no spots on 60 m, 30 m, 17 m and 12 m (no contests there) - not in the list or on the phone, not on port 10000, not yellow in the traffic console. Off again = they show again (v0.7.205). |
+| `backup_off` | false | **Disable backup spots** (Settings > Spots > Sources): only the chosen skimmers (the Spotters filter), always. Off: while they all send nothing for `backup_after_minutes`, the backup skimmers are used too (orange in the traffic console) (v0.7.206). |
 | `cty` | POUNCer's download (S53M's cty.dat) | Country file for continent / DX / mults; a path here overrides it. |
 | **[n1mm]** | | |
 | `listen_ip`, `listen_port` | 0.0.0.0, 12060 | Where POUNCer listens for N1MM's RadioInfo. |

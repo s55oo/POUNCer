@@ -1,5 +1,16 @@
 # POUNCer — Changelog
 
+## v0.7.206 — 2026-11-16 — Backup skimmers: orange, and a switch
+
+- Traffic console: a spot taken only because your chosen skimmers are quiet
+  and the **backup skimmers** are in use (`backup_spotters`, or every skimmer
+  on your continent, after `backup_after_minutes`) is **orange**; spots of
+  the chosen skimmers stay yellow. So "DXCC S5" with an MM0ZBH line in
+  colour is explained at a glance.
+- **Settings > Spots > Disable backup spots** (`[rbn] backup_off`, off by
+  default): only the chosen skimmers, always - no backup skimmers when they
+  are quiet.
+
 ## v0.7.205 — 2026-11-16 — Remove WARC spots
 
 - **Settings > Spots > Remove WARC spots** (`[rbn] hide_warc`, off by
