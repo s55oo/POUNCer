@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## v0.7.220 — 2026-11-17 — CW spots on occupied frequencies
+
+- When two independent skimmers report a CW station, a new callsign within
+  100 Hz needs confirmation from another receiver before it reaches the list,
+  team or cluster clients. The evidence window defaults to 180 seconds.
+  A genuine nearby station heard by only one receiver can also be withheld.
+- The traffic console identifies the competing callsign. Existing configurations
+  use the new defaults when receiver-aware spot collection is enabled.
+
 ## v0.7.219 — 2026-11-17 — nonPublishedSpots.log: one line per spot, no repeats
 
 - **nonPublishedSpots.log** cleaner: a spot that came in through several
