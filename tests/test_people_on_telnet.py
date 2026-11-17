@@ -5,7 +5,8 @@ with mode '0724Z' and went to port 10000)."""
 import queue
 import unittest
 
-from pouncer.rbn import PeopleFilter, RBNClient, SpotterFilter, parse_spot
+from pouncer.rbn import (PeopleFilter, RBNClient, SpotterFilter, parse_cluster_spot, parse_spot,
+                         unmarked_ft)
 
 PERSON = "DX de UT4VL:      7074.0  YO2CK                                       0724Z\n"
 POTA = "DX de YO2CK:       7074.0  IU8RFW       [-POTA-]                       0716Z\n"
@@ -48,6 +49,27 @@ class PeopleOnTelnetTests(unittest.TestCase):
         self.assertIsNone(parse_spot(PERSON.strip()))
         self.assertIsNone(parse_spot(POTA.strip()))
         self.assertEqual(parse_spot(SKIM.strip()).mode, "CW")
+
+
+class UnmarkedFtTests(unittest.TestCase):
+    """Unmarked people's spots on 7074 - 7077 / 1840 - 1843: FT8 outside an SSB
+    contest (in contests those windows hold FT8 stations, S55OO)."""
+
+    def test_unmarked_is_ft8_in_a_cw_contest(self) -> None:
+        sp = parse_cluster_spot(PERSON.strip())
+        self.assertEqual(sp.mode, "SSB")                      # the band plan
+        self.assertEqual(unmarked_ft(sp, phone_contest=False), "FT8")
+        self.assertEqual(unmarked_ft(sp, phone_contest=True), "")     # SSB contest: PSK decides
+        on160 = parse_cluster_spot("DX de UT4VL:      1841.0  YO2CK        0724Z")
+        self.assertEqual(unmarked_ft(on160, phone_contest=False), "FT8")
+
+    def test_marked_or_skimmer_or_elsewhere_untouched(self) -> None:
+        ssb = parse_cluster_spot("DX de UT4VL:      7074.0  YO2CK        SSB 59  0724Z")
+        self.assertEqual(unmarked_ft(ssb, phone_contest=False), "")   # he said SSB
+        cw = parse_cluster_spot("DX de UT4VL:      7024.0  YO2CK        0724Z")
+        self.assertEqual(unmarked_ft(cw, phone_contest=False), "")    # not an FT8 window
+        ph = parse_cluster_spot("DX de UT4VL:      7120.0  YO2CK        0724Z")
+        self.assertEqual(unmarked_ft(ph, phone_contest=False), "")
 
 
 if __name__ == "__main__":

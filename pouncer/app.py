@@ -29,7 +29,7 @@ from .rbn import (
     beacon_why,
     is_beacon,
     is_phone_contest,
-    ports_for_modes, spot_from_n1mm, digital_sure, digital_overlap, digital_mode,
+    ports_for_modes, spot_from_n1mm, digital_sure, digital_overlap, digital_mode, unmarked_ft,
 )
 from .runhist import RARE_RUN_PCT, RunHistory
 from .urgency import classify as classify_urgency, format_hours
@@ -223,6 +223,23 @@ def _note_tap(app, spot: Spot, nr: int, ok: bool, short: str, full: str = "") ->
 
 PIN_S = 60     # a clicked / tapped station keeps its row this long (or until logged)
 DESKTOP_REFRESH_S = 5  # quiet-feed age/fade/CQ/pin updates, without a redraw every tick
+
+def phone_contest_of(app) -> bool:
+    """Is the open N1MM contest an SSB one? (False for a stand-in app.)"""
+    try:
+        return bool(app._phone_contest())
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def apply_unmarked_ft(app, spot) -> None:
+    """A person's spot without a mode word on 7074 - 7077 / 1840 - 1843
+    outside an SSB contest: FT8 / FT4 at once (v0.7.211). A plain function:
+    works with any app object (tests use stand-ins)."""
+    m = unmarked_ft(spot, phone_contest_of(app))
+    if m:
+        spot.mode = m
+
 
 def people_taken(app, src: str) -> bool:
     """Does POUNCer take people's spots (no '-#') from this source now? Only
@@ -4172,6 +4189,7 @@ class PouncerApp:
             if self._merged_dup(spot):
                 continue                  # the same spot from another source: once
             self._note_own(spot)
+            apply_unmarked_ft(self, spot)
             self._check_overlap(spot)
             self.spots[spot.key] = spot
             self._track_on_freq(spot)
@@ -4199,6 +4217,7 @@ class PouncerApp:
             if sf is not None and not sf.accept(spot.dxcall):
                 continue
             self._note_own(spot)
+            apply_unmarked_ft(self, spot)
             self._check_overlap(spot)
             self._serve(spot)
             self.spots[spot.key] = spot
@@ -4295,6 +4314,10 @@ class PouncerApp:
             return False
         if getattr(self.cfg, "hide_warc", False) and is_warc(khz):
             return False                  # Remove WARC spots
+        if spot is not None and mode == "SSB":
+            ft = unmarked_ft(spot, phone_contest_of(self))
+            if ft and ft not in self._digi_wanted():
+                return False              # unmarked on 7074 / 1840 in a CW contest: FT8
         psk = self._console_psk(call, khz, mode)
         if psk is not None:
             return psk                    # False = PSK Reporter: FT8 there; "wait" = asking

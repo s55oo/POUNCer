@@ -10,6 +10,13 @@
   needs a real mode word (CW, RTTY, FT8 ...), and people's spots on the Telnet
   connection are taken only with Cluster on (then with the mode from the band
   plan, and PSK Reporter asked in the FT8 windows).
+- **Unmarked spots on 7074 - 7077 and 1840 - 1843 are FT8** outside an SSB
+  contest: a person's spot without a mode word there was taken as SSB (the
+  band plan) and PSK Reporter was asked; in a CW or mixed contest these
+  windows hold FT8 stations, so such a spot is FT8 at once - not in the list,
+  not to port 10000, not yellow. In an SSB contest it stays SSB and PSK
+  Reporter decides, as before. (The other FT8 / FT4 windows - 3573, 7047.5,
+  14074 ... - were already FT8 for unmarked spots.)
 - Traffic console: every spot POUNCer sends to its cluster server (port
   10000, N1MM's Telnet window) is now a line of its own, source
   **server >**, so you can check what N1MM really gets. (Until now only the

@@ -85,6 +85,7 @@ class Spot:
     time_utc: str
     received: float
     source: str = ""          # "n1mm" = came from N1MM (never served back to it)
+    mode_guessed: bool = False  # a person's spot without a mode word (band plan)
 
     @property
     def key(self) -> tuple[str, int]:
@@ -372,9 +373,24 @@ def parse_cluster_spot(line: str) -> Spot | None:
             comment = comment[:idx]
             break
     text = " ".join(comment)
-    return Spot(dxcall=dxcall, freq_khz=freq, mode=guess_mode(freq, text), snr=None,
-                wpm=None, spot_type="", spotter=spotter, time_utc=time_utc,
-                received=time.time())
+    sp = Spot(dxcall=dxcall, freq_khz=freq, mode=guess_mode(freq, text), snr=None,
+              wpm=None, spot_type="", spotter=spotter, time_utc=time_utc,
+              received=time.time())
+    sp.mode_guessed = not _comment_mode(text)    # no mode word: from the band plan
+    return sp
+
+
+def unmarked_ft(spot, phone_contest: bool) -> str:
+    """'FT8' / 'FT4' for a person's spot WITHOUT a mode word in the FT8 / FT4
+    window of the 40 / 160 m SSB segment (7074 - 7077, 1840 - 1843) outside an
+    SSB contest: in a CW or mixed contest those are FT8 stations - nobody runs
+    SSB there (v0.7.211, S55OO). In an SSB contest it stays SSB, and PSK
+    Reporter decides as before. '' = not such a spot."""
+    if phone_contest or not getattr(spot, "mode_guessed", False):
+        return ""
+    if (spot.mode or "").upper() != "SSB" or (spot.spotter or "").endswith("-#"):
+        return ""
+    return digital_overlap(spot.freq_khz)
 
 
 def spot_from_n1mm(pkt: dict, now: float | None = None) -> Spot:
