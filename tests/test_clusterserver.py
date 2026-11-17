@@ -87,6 +87,25 @@ class ServerTests(unittest.TestCase):
         self.assertIn("DL1ABC", lines[0][2])
         c.s.close()
 
+    def test_original_suffix_and_telnet_application_bytes_survive(self):
+        c = Client(self.port)
+        try:
+            c.until("login:")
+            c.send("S55OO")
+            c.until("de POUNCER >")
+            for _ in range(50):
+                if self.srv.client_count():
+                    break
+                time.sleep(.02)
+            sp = spot()
+            sp.raw_line = "DX de S53WW-#:    14025.12  DL1ABC    CW  23dB Q:9*  > original ÿ 1200Z JO31"
+            self.assertTrue(self.srv.publish(sp))
+            expected = sp.raw_line.encode('latin-1').replace(b'\xff', b'\xff\xff') + b'\r\n'
+            c.until('1200Z')
+            self.assertIn(expected, c.buf)
+        finally:
+            c.s.close()
+
     def test_never_n1mms_own_spots(self) -> None:
         self.assertFalse(self.srv.publish(spot(source="n1mm")))
         self.assertFalse(self.srv.echo("DL1ABC", 14025.0))

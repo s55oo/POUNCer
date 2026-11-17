@@ -113,7 +113,7 @@ class _Client:
         self._writer.start()
 
     def send(self, text: str) -> bool:
-        return self.send_raw(text.encode("ascii", "replace"))
+        return self.send_raw(text.encode("latin-1", "replace").replace(b"\xff", b"\xff\xff"))
 
     def send_raw(self, data: bytes, own_line: bool = False) -> bool:
         """Queue without socket waits; disconnect a client that falls behind."""
@@ -356,7 +356,7 @@ class ClusterServer:
         key = (spot.dxcall.upper(), int(round(spot.freq_khz * 10)))
         dup = key + (spot.spotter.upper(),)
         with self._lock:
-            if now - self._dups.get(dup, 0.0) < DUP_S:
+            if not getattr(spot, "collector_selected", False) and now - self._dups.get(dup, 0.0) < DUP_S:
                 return False
             self._dups[dup] = now
             self._served[key] = now
@@ -368,11 +368,11 @@ class ClusterServer:
                     del self._served[k]
                 for k in [k for k, t in self._dups.items() if now - t > DUP_S]:
                     del self._dups[k]
-            line = dx_line(spot.spotter, spot.freq_khz, spot.dxcall, spot_comment(spot),
-                           spot.time_utc)
+            line = getattr(spot, "raw_line", "") or dx_line(
+                spot.spotter, spot.freq_khz, spot.dxcall, spot_comment(spot), spot.time_utc)
             self._history.append(line)
             clients = [c for c in self.clients if c.call]
-        data = (line + "\r\n").encode("ascii", "replace")
+        data = (line + "\r\n").encode("latin-1", "replace").replace(b"\xff", b"\xff\xff")
         if traffic._sink is not None and clients:     # console open: what N1MM gets (v0.7.211)
             traffic.emit("server >", line)
         gone = [c for c in clients if not c.send_raw(data, own_line=True)]

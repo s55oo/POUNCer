@@ -53,12 +53,12 @@ SETTINGS: list[dict] = [
              "answers come back. Off = nothing either way (a spot gets '*** POUNCer: spot "
              "not sent - Relay is off'). Also the Relay button."},
     {"key": "cluster.merge", "attr": "cluster_merge", "kind": "bool", "live": True,
-     "group": "Cluster server", "label": "  ... One spot per station (S53ZO spot-collector)",
-     "help": "Like S53ZO's spot-collector: the same call within 0.5 kHz of a spot sent "
-             "in the last 30 s - from another Telnet server or another skimmer - is not "
-             "sent to port 10000 again, unless its Q:n is at least 3 higher. The first one "
-             "goes out at once (no waiting); POUNCer's list and the traffic console still "
-             "show every spot ('server  not resent ...' lines). Also the Spots menu."},
+     "group": "Cluster server", "label": "Receiver-aware spot collection",
+     "help": "For the list, team and port 10000: suppress repeats for 180 seconds; "
+             "admit up to two frequency moves above 500 Hz when two distinct receivers "
+             "agree within 100 Hz. Align receiver frequencies when qualified evidence "
+             "is available; guard local CW callsign corrections. First discoveries pass "
+             "promptly. Upstream Q:n is not an independent receiver count."},
     {"key": "n1mm.qsy_wait_ms", "attr": "qsy_wait_ms", "kind": "int", "min": 0, "max": 10000,
      "live": True, "group": "Tap -> N1MM",
      "label": "Wait for N1MM's new frequency (ms)",
@@ -253,6 +253,12 @@ SETTINGS: list[dict] = [
      "group": "RBN", "label": "Telnet #1: login call",
      "help": "Empty = your call. Another SSID (e.g. S55OO-2) where your call is already "
              "logged in on that node."},
+    {"key": "telnet1.role", "attr": "telnet1_role", "kind": "choice", "live": True,
+     "choices": ["cluster", "local", "rbn", "gocluster"], "group": "RBN",
+     "label": "Telnet #1: source role",
+     "help": "cluster = DX cluster; local = direct skimmer; rbn = raw receiver feed; "
+             "gocluster = processed reference. Only cluster receives relayed commands. "
+             "GoCluster is login-only: no automatic history or startup commands."},
     {"key": "telnet1.commands", "attr": "telnet1_commands", "kind": "text", "live": True,
      "group": "RBN", "label": "Telnet #1: commands after login",
      "help": "Comma separated, e.g. set/skimmer."},
@@ -267,6 +273,12 @@ SETTINGS: list[dict] = [
      "group": "RBN", "label": "Telnet #2: login call",
      "help": "Empty = your call. Another SSID (e.g. S55OO-2) where your call is already "
              "logged in on that node."},
+    {"key": "telnet2.role", "attr": "telnet2_role", "kind": "choice", "live": True,
+     "choices": ["cluster", "local", "rbn", "gocluster"], "group": "RBN",
+     "label": "Telnet #2: source role",
+     "help": "cluster = DX cluster; local = direct skimmer; rbn = raw receiver feed; "
+             "gocluster = processed reference. Only cluster receives relayed commands. "
+             "GoCluster is login-only: no automatic history or startup commands."},
     {"key": "telnet2.commands", "attr": "telnet2_commands", "kind": "text", "live": True,
      "group": "RBN", "label": "Telnet #2: commands after login",
      "help": "Comma separated, e.g. set/skimmer."},
@@ -281,6 +293,12 @@ SETTINGS: list[dict] = [
      "group": "RBN", "label": "Telnet #3: login call",
      "help": "Empty = your call. Another SSID (e.g. S55OO-2) where your call is already "
              "logged in on that node."},
+    {"key": "telnet3.role", "attr": "telnet3_role", "kind": "choice", "live": True,
+     "choices": ["cluster", "local", "rbn", "gocluster"], "group": "RBN",
+     "label": "Telnet #3: source role",
+     "help": "cluster = DX cluster; local = direct skimmer; rbn = raw receiver feed; "
+             "gocluster = processed reference. Only cluster receives relayed commands. "
+             "GoCluster is login-only: no automatic history or startup commands."},
     {"key": "telnet3.commands", "attr": "telnet3_commands", "kind": "text", "live": True,
      "group": "RBN", "label": "Telnet #3: commands after login",
      "help": "Comma separated, e.g. set/skimmer."},
@@ -295,6 +313,12 @@ SETTINGS: list[dict] = [
      "group": "RBN", "label": "Telnet #4: login call",
      "help": "Empty = your call. Another SSID (e.g. S55OO-2) where your call is already "
              "logged in on that node."},
+    {"key": "telnet4.role", "attr": "telnet4_role", "kind": "choice", "live": True,
+     "choices": ["cluster", "local", "rbn", "gocluster"], "group": "RBN",
+     "label": "Telnet #4: source role",
+     "help": "cluster = DX cluster; local = direct skimmer; rbn = raw receiver feed; "
+             "gocluster = processed reference. Only cluster receives relayed commands. "
+             "GoCluster is login-only: no automatic history or startup commands."},
     {"key": "telnet4.commands", "attr": "telnet4_commands", "kind": "text", "live": True,
      "group": "RBN", "label": "Telnet #4: commands after login",
      "help": "Comma separated, e.g. set/skimmer."},
@@ -405,10 +429,10 @@ PAGES: list[tuple[str, list[tuple[str, list[str]]]]] = [
                      "rbn.backup_off",
                      "rbn.pause_on_phone",
                      "rbn.skimmer_quiet_minutes", "rbn.http_backup", "rbn.hamqth_backup"]),
-        ("Telnet #1", ["telnet1.host", "telnet1.port", "telnet1.login", "telnet1.commands"]),
-        ("Telnet #2", ["telnet2.host", "telnet2.port", "telnet2.login", "telnet2.commands"]),
-        ("Telnet #3", ["telnet3.host", "telnet3.port", "telnet3.login", "telnet3.commands"]),
-        ("Telnet #4", ["telnet4.host", "telnet4.port", "telnet4.login", "telnet4.commands"]),
+        ("Telnet #1", ["telnet1.host", "telnet1.port", "telnet1.login", "telnet1.role", "telnet1.commands"]),
+        ("Telnet #2", ["telnet2.host", "telnet2.port", "telnet2.login", "telnet2.role", "telnet2.commands"]),
+        ("Telnet #3", ["telnet3.host", "telnet3.port", "telnet3.login", "telnet3.role", "telnet3.commands"]),
+        ("Telnet #4", ["telnet4.host", "telnet4.port", "telnet4.login", "telnet4.role", "telnet4.commands"]),
         ("SSB", ["ssb.follow_radio_mode", "ssb.pskreporter"]),
         ("Spotters - who heard it", ["filter.mode", "rbn.spotter", "filter.dxcc",
                                      "filter.zones", "filter.conts"]),

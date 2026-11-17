@@ -782,7 +782,7 @@ the cluster server (port 10000):
 | Source | What | Connection |
 | --- | --- | --- |
 | **RBN** | skimmer spots only | telnet.reversebeacon.net:7000, login = your call |
-| **Telnet #1** | everything its server sends: skimmer spots (`-#`) **and** people's spots (SSB spots too) | `[telnet1]` host / port / login / commands (default azure.s53m.com:8000) |
+| **Telnet #1** | everything its server sends: skimmer spots (`-#`) **and** people's spots (SSB spots too) | `[telnet1]` host / port / login / commands / role (default azure.s53m.com:8000) |
 | **Telnet #2** | the same, from a second server | `[telnet2]` (empty by default) |
 | **Telnet #3** | the same, from a third server | `[telnet3]` (empty by default) |
 | **Telnet #4** | the same, from a fourth server | `[telnet4]` (empty by default) |
@@ -816,14 +816,47 @@ the cluster server (port 10000):
   spots and the last HTTP answer ...).
 - **The same spot from two sources counts once** (same call, frequency and
   skimmer within a minute) - e.g. RBN and HTTP both on.
-- **One spot per station to port 10000** (Spots menu tick, `[cluster] merge`,
-  on by default; like S53ZO's spot-collector): the same call within 0.5 kHz
-  of a spot sent in the last 30 s - from another Telnet server or another
-  skimmer - is not sent to N1MM's Telnet window again, unless its `Q:n` (how
-  many skimmers the server merged) is at least 3 higher. The first one goes
-  out at once - no waiting; a new band or a move of more than 0.5 kHz goes
-  out too. POUNCer's list and the traffic console still show every spot (a
-  `server  not resent ...` line for each one held back).
+- **Receiver-aware spot collection** (Spots menu, `[cluster] merge`, on by
+  default) replaces the earlier 30-second/Q:n output merge. POUNCer's list,
+  team and port 10000 use the same selected callsigns and frequencies. The
+  first unrelated discovery passes promptly. Repeats share a 180-second
+  episode; ordinary repeats do not extend it. Up to two moves greater than
+  500 Hz can pass when two distinct receivers agree within 100 Hz in the
+  10-second evidence window. Mirrors and upstream `Q:n` are not extra votes.
+  Reports excluded by the Spotters filter may supply evidence without
+  consuming a selected station's episode. Raw traffic remains visible.
+- Set each Telnet's **source role** in Settings > Spots (`role` in `[telnet1]`
+  .. `[telnet4]`): `cluster` (default), `local` (direct skimmer), `rbn` (raw
+  multi-receiver feed), or `gocluster` (processed reference). Only `cluster`
+  receives relayed logger commands. GoCluster sends only the login: automatic
+  history and startup commands are disabled, preserving its managed profile.
+  Configure the desired host/login yourself; no additional feed is enabled.
+- The engine can align each receiver/band/input route against qualified
+  reference groups. Defaults require five distinct calls spanning 30 seconds
+  and 10 kHz, with fresh references and bounded scatter, offset and slope.
+  This is relative alignment, not an RF accuracy guarantee. A lone GoCluster
+  observation cannot establish independent corroboration. Reconnects retire
+  affected evidence. Original measurements remain separate from corrections.
+- Eligible suspicious local CW calls may wait up to three seconds for a unique,
+  externally corroborated one-character correction within 200 Hz. Without
+  sufficient support, the original identity is released through ordinary
+  admission. Portable calls are excluded. Spot suffixes remain intact; only
+  eligible callsign/frequency header fields change. If POUNCer later confirms a
+  different mode, only that mode token is replaced (or inserted for human
+  reports without one); the rest of the comment stays intact. No Q/Z tags are
+  generated.
+- Advanced numeric policy is in `[spot_processing]` (restart after editing).
+  `[cluster] merge = false` bypasses the engine. Startup history bypasses
+  learning; textual `sh/dx` replies use a five-second/200-row bypass which may
+  also include concurrent live spots. Team slaves consume the master's
+  selected feed without applying another processing window. Collector counts
+  and receiver alignment appear in *Spots > The connections now*; traffic
+  console `collector` lines explain evaluated decisions. Filter widening
+  replays retained selected records or reevaluates previously filtered candidates
+  without adding receiver votes; rejected outliers and corrected-away typos
+  cannot bypass the collector. Replay runs on the UI owner, including for web
+  settings edits. Own-skimmer reception markers use observations independently
+  of output suppression.
 - **Only what you ticked**: nothing takes over when a source is down -
   except HamQTH, when it is on. All off = no spots ("nothing on - no spots"
   next to the buttons, light "SPOTS: no source on").
@@ -1045,10 +1078,10 @@ DX de S53WW-#:   14025.0  DL1ABC       CW 23 dB 28 WPM CQ             1200Z
     nothing).
   - One connection to azure, POUNCer's (login = your call); N1MM never logs
     in there itself, so no "Reconnected as S55OO ..." fights.
-- The same call / frequency / skimmer once a minute; with **One spot per
-  station** on (`[cluster] merge`, the Spots menu) also the same call within
-  0.5 kHz from another server or skimmer once in 30 s (unless its Q:n is 3+
-  higher); up to 10 clients; `bye` = disconnect.
+- Receiver-aware collection selects the same feed for the list, team and
+  server: 180-second episodes and up to two corroborated frequency moves.
+  The server retains an additional exact-spot loop/duplicate guard. Original
+  source comments survive forwarding; see the Spots settings above.
 - Other PCs need the port open: *File > Allow POUNCer in Windows Firewall…*
   adds `POUNCer cluster TCP` while the server is on.
 - The traffic console shows it as **SERVER** (logins, commands). On your own

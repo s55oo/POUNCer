@@ -26,7 +26,7 @@ from .n1mm import (
 )
 from .rbn import (
     ContinentFilter, OnFreqTracker, PeopleFilter, RBNClient, Spot, SpotterFilter, SpottedFilter,
-    beacon_why,
+    beacon_why, set_spot_mode,
     is_beacon,
     is_phone_contest,
     ports_for_modes, digital_sure, digital_overlap, digital_mode, unmarked_ft,
@@ -264,7 +264,7 @@ def apply_unmarked_ft(app, spot) -> None:
     works with any app object (tests use stand-ins)."""
     m = unmarked_ft(spot, phone_contest_of(app))
     if m:
-        spot.mode = m
+        set_spot_mode(spot, m)
 
 
 def people_taken(app, src: str) -> bool:
@@ -277,61 +277,10 @@ def people_taken(app, src: str) -> bool:
     return any(has_source(cfg, k) for k in TELNETS)
 
 
-MERGE_SERVED_S = 30       # spot-collector merge: the same station again within this = not resent
-MERGE_KHZ = 0.5           # ... within this much of the frequency already sent
-MERGE_BETTER_Q = 3        # ... unless its Q is at least this much higher
-
-
-def merged_away(app, spot, now: float | None = None) -> str:
-    """Port 10000, S53ZO spot-collector style (Spots > One spot per station,
-    v0.7.214): the same call within MERGE_KHZ of a spot sent in the last
-    MERGE_SERVED_S - from another server, another skimmer - is not sent again,
-    unless its Q:n is clearly higher. '' = send it; else why not. Off = ''."""
-    cfg = getattr(app, "cfg", None)
-    if not getattr(cfg, "cluster_merge", True):
-        return ""
-    now = time.time() if now is None else now
-    sent = app.__dict__.setdefault("_served_recent", {})
-    call = (spot.dxcall or "").upper()
-    q = int(getattr(spot, "quality", 0) or 0)
-    for khz, t, q0 in sent.get(call, ()):
-        if now - t < MERGE_SERVED_S and abs(float(spot.freq_khz) - khz) <= MERGE_KHZ:
-            if q >= q0 + MERGE_BETTER_Q:
-                return ""                    # clearly better confirmed: once more
-            return (f"same station {now - t:.0f} s ago on {khz:.1f}"
-                    + (f" (Q:{q0})" if q0 else ""))
-    return ""
-
-
-def note_served(app, spot, now: float | None = None) -> None:
-    """A spot went out on port 10000: remember it for merged_away."""
-    now = time.time() if now is None else now
-    sent = app.__dict__.setdefault("_served_recent", {})
-    call = (spot.dxcall or "").upper()
-    keep = [e for e in sent.get(call, ()) if now - e[1] < MERGE_SERVED_S]
-    keep.append((float(spot.freq_khz), now, int(getattr(spot, "quality", 0) or 0)))
-    sent[call] = keep[-5:]
-    if len(sent) > 3000:
-        for c in [c for c, v in sent.items() if not v or now - v[-1][1] > MERGE_SERVED_S]:
-            del sent[c]
-
-
-def publish_merged(app, spot) -> bool:
-    """dxc.publish, but one spot per station (merged_away) when the Spots
-    menu tick is on; a held-back one is a 'server' line in the console."""
+def publish_selected(app, spot) -> bool:
+    """Selection already happened before list/team admission; publish once."""
     dxc = getattr(app, "_dxc", None)
-    if dxc is None:
-        return False
-    why = merged_away(app, spot)
-    if why:
-        if dxc.relay() and getattr(spot, "source", "") != "n1mm":
-            traffic.emit("server", f"not resent {spot.dxcall} {spot.freq_khz:.1f} "
-                                   f"({spot.spotter}): {why}")
-        return False
-    ok = dxc.publish(spot)
-    if ok:
-        note_served(app, spot)
-    return ok
+    return bool(dxc is not None and dxc.publish(spot))
 
 
 def telnet_label(cfg, n: int) -> str:
@@ -367,8 +316,19 @@ def remember_spot(app, spot) -> None:
 def readmit_spots(app) -> int:
     """The Spotters / Spotted filter changed: the remembered spots of the last
     15 min that pass it now - and whose station isn't in the list yet - go
-    into the list at once (through the usual checks: Spotted, beacons,
-    duplicates, modes), instead of waiting for new spots. Returns how many."""
+    into the list through the usual checks. With the collector, schedule replay
+    on the UI owner; only selected or previously filtered candidates qualify.
+    Returns the number queued immediately (zero for scheduled replay)."""
+    cfg = getattr(app, "cfg", None)
+    incoming = getattr(app, "_collector_incoming", None)
+    if getattr(cfg, "cluster_merge", False) and incoming is not None:
+        # Settings may be saved by an HTTP thread. Only the UI owner may
+        # evaluate collector replay or mutate its evidence/selection state.
+        try:
+            incoming.put_nowait(("readmit",))
+        except queue.Full:
+            pass
+        return 0  # admission happens asynchronously on the UI thread
     mem = getattr(app, "_spot_memory", None)
     spots = getattr(app, "spots", None)
     q = getattr(app, "spot_queue", None)
@@ -403,7 +363,7 @@ def readmit_spots(app) -> int:
             if not ok:
                 continue
         try:
-            q.put_nowait(dataclasses.replace(spot))
+            q.put_nowait(dataclasses.replace(spot, collector_routed=False, history=True))
             n += 1
         except Exception:  # noqa: BLE001 - queue full
             break
@@ -448,6 +408,7 @@ class PouncerApp:
                     if getattr(config, "internet_check", True) else None)
         self._net_bar_text = ""
         self.spot_queue: "queue.Queue[Spot]" = queue.Queue(maxsize=20000)
+        self._collector_incoming = queue.Queue(maxsize=20000)
         self.status_queue: "queue.Queue[str]" = queue.Queue()
         self.spots: dict[tuple, Spot] = {}
         # How long each station has been calling on one frequency, from RBN
@@ -1030,7 +991,7 @@ class PouncerApp:
                                   command=lambda k=key: self._menu_source(k))
         spots.add_separator()
         self._merge_var = tk.BooleanVar(value=bool(getattr(self.cfg, "cluster_merge", True)))
-        spots.add_checkbutton(label="One spot per station to port 10000 (S53ZO spot-collector)",
+        spots.add_checkbutton(label="Receiver-aware spot collection (list, team, port 10000)",
                               variable=self._merge_var, command=lambda: self._toggle_merge())
         spots.add_checkbutton(label="Hide worked (same band + mode)", accelerator="Ctrl+H",
                               variable=self.hide_worked_var, command=self._on_toggle_worked)
@@ -2297,7 +2258,7 @@ class PouncerApp:
         """POUNCer's own telnet connection to the cluster (the first Telnet
         #1 - #4 logged in) - where the port 10000 clients' commands go."""
         for c in telnet_clients(self):
-            if c is not None and c.connected():
+            if c is not None and c.connected() and getattr(c, "collector_role", "cluster") == "cluster":
                 return c
         return None
 
@@ -2465,6 +2426,7 @@ class PouncerApp:
                 history=self.cfg.rbn_history,
                 on_raw=self._on_raw_spot,
             )
+            client.on_reset = getattr(self, "_collector_reset", None)
             client.start()
             self._rbn_clients[port] = client
             log.info("RBN client started on %s:%s", self.cfg.rbn_host, port)
@@ -2582,6 +2544,9 @@ class PouncerApp:
             key = TELNETS[n - 1]
             host, port, login, cmds = telnet_conf(self.cfg, n)
             call = login or self.cfg.rbn_callsign
+            role = getattr(self.cfg, f"telnet{n}_role", "cluster")
+            if role == "gocluster":
+                cmds = ()
             want = self._telnet_wanted(key)
             where = (host.lower(), port)
             dup = seen.get(where) if want else None
@@ -2593,7 +2558,8 @@ class PouncerApp:
             tc = clients.get(n)
             if tc is not None and (not want or dup or (tc.host, tc.port) != (host, port)
                                    or getattr(tc, "login_call", call) != call
-                                   or tuple(getattr(tc, "backup_commands", cmds)) != tuple(cmds)):
+                                   or tuple(getattr(tc, "backup_commands", cmds)) != tuple(cmds)
+                                   or getattr(tc, "collector_role", "cluster") != role):
                 tc.stop()
                 clients.pop(n, None)
                 log.info("Telnet #%d client stopped%s", n, "" if not want or dup
@@ -2613,12 +2579,14 @@ class PouncerApp:
                 if tc_ is None or getattr(tc_, "status_to_light", False):
                     self.status_queue.put(text)
             tc = RBNClient(host, port, call, self.spotter_filter, self.spot_queue,
-                           on_status=status, history=self.cfg.rbn_history, name=key,
+                           on_status=status, history=self.cfg.rbn_history if role == "cluster" else 0, name=key,
                            backup_commands=cmds, on_raw=self._on_raw_spot)
+            tc.collector_role = role
+            tc.on_reset = getattr(self, "_collector_reset", None)
             tc.backup_commands = tuple(cmds)
             tc.login_call = call
             tc.status_to_light = to_light
-            tc.on_line = self._relay_back
+            tc.on_line = self._relay_back if role == "cluster" else None
             tc.people = self._people_filter()     # skimmer AND people's spots
             clients[n] = tc
             tc.start()
@@ -2894,13 +2862,12 @@ class PouncerApp:
             mv.set(bool(getattr(c, "cluster_merge", True)))
 
     def _toggle_merge(self) -> None:
-        """Spots > One spot per station to port 10000: on / off, saved."""
+        """Spots > Receiver-aware collection: on / off, saved."""
         new = bool(self._merge_var.get())
         self._save_setting("cluster.merge", new)
-        self.status_label.configure(text="Port 10000: " + (
-            f"one spot per station - the same call within {MERGE_KHZ} kHz is not resent for "
-            f"{MERGE_SERVED_S} s (unless its Q is {MERGE_BETTER_Q}+ higher)" if new
-            else "every spot of the ticked sources"))
+        self._collector = None  # discard episodes and pending holds on policy change
+        self.status_label.configure(text="Spot collection: " + (
+            "receiver-aware corrections and corroborated moves" if new else "processing off"))
 
     def _menu_source(self, key: str) -> None:
         self._set_source(key)
@@ -2917,6 +2884,9 @@ class PouncerApp:
         text += "\n\nSpotters: " + (self.spotter_filter.label() or "all")
         sf = getattr(self, "spotted_filter", None)
         text += "\nSpotted: " + (sf.label() if sf is not None else "all")
+        collector = getattr(self, "_collector", None)
+        if collector is not None:
+            text += "\n\n" + collector.status()
         win = getattr(self, "_conn_win", None)
         try:
             if win is not None and win.winfo_exists():
@@ -4035,12 +4005,46 @@ class PouncerApp:
         return False
 
     def _drain_spots(self) -> None:
+        replay_requested = False
+        incoming = getattr(self, "_collector_incoming", None)
+        if incoming is not None:
+            from .collector import Collector
+            collector = getattr(self, "_collector", None)
+            if collector is None:
+                collector = self._collector = Collector(getattr(self.cfg, "spot_processing", {}))
+            for _ in range(500):
+                try:
+                    raw = incoming.get_nowait()
+                except queue.Empty:
+                    break
+                if raw == ("readmit",):
+                    replay_requested = True
+                    continue
+                if isinstance(raw, tuple):
+                    epoch = collector.epochs.get(raw[0])
+                    if epoch is not None and epoch[0] == raw[1]:
+                        collector.engine.reset_source(raw[0])
+                    continue
+                for selected in collector.process(self, raw):
+                    try:
+                        self.spot_queue.put_nowait(selected)
+                    except queue.Full:
+                        break
+            for selected in collector.drain(self) if incoming.empty() else ():
+                try:
+                    self.spot_queue.put_nowait(selected)
+                except queue.Full:
+                    break
         got = 0
-        while got < 500:
+        drained = 0
+        while got < 500 and drained < 2000:
             try:
                 spot = self.spot_queue.get_nowait()
             except queue.Empty:
                 break
+            drained += 1
+            if getattr(spot, "collector_routed", False):
+                continue  # this original was routed through the evidence queue
             if not spot.time_utc:     # N1MM / some cluster spots carry no time
                 spot.time_utc = time.strftime("%H%MZ", time.gmtime(spot.received))
             if self._is_my_call(spot):
@@ -4054,7 +4058,7 @@ class PouncerApp:
             sf = getattr(self, "spotted_filter", None)
             if sf is not None and not sf.accept(spot.dxcall):
                 continue                  # the Spotted filter: not one of these stations
-            if self._merged_dup(spot):
+            if not getattr(spot, "collector_selected", False) and self._merged_dup(spot):
                 continue                  # the same spot from another source: once
             self._note_own(spot)
             apply_unmarked_ft(self, spot)
@@ -4094,6 +4098,20 @@ class PouncerApp:
         self._relabel_overlap()
         if got:
             self._dirty = True
+        if replay_requested:
+            if self.spot_queue.empty():
+                for selected in collector.readmit(self):
+                    try:
+                        self.spot_queue.put_nowait(selected)
+                    except queue.Full:
+                        break
+            else:
+                # First commit the already selected records to the list, so
+                # replay cannot enqueue them a second time in the same tick.
+                try:
+                    incoming.put_nowait(("readmit",))
+                except queue.Full:
+                    pass
 
     # ---- the traffic console's yellow lines --------------------------------------
     def _console_spot(self, src: str, txt: str):
@@ -4276,7 +4294,7 @@ class PouncerApp:
             traffic.digi_out("PSKR", spot, f"held from port {dxc.port}: FT8 window - "
                              "asking PSK Reporter if he is on FT8 / FT4")
             return
-        publish_merged(self, spot)
+        publish_selected(self, spot)
 
     def _serve_verdict(self, key, digital: str = "") -> None:
         """PSK Reporter's answer for a held spot: FT8 / FT4 = not served;
@@ -4289,7 +4307,7 @@ class PouncerApp:
         if digital:
             traffic.digi_out("PSKR", spot, f"not served: PSK Reporter has him on {digital}")
         elif dxc is not None:
-            if publish_merged(self, spot):
+            if publish_selected(self, spot):
                 traffic.digi_out("PSKR", spot, "served now: no FT8 / FT4 report of him")
 
     def _check_overlap(self, spot: Spot) -> None:
@@ -4311,7 +4329,7 @@ class PouncerApp:
         # PSK Reporter may already know (a re-spot): use that at once
         m = self.pskr.digital(spot.dxcall, spot.freq_khz)
         if m:
-            spot.mode = m
+            set_spot_mode(spot, m)
             return
         self.pskr.ask(spot.dxcall, spot.freq_khz)
         self._overlap_keys.add(spot.key)
@@ -4335,7 +4353,7 @@ class PouncerApp:
             m = self.pskr.digital(s.dxcall, s.freq_khz)
             if m:
                 was = s.mode
-                s.mode = m
+                set_spot_mode(s, m)
                 self._overlap_keys.discard(key)
                 getattr(self, "_overlap_since", {}).pop(key, None)
                 self._dirty = True
@@ -4356,8 +4374,12 @@ class PouncerApp:
                 cut = time.time() - self.OWN_HEARD_S
                 for k in [k for k, v in d.items() if v[0] < cut]:
                     del d[k]
-            d[(spot.dxcall.upper(), band_from_khz(spot.freq_khz))] = (
-                time.time(), spot.spotter.replace("-#", ""))
+            key = (spot.dxcall.upper(), band_from_khz(spot.freq_khz))
+            now, receiver = time.time(), spot.spotter.replace("-#", "")
+            previous = d.get(key)
+            if previous is None or now - previous[0] > self.OWN_HEARD_S or previous[1] != receiver:
+                self._dirty = True
+            d[key] = (now, receiver)
 
     def _own_mark(self, s: Spot) -> str:
         """'TK0C-1' when our own skimmer heard this station lately - only when
@@ -4393,6 +4415,9 @@ class PouncerApp:
         """
         d = dataclasses.asdict(spot)
         d.pop("received", None)
+        d.pop("arrived", None)
+        for key in ("collector_routed", "collector_selected", "feed_epoch"):
+            d.pop(key, None)
         d["age_s"] = max(0.0, time.time() - spot.received)
         return d
 
@@ -4412,7 +4437,7 @@ class PouncerApp:
             if (not math.isfinite(spot.freq_khz * 10) or spot.freq_khz <= 0
                     or not isinstance(spot.dxcall, str) or not spot.dxcall):
                 return
-            for field in ("mode", "spot_type", "spotter", "time_utc", "source"):
+            for field in ("mode", "spot_type", "spotter", "time_utc", "source", "raw_line", "feed_id", "feed_epoch"):
                 value = getattr(spot, field)
                 if value is None:
                     setattr(spot, field, "")  # older peers can omit newer text fields
@@ -4424,6 +4449,8 @@ class PouncerApp:
                     return
         except (TypeError, ValueError, OverflowError):
             return
+        spot.collector_routed = False
+        spot.collector_selected = True
         self._last_team_spot = time.time()
         sw = getattr(self, "skimwatch", None)
         if sw is not None:
@@ -5213,9 +5240,25 @@ class PouncerApp:
             return {}
         return self.bandact.summary()
 
+    def _collector_reset(self, source, epoch):
+        incoming = getattr(self, "_collector_incoming", None)
+        if incoming is not None:
+            try:
+                incoming.put_nowait((source, epoch))
+            except queue.Full:
+                pass
+
     def _on_raw_spot(self, spot) -> None:
         """Every live spot of the whole feed (before the list filters)."""
+        spot.arrived = time.time()
         remember_spot(self, spot)
+        incoming = getattr(self, "_collector_incoming", None)
+        if incoming is not None:
+            spot.collector_routed = True
+            try:
+                incoming.put_nowait(dataclasses.replace(spot))
+            except queue.Full:
+                pass  # keep evidence/admission bounded under overload
         p = getattr(self, "_perf", None)
         if p is not None:
             p["raw"] += 1
