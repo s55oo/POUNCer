@@ -37,6 +37,7 @@ EVERY_MS = 250
 QUIET_S = 5          # no line this long = "quiet" (amber dot)
 DEAD_S = 30          # this long = red dot (unless the app says why: grey)
 SHOWN_WAIT_S = 5     # a spot line: look again this long whether POUNCer shows it
+PSK_WAIT_S = 160     # ... or this long when the app says "wait" (asking PSK Reporter)
 SHOWN_COLOR = "#ffeb3b"
 BACKUP_COLOR = "#ff9800"   # taken via the backup skimmers (chosen ones quiet)
 DOT = {"live": "#43a047", "quiet": "#f9a825", "dead": "#e53935", "why": "#78909c"}
@@ -361,7 +362,7 @@ class TrafficConsole:
         keep = []
         for mark, src, txt, until in self._pending:
             how = self._is_shown(src, txt)
-            if how:
+            if how and how != "wait":
                 self._mark_shown(mark, how)
             elif now < until:
                 keep.append((mark, src, txt, until))
@@ -399,11 +400,12 @@ class TrafficConsole:
                     line = int(self.text.index("end-1c").split(".")[0]) - 1
                     mark = f"sp{id(txt)}_{t}_{shown}"
                     self.text.mark_set(mark, f"{line}.0")
-                    if yes:
+                    if yes and yes != "wait":
                         self._mark_shown(mark, yes)
                         self.text.mark_unset(mark)
                     elif len(self._pending) < 500:
-                        self._pending.append((mark, src, txt, time.time() + SHOWN_WAIT_S))
+                        wait = PSK_WAIT_S if yes == "wait" else SHOWN_WAIT_S
+                        self._pending.append((mark, src, txt, time.time() + wait))
                     else:
                         self.text.mark_unset(mark)
         self.recheck()

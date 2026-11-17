@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## v0.7.209 — 2026-11-17 — PSK Reporter decides FT8-frequency lines
+
+- Traffic console: a spot labelled CW (or SSB, or with no mode) on an FT8 /
+  FT4 frequency (7074, 7047.5, 14074, 14080 ... + 3 kHz) now waits for **PSK
+  Reporter**: when it has him on FT8 / FT4 there, the line stays **white** -
+  it is no CW spot (the list relabels it to FT8 and drops it, as before). No
+  FT8 report within 2.5 min = a real CW / SSB station: yellow then. With PSK
+  Reporter off, as before.
+
 ## v0.7.208 — 2026-11-16 — No yellow FT8 lines
 
 - Traffic console: an FT8 / FT4 spot is never yellow unless FT8 / FT4 is in

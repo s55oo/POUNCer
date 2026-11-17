@@ -471,7 +471,7 @@ that match your filters are yellow and bold** (v0.7.201; v0.7.203: every
 source): the spotter passes the **Spotters** filter - your skimmers / zones
 (e.g. `ZONE14, ZONE15`), or the backups while those are quiet; people's
 spots the same filter for people - and the station passes the **Spotted**
-filter (not a dropped beacon, and not an FT8 / FT4 spot unless those are in your Spots modes - a person's spot without a mode in an FT8 window counts as FT8). RBN, Telnet, Cluster, HTTP, HamQTH and N1MM's
+filter (not a dropped beacon, and not an FT8 / FT4 spot unless those are in your Spots modes - a person's spot without a mode in an FT8 window counts as FT8). A CW / SSB spot on an FT8 / FT4 frequency waits for **PSK Reporter** (v0.7.209): reported there on FT8 / FT4 = white; no report within 2.5 min = a real CW / SSB station, yellow. RBN, Telnet, Cluster, HTTP, HamQTH and N1MM's
 spot packets all count; the list's own extras (modes, Min SNR, Hide worked,
 the same spot from two sources) don't. A line from a skimmer outside your
 zones stays white - so you can watch at a glance whether the filtering is

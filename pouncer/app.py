@@ -4162,6 +4162,8 @@ class PouncerApp:
         filter, and it isn't a dropped beacon. Every enabled source counts;
         the list's own extras (modes, Min SNR, Hide worked, duplicates) don't -
         so the yellow lines show what the filters let through (v0.7.203).
+        A CW / SSB spot on an FT8 / FT4 frequency waits for PSK Reporter: if
+        he is on FT8 / FT4 there, the line stays white (v0.7.209).
         An FT8 / FT4 spot (its mode, or a person's spot in an FT8 window) is
         never yellow unless FT8 / FT4 is in the Spots modes (v0.7.208).
         "backup" (orange, v0.7.206) = taken only because the chosen skimmers
@@ -4190,7 +4192,50 @@ class PouncerApp:
             return False
         if getattr(self.cfg, "hide_warc", False) and is_warc(khz):
             return False                  # Remove WARC spots
+        psk = self._console_psk(call, khz, mode)
+        if psk is not None:
+            return psk                    # False = PSK Reporter: FT8 there; "wait" = asking
         return result
+
+    CONSOLE_PSK_WAIT_S = 150   # a CW / SSB line in an FT8 window: wait this long for PSK Reporter
+
+    def _console_psk(self, call: str, khz: float, mode: str):
+        """A CW / SSB spot (or one without a mode) on an FT8 / FT4 frequency:
+        PSK Reporter decides (v0.7.209). False = he is reported on FT8 / FT4
+        there, so it is no CW / SSB spot (white, like the list, which relabels
+        it); "wait" = not known yet (PSK Reporter is being asked - the line is
+        looked at again, up to CONSOLE_PSK_WAIT_S); None = not such a spot,
+        or nobody to ask (PSK Reporter off)."""
+        pskr = getattr(self, "pskr", None)
+        if pskr is None or mode in traffic.DIGITAL:
+            return None
+        try:
+            if mode == "SSB":
+                inside = bool(digital_overlap(khz))
+            else:
+                inside = bool(digital_mode(khz))
+        except Exception:  # noqa: BLE001
+            return None
+        if not inside:
+            return None
+        if pskr.digital(call, khz):
+            return False
+        seen = getattr(self, "_console_psk_seen", None)
+        if seen is None:
+            seen = self._console_psk_seen = {}
+        now = time.time()
+        key = (str(call).upper(), int(round(float(khz))))
+        first = seen.setdefault(key, now)
+        if len(seen) > 2000:
+            for k in [k for k, t in seen.items() if now - t > 2 * self.CONSOLE_PSK_WAIT_S]:
+                del seen[k]
+        if now - first < self.CONSOLE_PSK_WAIT_S:
+            try:
+                pskr.ask(call, khz)       # the list asks for its own spots; this for the rest
+            except Exception:  # noqa: BLE001
+                pass
+            return "wait"
+        return None                       # no FT8 report: a real CW / SSB station
 
     def _beacon_out(self, spot: Spot) -> bool:
         """[rbn] hide_beacons: a beacon spot (an NCDXF beacon on its

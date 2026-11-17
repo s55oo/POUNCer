@@ -23,7 +23,9 @@ def _app(zones=(14, 15), spotted=None, clock=None):
     sf.configure("zones", zones=zones)
     f = types.SimpleNamespace(spotter_filter=sf, spotted_filter=spotted,
                               cfg=types.SimpleNamespace(hide_beacons=True, follow_modes=("CW",)))
-    for name in ("_console_spot", "_console_shown", "_digi_wanted"):
+    f.pskr = None
+    f.CONSOLE_PSK_WAIT_S = P.CONSOLE_PSK_WAIT_S
+    for name in ("_console_spot", "_console_shown", "_digi_wanted", "_console_psk"):
         setattr(f, name, getattr(P, name).__get__(f))
     return f
 
@@ -82,6 +84,24 @@ class ShownTests(unittest.TestCase):
         f.cfg.follow_modes = ("CW", "FT8")                        # FT8 wanted: yellow
         self.assertTrue(f._console_shown("telnet", ft8))
 
+    def test_cw_on_an_ft8_frequency_waits_for_psk_reporter(self) -> None:
+        f = _app(zones=())
+        f.spotter_filter.configure("ww")
+        reports, asked = {}, []
+        f.pskr = types.SimpleNamespace(digital=lambda c, k: reports.get(c, ""),
+                                       ask=lambda c, k: asked.append(c))
+        cw = "DX de DL1ABC-#:   7075.0  RA1ABC       CW    12 dB  22 WPM  CQ      0640Z"
+        self.assertEqual(f._console_shown("telnet", cw), "wait")       # asking PSK Reporter
+        self.assertEqual(asked, ["RA1ABC"])
+        reports["RA1ABC"] = "FT8"
+        self.assertFalse(f._console_shown("telnet", cw))               # he is on FT8: white
+        del reports["RA1ABC"]
+        f._console_psk_seen = {("RA1ABC", 7075): time.time() - 200}
+        self.assertTrue(f._console_shown("telnet", cw))                # no FT8 report: real CW
+        self.assertTrue(f._console_shown("telnet", cw.replace("7075.0", "7025.0")))
+        f.pskr = None                                                  # PSK Reporter off
+        self.assertTrue(f._console_shown("telnet", cw))
+
     def test_all_pass_without_filters(self) -> None:
         f = _app(zones=())
         f.spotter_filter.configure("ww")
@@ -132,6 +152,17 @@ class ConsoleYellowTests(unittest.TestCase):
         r = self.c.text.tag_ranges("backup")
         self.assertIn("W3LPL", "".join(self.c.text.get(r[i], r[i + 1]) for i in range(0, len(r), 2)))
         self.assertEqual(self.tagged(), "")
+
+    def test_wait_keeps_the_line_pending_longer(self) -> None:
+        from pouncer import console
+        self.c.shown = lambda src, txt: "wait" if "DX de" in txt else None
+        self.c.add([(time.time(), "rbn", OTHER_SKIMMER)])
+        self.assertEqual(len(self.c._pending), 1)
+        self.c.recheck(now=time.time() + console.SHOWN_WAIT_S + 10)   # past the 5 s, still asking
+        self.assertEqual(len(self.c._pending), 1)
+        self.c.shown = lambda src, txt: True
+        self.c.recheck()
+        self.assertIn("W3LPL", self.tagged())
 
     def test_given_up_after_the_wait(self) -> None:
         self.c.add([(time.time(), "rbn", OTHER_SKIMMER)])
