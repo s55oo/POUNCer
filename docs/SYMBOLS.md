@@ -35,7 +35,7 @@ colour - green, amber, red - so one red item doesn't colour the whole line:
 | N1MM | radio info arrives | ✗ no radio info for 30 s (N1MM: Config > Broadcast Data > Radio) |
 | Log | a contest log is open | ⚠ N1MM's ini names another contest than today's QSOs · ✗ no log open |
 | Call | your station call is known | ✗ no station call |
-| SPOTS (was RBN) | one source brings spots - RBN, Telnet, HTTP, HamQTH or Cluster (the Spots menu) or the team master - "✓ SPOTS via Telnet"; or "paused - SSB, not needed" | ✗ no source brings spots |
+| SPOTS (was RBN) | one source brings spots - RBN, Telnet, HTTP, HamQTH or Telnet 2 (the Spots menu) or the team master - "✓ SPOTS via Telnet"; or "paused - SSB, not needed" | ✗ no source brings spots |
 | Skimmer | your listed skimmers (S53WW, TK0C) send spots | ⚠ one sent nothing for 3 min while RBN works - offline or its connection down |
 | cty | country file loaded, 60 days old or less | ⚠ older · ✗ not loaded (no mults / DX) |
 | SCP | Super Check Partial loaded, 30 days old or less | ⚠ older or not loaded (no **?** marks) |
@@ -176,7 +176,7 @@ Marks in the call and Mult columns:
 | **▲** / **▼** in a column heading | sorted up / down by that column |
 | **Radio A (A/B)** badge (lights row, after Update; blue = A, orange = B) | SO2R / SO2V: the radio that clicks, F-keys and the band follow go to (N1MM Entry Window A / B); click = switch. Shown only when N1MM reports two radios |
 | **MyCall** / **Relay** (first row, after Min SNR) | MyCall = the connection for spots of your own call (azure, `<call>-77`, SPOTTED pop-up); Relay = hand the spots out on port 10000 (N1MM's Telnet window) - no connection of its own, N1MM's commands go over POUNCer's Telnet / Cluster connection; blue = on, hover = details |
-| "Spots: RBN + Cluster   Spotters: S53WW" | what is in use: the sources ticked in the menu **Spots** (RBN, Telnet, HTTP, Cluster; backups TelBck, HamQTH) and the filter chosen in the menu **Spotters** (Calls / DXCC / Zones / Continents / WW); click = every connection and its state |
+| "Spots: RBN + Telnet 2   Spotters: S53WW" | what is in use: the sources ticked in the menu **Spots** (RBN, Telnet, HTTP, Cluster; backups TelBck, HamQTH) and the filter chosen in the menu **Spotters** (Calls / DXCC / Zones / Continents / WW); click = every connection and its state |
 | "Spotted: continent NA" in that line | the Spotted menu filters the spotted stations (the DX): only these are kept, from every source; not shown when it is WW (all) |
 | "nothing on - no spots" after it | every source is off |
 | "master's choice" after it | team slave: the master's sources; a click asks the master |

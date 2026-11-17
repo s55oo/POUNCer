@@ -49,7 +49,7 @@ SETTINGS: list[dict] = [
      "help": "On = everything both ways: the spots of the sources switched on in the "
              "Spots menu go out to the clients on the port above, and whatever a client "
              "types (spots made in N1MM - Alt+P / Spot It, sh/dx, filters) goes over "
-             "POUNCer's own telnet connection to the DX cluster (Telnet / Cluster on); the "
+             "POUNCer's own telnet connection to the DX cluster (Telnet / Telnet 2 on); the "
              "answers come back. Off = nothing either way (a spot gets '*** POUNCer: spot "
              "not sent - Relay is off'). Also the Relay button."},
     {"key": "n1mm.qsy_wait_ms", "attr": "qsy_wait_ms", "kind": "int", "min": 0, "max": 10000,
@@ -268,12 +268,16 @@ SETTINGS: list[dict] = [
      "group": "SSB", "label": "Spots of my call: SSID",
      "help": "Login <call>-77 - its own SSID, never N1MM's. In a team only the master logs in."},
     {"key": "ssb.host", "attr": "ssb_host", "kind": "text", "live": False,
-     "group": "SSB", "label": "DX cluster", "help": ""},
+     "group": "SSB", "label": "Telnet 2: server",
+     "help": "The DX cluster for the Telnet 2 source (Spots menu): people's spots, every mode. "
+             "Any cluster you like (host name). The same server as Telnet = one connection and "
+             "one login for both; another server = a second connection of its own."},
     {"key": "ssb.port", "attr": "ssb_port", "kind": "int", "min": 1, "max": 65535,
-     "live": False, "group": "SSB", "label": "DX cluster port", "help": ""},
+     "live": False, "group": "SSB", "label": "Telnet 2: port", "help": ""},
     {"key": "ssb.login", "attr": "ssb_login", "kind": "text", "live": False,
-     "group": "SSB", "label": "Login call",
-     "help": "Empty = your call. E.g. S55OO-2 if the cluster already has you as the RBN backup."},
+     "group": "SSB", "label": "Telnet 2: login call",
+     "help": "Empty = your call. On ANOTHER server than Telnet's; on the same server Telnet's "
+             "login is used. E.g. S55OO-2 where your call is already logged in."},
     {"key": "ui.min_snr", "attr": "min_snr", "kind": "int", "min": 0, "max": 60,
      "live": True, "group": "Program", "label": "Minimum SNR (dB)",
      "help": "Window and phone list: hide spots weaker than this; 0 = off, all spots (default). Also next to "
@@ -382,8 +386,10 @@ PAGES: list[tuple[str, list[tuple[str, list[str]]]]] = [
                      "rbn.skimmer_quiet_minutes"]),
         ("Backups", ["rbn.telnet_backup", "rbn.hamqth_backup", "rbn.backup_host",
                      "rbn.backup_port", "rbn.backup_commands", "rbn.http_backup"]),
-        ("SSB", ["ssb.follow_radio_mode", "ssb.mode", "ssb.use_n1mm_spots", "ssb.pskreporter",
-                 "ssb.host", "ssb.port", "ssb.login", "ssb.self_spot_host", "ssb.self_spot_port",
+        ("Telnet 2 - people's spots", ["ssb.host", "ssb.port", "ssb.login",
+                                       "ssb.use_n1mm_spots"]),
+        ("SSB", ["ssb.follow_radio_mode", "ssb.mode", "ssb.pskreporter",
+                 "ssb.self_spot_host", "ssb.self_spot_port",
                  "ssb.self_spot_filter", "ssb.self_spot_ssid"]),
         ("Spotters - who heard it", ["filter.mode", "rbn.spotter", "filter.dxcc",
                                      "filter.zones", "filter.conts"]),

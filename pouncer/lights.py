@@ -19,7 +19,7 @@ N1MM_QUIET_S = 120   # no radio info this long = N1MM probably closed
 RBN_SPOT_S = 120     # a spot this recently = RBN works whatever the status says
 
 
-VIA = {"ok": "RBN", "telnet": "Telnet", "http": "HTTP", "hamqth": "HamQTH", "cluster": "Cluster"}
+VIA = {"ok": "RBN", "telnet": "Telnet", "http": "HTTP", "hamqth": "HamQTH", "cluster": "Telnet 2"}
 
 
 def rbn_light(status: str, last_spot_age: float | None, role: str,
@@ -80,19 +80,20 @@ def team_light(role: str, pouncers: int,
 
 
 def ssb_light(status: str, role: str = "solo") -> tuple[str, str]:
-    """The 'Cluster' source: the DX cluster's spots of people."""
+    """The 'Telnet 2' source (was 'Cluster', v0.7.212): people's spots from
+    a DX cluster of your choice."""
     if role == "slave":
-        return OK, "Cluster via master"
+        return OK, "Telnet 2 via master"
     s = (status or "").lower()
     if s in ("", "off"):
-        return OFF, "Cluster off"
+        return OFF, "Telnet 2 off"
     if s.startswith("via n1mm"):
-        return HOLD, "Cluster via N1MM"     # N1MM's spots instead (N1MM on the cluster itself)
+        return HOLD, "Telnet 2 via N1MM"    # N1MM's spots instead (N1MM on the cluster itself)
     if s.startswith(("logged in", "via n1mm's")):
-        return OK, "Cluster"
+        return OK, "Telnet 2"
     if s.startswith(("connecting", "starting")):
-        return WAIT, "Cluster"
-    return BAD, "Cluster"
+        return WAIT, "Telnet 2"
+    return BAD, "Telnet 2"
 
 
 def http_light(configured: bool, active: bool, delivering: bool) -> tuple[str, str]:

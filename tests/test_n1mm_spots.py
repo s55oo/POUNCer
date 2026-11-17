@@ -45,7 +45,7 @@ class ParseTests(unittest.TestCase):
         self.assertEqual((s.mode, s.snr, s.wpm, s.spot_type), ("CW", 22, 28, "CQ"))
 
     def test_light(self) -> None:
-        self.assertEqual(lights.ssb_light("via N1MM"), (lights.HOLD, "Cluster via N1MM"))
+        self.assertEqual(lights.ssb_light("via N1MM"), (lights.HOLD, "Telnet 2 via N1MM"))
         L = lights
         self.assertEqual(L.n1mm_spots_light(True, True, True, 3, 20), (L.OK, "N1MM spots"))
         self.assertEqual(L.n1mm_spots_light(True, True, False, 3, 20)[0], L.HOLD)

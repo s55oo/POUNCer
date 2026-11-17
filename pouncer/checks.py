@@ -68,7 +68,7 @@ def build(f: dict) -> list[dict]:
     # source delivering spots is enough (v0.7.203)
     rbn = f.get("rbn")
     via = {"ok": "via RBN", "telnet": "via Telnet", "http": "via HTTP backup",
-           "hamqth": "via HamQTH", "cluster": "via Cluster", "team": "via team master",
+           "hamqth": "via HamQTH", "cluster": "via Telnet 2", "team": "via team master",
            "paused": "paused - SSB, not needed"}
     if rbn in via:
         add("SPOTS", "ok", via[rbn])

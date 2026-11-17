@@ -6,7 +6,7 @@ switched on with the Spots buttons (RBN, Telnet, HTTP, Cluster) goes out to
 the clients as a standard ``DX de`` line; off = nothing goes out. The relay
 opens **no connection of its own**. What a client sends after login (``DX
 ...`` spots, ``sh/dx``, filters) goes over POUNCer's own telnet connection
-to the cluster (Telnet / Cluster on) via ``send_upstream(line)``, and that
+to the cluster (Telnet / Telnet 2 on) via ``send_upstream(line)``, and that
 connection's other lines (answers, announcements) come back with
 ``to_clients(line)``. No telnet connection = a note, nothing sent.
 

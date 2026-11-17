@@ -40,7 +40,7 @@ class BuildTests(unittest.TestCase):
         """RBN not logged in, but Telnet (or another source) brings spots: READY.
         The item is called SPOTS (v0.7.203)."""
         for via, text in (("telnet", "via Telnet"), ("hamqth", "via HamQTH"),
-                          ("cluster", "via Cluster"), ("http", "via HTTP backup")):
+                          ("cluster", "via Telnet 2"), ("http", "via HTTP backup")):
             items = checks.build(dict(GOOD, rbn=via))
             self.assertEqual(by_name(items)["SPOTS"]["state"], "ok", via)
             self.assertIn(text, by_name(items)["SPOTS"]["text"])

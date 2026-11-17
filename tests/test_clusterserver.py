@@ -197,10 +197,10 @@ class DistributorTests(unittest.TestCase):
         self.assertIn("K2BWC 14030.0 sent", self.c.until("sent"))
 
     def test_no_telnet_connection_note(self) -> None:
-        self.why[0] = "no telnet connection (switch on Telnet or Cluster)"
+        self.why[0] = "no telnet connection (switch on Telnet or Telnet 2)"
         self.c.buf = b""
         self.c.send("DX 14030.0 K2BWC")
-        self.assertIn("not sent - no telnet connection", self.c.until("Cluster)"))
+        self.assertIn("not sent - no telnet connection", self.c.until("Telnet 2)"))
 
     def test_relay_off_keeps_n1mms_spot_and_says_so(self) -> None:
         self.srv.relay = lambda: False

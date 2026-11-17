@@ -1,5 +1,16 @@
 # POUNCer — Changelog
 
+## v0.7.212 — 2026-11-17 — Cluster is now "Telnet 2"
+
+- The Spots source **Cluster** is now called **Telnet 2**: people's spots (no
+  `-#`, every mode) from a DX cluster **of your choice**. Its server, port and
+  login are together in **Settings > Spots > Telnet 2** (`[ssb] host`, `port`,
+  `login` - unchanged keys). The same server as Telnet = one connection and one
+  login for both (Telnet 2 then only lets the people's spots through - two
+  logins with one call would throw each other out); another server = a second
+  connection of its own. Lights, check line ("SPOTS via Telnet 2"), the Spots
+  menu and the docs say Telnet 2.
+
 ## v0.7.211 — 2026-11-17 — No people's spots to N1MM with Cluster off; see what goes to N1MM
 
 - **Fix:** with the Spots source *Telnet* on and *Cluster* off, a person's spot

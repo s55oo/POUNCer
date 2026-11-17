@@ -1913,7 +1913,7 @@ class PouncerApp:
                     + (f", {dxc.client_count()} client(s)" if dxc is not None else "") + "\n"
                     f"Relay: {onoff(g(c, 'cluster_relay', True))} - on = the spots of the "
                     "switched-on sources go out; the clients' commands go over POUNCer's "
-                    "telnet connection (Telnet / Cluster)")
+                    "telnet connection (Telnet / Telnet 2)")
         return ""
 
     def _console_notes(self) -> dict:
@@ -2229,7 +2229,7 @@ class PouncerApp:
         telnet connection; '' = sent, else why not."""
         c = self._upstream_client()
         if c is None:
-            return "no telnet connection (switch on Telnet or Cluster)"
+            return "no telnet connection (switch on Telnet or Telnet 2)"
         return "" if c.send_line(line) else "the telnet connection is down"
 
     def _relay_back(self, line: str) -> None:
@@ -2834,7 +2834,7 @@ class PouncerApp:
                                   if sf.backup_active() else "the listed ones")
         return head + "\n" + body
 
-    SOURCE_NAMES = {"rbn": "RBN", "telnet": "Telnet", "http": "HTTP", "cluster": "Cluster"}
+    SOURCE_NAMES = {"rbn": "RBN", "telnet": "Telnet", "http": "HTTP", "cluster": "Telnet 2"}
 
     def _set_source(self, src: str, from_team: bool = False) -> None:
         """A Spots button: switch that source on / off. A team slave asks the
@@ -2938,7 +2938,8 @@ class PouncerApp:
     SPOT_MENU = (("rbn", "RBN - {c.rbn_host}:{c.rbn_port}"),
                  ("telnet", "Telnet - {c.rbn_backup_host}:{c.rbn_backup_port} (its skimmer spots)"),
                  ("http", "HTTP - RBN over HTTP (azure)"),
-                 ("cluster", "Cluster - spots of people, {c.ssb_host}:{c.ssb_port}"),
+                 ("cluster", "Telnet 2 - people's spots, {c.ssb_host}:{c.ssb_port} "
+                             "(Settings > Spots > Telnet 2)"),
                  (None, None),
                  ("telnetbck", "TelBck - the telnet server while RBN is down"),
                  ("hamqth", "HamQTH - its APIs while the telnet is down (or alone)"))
@@ -3143,7 +3144,7 @@ class PouncerApp:
         return (f"{head}\nOpens no connection: hands out the spots of the switched-on sources "
                 f"(RBN, Telnet, HTTP, Cluster) to POUNCer's cluster server, TCP "
                 f"{c.cluster_port} (N1MM's Telnet window)\nWhat N1MM sends (DX spots, sh/dx) "
-                f"goes over POUNCer's telnet connection (Telnet / Cluster)\nNow: {now}")
+                f"goes over POUNCer's telnet connection (Telnet / Telnet 2)\nNow: {now}")
 
     def _source_hover(self, button, key: str) -> None:
         def show(e, key=key):
