@@ -94,6 +94,32 @@ class AuditedBridgeTests(unittest.TestCase):
         self.app.spotted_filter = None
         self.assertEqual([s.dxcall for s in self.collector.process(self.app, local)], ['S53M'])
 
+    def test_filtered_confirmation_releases_wanted_receiver_across_minute(self):
+        self.app.spotter_filter = types.SimpleNamespace(accept=lambda rx: rx.startswith('ON6'))
+        for rx in ('G4ZFE-#', 'DM5GG-#'):
+            self.collector.process(self.app, self.spot(rx, call='S53ZO'))
+        pending = self.spot('ON6URE-1-#', call='S53M')
+        self.assertEqual(self.collector.process(self.app, pending), [])
+        self.now += 61
+        def report(rx):
+            spot = self.spot(rx, call='S53M', source='telnet3')
+            return replace(spot, raw_line=spot.raw_line.replace('1200Z', '1201Z'))
+        mirror = report('ON6URE-2-#')
+        self.assertEqual(self.collector.process(self.app, mirror), [])
+        selected = self.collector.process(self.app, report('DK0KK-#'))
+        self.assertEqual([s.raw_line for s in selected], [pending.raw_line])
+        self.assertFalse(self.collector.cw_waiting)
+        self.assertFalse(self.collector.process(self.app, pending))
+
+    def test_filtered_confirmation_cannot_resurrect_disconnected_receiver(self):
+        self.app.spotter_filter = types.SimpleNamespace(accept=lambda rx: rx.startswith('ON6'))
+        for rx in ('G4ZFE-#', 'DM5GG-#'):
+            self.collector.process(self.app, self.spot(rx, call='S53ZO', source='telnet3'))
+        pending = self.spot('ON6URE-1-#', call='S53M')
+        self.assertFalse(self.collector.process(self.app, pending))
+        self.collector.engine.reset_source('telnet')
+        self.assertFalse(self.collector.process(self.app, self.spot('DK0KK-#', call='S53M', source='telnet3')))
+
     def test_queued_observations_keep_their_receipt_window(self):
         self.collector.process(self.app, self.spot())
         early = self.spot('B1BBB-#', 14020.7)
