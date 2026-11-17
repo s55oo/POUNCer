@@ -57,7 +57,7 @@ def to_spot(raw: dict) -> Spot | None:
         dxcall=call, freq_khz=freq,
         mode=str(raw.get("mode") or raw.get("txMode") or "CW").strip().upper(),
         snr=num("snr"), wpm=num("speed"), spot_type=kind, spotter=spotter,
-        time_utc=time.strftime("%H%MZ", time.gmtime(ts)), received=ts,
+        time_utc=time.strftime("%H%MZ", time.gmtime(ts)), received=ts, feed_id="http",
     )
 
 
@@ -117,6 +117,9 @@ class RBNHttpFeed(threading.Thread):
                     self.on_raw(spot)
                 except Exception:  # noqa: BLE001
                     pass
+            if spot is not None and spot.collector_routed:
+                self.spots_in += 1
+                continue
             if spot is None or (self.modes and spot.mode not in self.modes):
                 if spot is not None and spot.mode in traffic.DIGITAL:
                     traffic.digi_out("HTTP", spot, f"dropped: mode {spot.mode} not in "

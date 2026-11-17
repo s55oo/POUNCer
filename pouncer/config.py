@@ -5,7 +5,7 @@ from __future__ import annotations
 import configparser
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from .rbn import MODES
 
@@ -108,6 +108,11 @@ class Config:
     telnet4_port: int = 8000
     telnet4_login: str = ""
     telnet4_commands: tuple = ()
+    telnet1_role: str = "cluster"
+    telnet2_role: str = "cluster"
+    telnet3_role: str = "cluster"
+    telnet4_role: str = "cluster"
+    spot_processing: dict = field(default_factory=dict)
     # RBN over HTTP (S53ZO's Azure feed) while the telnet feed is down / silent
     rbn_http_backup: str = "https://azure.s53m.com/cors/rbn/live"
     # close the RBN connection while every radio is on SSB / AM / FM (phone
@@ -232,7 +237,7 @@ class Config:
     cluster_server: bool = False    # serve POUNCer's spots as a telnet DX cluster
     cluster_port: int = 10000
     cluster_relay: bool = True      # pass the real cluster through to the client (N1MM)
-    cluster_merge: bool = True      # port 10000: one spot per station (S53ZO spot-collector style)
+    cluster_merge: bool = True      # receiver-aware selection for list, team and port 10000
     touch_view: bool = False  # open the phone page in the default browser at start
 
 
@@ -349,6 +354,10 @@ def load_config(path: str) -> Config:
             setattr(cfg, f"{sec}_port", int(str(pick("port", oport, getattr(cfg, f"{sec}_port"))).strip()))
         except ValueError:
             pass
+        role = s(sec, "role", "cluster").strip().lower()
+        if role not in ("cluster", "local", "rbn", "gocluster"):
+            raise ValueError(f"{sec}.role must be cluster, local, rbn or gocluster")
+        setattr(cfg, f"{sec}_role", role)
         setattr(cfg, f"{sec}_login", str(pick("login", ologin, "")).strip().upper())
         setattr(cfg, f"{sec}_commands", tuple(
             c.strip() for c in str(pick("commands", ocmds, "")).split(",") if c.strip()))
@@ -509,6 +518,15 @@ def load_config(path: str) -> Config:
     cfg.cluster_port = i("cluster", "port", cfg.cluster_port)
     cfg.cluster_relay = b("cluster", "relay", cfg.cluster_relay)
     cfg.cluster_merge = b("cluster", "merge", cfg.cluster_merge)
+    from .spot_processing import DEFAULTS, SpotProcessor
+    if parser.has_section("spot_processing"):
+        for key, text in parser.items("spot_processing"):
+            if key not in DEFAULTS or key == "enabled":
+                raise ValueError(f"Unknown spot_processing setting {key}; use cluster.merge to enable")
+            integer = key in ("max_entries", "max_changes", "calibration_min_calls", "calibration_retry_batch")
+            cfg.spot_processing[key] = int(text) if integer else float(text)
+        SpotProcessor(cfg.spot_processing)  # fail early on invalid policy
+
 
     if cfg.sort not in ("time", "freq", "snr", "call", "cont", "mult", "mode", "type", "spotter"):
         cfg.sort = "snr"

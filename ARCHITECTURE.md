@@ -816,3 +816,40 @@ radios and all are `_phone_radio` (USB / LSB / SSB / AM / FM) for `RBN_PAUSE_S` 
 the HTTP backup stops with them). `_rbn_pause_on` flips the log line, `rbn_status`, the RBN
 light (`lights.rbn_light("paused")` → OFF "RBN paused"), the window's RBN line and the
 check (`rbn = "paused"` → ok). Any radio back on CW → not paused at once, clients restart.
+
+## Receiver-aware collector
+
+`spot_processing.py` is imported from s53zo/spot-collector GoCluster at
+196eb94 (MIT notice included). `collector.py` bridges its byte-oriented engine
+to POUNCer's Spot records. Reader threads tag original observations with route
+and connection epoch, then `_on_raw_spot` enqueues copies into a bounded evidence
+queue. Routed originals skip the legacy filtered spot queue. `_drain_spots`
+owns the engine on the UI thread: learn from all receivers, select only spots
+passing current filters, then admit selected records to the list/team/server.
+POUNCer's engine extensions provide `admit=False` evidence-only intake,
+post-correction admission before committing presentation state, original arrival
+timestamps, and replay without learning. `Spot.arrived` is physical local
+reception; `received` retains upstream observation age where available.
+
+Default episodes last 180 seconds, with at most two >500 Hz moves corroborated
+by two receiver bases within 100 Hz. Upstream Q tags do not create votes.
+Frequency alignment and local callsign correction retain the upstream engine's
+reference eligibility, freshness, bounded state and timeout rules. Pending local
+holds are drained every UI tick, including when no new spots arrive. During a
+backlog, receipt watermarks defer timeout evaluation until queued timely evidence
+has been learned, including across the 500-item UI batch limit. Connection
+resets retire measurements without clearing presentation episodes. Disabling or
+reenabling processing starts fresh state and drops pending correction work.
+
+Original wire lines travel with Spot records (and the team packet); only corrected
+header spans change. Verified mode relabeling replaces/inserts only the mode
+token, preserving the remaining source comment. Synthetic evidence serialization
+is lossless; it never uses the width-limited display formatter. ClusterServer
+publishes the selected line without applying a second presentation window,
+while retaining N1MM echo protection. Team slaves do not rerun the engine.
+
+History bypasses learning. Filter readmission is queued by settings/web callers
+and executed by the UI after committing queued selections. Bounded selected and
+deferred caches exclude rejected outliers and corrected-away aliases; deferred
+replay consults existing evidence without adding votes or refreshing holds.
+Raw monitoring and own-skimmer reception annotations remain separate from fanout.

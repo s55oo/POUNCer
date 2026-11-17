@@ -1,5 +1,22 @@
 # POUNCer — Changelog
 
+## Unreleased — receiver-aware spot collection
+
+- Replace the 30-second/Q:n output merge with spot-collector GoCluster's
+  receiver-aware engine (196eb94), shared by the list, team and port 10000.
+- Corroborate frequency moves, align receiver/band/routes against qualified
+  references, and guard local CW callsign corrections with bounded holds.
+- Add roles for all four Telnet sources and advanced `[spot_processing]` numeric policy.
+  Preserve source comments and keep GoCluster login-only and receive-only.
+- Learn from unselected receiver reports without consuming display episodes;
+  keep raw monitoring and expose processing counts/alignment in connections.
+- Preserve receiver identity/precision in synthetic feeds; use receipt-time
+  evidence windows and bounded hold deadlines even across UI backlogs.
+- Apply Spotted filters after correction, replay filters only on the UI owner,
+  and keep reception markers independent of output suppression.
+- Prevent legacy server dedupe from vetoing selections; preserve source comments
+  while reflecting POUNCer's verified mode corrections in forwarded lines.
+
 ## v0.7.215 — 2026-11-17 — Telnet #4
 
 - **Telnet #4**: a fourth telnet source, the same as #1 - #3 (its own server,

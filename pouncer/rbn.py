@@ -88,6 +88,14 @@ class Spot:
     mode_guessed: bool = False  # a person's spot without a mode word (band plan)
     quality: int = 0          # Q:n of a merged skimmer spot (S53ZO's spot-collector), 0 = none
 
+    raw_line: str = ""        # original wire suffix survives correction and forwarding
+    arrived: float = 0.0      # local reception time, distinct from upstream observation age
+    feed_id: str = ""
+    feed_epoch: str = ""
+    history: bool = False
+    collector_routed: bool = False
+    collector_selected: bool = False
+
     @property
     def key(self) -> tuple[str, int]:
         return (self.dxcall.upper(), int(round(self.freq_khz * 10)))
@@ -167,6 +175,27 @@ _MODE_RE = re.compile(r"^(?:CW|RTTY|FT8|FT4|SSB|USB|LSB|AM|FM|JS8|DIGI|"
                       r"[BQ]?PSK\d*|MSK\d*|FSK\d*|JT\d+[A-Z]?|Q65|OLIVIA\d*)$")
 
 
+def set_spot_mode(spot: Spot, mode: str) -> None:
+    """Relabel only a verified mode token, preserving the source comment.
+
+    Human spots may lack that token; insert it rather than replacing prose.
+    Called when POUNCer changes its interpretation after receiving a report.
+    """
+    if spot.raw_line and spot.mode != mode:
+        match = re.match(r"^(DX de\s+\S+:\s+\d+(?:\.\d+)?\s+\S+)(\s*)(.*)$", spot.raw_line)
+        if match:
+            tail = match.group(3)
+            token = re.match(r"\S+", tail)
+            if token is not None:
+                start = match.start(3)
+                end = start + token.end() if _MODE_RE.fullmatch(token.group().upper()) else start
+                replacement = mode if end > start else mode + " "
+                spot.raw_line = spot.raw_line[:start] + replacement + spot.raw_line[end:]
+            else:
+                spot.raw_line += ("" if match.group(2) else " ") + mode
+    spot.mode = mode
+
+
 def parse_spot(line: str) -> Spot | None:
     """Parse one AR-Cluster style RBN spot line, or return None."""
     line = line.rstrip("\r\n")
@@ -204,7 +233,8 @@ def parse_spot(line: str) -> Spot | None:
             spot_type = marker
             break
 
-    time_utc = rest[-1] if rest and rest[-1].endswith("Z") else ""
+    time_utc = next((word for word in reversed(rest)
+                     if re.fullmatch(r"(?:[01]\d|2[0-3])[0-5]\dZ", word)), "")
     quality = 0
     for tok_s in rest:              # "Q:9*+" = merged from 9 skimmers (spot-collector)
         qm = _Q_RE.match(tok_s)
@@ -223,6 +253,7 @@ def parse_spot(line: str) -> Spot | None:
         time_utc=time_utc,
         received=time.time(),
         quality=quality,
+        raw_line=line.rstrip("\r\n"),
     )
 
 
@@ -385,6 +416,7 @@ def parse_cluster_spot(line: str) -> Spot | None:
     sp = Spot(dxcall=dxcall, freq_khz=freq, mode=guess_mode(freq, text), snr=None,
               wpm=None, spot_type="", spotter=spotter, time_utc=time_utc,
               received=time.time())
+    sp.raw_line = line
     sp.mode_guessed = not _comment_mode(text)    # no mode word: from the band plan
     return sp
 
@@ -752,6 +784,7 @@ class RBNClient(threading.Thread):
         super().__init__(daemon=True, name="rbn")
         # every live spot before the skimmer filter (band-open counter)
         self.on_raw = on_raw
+        self.on_reset = None
         # Backup telnet server (a DX cluster passing on the RBN skimmer
         # spots, e.g. azure.s53m.com:8000): used when RBN's own telnet
         # fails twice in a row or sends nothing for ``silent_s``; after
@@ -801,6 +834,7 @@ class RBNClient(threading.Thread):
         self.people = None
         self.on_line = None          # (line) - its lines that aren't spots (answers, announcements)
         self._logged_in = False
+        self._feed_epoch = str(time.monotonic_ns())
 
     # ---- one connection for N1MM and POUNCer ---------------------------------------
     def _server(self) -> tuple[str, int]:
@@ -852,6 +886,9 @@ class RBNClient(threading.Thread):
         if sock is None or not self._logged_in:
             return False
         try:
+            if re.match(r"^(?:sh(?:ow)?)[ /]+dx(?:\s|$|/)", line.strip(), re.I):
+                self._history_deadline = time.monotonic() + 5
+                self._history_remaining = 200
             sock.sendall((line.strip() + "\r\n").encode("ascii", "replace"))
             traffic.emit(f"{self._traffic_name()} >", line.strip())
             return True
@@ -957,6 +994,8 @@ class RBNClient(threading.Thread):
                                     *(self.backup if self.on_backup else (self.host, self.port)),
                                     ", backup" if self.on_backup else "", exc,
                                     f" ({self._errs} in a row)" if self._errs > 1 else "")
+            if self.on_reset is not None:
+                self.on_reset(self._feed_id(), self._feed_epoch)
             if self._stop.is_set():
                 break
             if self._is_shared() or self.hold:   # closed for the relay / HTTP: wait at the top
@@ -993,6 +1032,7 @@ class RBNClient(threading.Thread):
 
     def _connect_and_read(self, host: str | None = None, port: int | None = None,
                           backup: bool = False) -> None:
+        self._feed_epoch = str(time.monotonic_ns())
         host, port = host or self.host, port or self.port
         self._status(f"connecting to {host}:{port}" + (" (backup)" if backup else ""))
         sock = socket.create_connection((host, port), timeout=30)
@@ -1070,6 +1110,19 @@ class RBNClient(threading.Thread):
                 self._send_login(sock)
                 logged_in = True
 
+    def _feed_id(self):
+        name = self.name or self.kind or "rbn"
+        return f"rbn:{self.port}" if name == "rbn" else name
+
+    def _tag_spot(self, spot):
+        spot.feed_id = self._feed_id()
+        if (time.monotonic() < getattr(self, "_history_deadline", 0)
+                and getattr(self, "_history_remaining", 0) > 0):
+            spot.history = True
+            self._history_remaining -= 1
+        spot.feed_epoch = getattr(self, "_feed_epoch", "")
+        return spot
+
     def _consume(self, text: str, buf: str) -> str:
         buf += text
         while "\n" in buf:
@@ -1108,26 +1161,30 @@ class RBNClient(threading.Thread):
                         ppl = parse_cluster_spot(line)
                         if ppl is not None:
                             try:
-                                self.on_raw(ppl)
+                                self.on_raw(self._tag_spot(ppl))
                             except Exception:  # noqa: BLE001
                                 pass
                     continue
                 if spot is not None and not self.skimmers:
                     if self.on_raw is not None:
                         try:
-                            self.on_raw(spot)
+                            self.on_raw(self._tag_spot(spot))
                         except Exception:  # noqa: BLE001
                             pass
                     continue
             if spot is not None and self.on_raw is not None:
                 try:
-                    self.on_raw(spot)
+                    self.on_raw(self._tag_spot(spot))
                 except Exception:  # noqa: BLE001 - never stop the feed
                     pass
+            if spot is not None and spot.collector_routed:
+                continue  # UI evidence intake applies admission after learning
             if spot is None:
                 spot = parse_history(line)
                 if spot is None:
                     continue
+                spot.history = True
+                self._tag_spot(spot)
                 self._history_lines += 1
                 if self.kind == "cluster":
                     spot.mode = guess_mode(spot.freq_khz, spot.mode)
@@ -1157,9 +1214,11 @@ class RBNClient(threading.Thread):
         spot.source = "cluster"
         if self.on_raw is not None:
             try:
-                self.on_raw(spot)
+                self.on_raw(self._tag_spot(spot))
             except Exception:  # noqa: BLE001
                 pass
+        if spot.collector_routed:
+            return
         if not self.people.accept(spot.spotter):
             return
         try:
@@ -1185,6 +1244,8 @@ class RBNClient(threading.Thread):
         else:
             cmd = f"sh/dx/{self.history}"
         try:
+            self._history_deadline = time.monotonic() + 5
+            self._history_remaining = 200
             sock.sendall((cmd + "\r\n").encode("ascii", "ignore"))
             traffic.emit(f"{self._traffic_name()} >", cmd)
             log.info("RBN: %s", cmd)
