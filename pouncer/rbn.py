@@ -158,6 +158,10 @@ def is_beacon(spot: Spot) -> bool:
 
 _DB_RE = re.compile(r"^-?\d{1,2}dB$")
 _WPM_RE = re.compile(r"^\d{1,2}WPM$")
+# a skimmer line's mode word; anything else there (a time "0724Z", "[-POTA-]",
+# "tnx") = not a skimmer spot but a person's, read by parse_cluster_spot (v0.7.211)
+_MODE_RE = re.compile(r"^(?:CW|RTTY|FT8|FT4|SSB|USB|LSB|AM|FM|JS8|DIGI|"
+                      r"[BQ]?PSK\d*|MSK\d*|FSK\d*|JT\d+[A-Z]?|Q65|OLIVIA\d*)$")
 
 
 def parse_spot(line: str) -> Spot | None:
@@ -175,6 +179,8 @@ def parse_spot(line: str) -> Spot | None:
         return None
     dxcall = tok[4]
     mode = tok[5]
+    if not _MODE_RE.match(mode.upper()):
+        return None
     rest = tok[6:]
 
     snr = None
@@ -1068,6 +1074,18 @@ class RBNClient(threading.Thread):
                     spot is not None and spot.spotter.endswith("-#"))
                 if person and self.people is not None:
                     self._person_spot(line)          # a person's spot (no '-#')
+                    continue
+                if person:
+                    # Cluster off: POUNCer takes no people's spots - not into
+                    # the list, not to port 10000 (v0.7.211; before, one with
+                    # a mode word, or a time read as the mode, slipped through)
+                    if self.on_raw is not None:
+                        ppl = parse_cluster_spot(line)
+                        if ppl is not None:
+                            try:
+                                self.on_raw(ppl)
+                            except Exception:  # noqa: BLE001
+                                pass
                     continue
                 if spot is not None and not self.skimmers:
                     if self.on_raw is not None:

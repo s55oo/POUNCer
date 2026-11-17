@@ -1,7 +1,15 @@
 # POUNCer — Changelog
 
-## v0.7.211 — 2026-11-17 — See what goes to N1MM
+## v0.7.211 — 2026-11-17 — No people's spots to N1MM with Cluster off; see what goes to N1MM
 
+- **Fix:** with the Spots source *Telnet* on and *Cluster* off, a person's spot
+  on the same connection could still reach the list and **port 10000** (N1MM's
+  Telnet window): `DX de UT4VL: 7074.0 YO2CK 0724Z` was read as a skimmer spot
+  with the mode "0724Z" (the time) - so neither the Cluster switch, nor the FT8
+  check with PSK Reporter, nor the mode filter caught it. Now a skimmer line
+  needs a real mode word (CW, RTTY, FT8 ...), and people's spots on the Telnet
+  connection are taken only with Cluster on (then with the mode from the band
+  plan, and PSK Reporter asked in the FT8 windows).
 - Traffic console: every spot POUNCer sends to its cluster server (port
   10000, N1MM's Telnet window) is now a line of its own, source
   **server >**, so you can check what N1MM really gets. (Until now only the
