@@ -1,6 +1,6 @@
 # POUNCer — Changelog
 
-## Next release (not released yet)
+## v0.7.215 — 2026-11-17 — Telnet #4
 
 - **Telnet #4**: a fourth telnet source, the same as #1 - #3 (its own server,
   port, login and commands - *Settings > Spots > Telnet #4*, `[telnet4]`;
