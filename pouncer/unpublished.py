@@ -14,7 +14,9 @@ it (the collector's evaluation, the PSK Reporter check) - "no reason noted"
 = the collector dropped it without saying why.
 
 One line per spot, tab separated:
-received UTC, source, call, kHz, mode, spotter, reason, raw line.
+received UTC, sources (every Telnet it came from), call, kHz, mode,
+spotter, reason, raw line. A "repeat" (the collector does not resend a
+station it sent in the last 180 s) is not written.
 Nothing is written while the cluster server is off or Relay is off (then
 nothing is published at all). The file is kept below ``MAX_BYTES`` (the
 older half moves to nonPublishedSpots.log.1).
@@ -32,12 +34,14 @@ log = logging.getLogger(__name__)
 
 FILE = "nonPublishedSpots.log"
 WAIT_S = 120            # a spot is judged this long after it came in
+LOOKBACK_S = 240        # a spot of the station sent this long BEFORE counts too (the
+                        # collector's repeat window is 180 s: a repeat is not resent)
 KHZ = 1.0               # a spot of the same call this close went out = sent
 BUSTED_KHZ = 0.2        # the same skimmer this close under another call = sent (corrected)
 MAX_BYTES = 5_000_000
 MAX_PENDING = 20000
 HEADER = ("# POUNCer - spots that passed your filters but were not sent to port 10000\n"
-          "# received UTC\tsource\tcall\tkHz\tmode\tspotter\treason\traw line\n")
+          "# received UTC\tsources\tcall\tkHz\tmode\tspotter\treason\traw line\n")
 
 
 class UnpublishedLog:
@@ -80,7 +84,7 @@ class UnpublishedLog:
     # ---- judging ------------------------------------------------------------
     def was_sent(self, t: float, call: str, khz: float, spotter: str) -> bool:
         for pt, pkhz in self._by_call.get(call, ()):
-            if abs(pt - t) <= WAIT_S and abs(pkhz - khz) <= KHZ:
+            if -LOOKBACK_S <= pt - t <= WAIT_S and abs(pkhz - khz) <= KHZ:
                 return True
         for pt, pkhz in self._by_spotter.get(spotter, ()):
             if 0 <= pt - t <= WAIT_S and abs(pkhz - khz) <= BUSTED_KHZ:
@@ -92,7 +96,7 @@ class UnpublishedLog:
         ``wanted(spot) -> bool``: your filters (and not your own call).
         ``active``: the cluster server + Relay are on (else drop all)."""
         now = self.clock() if now is None else now
-        out = []
+        out = {}                       # (call, kHz, spotter) -> [first t, spot, why, feeds]
         while self._seen and now - self._seen[0][0] >= WAIT_S:
             t, spot = self._seen.popleft()
             if not active:
@@ -109,11 +113,12 @@ class UnpublishedLog:
                 continue
             with self._lock:
                 why = self._why.get((call, round(khz, 1), spotter), "no reason noted")
-            raw = " ".join(str(getattr(spot, "raw_line", "") or "").split())
-            out.append("\t".join((
-                time.strftime("%Y-%m-%d %H:%M:%SZ", time.gmtime(t)),
-                str(getattr(spot, "source", "") or "?"), call, f"{khz:.1f}",
-                (spot.mode or "-"), spotter, why, raw)))
+            if why.startswith("collector: repeat"):
+                continue               # the station went out within the repeat window
+            feed = str(getattr(spot, "feed_id", "") or getattr(spot, "source", "") or "?")
+            row = out.setdefault((call, round(khz, 1), spotter), [t, spot, why, []])
+            if feed not in row[3]:
+                row[3].append(feed)    # the same spot from several Telnets: one line
         while self._pubs and now - self._pubs[0][0] > 3 * WAIT_S:
             pt, call, spotter = self._pubs.popleft()
             for index, key in ((self._by_call, call), (self._by_spotter, spotter)):
@@ -122,9 +127,15 @@ class UnpublishedLog:
                     rows.pop(0)
                     if not rows:
                         del index[key]
-        if out:
-            self._write(out)
-        return len(out)
+        lines = []
+        for (call, khz, spotter), (t, spot, why, feeds) in out.items():
+            raw = " ".join(str(getattr(spot, "raw_line", "") or "").split())
+            lines.append("\t".join((
+                time.strftime("%Y-%m-%d %H:%M:%SZ", time.gmtime(t)), ",".join(feeds),
+                call, f"{khz:.1f}", (spot.mode or "-"), spotter, why, raw)))
+        if lines:
+            self._write(lines)
+        return len(lines)
 
     def _write(self, lines: list) -> None:
         if not self.path:

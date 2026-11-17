@@ -505,8 +505,9 @@ filters but never went out on port 10000 - for learning and tuning the spot
 collector. A spot is judged 2 minutes after it came in; a merged copy (its
 station went out under another skimmer) or a corrected call counts as sent,
 and what your own filters keep out (Spotters, Spotted, modes, FT8 / FT4,
-beacons, WARC, your own call) is not listed. Tab separated: received UTC,
-source, call, kHz, mode, spotter, reason (the collector's evaluation, the PSK
+beacons, WARC, your own call) is not listed, nor a repeat (a station the
+collector sent in the last 180 s). Tab separated: received UTC, sources
+(every Telnet it came from - one line for all), call, kHz, mode, spotter, reason (the collector's evaluation, the PSK
 Reporter check, or "no reason noted"), raw line. Nothing is written while the
 cluster server or Relay is off; at most 5 MB (+ nonPublishedSpots.log.1).
 

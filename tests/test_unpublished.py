@@ -74,5 +74,26 @@ class LogTests(unittest.TestCase):
         self.assertEqual(self.u.flush(lambda s: True), 1)   # history one not counted
 
 
+class FixTests(LogTests):
+    def test_one_line_for_several_feeds(self) -> None:
+        for feed in ("telnet", "telnet2", "telnet3"):
+            c = spot(C)
+            c.feed_id = feed
+            self.u.seen(c)
+        self.now[0] += WAIT_S + 1
+        self.assertEqual(self.u.flush(lambda s: True), 1)
+        self.assertIn("\ttelnet,telnet2,telnet3\tET5DX\t", self.text())
+
+    def test_repeat_and_earlier_publish_not_written(self) -> None:
+        self.u.published(spot(C))                 # sent 3 minutes before
+        self.now[0] += 180
+        self.u.seen(spot(C))
+        r = spot(A)
+        self.u.seen(r)
+        self.u.note(r, "collector: repeat; input; SQ6OEP")
+        self.now[0] += WAIT_S + 1
+        self.assertEqual(self.u.flush(lambda s: True), 0)
+
+
 if __name__ == "__main__":
     unittest.main()

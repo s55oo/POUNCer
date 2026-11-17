@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## Next release (not released yet)
+
+- **nonPublishedSpots.log** cleaner: a spot that came in through several
+  Telnets is **one line** (the sources column lists them all: `telnet,
+  telnet2, telnet3` - it showed `?` / `cluster` before); a **repeat** (the
+  collector doesn't resend a station it sent in the last 180 s) is not
+  written, and a spot of the station sent up to 4 minutes before counts as
+  sent.
+
 ## v0.7.218 — 2026-11-17 — PB times in the traffic console; nonPublishedSpots.log
 
 - **cache/nonPublishedSpots.log** - the spots that passed your filters
