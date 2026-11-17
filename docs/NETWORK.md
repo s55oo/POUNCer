@@ -26,7 +26,6 @@ in the examples are private example addresses.
 | 5 | **out** | TCP (telnet) | 7000 / 7001 | telnet.reversebeacon.net | RBN skimmer spots (CW/RTTY 7000, FT8/FT4 7001) - the **RBN** button | `[rbn] host`, `port`, `ft8_port`, `sources` |
 | 6 | **out** | TCP (telnet) | 8000 (default) | azure.s53m.com (default), or any server you set | **Telnet #1 / #2 / #3** (Spots menu): each its own connection, its server's skimmer AND people's spots (SSB too); one on the same server as RBN or an earlier Telnet opens nothing | `[telnet1]` .. `[telnet3]` host, port, login, commands; `[rbn] sources` |
 | 7 | **out** | HTTPS | 443 | azure.s53m.com `/cors/rbn/live` | RBN over HTTP - the **HTTP** button | `[rbn] http_backup`, `sources` |
-| 8b | **out** | TCP (telnet) | 8000 | azure.s53m.com (`[ssb] self_spot_host`) | spots of MY call only (node filter `accept/spots call <call>`, login `<call>-77`, team: the master only) for the SPOTTED pop-up | `[ssb] self_spot_host`, `self_spot_port`, `self_spot_filter` - the log says once whether the node applies the filter ("self-spot feed: the node filter works" / "does NOT apply") |
 | 8d | **in** | TCP | 10000 | N1MM's Telnet window, other cluster clients (LAN / ZeroTier) | POUNCer as a DX cluster: `login:` -> call, then the spots of the switched-on sources as `DX de` lines (Relay on); never N1MM's own spots. A client's commands go over POUNCer's own telnet connection (row 6, the first Telnet) | `[cluster] enabled` (off), `port`, `relay` |
 | 8c | **out** | TCP | 53 | 1.1.1.1, 8.8.8.8, 9.9.9.9 (by IP, no DNS) | internet check: a plain connect every 30 s (10 s while down), **nothing is sent**, closed at once - one answer = internet up; no answer twice = the red "Internet down" bar | `[ui] internet_check` (off = no check) |
 | 9 | **in** + out | UDP broadcast | 12079 | other POUNCers on the network | team: who is master, who needs RBN, spots, run history; the master's band-open counts; each POUNCer's settings for the master's team settings log | `[team] port`, `peers` |
@@ -276,25 +275,14 @@ one brings the same). Not on a team slave (the master passes the spots on).
 An older config.ini: #1 = `[rbn] backup_host` / `backup_port`, #2 = `[ssb]
 host` / `port` / `login` / `commands`.
 
-## 8b. Spots of my call (TCP 8000, out)
+## 8b. Spots of my call (no connection of its own)
 
-A third, separate connection to `azure.s53m.com:8000` (`[ssb] self_spot_host`,
-`self_spot_port`) only for the **SPOTTED** pop-up - N1MM never passes on
-spots of its own station call. In a team only the master has it and passes
-each one on (`self`, section 9).
-
-- **Login:** `<call>-77` (`[ssb] self_spot_ssid`) - its own SSID, so it never
-  pushes N1MM's login or the RBN backup off the node. The call is N1MM's
-  (RadioInfo `mycall`, else the log's station call).
-- **1 s after login:** `[ssb] self_spot_filter`, default
-  `accept/spots call <call>` (DXSpider) - only spots **of your call** come down
-  this connection. POUNCer logs the node's next 4 lines ("self-spot feed:
-  node says: …"), and once per connection whether the filter really works:
-  "the node filter works" after 10 min with only your call, or a warning
-  after 20 spots of other calls (then POUNCer drops them itself).
-- Spots: the usual `DX de … ` lines (section 8). A spot by a person (not a
-  skimmer) of your call brings the
-  pop-up - on the PC whose radio is on that band (`[ui] self_spot_band_only`).
+Up to v0.7.213 a separate connection (`<call>-77`, node filter `accept/spots
+call <call>`) brought the spots of your own call. Since v0.7.214 the SPOTTED
+pop-up comes from the spots POUNCer already gets - a Telnet #1 / #2 / #3,
+N1MM's spot packets (section 1), or the team master (`self`, section 9). A
+spot of your call by a person (not a skimmer) brings the pop-up - on the PC
+whose radio is on that band (`[ui] self_spot_band_only`).
 
 ## 8c. Internet check (TCP 53, out)
 
@@ -304,7 +292,7 @@ is needed - closed at once, **nothing is sent**. One answer = the internet is
 up; no answer in two rounds in a row = the red bar *"Internet down since
 12:03"* (window and phone), the last spots stay greyed. A spot arriving from
 the internet also counts as "up". When it's back, every feed (sections 5, 6,
-8, 8b) reconnects at once instead of after its backoff (2 → 60 s). A
+8) reconnects at once instead of after its backoff (2 → 60 s). A
 connection error is logged the first time and then every 10th time in a row.
 
 ## 9. Team (UDP 12079, in and out)

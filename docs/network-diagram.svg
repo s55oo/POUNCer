@@ -65,7 +65,7 @@ text.u, text.t, text.w, text.p { stroke: none; }
 <text class="sw" x="454" y="376" text-anchor="start">Spotted: which DX</text>
 <text class="sw" x="454" y="393" text-anchor="start">Calls · DXCC · Zones · Cont · WW</text>
 <text class="sw" x="454" y="410" text-anchor="start"></text>
-<text class="sw" x="454" y="427" text-anchor="start">MyCall: spots of my call</text>
+<text class="sw" x="454" y="427" text-anchor="start">SPOTTED: my call, from any source</text>
 <text class="sw" x="454" y="444" text-anchor="start">Relay: spots out on 10000</text>
 <text class="sw" x="454" y="461" text-anchor="start">CLR BAND · CLR ALL</text>
 <text class="sw" x="454" y="478" text-anchor="start"></text>
@@ -106,7 +106,7 @@ text.u, text.t, text.w, text.p { stroke: none; }
 <text class="s" x="888" y="258" text-anchor="start">each its own login (your call); N1MM&#x27;s</text>
 <text class="s" x="888" y="274" text-anchor="start">DX / commands go over the first one (Relay)</text>
 <text class="s" x="888" y="290" text-anchor="start">a Telnet on the same server = nothing extra</text>
-<text class="s" x="888" y="306" text-anchor="start">MyCall: login &lt;call&gt;-77, only spots of you</text>
+<text class="s" x="888" y="306" text-anchor="start">spots of my call come with them (SPOTTED)</text>
 <line class="t" x1="692" y1="206" x2="874" y2="206" marker-end="url(#aT)"/>
 <text class="l t" x="782.0" y="199" text-anchor="middle">telnet 8000</text>
 <rect class="box" x="876" y="330" width="490" height="62" rx="10"/>

@@ -235,19 +235,6 @@ SETTINGS: list[dict] = [
              "is asked about that one call; FT8 / FT4 reports there = not SSB (in an SSB contest too). "
              "Also a CW spot in any FT8 / FT4 window (14074, 14080, 7047.5 ...): FT8 / FT4 reports "
              "= not CW; none = a real CW station, it stays."},
-    {"key": "ssb.self_spot_host", "attr": "self_spot_host", "kind": "text", "live": False,
-     "group": "SSB", "label": "Spots of my call: cluster",
-     "help": "N1MM never passes on spots of your own call: a small connection of its own, "
-             "filtered on the node to spots of your call only (SPOTTED pop-up). Empty = off."},
-    {"key": "ssb.self_spot_port", "attr": "self_spot_port", "kind": "int", "min": 1, "max": 65535,
-     "live": False, "group": "SSB", "label": "Spots of my call: port", "help": ""},
-    {"key": "ssb.self_spot_filter", "attr": "self_spot_filter", "kind": "text", "live": False,
-     "group": "SSB", "label": "Spots of my call: node filter",
-     "help": "Sent after login; {call} = your call, ';' between commands. DXSpider: "
-             "accept/spots call {call}"},
-    {"key": "ssb.self_spot_ssid", "attr": "self_spot_ssid", "kind": "text", "live": False,
-     "group": "SSB", "label": "Spots of my call: SSID",
-     "help": "Login <call>-77 - its own SSID, never N1MM's. In a team only the master logs in."},
     {"key": "telnet1.host", "attr": "telnet1_host", "kind": "text", "live": True,
      "group": "RBN", "label": "Telnet #1: server",
      "help": "A DX cluster / skimmer node, e.g. azure.s53m.com. "
@@ -319,9 +306,10 @@ SETTINGS: list[dict] = [
              "look up to v0.7.92. From the next start (View > Look)."},
     {"key": "ui.self_spot_alert", "attr": "self_spot_alert", "kind": "bool", "live": True,
      "group": "Program", "label": "Pop-up when someone spots my call",
-     "help": "A DX-cluster spot of your call (the log's station call) by a person, not a "
-             "skimmer: 'SPOTTED: S55OO by DL1ABC on 14025.0'. Your self-spot shows too "
-             "(marked). Once per spotter and QRG / 15 min."},
+     "help": "A spot of your call (the log's station call) by a person, not a skimmer, "
+             "from any source - a Telnet, N1MM's spots, the team master: 'SPOTTED: S55OO by "
+             "DL1ABC on 14025.0'. Your self-spot shows too (marked). Once per spotter and "
+             "QRG / 15 min."},
     {"key": "ui.self_spot_band_only", "attr": "self_spot_band_only", "kind": "bool", "live": True,
      "group": "Program", "label": "SPOTTED only on the PC on that band",
      "help": "My call spotted on 20 m: the pop-up only on the PC whose radio is on 20 m; the "
@@ -399,9 +387,7 @@ PAGES: list[tuple[str, list[tuple[str, list[str]]]]] = [
         ("Telnet #1", ["telnet1.host", "telnet1.port", "telnet1.login", "telnet1.commands"]),
         ("Telnet #2", ["telnet2.host", "telnet2.port", "telnet2.login", "telnet2.commands"]),
         ("Telnet #3", ["telnet3.host", "telnet3.port", "telnet3.login", "telnet3.commands"]),
-        ("SSB and spots of my call", ["ssb.follow_radio_mode", "ssb.pskreporter",
-                 "ssb.self_spot_host", "ssb.self_spot_port",
-                 "ssb.self_spot_filter", "ssb.self_spot_ssid"]),
+        ("SSB", ["ssb.follow_radio_mode", "ssb.pskreporter"]),
         ("Spotters - who heard it", ["filter.mode", "rbn.spotter", "filter.dxcc",
                                      "filter.zones", "filter.conts"]),
         ("Spotted - who was heard", ["spotted.mode", "spotted.calls", "spotted.dxcc",

@@ -49,7 +49,7 @@ def fake_app(sources):
         spotter_filter=types.SimpleNamespace(label=lambda: "S53WW"),
         _continent=lambda c: "EU", home_cont="EU", _on_raw_spot=lambda s: None,
         _n1mm_spot_first=None, _n1mm_spot_last=0.0, _rbn_paused=lambda: False,
-        _ensure_self_feed=lambda: None, own_call=lambda: "S55OO",
+        own_call=lambda: "S55OO",
         SOURCE_NAMES=P.SOURCE_NAMES, CONN_KEYS=P.CONN_KEYS, N1MM_SPOT_BREAK_S=P.N1MM_SPOT_BREAK_S,
         MERGE_S=P.MERGE_S, _relay_back=lambda line: None,
         HQ_AFTER_S=P.HQ_AFTER_S, HQ_BACK_S=P.HQ_BACK_S)
@@ -138,25 +138,19 @@ class SourceTests(unittest.TestCase):
         self.assertIn("off", f._source_tip("http"))
         self.assertIn("reversebeacon", f._source_tip("rbn"))
 
-    def test_mycall_and_relay_buttons(self) -> None:
+    def test_relay_button_and_no_mycall(self) -> None:
         f, made = self.run_with("rbn")
         saved = []
-        f._self_feed_login = lambda: "S55OO-77"
         f._save_setting = lambda k, v: (saved.append((k, v)),
-                                        setattr(f.cfg, {"ui.self_spot_alert": "self_spot_alert",
-                                                        "cluster.relay": "cluster_relay"}[k], v))
+                                        setattr(f.cfg, {"cluster.relay": "cluster_relay"}[k], v))
         f.status_label = types.SimpleNamespace(configure=lambda **k: None)
         f._src_last = 1
-        tip = f._source_tip("mycall")
-        self.assertIn("S55OO-77", tip)
-        self.assertIn("azure.s53m.com:8000", tip)
+        self.assertNotIn("mycall", f.CONN_KEYS)              # v0.7.214: no MyCall button
         self.assertIn("cluster server is off", f._source_tip("relay"))
         self.assertIn("Opens no connection", f._source_tip("relay"))
-        on = f.cfg.self_spot_alert
-        f._set_source("mycall")
-        self.assertEqual(saved[-1], ("ui.self_spot_alert", not on))
         f._set_source("relay")
         self.assertEqual(saved[-1][0], "cluster.relay")
+        self.assertEqual([c.host for c in made], ["telnet.reversebeacon.net"])   # nothing else
 
     def test_hamqth_only_while_telnet_is_down(self) -> None:
         app, f, made, Fake = fake_app("rbn,telnet")

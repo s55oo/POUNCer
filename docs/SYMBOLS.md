@@ -175,7 +175,7 @@ Marks in the call and Mult columns:
 | sort key filled **blue** | the list is sorted by this key |
 | **▲** / **▼** in a column heading | sorted up / down by that column |
 | **Radio A (A/B)** badge (lights row, after Update; blue = A, orange = B) | SO2R / SO2V: the radio that clicks, F-keys and the band follow go to (N1MM Entry Window A / B); click = switch. Shown only when N1MM reports two radios |
-| **MyCall** / **Relay** (first row, after Min SNR) | MyCall = the connection for spots of your own call (azure, `<call>-77`, SPOTTED pop-up); Relay = hand the spots out on port 10000 (N1MM's Telnet window) - no connection of its own, N1MM's commands go over POUNCer's Telnet / Cluster connection; blue = on, hover = details |
+| **Relay** (first row, after Min SNR) | hand the spots out on port 10000 (N1MM's Telnet window) - no connection of its own, N1MM's commands go over POUNCer's first Telnet connection; blue = on, hover = details |
 | "Spots: RBN + Telnet #1 + Telnet #2   Spotters: S53WW" | what is in use: the sources ticked in the menu **Spots** (RBN, Telnet #1 / #2 / #3, HTTP; HamQTH as the stand-in) and the filter chosen in the menu **Spotters** (Calls / DXCC / Zones / Continents / WW); click = every connection and its state |
 | "Spotted: continent NA" in that line | the Spotted menu filters the spotted stations (the DX): only these are kept, from every source; not shown when it is WW (all) |
 | "nothing on - no spots" after it | every source is off |
@@ -204,7 +204,6 @@ Marks in the call and Mult columns:
 | yellow source, `>` | sent by POUNCer (commands, QSY, login) |
 | **PSKR** | PSK Reporter: `subscribe` / `unsubscribe` of one call and its FT8 / FT4 reports (the FT8-or-SSB check on 7074 - 7077, and FT8-or-CW for a CW spot in an FT8 / FT4 window) |
 | **FT8** | FT8 / FT4 spots kept out of port 10000 (v0.7.174): `dropped` by a feed (mode not in the Spots modes), `not served to port 10000`, `held` (CW / SSB in an FT8 window, asking PSK Reporter), then `not served` (he is on FT8) or `served now`. Never a red dot: quiet = nothing kept out |
-| **self-spot** (under SSB) | the small connection for spots of your call: login `<call>-77`, the node filter, and only spots of your call |
 | blue bar **n new lines below** | you scrolled up; click it to follow the newest lines |
 | hover over a source (switch or dot) | pop-up: what the source is, its settings now (server:port, login, mode, filters, listen address, team role, relay), why it is quiet, line count |
 

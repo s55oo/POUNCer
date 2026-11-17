@@ -767,7 +767,7 @@ class PouncerApp:
         self._src_buttons = {}
         # the other spot connections, on the first row
         cn = ttk.Frame(flow)
-        for key, label in (("mycall", "MyCall"), ("relay", "Relay")):
+        for key, label in (("relay", "Relay"),):
             b = ttk.Button(cn, text=label, style="Sort.TButton", takefocus=False,
                            width=self.BTN_W, command=lambda k=key: self._set_source(k))
             b.pack(side="left", padx=(0, 12))
@@ -1877,12 +1877,9 @@ class PouncerApp:
                                               f"{'on' if has_source(c, key) else 'off'}"
                                               if host else "(not set)"))
             return ("TELNET - Telnet #1 / #2 / #3: each brings its server's skimmer AND "
-                    "people's spots (SSB spots too); and the spots-of-my-call feed\n"
-                    + "\n".join(tl) + "\n"
-                    f"My-call feed: {g(c, 'self_spot_host', '')}:{g(c, 'self_spot_port', '')} as "
-                    f"{self._self_feed_login() if hasattr(self, '_self_feed_login') else '-'}, "
-                    f"filter '{g(c, 'self_spot_filter', '')}'\n"
-                    f"SPOTTED pop-up: {onoff(g(c, 'self_spot_alert', True))}")
+                    "people's spots (SSB spots too)\n" + "\n".join(tl) + "\n"
+                    f"SPOTTED pop-up (a spot of my call from any source): "
+                    f"{onoff(g(c, 'self_spot_alert', True))}")
         if group == "HTTP":
             return ("HTTP - RBN's skimmer spots over HTTP ('Spots: HTTP')\n"
                     f"URL: {g(c, 'rbn_http_backup', '') or '(off)'}")
@@ -1981,9 +1978,7 @@ class PouncerApp:
         elif not dxc.client_count():
             notes["SERVER"] = f"TCP {dxc.port}: no client connected"
         if role != "slave" and not any(has_source(self.cfg, k) for k in TELNETS):
-            notes["TELNET"] = ("off - Spots: Telnet #1 / #2 / #3"
-                               + ("; the spots-of-my-call feed is here"
-                                  if getattr(self, "_self_feed", None) else ""))
+            notes["TELNET"] = "off - Spots: Telnet #1 / #2 / #3"
         if self._http_feed is None:
             notes["HTTP"] = "off - Spots: HTTP"
         if not self.cfg.web_enabled:
@@ -1997,8 +1992,6 @@ class PouncerApp:
             self._console.close()
         if getattr(self, "pskr", None) is not None:
             self.pskr.stop()
-        if getattr(self, "_self_feed", None) is not None:
-            self._self_feed.stop()
         try:
             self.root.destroy()
         except tk.TclError:
@@ -2372,86 +2365,7 @@ class PouncerApp:
             return False                  # another POUNCer is on CW: keep feeding it
         return True
 
-    def _self_feed_login(self) -> str:
-        """<call>-77 ([ssb] self_spot_ssid): its own SSID, so this connection
-        never pushes N1MM's login or the RBN backup off the node."""
-        base = (self.cfg.rbn_callsign or self.own_call() or "").split("-")[0]
-        if not base:
-            return ""
-        ssid = str(getattr(self.cfg, "self_spot_ssid", "77") or "").strip().lstrip("-")
-        return f"{base}-{ssid}" if ssid else base
-
-    SELF_FEED_OK_S = 600       # this long with only my call: "the node filter works"
-    SELF_FEED_BAD_N = 20       # this many spots of other calls: it doesn't
-
-    def _on_self_feed_spot(self, s) -> None:
-        """A spot on the self-spot feed (its thread): the SPOTTED check, and
-        is the node's filter (accept/spots call ...) really applied? Logged
-        once: works / doesn't (then POUNCer filters itself - still right,
-        just more traffic)."""
-        self._note_self_spot(s.dxcall, s.spotter, s.freq_khz)
-        c = getattr(self, "_self_feed_check", None)
-        if not c or c["said"]:
-            return
-        me = getattr(getattr(self, "_self_feed", None), "_for_call", "")
-        mine = alert_base_call(s.dxcall) == alert_base_call(me)
-        c["mine" if mine else "other"] += 1
-        if c["other"] >= self.SELF_FEED_BAD_N:
-            c["said"] = True
-            mins = max(1 / 60, (time.time() - c["t"]) / 60)
-            log.warning("self-spot feed: the node does NOT apply the filter - %d spots of other "
-                        "calls in %.0f min (about %.0f a minute); POUNCer drops them itself. "
-                        "Check [ssb] self_spot_filter for this node.", c["other"], mins,
-                        c["other"] / mins)
-
-    def _check_self_feed_filter(self) -> None:
-        """From _tick: 10 min on the feed and nothing but my call - say so."""
-        c = getattr(self, "_self_feed_check", None)
-        if c and not c["said"] and time.time() - c["t"] >= self.SELF_FEED_OK_S:
-            c["said"] = True
-            log.info("self-spot feed: the node filter works - only spots of my call in %d min "
-                     "(%d of them)", self.SELF_FEED_OK_S // 60, c["mine"])
-
-    def _ensure_self_feed(self) -> None:
-        """SPOTTED pop-up: N1MM never passes on spots of your own call, so a
-        cluster connection of its own with a node filter that lets only spots
-        of my call through (DXSpider: accept/spots call S55OO) - nothing else
-        arrives on it. [ssb] self_spot_host / port / filter."""
-        team = getattr(self, "team", None)
-        slave = team is not None and team.role() == "slave"   # the master passes it on
-        want = bool(getattr(self.cfg, "self_spot_alert", True) and not slave
-                    and getattr(self.cfg, "self_spot_host", "") and self.own_call())
-        feed = getattr(self, "_self_feed", None)
-        me = self.own_call().upper() if want else ""
-        if feed is not None and (not want or getattr(feed, "_for_call", "") != me):
-            feed.stop()
-            self._self_feed = feed = None
-        if feed is not None or not want:
-            return
-        login = self._self_feed_login()
-        cmds = [c.strip().replace("{call}", me) for c in
-                (getattr(self.cfg, "self_spot_filter", "") or "").split(";") if c.strip()]
-
-        class _All:            # every spotter (the node filter does the work)
-            primary = ""
-
-            @staticmethod
-            def accept(_sp):
-                return True
-        feed = RBNClient(self.cfg.self_spot_host, self.cfg.self_spot_port, login, _All(),
-                         queue.Queue(maxsize=50), history=0, backup_commands=cmds,
-                         kind="cluster", name="self-spot",
-                         on_raw=self._on_self_feed_spot)
-        feed.backup_commands = tuple(cmds)
-        feed._for_call = me
-        self._self_feed_check = {"t": time.time(), "mine": 0, "other": 0, "said": False}
-        feed.start()
-        self._self_feed = feed
-        log.info("self-spot feed: %s:%s as %s, filter %s", self.cfg.self_spot_host,
-                 self.cfg.self_spot_port, login, "; ".join(cmds) or "(none)")
-
     def _ensure_rbn_clients(self) -> None:
-        self._ensure_self_feed()
         desired = self._desired_rbn_ports() if has_source(self.cfg, "rbn") else set()
         paused = self._rbn_paused()
         if paused != getattr(self, "_rbn_pause_on", False):
@@ -2793,12 +2707,10 @@ class PouncerApp:
 
     # the other spot connections on the Spots line: own settings, this PC only
     CONN_KEYS = {"hamqth": ("rbn.hamqth_backup", "rbn_hamqth_backup", "HamQTH"),
-                 "mycall": ("ui.self_spot_alert", "self_spot_alert", "MyCall"),
                  "relay": ("cluster.relay", "cluster_relay", "Relay")}
 
     def _toggle_conn(self, key: str) -> None:
-        """MyCall (the spots-of-my-call connection + SPOTTED pop-up) / Relay
-        (N1MM's cluster through POUNCer): on / off, saved."""
+        """HamQTH / Relay (N1MM's cluster through POUNCer): on / off, saved."""
         setting, attr, name = self.CONN_KEYS[key]
         new = not bool(getattr(self.cfg, attr, False))
         self._save_setting(setting, new)
@@ -2927,7 +2839,7 @@ class PouncerApp:
     def _show_connections(self) -> None:
         """Spots > The connections now: every source's connection and state."""
         text = "\n\n".join(self._source_tip(k) for k in
-                            ("rbn",) + TELNETS + ("http", "hamqth", "mycall", "relay"))
+                            ("rbn",) + TELNETS + ("http", "hamqth", "relay"))
         text += "\n\nSpotters: " + (self.spotter_filter.label() or "all")
         sf = getattr(self, "spotted_filter", None)
         text += "\nSpotted: " + (sf.label() if sf is not None else "all")
@@ -3019,17 +2931,6 @@ class PouncerApp:
                     f"every telnet is down ({self.HQ_AFTER_S} s), stops "
                     f"{self.HQ_BACK_S} s after it works again; with them off: the source itself. "
                     f"Data provided by HamQTH.com\nNow: {now}")
-        if key == "mycall":
-            feed = getattr(self, "_self_feed", None)
-            team = getattr(self, "team", None)
-            slave = team is not None and team.role() == "slave"
-            login = self._self_feed_login() if hasattr(self, "_self_feed_login") else "?"
-            now = ("the team master is connected and passes them on" if slave and on else
-                   (getattr(feed, "status_text", "") or "starting") if feed is not None else
-                   ("not connected" if on else "off"))
-            return (f"{head}\n{c.self_spot_host}:{c.self_spot_port} (telnet), login {login}\n"
-                    f"Spots of your own call only (node filter '{c.self_spot_filter}') for the "
-                    f"SPOTTED pop-up\nNow: {now}")
         dxc = getattr(self, "_dxc", None)
         up = self._upstream_client()
         if not getattr(c, "cluster_server", False):
@@ -3040,11 +2941,11 @@ class PouncerApp:
             now = f"off - nothing goes out on TCP {dxc.port}"
         else:
             now = (f"{dxc.client_count()} client(s); commands go over "
-                   + (f"{up.host}:{up.port}" if up else "nothing (Telnet and Cluster off)"))
-        return (f"{head}\nOpens no connection: hands out the spots of the switched-on sources "
-                f"(RBN, Telnet, HTTP, Cluster) to POUNCer's cluster server, TCP "
+                   + (f"{up.host}:{up.port}" if up else "nothing (no Telnet on)"))
+        return (f"{head}\nOpens no connection: hands out the spots of the ticked sources "
+                f"(RBN, Telnet #1 / #2 / #3, HTTP) to POUNCer's cluster server, TCP "
                 f"{c.cluster_port} (N1MM's Telnet window)\nWhat N1MM sends (DX spots, sh/dx) "
-                f"goes over POUNCer's telnet connection (Telnet / Telnet 2)\nNow: {now}")
+                f"goes over POUNCer's first Telnet connection\nNow: {now}")
 
     def _source_hover(self, button, key: str) -> None:
         def show(e, key=key):
@@ -3502,7 +3403,6 @@ class PouncerApp:
         self._drain_status()
         if hasattr(self, "_self_spot_q"):
             self._drain_self_spots()
-        self._check_self_feed_filter()
         self._update_net_bar()
         self._update_source_buttons()
         self._update_filter_buttons()
@@ -4729,8 +4629,7 @@ class PouncerApp:
         net = self.net
         self.status_label.configure(text="Internet back after " + minutes_text(net.back_after))
         # every feed: try now, not after its backoff (up to a minute)
-        clients = list(self._rbn_clients.values()) + telnet_clients(self) + [
-            getattr(self, "_self_feed", None)]
+        clients = list(self._rbn_clients.values()) + telnet_clients(self)
         for c in clients:
             if c is not None and hasattr(c, "kick"):
                 c.kick()

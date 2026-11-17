@@ -60,10 +60,8 @@ examples: [docs/NETWORK.md](docs/NETWORK.md).
 | N1MM's windows (same PC) | Windows messages (no network) | the call into the Entry Window, F-keys, Enter, PgUp/PgDn, Ctrl+K CW text; reads the CW speed box | on a click / key; WPM once a second |
 | N1MM's files (same PC) | file read, read-only | the log `.s3db` (+ `-wal`), `N1MM Logger.ini` (`wl_cty.dat`, `MASTER.SCP` only before POUNCer's first download) | log every 0.5 s, ini every 10 s |
 | telnet.reversebeacon.net | TCP **7000** / 7001 (telnet) | login = your callsign → RBN skimmer spots (CW/RTTY; 7001 = FT8/FT4) | while a radio is on CW; team: the master only |
-| azure.s53m.com | TCP **8000** (telnet) | RBN backup → the same skimmer spots | when RBN's telnet is down |
-| azure.s53m.com | TCP **8000** (telnet) | DX cluster → SSB spots (closed while N1MM sends its own spots) | while a radio is on SSB |
-| azure.s53m.com | TCP **8000** (telnet) | login `<call>-77` + `accept/spots call <call>` → spots of **your** call only (SPOTTED pop-up) | always (`[ui] self_spot_alert`); team: the master only |
-| azure.s53m.com | HTTPS **443** | `GET /cors/rbn/live` → RBN spots as JSON pages | only while the telnet feeds are down |
+| Telnet #1 / #2 / #3 (default #1 azure.s53m.com) | TCP **8000** (telnet, or the port you set) | login = your call (or the one you set) → the server's skimmer and people's spots (SSB too) | each one while ticked in the Spots menu; team: the master only |
+| azure.s53m.com | HTTPS **443** | `GET /cors/rbn/live` → RBN spots as JSON pages | while HTTP is ticked |
 | mqtt.pskreporter.info | TCP **1883** (MQTT) | subscribe to one call → its FT8/FT4 reports (is that spot FT8 or SSB?) | only for SSB spots in the 40 m / 160 m FT8 windows and CW spots in an FT8 / FT4 window, max 2 min |
 | api.github.com, github.com | HTTPS **443** | update check → new POUNCer.exe (SHA-256 checked); warm-up lists (CW, SSB) | start + every 6 h; lists every 30 days |
 | raw.githubusercontent.com | HTTPS **443** | S53ZO's public contest-log archive → run history of a call (the call is in the URL) | for spotted calls not in the lists, cached |
@@ -304,7 +302,7 @@ DX rows tinted, the station the radio is on framed in blue.*
   **Spotters** (who spots), **Spotted** (who is spotted);
 - *top bar:* frequency, band, mode and N1MM's CW speed; the phone-page
   address; **CLR BAND** / **CLR ALL**; the team badge;
-- *first row:* Sort, Min SNR, **MyCall | Relay**, then the line saying what
+- *first row:* Sort, Min SNR, **Relay**, then the line saying what
   is in use - here *Spots: Telnet + Cluster, Spotters: continent EU,
   Spotted: continent EU* (click = every connection and its state);
 - *the list:* skimmer spots from the Telnet source (azure) with their SNR
@@ -329,7 +327,7 @@ The window has two layouts (*View > Detailed layout*, `[ui] layout`).
   the spots of the band in the list (the radio's, or the band chip clicked) /
   of every band.
 - **one row of controls**: Sort (Time / Freq / SNR / Mult), Min SNR,
-  **MyCall | Relay** (every button the same width, room for six letters),
+  **Relay** (every button the same width, room for six letters),
   then one short line **"Spots: RBN + Cluster   Spotters: S53WW"** - what is
   in use (click = every connection and its state). Where the spots come
   from and which spotters: the menus **Spots** and **Spotters** (see *Spots:
@@ -429,22 +427,15 @@ normally again.
 
 **SPOTTED pop-up** (`[ui] self_spot_alert`; also a yellow bar in the window
 under the top bar, for 3 s): when your call (the log's
-station call - S55OO, TK0C ...) is spotted on a DX cluster by a person (not a
-skimmer -#), a pop-up like the multiplier alert says "SPOTTED: S55OO by
+station call - S55OO, TK0C ...) is spotted by a person (not a skimmer -#) in
+the spots of a Telnet, of N1MM or passed on by the team master, a pop-up like the multiplier alert says "SPOTTED: S55OO by
 DL1ABC on 14025.0" (with the alert sound, if on). Your own self-spot shows too,
 marked "(self-spot)". *Your call* = N1MM's station call (`<mycall>` in its
 radio info, Config > Change Your Station Data), else the open log's, else
-N1MM's ini - so with a TK0C log open it is TK0C. **N1MM never passes on spots
-of your own call** (not
-even when someone else spots you), so POUNCer keeps a small cluster
-connection of its own just for them: `[ssb] self_spot_host` (default
-azure.s53m.com:8000, the node N1MM uses), login `<call>-77` (`self_spot_ssid`:
-its own SSID, never N1MM's; in a team only the master logs in and passes
-spots of your call on to the others), and after login `self_spot_filter` (`accept/spots call
-{call}`) tells the node to send **only spots of your call** - normally not a
-single line arrives on it. Shown as "self-spot" (TELNET) in the traffic console.
-Spots of your call from POUNCer's Telnet sources or the team master count
-too. In a team every PC gets it, but the **pop-up only shows on the PC whose
+N1MM's ini - so with a TK0C log open it is TK0C. No connection of its own is
+needed (v0.7.214; up to v0.7.213 the MyCall button kept one, `<call>-77`):
+spots of your call come with the Telnet spots and N1MM's. In a team the
+master passes them on and every PC gets them, but the **pop-up only shows on the PC whose
 radio is on the spot's band** (`[ui] self_spot_band_only`, on); the others log
 it and show it in the status line (no radio info yet: pop-up anyway).
 Every spot of your call is written to
@@ -464,8 +455,7 @@ window of its own - Edge or Chrome "app" mode, no tabs, no address bar.
 
 **Traffic console** (View menu or **Ctrl+Shift+D**): the raw data of every
 source as it arrives or goes out - RBN lines, **TELNET** (*Spots: Telnet
-#1 / #2 / #3*, their skimmer and people's spots and the commands sent, and
-the spots-of-my-call connection), N1MM UDP packets in and QSY / call commands
+#1 / #2 / #3*, their skimmer and people's spots and the commands sent), N1MM UDP packets in and QSY / call commands
 out, the HTTP feed, the team, the cluster server (**SERVER**), FT8 / FT4
 spots kept out of port 10000 (**FT8**), beacon spots kept out (**BEACON**: the NCDXF beacons on their frequencies, /B calls), the phone page's requests (WEB, off
 at first). Tick sources on / off - **None** unticks them all, to then tick
@@ -816,10 +806,8 @@ the cluster server (port 10000):
   again ("HamQTH: telnet down - ... from HamQTH.com meanwhile" on the Spots
   line). With nothing ticked HamQTH is the source itself, at once. No WPM or
   CQ in those spots. *Data provided by [HamQTH.com](https://www.hamqth.com/).*
-- Two more buttons, on the **first row** (after Min SNR), for the other spot connections:
-  **MyCall** (azure, login `<call>-77`, only spots of your own call - the
-  SPOTTED pop-up; `[ui] self_spot_alert`) and **Relay** (`[cluster] relay`,
-  needs the cluster server on): the switch that hands the
+- One more button, on the **first row** (after Min SNR): **Relay**
+  (`[cluster] relay`, needs the cluster server on): the switch that hands the
   spots out on port 10000 (N1MM's Telnet window) - no connection of its own;
   N1MM's commands go over POUNCer's first Telnet connection.
 - **Hover** over a button: the connection behind it - server and port,
@@ -1471,8 +1459,6 @@ All options live in `config.ini` and are documented there, line by line:
 | **[ssb]** | | |
 | `mode`, `spotters` | auto, EU | Only read from an older config.ini (without `[rbn] sources` / `[filter]`). |
 | `pskreporter` | true | A spot on 7074 - 7077 / 1840 - 1843 without a mode, or a CW spot in any FT8 / FT4 window: ask PSK Reporter about that one call; FT8 / FT4 reports there = not SSB / not CW. |
-| `self_spot_host`, `self_spot_port` | azure.s53m.com, 8000 | The small cluster connection for spots of MY call only (N1MM drops them); empty host = off. Team: the master only. |
-| `self_spot_filter`, `self_spot_ssid` | accept/spots call {call}, 77 | Node filter sent after login (only spots of your call come); login `<call>-77`. pouncer.log shows the node's answer and, once, whether the filter works. |
 | `follow_radio_mode` | true | Radio on USB/LSB = SSB spots, CW = RBN CW spots. |
 | **[team]** | | |
 | `enabled`, `port`, `peers` | true, 12079, – | Several POUNCers on a network; extra IPs where broadcasts are dropped. |

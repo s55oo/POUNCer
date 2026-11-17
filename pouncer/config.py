@@ -192,14 +192,9 @@ class Config:
     tried_minutes: int = 30      # ... for this long after the last tap
     check_line: bool = True      # pre-contest check line in the window (+ phone warning)
     rate_line: bool = True       # window: rate / QSOs / mults per band from the log
-    self_spot_alert: bool = True  # pop-up when a person spots my call on a cluster
+    self_spot_alert: bool = True  # pop-up when a person spots my call (any source)
     self_spot_band_only: bool = True  # SPOTTED pop-up only on the PC whose radio is on that band
     internet_check: bool = True     # red 'internet down since …' bar, last spots kept greyed
-    # its own cluster connection, filtered on the node to spots of my call only
-    self_spot_host: str = "azure.s53m.com"
-    self_spot_port: int = 8000
-    self_spot_filter: str = "accept/spots call {call}"
-    self_spot_ssid: str = "77"
     band_lights: bool = True     # band open lights (skimmers on our continent, 10 min)
     # window alert when a rare CQ (⚡) that is also a new multiplier shows up
     # on the band: a pop-up (click it = QSY) and / or a beep, each on its own
@@ -420,10 +415,6 @@ def load_config(path: str) -> Config:
     cfg.self_spot_alert = b("ui", "self_spot_alert", cfg.self_spot_alert)
     cfg.self_spot_band_only = b("ui", "self_spot_band_only", cfg.self_spot_band_only)
     cfg.internet_check = b("ui", "internet_check", cfg.internet_check)
-    cfg.self_spot_host = s("ssb", "self_spot_host", cfg.self_spot_host).strip()
-    cfg.self_spot_port = i("ssb", "self_spot_port", cfg.self_spot_port)
-    cfg.self_spot_filter = s("ssb", "self_spot_filter", cfg.self_spot_filter).strip()
-    cfg.self_spot_ssid = s("ssb", "self_spot_ssid", cfg.self_spot_ssid).strip().lstrip("-")
     cfg.band_lights = b("ui", "band_lights", cfg.band_lights)
     lk = s("ui", "look", cfg.look).strip().lower()
     cfg.look = lk if lk in ("dark", "light", "classic") else "dark"

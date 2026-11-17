@@ -35,7 +35,7 @@ def app_fake(history, item):
         _mults=lambda _: 1, _is_dx=lambda _: False, _tried=lambda _: None)
     fake.tree.selection.return_value = ()
     fake.tree.get_children.return_value = ()
-    for name in ('_check_auto_restart', '_drain_status', '_check_self_feed_filter', '_update_net_bar',
+    for name in ('_check_auto_restart', '_drain_status', '_update_net_bar',
                  '_update_source_buttons', '_update_filter_buttons', '_check_late_qsy', '_drain_spots',
                  '_drain_wpm', '_ensure_rbn_clients', '_reload_worked', '_prune', '_remember_band_freq',
                  '_update_labels', '_maybe_rate_line', '_drain_web'):

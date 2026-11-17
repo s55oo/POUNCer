@@ -17,8 +17,7 @@ class TipTests(unittest.TestCase):
         app = _import_app()
         cfg = load_config("")
         cfg.team_key = "00ff" * 8
-        f = types.SimpleNamespace(cfg=cfg, team=None, _dxc=None, own_call=lambda: "S55OO",
-                                  _self_feed_login=lambda: "S55OO-77")
+        f = types.SimpleNamespace(cfg=cfg, team=None, _dxc=None, own_call=lambda: "S55OO")
         return app, f
 
     def test_every_group_has_a_text(self) -> None:

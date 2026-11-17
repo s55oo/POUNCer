@@ -1,5 +1,18 @@
 # POUNCer — Changelog
 
+## Next release (not released yet)
+
+- **No MyCall button any more**, and no extra connection for the spots of
+  your own call (`<call>-77` with a node filter, up to v0.7.213): they come
+  with the spots POUNCer already gets - a Telnet #1 / #2 / #3, N1MM's spots,
+  or the team master - and still bring the **SPOTTED** pop-up (*Settings >
+  Alerts > Pop-up when someone spots my call*, `[ui] self_spot_alert`).
+  `[ssb] self_spot_host` / `self_spot_port` / `self_spot_filter` /
+  `self_spot_ssid` are gone; Settings > Spots > *SSB* keeps follow-radio-mode
+  and the PSK Reporter check.
+- **config.ini** (the one in the release): only what POUNCer reads - no
+  MyCall keys, no `[ssb] spotters` (only read from an older config.ini).
+
 ## v0.7.213 — 2026-11-17 — Telnet #1 / #2 / #3; station test asks three times
 
 - **Spots: Telnet #1, #2 and #3** - equal sources, **tick as many as you
