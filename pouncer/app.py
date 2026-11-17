@@ -224,6 +224,29 @@ def _note_tap(app, spot: Spot, nr: int, ok: bool, short: str, full: str = "") ->
 PIN_S = 60     # a clicked / tapped station keeps its row this long (or until logged)
 DESKTOP_REFRESH_S = 5  # quiet-feed age/fade/CQ/pin updates, without a redraw every tick
 
+PSK_TIMING_LOG_S = 900     # PSK Reporter answer times to pouncer.log every 15 min (if new)
+
+
+def log_psk_timing(app) -> None:
+    """'PSK Reporter: 12 answers, median 34 s, 90 % within 75 s ...' every
+    15 min when something new came - to tune the waits (v0.7.210). A plain
+    function: works with any app object (tests use stand-ins)."""
+    pskr = getattr(app, "pskr", None)
+    if pskr is None or not hasattr(pskr, "timing_line"):
+        return
+    now = time.time()
+    if now - getattr(app, "_psk_timing_at", 0) < PSK_TIMING_LOG_S:
+        return
+    try:
+        app._psk_timing_at = now
+        line = pskr.timing_line()
+        if line and line != getattr(app, "_psk_timing_last", ""):
+            app._psk_timing_last = line
+            log.info("%s", line)
+    except Exception:  # noqa: BLE001 - a log line only
+        pass
+
+
 class PouncerApp:
     def __init__(self, config: Config) -> None:
         self.cfg = config
@@ -3479,7 +3502,7 @@ class PouncerApp:
         self.updater.maybe_check()
         if getattr(self, "_settings_report_at", 0):      # a Save a few seconds ago
             self._maybe_send_settings_report()
-        self._log_psk_timing()
+        log_psk_timing(self)
         self._check_auto_restart()
         self._drain_status()
         if hasattr(self, "_self_spot_q"):
@@ -4197,23 +4220,6 @@ class PouncerApp:
         if psk is not None:
             return psk                    # False = PSK Reporter: FT8 there; "wait" = asking
         return result
-
-    PSK_TIMING_LOG_S = 900     # PSK Reporter answer times to pouncer.log every 15 min (if new)
-
-    def _log_psk_timing(self) -> None:
-        """'PSK Reporter: 12 answers, median 34 s, 90 % within 75 s ...' every
-        15 min when something new came - to tune the waits (v0.7.210)."""
-        pskr = getattr(self, "pskr", None)
-        if pskr is None or not hasattr(pskr, "timing_line"):
-            return
-        now = time.time()
-        if now - getattr(self, "_psk_timing_at", 0) < self.PSK_TIMING_LOG_S:
-            return
-        self._psk_timing_at = now
-        line = pskr.timing_line()
-        if line and line != getattr(self, "_psk_timing_last", ""):
-            self._psk_timing_last = line
-            log.info("%s", line)
 
     CONSOLE_PSK_WAIT_S = 150   # a CW / SSB line in an FT8 window: wait this long for PSK Reporter
 
