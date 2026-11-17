@@ -13,6 +13,13 @@
   (its light: "Telnet 2 = Telnet's server (nothing extra)").
 - Spots menu order: RBN, Telnet, Telnet 2, then HTTP; lights, check line
   ("SPOTS via Telnet 2"), console colours and the docs follow.
+- **Settings cleaned up**: the unused *DX cluster for SSB* (`[ssb] mode`, only
+  read from very old config.ini files) is gone from the Settings window;
+  *SSB spots from N1MM* is now *Telnet 2: use N1MM's spots instead* in the
+  Telnet 2 group; every help text that still said "Cluster" or "SSB cluster"
+  says Telnet / Telnet 2; the SSB group is "SSB and spots of my call".
+- Team menu: *Become team master now* (at once) and *Always the team master
+  (also after a restart)* - the two items no longer read alike.
 
 ## v0.7.211 — 2026-11-17 — No people's spots to N1MM with Cluster off; see what goes to N1MM
 

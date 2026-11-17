@@ -380,7 +380,7 @@ Grouped by what you do (v0.7.189):
   timeline** (each a window of its own), **Phone page ▸** (in the browser ·
   QR code · as an app window), **Alerts ▸** (pop-up · sound), **Traffic
   console** (**Ctrl+Shift+D**).
-* **Team** - team password, Become team master, This PC is the team master,
+* **Team** - team password, Become team master now, Always the team master,
   Update all POUNCers in the team (on the master). Items that can't do
   anything now are grey (no team, not the master ...).
 * **Settings** - **All settings...** (**Ctrl+,**) or one page of the settings window (below). On a Mac:
@@ -758,7 +758,7 @@ contest); the master connects only while at least one does - all on SSB =
 no RBN anywhere (the slaves' light says "RBN on hold" too). `[rbn]
 pause_on_phone = false` keeps it always connected.
 
-**SSB spots from N1MM** (no second cluster connection): when N1MM sends its
+**Telnet 2: use N1MM's spots instead** (no second cluster connection): when N1MM sends its
 spots (Broadcast Data > **Spots**, `127.0.0.1:12060` - every spot of its
 Telnet window), POUNCer takes the SSB spots from there from N1MM's **first
 spot** and closes its own cluster connection at once (lights: "N1MM spots"
@@ -1084,9 +1084,9 @@ a **team**:
   everything known so far from the master;
 - if the master is switched off (or its RBN is down over a minute) the next
   one takes over within seconds;
-- **taking the master back**: click the blue **SLAVE** badge (or *File >
-  Become team master*) and this POUNCer is the master at once, the old one
-  a slave. Tick *Team > This PC is the team master* (`[team] master = on`)
+- **taking the master back**: click the blue **SLAVE** badge (or *Team >
+  Become team master now*) and this POUNCer is the master at once, the old one
+  a slave. Tick *Team > Always the team master* (`[team] master = on`)
   on the PC that should always be master (e.g. the radio PC): it then takes
   the role back by itself each time it finds the team again - after a
   restart, or when the network comes back after a drop. Set it on one PC

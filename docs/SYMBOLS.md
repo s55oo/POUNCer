@@ -20,7 +20,7 @@ them in the window (or long-press on the phone) for a short explanation.
 | **✗ NOT READY** (red) | something POUNCer needs is not working (no radio info, no log, no spots from any source, ...) |
 | red line at the bottom **⚠ Error in ... - click: open pouncer.log** | something failed (the refresh, a button, reading the N1MM log): when, how often, the error. Click = pouncer.log opens, the line goes away (v0.7.176) |
 | **MASTER** (green) | team: this POUNCer holds the RBN connection and feeds the others |
-| **SLAVE** (blue) | team: this POUNCer gets its spots from the master. **Click it** to become the master yourself (asks first; Team > Become team master does the same) |
+| **SLAVE** (blue) | team: this POUNCer gets its spots from the master. **Click it** to become the master yourself (asks first; Team > Become team master now does the same) |
 | **TEAM: ALONE** (grey) | team is on, but no other POUNCer is on the network |
 | **TEAM OFF** (dark) | team is switched off |
 | team badge **orange** | a team POUNCer runs a different version (the tooltip says which IP and version) |

@@ -998,9 +998,9 @@ class PouncerApp:
         team.add_command(label=self._team_pw_label(), command=self._team_password)
         self._pw_menu = (team, team.index("end"))
         team.add_separator()
-        team.add_command(label="Become team master (take it back)", command=self._become_master)
+        team.add_command(label="Become team master now", command=self._become_master)
         self.team_master_var = tk.BooleanVar(value=bool(getattr(self.cfg, "team_master", False)))
-        team.add_checkbutton(label="This PC is the team master (take it back after a restart)",
+        team.add_checkbutton(label="Always the team master (also after a restart)",
                              variable=self.team_master_var, command=self._toggle_team_master)
         team.add_separator()
         team.add_command(label="Update all POUNCers in the team (from the master)",
@@ -1098,7 +1098,7 @@ class PouncerApp:
         role = team.role() if team is not None and hasattr(team, "role") else "off"
         tm = getattr(self, "_team_menu", None)
         state(tm, "Become team master", team is not None and role != "master")
-        state(tm, "This PC is the team master", team is not None)
+        state(tm, "Always the team master", team is not None)
         state(tm, "Update all POUNCers", role == "master" and bool(self.updater.exe))
 
     COMPACT_COLUMNS = ("freq", "call", "mult")

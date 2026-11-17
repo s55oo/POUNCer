@@ -36,8 +36,8 @@ SETTINGS: list[dict] = [
     {"key": "cluster.enabled", "attr": "cluster_server", "kind": "bool", "live": True,
      "group": "Cluster server", "label": "Serve the spots as a DX cluster (telnet)",
      "help": "N1MM's Telnet window (or any cluster client) connects to this PC on the port "
-             "below and gets the spots POUNCer collects (RBN / telnet, SSB cluster, HTTP "
-             "backup, team) as 'DX de' lines. Spots from N1MM itself are never served "
+             "below and gets the spots POUNCer collects (the sources ticked in the Spots "
+             "menu, or the team master's) as 'DX de' lines - only while Relay is on. Spots from N1MM itself are never served "
              "back, and POUNCer ignores its own spots coming back from N1MM. Read-only: "
              "nothing a client sends changes POUNCer."},
     {"key": "cluster.port", "attr": "cluster_port", "kind": "int", "min": 1, "max": 65535,
@@ -125,7 +125,7 @@ SETTINGS: list[dict] = [
     {"key": "filter.mode", "attr": "filter_mode", "kind": "choice",
      "choices": ["calls", "dxcc", "zones", "cont", "ww"], "live": True,
      "group": "Spotters", "label": "Spots from these spotters",
-     "help": "One filter for every source (RBN, Telnet, HTTP, HamQTH, Cluster): calls = the "
+     "help": "One filter for every source (RBN, Telnet, Telnet 2, HTTP, HamQTH): calls = the "
              "listed skimmers / spotters, dxcc = spotters in the listed countries, zones = in "
              "the listed CQ zones, cont = on the listed continents, ww = all. Also the "
              "Spotters menu."},
@@ -182,9 +182,10 @@ SETTINGS: list[dict] = [
      "help": "0 = off."},
     {"key": "rbn.sources", "attr": "rbn_source", "kind": "text", "live": True,
      "group": "RBN", "label": "Spots come in from",
-     "help": "Comma separated, each one on or off: rbn (telnet.reversebeacon.net), telnet "
-             "(the telnet server below, azure.s53m.com:8000: its skimmer spots), http (the "
-             "HTTP feed), cluster (the DX cluster's spots of people, [ssb] host). What is on "
+     "help": "Comma separated, each one on or off: rbn (telnet.reversebeacon.net: skimmer "
+             "spots only), telnet (the telnet server below, azure.s53m.com:8000: its skimmer "
+             "AND people's spots), cluster = Telnet 2 (a second server's people's spots, "
+             "Settings > Spots > Telnet 2), http (the HTTP feed). What is on "
              "goes into POUNCer and out to the cluster server (port 10000); the same spot from "
              "two sources counts once. Nothing takes over when they are down. Also the Spots "
              "menu (in a team: the master's choice)."},
@@ -197,7 +198,7 @@ SETTINGS: list[dict] = [
      "group": "RBN", "label": "HamQTH: backup while the telnet connections are down",
      "help": "When the skimmer telnet connections (RBN / Telnet) have been down for a minute, "
              "RBN's skimmer spots from HamQTH.com's API (www.hamqth.com/api/v2/rbn); when "
-             "the Cluster connection is down, its DX cluster spots (/api/v2/spots). Every "
+             "the Telnet 2 connection is down, DX cluster spots (/api/v2/spots). Every "
              "20 s, no login. Closed a minute after the telnet works again. Data provided by "
              "HamQTH.com. Also the HamQTH button on the Spots line."},
     {"key": "rbn.backup_host", "attr": "rbn_backup_host", "kind": "text", "live": False,
@@ -211,7 +212,8 @@ SETTINGS: list[dict] = [
     {"key": "rbn.pause_on_phone", "attr": "rbn_pause_on_phone", "kind": "bool", "live": True,
      "group": "RBN", "label": "Pause RBN while the radio is on SSB",
      "help": "Every radio on SSB / AM / FM for a minute: the RBN connection is closed (SSB "
-             "spots come from the DX cluster); back at once when a radio goes to CW. Not "
+             "spots are people's spots: Telnet / Telnet 2); back at once when a radio goes "
+             "to CW. Not "
              "while other team POUNCers use this one's feed."},
     {"key": "rbn.http_backup", "attr": "rbn_http_backup", "kind": "text", "live": True,
      "group": "RBN", "label": "HTTP backup (URL)",
@@ -237,17 +239,14 @@ SETTINGS: list[dict] = [
     {"key": "ssb.follow_radio_mode", "attr": "follow_radio_mode", "kind": "bool",
      "live": True, "group": "SSB",
      "label": "List follows the radio mode",
-     "help": "Radio on USB / LSB = SSB spots (DX cluster), on CW = RBN CW spots."},
-    {"key": "ssb.mode", "attr": "ssb_mode", "kind": "choice", "choices": ["auto", "always", "off"],
-     "live": True, "group": "SSB", "label": "DX cluster for SSB",
-     "help": "No longer used: the Cluster button (Spots, [rbn] sources) switches the DX "
-             "cluster on / off. Only read from an older config.ini without [rbn] sources "
-             "(off = no cluster)."},
+     "help": "Radio on USB / LSB = SSB spots (people's spots: Telnet / Telnet 2), on CW = "
+             "the CW skimmer spots."},
     {"key": "ssb.use_n1mm_spots", "attr": "ssb_use_n1mm", "kind": "choice",
      "choices": ["auto", "off"], "live": True, "group": "SSB",
-     "label": "SSB spots from N1MM",
-     "help": "auto = while N1MM sends its spots (Config > Broadcast Data > Spots) they "
-             "replace POUNCer's own cluster connection; 20 s without = own cluster again."},
+     "label": "Telnet 2: use N1MM's spots instead",
+     "help": "auto = while N1MM sends its own cluster's spots (Config > Broadcast Data > "
+             "Spots), they replace the Telnet 2 connection (no second login); 20 s without = "
+             "Telnet 2 again. off = always Telnet 2's own connection."},
     {"key": "ssb.pskreporter", "attr": "ssb_pskreporter", "kind": "bool", "live": False,
      "group": "SSB", "label": "FT8 check with PSK Reporter",
      "help": "A spot on 7074 - 7077 / 1840 - 1843 (inside the SSB segment) without a mode: PSK Reporter "
@@ -389,7 +388,7 @@ PAGES: list[tuple[str, list[tuple[str, list[str]]]]] = [
                      "rbn.backup_port", "rbn.backup_commands", "rbn.http_backup"]),
         ("Telnet 2 - people's spots", ["ssb.host", "ssb.port", "ssb.login",
                                        "ssb.use_n1mm_spots"]),
-        ("SSB", ["ssb.follow_radio_mode", "ssb.mode", "ssb.pskreporter",
+        ("SSB and spots of my call", ["ssb.follow_radio_mode", "ssb.pskreporter",
                  "ssb.self_spot_host", "ssb.self_spot_port",
                  "ssb.self_spot_filter", "ssb.self_spot_ssid"]),
         ("Spotters - who heard it", ["filter.mode", "rbn.spotter", "filter.dxcc",
