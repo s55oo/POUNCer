@@ -2922,7 +2922,7 @@ class PouncerApp:
         self._src_last = sig
         for key, b in self._src_buttons.items():
             b.configure(style="SortOn.TButton" if key in on else "Sort.TButton")
-        names = [self.SOURCE_NAMES[k] for k in ("rbn", "telnet", "http", "cluster") if k in on]
+        names = [self.SOURCE_NAMES[k] for k in ("rbn", "telnet", "cluster", "http") if k in on]
         extra = [n for k, n in (("telnetbck", "TelBck"), ("hamqth", "HamQTH")) if k in on]
         summ = "Spots: " + (" + ".join(names) or "none")
         if extra:
@@ -2937,9 +2937,9 @@ class PouncerApp:
 
     SPOT_MENU = (("rbn", "RBN - {c.rbn_host}:{c.rbn_port}"),
                  ("telnet", "Telnet - {c.rbn_backup_host}:{c.rbn_backup_port} (its skimmer spots)"),
-                 ("http", "HTTP - RBN over HTTP (azure)"),
                  ("cluster", "Telnet 2 - people's spots, {c.ssb_host}:{c.ssb_port} "
                              "(Settings > Spots > Telnet 2)"),
+                 ("http", "HTTP - RBN over HTTP (azure)"),
                  (None, None),
                  ("telnetbck", "TelBck - the telnet server while RBN is down"),
                  ("hamqth", "HamQTH - its APIs while the telnet is down (or alone)"))

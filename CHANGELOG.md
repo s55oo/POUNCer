@@ -10,6 +10,8 @@
   logins with one call would throw each other out); another server = a second
   connection of its own. Lights, check line ("SPOTS via Telnet 2"), the Spots
   menu and the docs say Telnet 2.
+- Spots menu order: RBN, Telnet, **Telnet 2**, then **HTTP** (the two telnets
+  together); the "Spots: ..." line in the window follows it.
 
 ## v0.7.211 — 2026-11-17 — No people's spots to N1MM with Cluster off; see what goes to N1MM
 
