@@ -1,6 +1,6 @@
 # POUNCer — Changelog
 
-## Next release (not released yet)
+## v0.7.219 — 2026-11-17 — nonPublishedSpots.log: one line per spot, no repeats
 
 - **nonPublishedSpots.log** cleaner: a spot that came in through several
   Telnets is **one line** (the sources column lists them all: `telnet,
