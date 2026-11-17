@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## v0.7.210 — 2026-11-17 — PSK Reporter timing in the log; Mac again
+
+- pouncer.log notes how long each PSK Reporter answer took ("PSK Reporter:
+  K1ABC on FT8 7074.5 - answer after 34 s", or "no FT8 / FT4 report in 120 s")
+  and every 15 min a summary - "12 answers, median 34 s, 90 % within 75 s,
+  slowest 110 s; 3 without one" - to tune the waits (2 min watch, 2.5 min in
+  the traffic console).
+- macOS builds are back on this release.
+
 ## v0.7.209 — 2026-11-17 — PSK Reporter decides FT8-frequency lines
 
 - Traffic console: a spot labelled CW (or SSB, or with no mode) on an FT8 /

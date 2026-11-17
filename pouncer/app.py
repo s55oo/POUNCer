@@ -3479,6 +3479,7 @@ class PouncerApp:
         self.updater.maybe_check()
         if getattr(self, "_settings_report_at", 0):      # a Save a few seconds ago
             self._maybe_send_settings_report()
+        self._log_psk_timing()
         self._check_auto_restart()
         self._drain_status()
         if hasattr(self, "_self_spot_q"):
@@ -4196,6 +4197,23 @@ class PouncerApp:
         if psk is not None:
             return psk                    # False = PSK Reporter: FT8 there; "wait" = asking
         return result
+
+    PSK_TIMING_LOG_S = 900     # PSK Reporter answer times to pouncer.log every 15 min (if new)
+
+    def _log_psk_timing(self) -> None:
+        """'PSK Reporter: 12 answers, median 34 s, 90 % within 75 s ...' every
+        15 min when something new came - to tune the waits (v0.7.210)."""
+        pskr = getattr(self, "pskr", None)
+        if pskr is None or not hasattr(pskr, "timing_line"):
+            return
+        now = time.time()
+        if now - getattr(self, "_psk_timing_at", 0) < self.PSK_TIMING_LOG_S:
+            return
+        self._psk_timing_at = now
+        line = pskr.timing_line()
+        if line and line != getattr(self, "_psk_timing_last", ""):
+            self._psk_timing_last = line
+            log.info("%s", line)
 
     CONSOLE_PSK_WAIT_S = 150   # a CW / SSB line in an FT8 window: wait this long for PSK Reporter
 

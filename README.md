@@ -1204,8 +1204,8 @@ To start N1MM Logger+ and your other programs (POUNCer too): put
 **N1MMautostarter.exe** from the same release next to them (see *N1MM
 Autostarter* below). POUNCer itself no longer starts programs.
 
-For macOS (from v0.7.208 built only now and then - take the newest release that
-has them), download **POUNCer-macos-arm64.tar.gz** (Apple Silicon) or
+For macOS (v0.7.208 - .209 were Windows only; take the newest release that has
+the Mac files), download **POUNCer-macos-arm64.tar.gz** (Apple Silicon) or
 **POUNCer-macos-x86_64.tar.gz** (Intel) from the same release. Extract the
 archive, keep `POUNCer` and `config.ini` together, and run `./POUNCer` from
 Terminal in that folder. The archives preserve executable permissions and

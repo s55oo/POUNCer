@@ -102,6 +102,9 @@ class PskChecker:
         self._want: dict[str, float] = {}      # call -> watch until
         self._near: dict[str, list[float]] = {}  # call -> spot kHz (stop early once confirmed)
         self._reports: dict[str, list[dict]] = {}
+        self._asked: dict[str, float] = {}       # call -> when it was asked (the timing log)
+        self.timings: list[float] = []           # seconds to an FT8 / FT4 answer (last 200)
+        self.no_answer = 0                       # watches that ended without one
         self._thread: threading.Thread | None = None
         self._stop = threading.Event()
         self.state = "idle"                      # idle / connected / error
@@ -123,6 +126,7 @@ class PskChecker:
             if len([1 for t in self._want.values() if t > now]) >= MAX_CALLS:
                 return
             self._want[c] = now + self.watch_s
+            self._asked[c] = now
             if self._thread is None or not self._thread.is_alive():
                 self._stop.clear()
                 self._thread = threading.Thread(target=self._run, name="pskr", daemon=True)
@@ -149,6 +153,25 @@ class PskChecker:
                     abs(r["khz"] - k) <= NEAR_KHZ for k in self._near.get(r["call"], ())):
                 self._want.pop(r["call"], None)
                 self._near.pop(r["call"], None)
+                asked = self._asked.pop(r["call"], None)
+                if asked is not None:
+                    took = max(0.0, self.clock() - asked)
+                    self.timings.append(took)
+                    del self.timings[:-200]
+                    log.info("PSK Reporter: %s on %s %.1f - answer after %.0f s",
+                             r["call"], r["mode"], r["khz"], took)
+
+    def timing_line(self) -> str:
+        """'answers: 12, median 34 s, 90 % within 75 s; 3 without' - for the log."""
+        t = sorted(self.timings)
+        if not t and not self.no_answer:
+            return ""
+        if not t:
+            return f"PSK Reporter: no answers yet, {self.no_answer} without one"
+        med = t[len(t) // 2]
+        p90 = t[min(len(t) - 1, int(len(t) * 0.9))]
+        return (f"PSK Reporter: {len(t)} answers, median {med:.0f} s, 90 % within "
+                f"{p90:.0f} s, slowest {t[-1]:.0f} s; {self.no_answer} without one")
 
     def stop(self) -> None:
         self._stop.set()
@@ -178,6 +201,10 @@ class PskChecker:
                     want = {c for c, t in self._want.items() if t > now}
                     for c in [c for c, t in self._want.items() if t <= now]:
                         del self._want[c]
+                        if self._asked.pop(c, None) is not None:
+                            self.no_answer += 1
+                            log.info("PSK Reporter: %s - no FT8 / FT4 report in %.0f s "
+                                     "(a real CW / SSB station)", c, self.watch_s)
                 for c in sorted(want - set(subscribed)):
                     pid = pid % 65000 + 1
                     sock.sendall(subscribe_packet(pid, topic_for(c)))

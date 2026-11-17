@@ -99,6 +99,23 @@ class CheckerTests(unittest.TestCase):
         self.assertFalse(c._thread.is_alive())
         c.stop()
 
+    def test_answer_times_are_kept(self) -> None:
+        """v0.7.210: how long PSK Reporter took - kept and summed up for the log."""
+        now = [1000.0]
+        c = pskr.PskChecker(clock=lambda: now[0], connector=lambda: (_ for _ in ()).throw(OSError("x")))
+        self.assertEqual(c.timing_line(), "")
+        c._asked["K1ABC"] = 1000.0
+        c._near["K1ABC"] = [7074.5]
+        c._want["K1ABC"] = 1120.0
+        now[0] = 1040.0
+        c.add_report({"call": "K1ABC", "khz": 7075.0, "mode": "FT8", "t": now[0]})
+        self.assertEqual(c.timings, [40.0])
+        self.assertNotIn("K1ABC", c._asked)
+        c.no_answer = 2
+        line = c.timing_line()
+        self.assertIn("1 answers, median 40 s", line)
+        self.assertIn("2 without one", line)
+
     def test_no_connection_confirms_nothing(self) -> None:
         def fail():
             raise OSError("down")
