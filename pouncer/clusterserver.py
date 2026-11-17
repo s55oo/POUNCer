@@ -373,6 +373,8 @@ class ClusterServer:
             self._history.append(line)
             clients = [c for c in self.clients if c.call]
         data = (line + "\r\n").encode("ascii", "replace")
+        if traffic._sink is not None and clients:     # console open: what N1MM gets (v0.7.211)
+            traffic.emit("server >", line)
         gone = [c for c in clients if not c.send_raw(data, own_line=True)]
         if gone:
             with self._lock:

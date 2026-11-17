@@ -66,6 +66,27 @@ class ServerTests(unittest.TestCase):
         self.assertIn("73", c.until("73"))
         c.s.close()
 
+    def test_served_spots_shown_in_the_console(self) -> None:
+        """v0.7.211: each spot that goes to the clients is a 'server >' line."""
+        from pouncer import traffic
+        c = Client(self.port)
+        c.until("login:")
+        c.send("S55OO")
+        c.until("de POUNCER >")
+        for _ in range(50):
+            if self.srv.client_count():
+                break
+            time.sleep(0.02)
+        traffic.start()
+        try:
+            self.assertTrue(self.srv.publish(spot()))
+            lines = [x for x in traffic.drain() if x[1] == "server >"]
+        finally:
+            traffic.stop()
+        self.assertEqual(len(lines), 1)
+        self.assertIn("DL1ABC", lines[0][2])
+        c.s.close()
+
     def test_never_n1mms_own_spots(self) -> None:
         self.assertFalse(self.srv.publish(spot(source="n1mm")))
         self.assertFalse(self.srv.echo("DL1ABC", 14025.0))

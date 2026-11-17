@@ -224,6 +224,17 @@ def _note_tap(app, spot: Spot, nr: int, ok: bool, short: str, full: str = "") ->
 PIN_S = 60     # a clicked / tapped station keeps its row this long (or until logged)
 DESKTOP_REFRESH_S = 5  # quiet-feed age/fade/CQ/pin updates, without a redraw every tick
 
+def people_taken(app, src: str) -> bool:
+    """Does POUNCer take people's spots (no '-#') from this source now? Only
+    with the Cluster source on (its own connection, the Telnet one merged, or
+    N1MM's spots); HamQTH's people spots only as the Cluster's backup; a
+    stand-in without a config: yes. For the console's colours (v0.7.211)."""
+    cfg = getattr(app, "cfg", None)
+    if cfg is None or not hasattr(cfg, "rbn_source"):
+        return True
+    return has_source(cfg, "cluster")
+
+
 SPOT_MEMORY_S = 900        # spots the filters kept out: remembered this long (15 min)
 SPOT_MEMORY_N = 20000
 
@@ -4262,6 +4273,8 @@ class PouncerApp:
         if got is None:
             return None
         spot, spotter, call, khz, skimmer = got
+        if not skimmer and not people_taken(self, src):
+            return False          # a person's spot, but POUNCer takes none (Cluster off)
         sf = getattr(self, "spotter_filter", None)
         result = True
         if sf is not None:

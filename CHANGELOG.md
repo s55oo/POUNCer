@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## v0.7.211 — 2026-11-17 — See what goes to N1MM
+
+- Traffic console: every spot POUNCer sends to its cluster server (port
+  10000, N1MM's Telnet window) is now a line of its own, source
+  **server >**, so you can check what N1MM really gets. (Until now only the
+  spots kept out or held were listed.)
+- A person's spot (no `-#`) is no longer yellow while the **Cluster** source
+  is off: POUNCer takes no people's spots then - neither into the list nor
+  to port 10000 (e.g. `DX de UT4VL: 7074.0 YO2CK` with Spots: Telnet only).
+
 ## v0.7.210 — 2026-11-17 — PSK Reporter timing in the log; Mac again
 
 - pouncer.log notes how long each PSK Reporter answer took ("PSK Reporter:

@@ -102,6 +102,16 @@ class ShownTests(unittest.TestCase):
         f.pskr = None                                                  # PSK Reporter off
         self.assertTrue(f._console_shown("telnet", cw))
 
+    def test_people_lines_white_when_cluster_is_off(self) -> None:
+        f = _app(zones=())
+        f.spotter_filter.configure("ww")
+        person = "DX de UT4VL:      7024.0  YO2CK                                       0724Z"
+        f.cfg.rbn_source = "telnet"                    # Spots: Telnet only - no people's spots
+        self.assertFalse(f._console_shown("telnet", person))
+        self.assertTrue(f._console_shown("telnet", IN_ZONE))      # skimmers still yellow
+        f.cfg.rbn_source = "telnet,cluster"
+        self.assertTrue(f._console_shown("telnet", person))
+
     def test_all_pass_without_filters(self) -> None:
         f = _app(zones=())
         f.spotter_filter.configure("ww")
