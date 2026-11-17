@@ -256,7 +256,7 @@ class TkSettingsWindowTests(unittest.TestCase):
         self.assertEqual(restarted, [1])
         # typing back the saved value: nothing pending
         n = len(saved)
-        w.vars["rbn.backup_host"].set("dxc.example.org")
+        w.vars["rbn.history"].set("40")
         w.save_all()
         self.assertEqual(len(saved), n)
         w.open()                                   # second open: same window
