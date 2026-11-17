@@ -269,9 +269,10 @@ SETTINGS: list[dict] = [
      "help": "Login <call>-77 - its own SSID, never N1MM's. In a team only the master logs in."},
     {"key": "ssb.host", "attr": "ssb_host", "kind": "text", "live": False,
      "group": "SSB", "label": "Telnet 2: server",
-     "help": "The DX cluster for the Telnet 2 source (Spots menu): people's spots, every mode. "
-             "Any cluster you like (host name). The same server as Telnet = one connection and "
-             "one login for both; another server = a second connection of its own."},
+     "help": "A SECOND DX cluster, for the Telnet 2 source (Spots menu): its people's spots, "
+             "every mode, on a connection of its own. Telnet itself already brings the skimmer "
+             "AND people's spots of its server - so Telnet 2 is for another server; set to "
+             "Telnet's server it adds nothing."},
     {"key": "ssb.port", "attr": "ssb_port", "kind": "int", "min": 1, "max": 65535,
      "live": False, "group": "SSB", "label": "Telnet 2: port", "help": ""},
     {"key": "ssb.login", "attr": "ssb_login", "kind": "text", "live": False,

@@ -474,7 +474,7 @@ that match your filters are yellow and bold** (v0.7.201; v0.7.203: every
 source): the spotter passes the **Spotters** filter - your skimmers / zones
 (e.g. `ZONE14, ZONE15`), or the backups while those are quiet; people's
 spots the same filter for people - and the station passes the **Spotted**
-filter (not a dropped beacon, and not an FT8 / FT4 spot unless those are in your Spots modes - a person's spot without a mode in an FT8 window counts as FT8). A CW / SSB spot on an FT8 / FT4 frequency waits for **PSK Reporter** (v0.7.209): reported there on FT8 / FT4 = white; no report within 2.5 min = a real CW / SSB station, yellow. A person's spot (no `-#`) is yellow only with the **Telnet 2** source on - without it POUNCer takes no people's spots. Every spot that goes to N1MM's Telnet window (port 10000) is a **server >** line (v0.7.211). A person's spot without a mode word in an FT8 / FT4 window counts as FT8 - on 7074 - 7077 and 1840 - 1843 too, except in an SSB contest (there PSK Reporter decides). RBN, Telnet, Cluster, HTTP, HamQTH and N1MM's
+filter (not a dropped beacon, and not an FT8 / FT4 spot unless those are in your Spots modes - a person's spot without a mode in an FT8 window counts as FT8). A CW / SSB spot on an FT8 / FT4 frequency waits for **PSK Reporter** (v0.7.209): reported there on FT8 / FT4 = white; no report within 2.5 min = a real CW / SSB station, yellow. A person's spot (no `-#`) is yellow only with **Telnet** or **Telnet 2** on - with RBN / HTTP alone POUNCer takes no people's spots. Every spot that goes to N1MM's Telnet window (port 10000) is a **server >** line (v0.7.211). A person's spot without a mode word in an FT8 / FT4 window counts as FT8 - on 7074 - 7077 and 1840 - 1843 too, except in an SSB contest (there PSK Reporter decides). RBN, Telnet, Cluster, HTTP, HamQTH and N1MM's
 spot packets all count; the list's own extras (modes, Min SNR, Hide worked,
 the same spot from two sources) don't. A line from a skimmer outside your
 zones stays white - so you can watch at a glance whether the filtering is
@@ -804,9 +804,9 @@ list **and** out to N1MM / any client of the cluster server (port 10000):
 | Button | What | Connection |
 | --- | --- | --- |
 | **RBN** | skimmer spots | telnet.reversebeacon.net:7000, login = your call |
-| **Telnet** | the telnet server's skimmer spots (`-#`) | `[rbn] backup_host` (azure.s53m.com:8000) |
+| **Telnet** | everything the telnet server sends: skimmer spots (`-#`) **and** people's spots (v0.7.212; skimmers only = RBN) | `[rbn] backup_host` (azure.s53m.com:8000) |
 | **HTTP** | RBN's skimmer spots over HTTP - no login, works where telnet is blocked, catches up after a dropout | `[rbn] http_backup` (azure.s53m.com) |
-| **Telnet 2** (was Cluster) | the spots **of people** (no `-#`, every mode) from a DX cluster of your choice - *Settings > Spots > Telnet 2*: server, port, login. The same server as Telnet = one connection and one login (Telnet 2 then only lets its people's spots through); another server = a second connection of its own | `[ssb] host` / `port` / `login` (azure.s53m.com:8000) |
+| **Telnet 2** (was Cluster) | the spots **of people** (no `-#`, every mode) from a **second** DX cluster of your choice, on a connection of its own - *Settings > Spots > Telnet 2*: server, port, login. Set to Telnet's server it adds nothing (Telnet already brings them) | `[ssb] host` / `port` / `login` (azure.s53m.com:8000) |
 
 - **TelBck** (after them, `[rbn] telnet_backup`, off by default): with
   RBN on and Telnet off, when RBN has been down or silent for a minute

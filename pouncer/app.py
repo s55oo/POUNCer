@@ -249,7 +249,7 @@ def people_taken(app, src: str) -> bool:
     cfg = getattr(app, "cfg", None)
     if cfg is None or not hasattr(cfg, "rbn_source"):
         return True
-    return has_source(cfg, "cluster")
+    return has_source(cfg, "cluster") or has_source(cfg, "telnet")   # Telnet: both (v0.7.212)
 
 
 SPOT_MEMORY_S = 900        # spots the filters kept out: remembered this long (15 min)
@@ -2310,10 +2310,11 @@ class PouncerApp:
         return PeopleFilter(self.spotter_filter)     # the Spotters filter, live
 
     def _ensure_ssb_client(self) -> None:
-        """The 'Cluster' source: spots of people from the DX cluster - on the
-        Telnet connection when that is on the same node, else a connection
-        of its own; while N1MM (connected to the cluster itself) sends its
-        spots, from N1MM's broadcast instead (no second login)."""
+        """The 'Telnet 2' source (was 'Cluster'): people's spots from a SECOND
+        server, a connection of its own. The same server as Telnet = nothing
+        extra (Telnet already brings its people's spots, v0.7.212); while N1MM
+        (connected to the cluster itself) sends its spots, from N1MM's
+        broadcast instead (no second login)."""
         want = self._ssb_wanted()
         via = want and self._n1mm_spots_ok()
         if via != getattr(self, "_ssb_via_n1mm", False):
@@ -2327,7 +2328,10 @@ class PouncerApp:
         merged = want and not via and self._cluster_merged()
         tc = getattr(self, "_telnet_client", None)
         if tc is not None:
-            tc.people = self._people_filter() if merged else None
+            # v0.7.212: Telnet brings everything its connection carries -
+            # skimmer spots AND people's spots (skimmers only: RBN); not while
+            # N1MM's own spots stand in for the people's spots
+            tc.people = None if via else self._people_filter()
         client = getattr(self, "_ssb_client", None)
         if client is not None and (not want or via or merged):
             client.stop()
@@ -2340,7 +2344,7 @@ class PouncerApp:
             self.ssb_status = "off"
             return
         if merged:
-            self.ssb_status = getattr(tc, "status_text", "") or "starting"
+            self.ssb_status = "same as telnet"   # Telnet already brings them: nothing extra
             return
         if client is None:
             self._ssb_client = RBNClient(
@@ -2723,6 +2727,7 @@ class PouncerApp:
                        backup_commands=self.cfg.rbn_backup_commands, on_raw=self._on_raw_spot)
         tc.backup_commands = tuple(self.cfg.rbn_backup_commands)
         tc.on_line = self._relay_back
+        tc.people = self._people_filter()     # skimmer AND people's spots (v0.7.212)
         tc.start()
         self._telnet_client = tc
         log.info("Telnet client started on %s:%s", self.cfg.rbn_backup_host,
@@ -2936,9 +2941,10 @@ class PouncerApp:
         self._src_note.configure(text=note)
 
     SPOT_MENU = (("rbn", "RBN - {c.rbn_host}:{c.rbn_port}"),
-                 ("telnet", "Telnet - {c.rbn_backup_host}:{c.rbn_backup_port} (its skimmer spots)"),
-                 ("cluster", "Telnet 2 - people's spots, {c.ssb_host}:{c.ssb_port} "
-                             "(Settings > Spots > Telnet 2)"),
+                 ("telnet", "Telnet - {c.rbn_backup_host}:{c.rbn_backup_port} "
+                            "(skimmer + people's spots)"),
+                 ("cluster", "Telnet 2 - a second server, {c.ssb_host}:{c.ssb_port} "
+                             "(people's spots; Settings > Spots > Telnet 2)"),
                  ("http", "HTTP - RBN over HTTP (azure)"),
                  (None, None),
                  ("telnetbck", "TelBck - the telnet server while RBN is down"),
@@ -4294,7 +4300,7 @@ class PouncerApp:
             return None
         spot, spotter, call, khz, skimmer = got
         if not skimmer and not people_taken(self, src):
-            return False          # a person's spot, but POUNCer takes none (Cluster off)
+            return False          # a person's spot, but POUNCer takes none (Telnet / Telnet 2 off)
         sf = getattr(self, "spotter_filter", None)
         result = True
         if sf is not None:

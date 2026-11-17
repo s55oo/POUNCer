@@ -1,6 +1,7 @@
-"""People's spots on the Telnet connection: taken only with the Cluster source on
-(v0.7.211 - before, 'DX de UT4VL: 7074.0 YO2CK 0724Z' was read as a skimmer spot
-with mode '0724Z' and went to port 10000)."""
+"""People's spots on a telnet connection: taken only when the client has a
+people filter (the app gives Telnet one since v0.7.212). v0.7.211: before,
+'DX de UT4VL: 7074.0 YO2CK 0724Z' was read as a skimmer spot with mode '0724Z'
+and went to port 10000 whatever the setting."""
 
 import queue
 import unittest

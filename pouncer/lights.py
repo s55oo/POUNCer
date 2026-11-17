@@ -89,6 +89,8 @@ def ssb_light(status: str, role: str = "solo") -> tuple[str, str]:
         return OFF, "Telnet 2 off"
     if s.startswith("via n1mm"):
         return HOLD, "Telnet 2 via N1MM"    # N1MM's spots instead (N1MM on the cluster itself)
+    if s.startswith("same as telnet"):
+        return HOLD, "Telnet 2 = Telnet's server (nothing extra)"
     if s.startswith(("logged in", "via n1mm's")):
         return OK, "Telnet 2"
     if s.startswith(("connecting", "starting")):

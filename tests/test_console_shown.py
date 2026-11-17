@@ -106,10 +106,12 @@ class ShownTests(unittest.TestCase):
         f = _app(zones=())
         f.spotter_filter.configure("ww")
         person = "DX de UT4VL:      7024.0  YO2CK                                       0724Z"
-        f.cfg.rbn_source = "telnet"                    # Spots: Telnet only - no people's spots
+        f.cfg.rbn_source = "rbn"                       # Spots: RBN only - skimmers only
         self.assertFalse(f._console_shown("telnet", person))
         self.assertTrue(f._console_shown("telnet", IN_ZONE))      # skimmers still yellow
-        f.cfg.rbn_source = "telnet,cluster"
+        f.cfg.rbn_source = "telnet"                    # v0.7.212: Telnet brings people's too
+        self.assertTrue(f._console_shown("telnet", person))
+        f.cfg.rbn_source = "rbn,cluster"               # Telnet 2 on
         self.assertTrue(f._console_shown("telnet", person))
 
     def test_all_pass_without_filters(self) -> None:

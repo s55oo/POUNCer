@@ -1,17 +1,18 @@
 # POUNCer — Changelog
 
-## v0.7.212 — 2026-11-17 — Cluster is now "Telnet 2"
+## v0.7.212 — 2026-11-17 — Telnet brings people's spots too; Telnet 2 = a second server
 
-- The Spots source **Cluster** is now called **Telnet 2**: people's spots (no
-  `-#`, every mode) from a DX cluster **of your choice**. Its server, port and
-  login are together in **Settings > Spots > Telnet 2** (`[ssb] host`, `port`,
-  `login` - unchanged keys). The same server as Telnet = one connection and one
-  login for both (Telnet 2 then only lets the people's spots through - two
-  logins with one call would throw each other out); another server = a second
-  connection of its own. Lights, check line ("SPOTS via Telnet 2"), the Spots
-  menu and the docs say Telnet 2.
-- Spots menu order: RBN, Telnet, **Telnet 2**, then **HTTP** (the two telnets
-  together); the "Spots: ..." line in the window follows it.
+- **Telnet** now brings everything its connection carries: the skimmer spots
+  **and** the spots of people (no `-#`), both through your Spotters / Spotted
+  filters - e.g. `DX de GM0GMN: 7004.0 TM140FH` with only Telnet ticked. For
+  skimmer spots only, use **RBN**.
+- The source **Cluster** is now **Telnet 2**: people's spots from a **second
+  server** of your choice, on a connection (and login) of its own - server,
+  port and login together in **Settings > Spots > Telnet 2** (`[ssb] host`,
+  `port`, `login` - unchanged keys). Set to Telnet's own server it adds nothing
+  (its light: "Telnet 2 = Telnet's server (nothing extra)").
+- Spots menu order: RBN, Telnet, Telnet 2, then HTTP; lights, check line
+  ("SPOTS via Telnet 2"), console colours and the docs follow.
 
 ## v0.7.211 — 2026-11-17 — No people's spots to N1MM with Cluster off; see what goes to N1MM
 
