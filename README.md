@@ -491,6 +491,15 @@ again. An error while showing a line is written into the view and the
 console goes on. The taps only
 work while the console is open - closed, it costs nothing.
 
+**PB** (v0.7.218): when a spot goes out on port 10000 (the `server >` line),
+each spot line of that station that came in shortly before gets **`PB
+09:48:55 +1s`** at its end - when it was sent (UTC) and how long after it
+came in. `as G4ZFE-#` = it went out under another skimmer's spot (merged by
+the spot collector), `as SQ6OEP` = under a corrected call; a copy that comes
+in after its station went out gets `merged into PB 09:48:55`. No PB = not
+sent (yet): filtered out, held (FT8 check), or still being collected. It
+works with the SERVER group unticked too.
+
 The spot list (table): **new multiplier** rows in bold red, **worked** ones in grey
 (when *Hide worked* is off), **⚡** before the call = rare CQ, **?** after it
 = not in Super Check Partial; tuned to it = blue, DX = orange background.

@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## Next release (not released yet)
+
+- **Traffic console: PB** - when a spot goes out on port 10000, every spot
+  line of that station that came in shortly before gets `PB 09:48:55 +1s` at
+  its end: the publish time (UTC) and how long after it came in. `as G4ZFE-#`
+  = it went out under another skimmer (merged), `as SQ6OEP` = under a
+  corrected call; a line arriving after its station went out gets `merged
+  into PB 09:48:55`. No PB = not sent (yet): filtered, held, or still being
+  collected. Works with the SERVER group unticked too.
+
 ## v0.7.217 — 2026-11-17 — receiver-aware spot collection (S53ZO)
 
 - Version number fixed: v0.7.216 was built from this code with the version
