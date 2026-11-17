@@ -1,6 +1,10 @@
 # POUNCer — Changelog
 
-## Unreleased — receiver-aware spot collection
+## v0.7.217 — 2026-11-17 — receiver-aware spot collection (S53ZO)
+
+- Version number fixed: v0.7.216 was built from this code with the version
+  still at 0.7.215, so its POUNCer.exe kept offering "v0.7.216" as an update.
+  v0.7.217 is the same code with the right number.
 
 - Replace the 30-second/Q:n output merge with spot-collector GoCluster's
   receiver-aware engine (196eb94), shared by the list, team and port 10000.
