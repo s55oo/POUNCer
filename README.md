@@ -372,7 +372,10 @@ Grouped by what you do (v0.7.189):
 * **Spots** - the sources (RBN / Telnet / HTTP / Cluster, TelBck, HamQTH),
   **Hide worked** (**Ctrl+H**), **Clear spots** (**Ctrl+L**), the connections
   now.
-* **Spotters** / **Spotted** - the filters, one click in the contest.
+* **Spotters** / **Spotted** - the filters, one click in the contest. A wider
+  filter (e.g. Spotters > ww) brings back at once the spots of the last 15 min
+  it had kept out, instead of waiting for new ones (v0.7.210; the log says
+  "filter widened: N spots ... brought back").
 * **Tools** - Contest summary, **CQ zones: who hears me**, **Band opening
   timeline** (each a window of its own), **Phone page ▸** (in the browser ·
   QR code · as an app window), **Alerts ▸** (pop-up · sound), **Traffic
@@ -1195,7 +1198,10 @@ list** until you log it or for 60 s, while the others re-sort around it. The
 
 Get **POUNCer.exe** and **config.ini** from the
 [Releases page](https://github.com/s55oo/POUNCer/releases) and put both in the
-same folder. Release builds come from GitHub Actions with the PyInstaller
+same folder. Only the newest three versions are kept there (plus `warmup`):
+the workflow *Delete old releases* removes older ones after each release
+build (or by hand: Actions > Delete old releases > Run workflow, with a dry
+run to only list them) - the code stays in git. Release builds come from GitHub Actions with the PyInstaller
 bootloader compiled from source, so Windows Defender doesn't flag them
 (locally built exes can be flagged `Trojan:Win32/Wacatac.B!ml` - a false
 positive). Each release lists the exe's SHA-256.

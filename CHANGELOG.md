@@ -7,6 +7,14 @@
   and every 15 min a summary - "12 answers, median 34 s, 90 % within 75 s,
   slowest 110 s; 3 without one" - to tune the waits (2 min watch, 2.5 min in
   the traffic console).
+- **A wider filter fills the list at once:** POUNCer remembers every spot of
+  the last 15 min, also the ones the filters kept out. When you widen the
+  Spotters or Spotted filter (e.g. to ww), those that pass now come straight
+  into the list instead of waiting for new spots ("filter widened: N spots of
+  the last 15 min brought back" in pouncer.log).
+- GitHub: a **Delete old releases** workflow keeps the newest 3 versions (+
+  warmup, screenshots) and deletes the older ones with their tags - after each
+  release build, or by hand with a dry run. No .bat needed any more.
 - macOS builds are back on this release.
 
 ## v0.7.209 — 2026-11-17 — PSK Reporter decides FT8-frequency lines

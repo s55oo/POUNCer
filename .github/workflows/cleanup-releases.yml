@@ -1,0 +1,63 @@
+name: Delete old releases
+
+# Keeps the newest KEEP version releases (vX.Y.Z) and deletes the older ones,
+# each with its tag. Never touches "warmup", "screenshots" or any other
+# release whose tag is not a plain version. Runs after every successful
+# release build, and by hand (Actions > Delete old releases > Run workflow;
+# "dry run" lists only). The code stays in git: any old version can be built
+# again from its commit.
+
+on:
+  workflow_dispatch:
+    inputs:
+      keep:
+        description: "How many of the newest versions to keep"
+        required: false
+        default: "3"
+      dry_run:
+        description: "Only list what would be deleted"
+        type: boolean
+        required: false
+        default: false
+  workflow_run:
+    workflows: ["Build POUNCer (Windows and macOS)"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cleanup-releases
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    # after a build: only when it succeeded on main (a release build)
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete all but the newest versions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          KEEP: ${{ inputs.keep || '3' }}
+          DRY: ${{ inputs.dry_run && 'true' || 'false' }}
+        run: |
+          set -euo pipefail
+          case "$KEEP" in ''|*[!0-9]*) echo "::error::keep must be a number"; exit 1;; esac
+          if [ "$KEEP" -lt 1 ]; then echo "::error::keep must be 1 or more"; exit 1; fi
+          gh release list -R "$REPO" --limit 500 --json tagName -q '.[].tagName' > all.txt
+          grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' all.txt | sort -V -r > versions.txt || true
+          echo "Releases: $(wc -l < all.txt), versions: $(wc -l < versions.txt), keep: $KEEP"
+          head -n "$KEEP" versions.txt > keep.txt
+          tail -n +"$((KEEP + 1))" versions.txt > delete.txt
+          echo "Keeping: $(paste -sd ' ' keep.txt) (and every non-version release: $(grep -vE '^v[0-9]+\.[0-9]+\.[0-9]+$' all.txt | paste -sd ' ' -))"
+          if [ ! -s delete.txt ]; then echo "Nothing to delete."; exit 0; fi
+          echo "To delete: $(paste -sd ' ' delete.txt)"
+          if [ "$DRY" = "true" ]; then echo "Dry run - nothing deleted."; exit 0; fi
+          while read -r tag; do
+            gh release delete "$tag" -R "$REPO" --cleanup-tag -y && echo "deleted $tag"
+          done < delete.txt

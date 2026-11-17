@@ -224,6 +224,72 @@ def _note_tap(app, spot: Spot, nr: int, ok: bool, short: str, full: str = "") ->
 PIN_S = 60     # a clicked / tapped station keeps its row this long (or until logged)
 DESKTOP_REFRESH_S = 5  # quiet-feed age/fade/CQ/pin updates, without a redraw every tick
 
+SPOT_MEMORY_S = 900        # spots the filters kept out: remembered this long (15 min)
+SPOT_MEMORY_N = 20000
+
+
+def remember_spot(app, spot) -> None:
+    """Every raw spot (any source, before the filters) goes into a short
+    memory, so a wider filter can bring back the ones it kept out (v0.7.210).
+    Called from the readers' threads: a deque append is thread-safe."""
+    mem = getattr(app, "_spot_memory", None)
+    if mem is None:
+        import collections
+        try:
+            mem = app._spot_memory = collections.deque(maxlen=SPOT_MEMORY_N)
+        except AttributeError:
+            return
+    mem.append(spot)
+
+
+def readmit_spots(app) -> int:
+    """The Spotters / Spotted filter changed: the remembered spots of the last
+    15 min that pass it now - and whose station isn't in the list yet - go
+    into the list at once (through the usual checks: Spotted, beacons,
+    duplicates, modes), instead of waiting for new spots. Returns how many."""
+    mem = getattr(app, "_spot_memory", None)
+    spots = getattr(app, "spots", None)
+    q = getattr(app, "spot_queue", None)
+    if not mem or spots is None or q is None:
+        return 0
+    sf = getattr(app, "spotter_filter", None)
+    cfg = getattr(app, "cfg", None)
+    skim_on = cfg is None or any(has_source(cfg, k) for k in ("rbn", "telnet", "http", "hamqth"))
+    digi = {m.upper() for m in getattr(cfg, "follow_modes", ("CW",))} & {"FT8", "FT4"}
+    now = time.time()
+    newest: dict = {}
+    for spot in list(mem):
+        if now - getattr(spot, "received", 0) > SPOT_MEMORY_S:
+            continue
+        newest[spot.key] = spot                   # the newest spot of each station / band
+    n = 0
+    for key, spot in newest.items():
+        if key in spots:
+            continue                              # already listed
+        if (spot.mode or "").upper() in traffic.DIGITAL and (spot.mode or "").upper() not in digi:
+            continue
+        skimmer = (spot.spotter or "").endswith("-#")
+        if skimmer and not skim_on:
+            continue
+        if sf is not None:
+            try:
+                ok = sf.matches(spot.spotter) if skimmer and hasattr(sf, "matches") else (
+                    sf.people_accept(spot.spotter) if hasattr(sf, "people_accept")
+                    else sf.accept(spot.spotter))
+            except Exception:  # noqa: BLE001
+                ok = False
+            if not ok:
+                continue
+        try:
+            q.put_nowait(dataclasses.replace(spot))
+            n += 1
+        except Exception:  # noqa: BLE001 - queue full
+            break
+    if n:
+        log.info("filter widened: %d spots of the last %d min brought back", n, SPOT_MEMORY_S // 60)
+    return n
+
+
 PSK_TIMING_LOG_S = 900     # PSK Reporter answer times to pouncer.log every 15 min (if new)
 
 
@@ -5246,6 +5312,7 @@ class PouncerApp:
 
     def _on_raw_spot(self, spot) -> None:
         """Every live spot of the whole feed (before the list filters)."""
+        remember_spot(self, spot)
         p = getattr(self, "_perf", None)
         if p is not None:
             p["raw"] += 1
@@ -5529,8 +5596,10 @@ class PouncerApp:
                          show(old), show(new), "" if res.get("live") else "  [after a restart]")
             if key.startswith("filter.") or key in ("rbn.spotter", "rbn.backup_off"):
                 self._apply_filter()
+                readmit_spots(self)            # a wider filter: its spots of the last 15 min at once
             if key.startswith("spotted."):
                 self._apply_spotted()
+                readmit_spots(self)
             if key == "rbn.sources":
                 self._apply_source()
                 self._src_last = None
