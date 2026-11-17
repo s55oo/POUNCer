@@ -300,7 +300,7 @@ DX rows tinted, the station the radio is on framed in blue.*
   alt="POUNCer 0.7.164 on the air, light look: menu bar File, View, Spots, Spotters, Spotted, Settings, Help; 7044.5 40m CW 37 WPM, the ZeroTier address, NOT READY, CLR BAND, CLR ALL and TEAM: ALONE; lights RBN, N1MM, Log, Team alone, Phone, Cluster, Warm-up, Up to date; Sort, Min SNR, MyCall and Relay, and the line Spots: Telnet + Cluster, Spotters: continent EU, Spotted: continent EU; the band chips; the F-keys; two spots from Telnet skimmers DF7GB-# and SE5E-# with SNR 26 and 14, both MM"></p>
 
 *On the air (0.7.164, light look, the address replaced by an example):*
-- *menu bar:* **Spots** (RBN / Telnet / HTTP / Cluster, TelBck, HamQTH),
+- *menu bar:* **Spots** (RBN / Telnet #1 / #2 / #3 / HTTP, HamQTH),
   **Spotters** (who spots), **Spotted** (who is spotted);
 - *top bar:* frequency, band, mode and N1MM's CW speed; the phone-page
   address; **CLR BAND** / **CLR ALL**; the team badge;
@@ -369,7 +369,7 @@ Grouped by what you do (v0.7.189):
   the old table), **Spot list as tiles** (**Ctrl+T**), **ZO mode** (**Ctrl+Z**, the
   Urgent / Medium / Normal columns), **Rate / QSOs / mults
   per band line**, Look ▸ (Dark / Light / Classic).
-* **Spots** - the sources (RBN / Telnet / HTTP / Cluster, TelBck, HamQTH),
+* **Spots** - the sources (RBN / Telnet #1 / #2 / #3 / HTTP, HamQTH),
   **Hide worked** (**Ctrl+H**), **Clear spots** (**Ctrl+L**), the connections
   now.
 * **Spotters** / **Spotted** - the filters, one click in the contest. A wider
@@ -443,7 +443,7 @@ its own SSID, never N1MM's; in a team only the master logs in and passes
 spots of your call on to the others), and after login `self_spot_filter` (`accept/spots call
 {call}`) tells the node to send **only spots of your call** - normally not a
 single line arrives on it. Shown as "self-spot" (TELNET) in the traffic console.
-Spots of your call from POUNCer's Telnet 2 source or the team master count
+Spots of your call from POUNCer's Telnet sources or the team master count
 too. In a team every PC gets it, but the **pop-up only shows on the PC whose
 radio is on the spot's band** (`[ui] self_spot_band_only`, on); the others log
 it and show it in the status line (no radio info yet: pop-up anyway).
@@ -463,10 +463,9 @@ the contest leaves the radios alone.
 window of its own - Edge or Chrome "app" mode, no tabs, no address bar.
 
 **Traffic console** (View menu or **Ctrl+Shift+D**): the raw data of every
-source as it arrives or goes out - RBN lines, **TELNET** (*Spots: Telnet*,
-the telnet server's skimmer spots, and the spots-of-my-call connection -
-both azure.s53m.com:8000), **SSB** (*Spots: Telnet 2*, the cluster's spots of
-people, and the commands sent), N1MM UDP packets in and QSY / call commands
+source as it arrives or goes out - RBN lines, **TELNET** (*Spots: Telnet
+#1 / #2 / #3*, their skimmer and people's spots and the commands sent, and
+the spots-of-my-call connection), N1MM UDP packets in and QSY / call commands
 out, the HTTP feed, the team, the cluster server (**SERVER**), FT8 / FT4
 spots kept out of port 10000 (**FT8**), beacon spots kept out (**BEACON**: the NCDXF beacons on their frequencies, /B calls), the phone page's requests (WEB, off
 at first). Tick sources on / off - **None** unticks them all, to then tick
@@ -563,8 +562,8 @@ for 30 minutes (`[ui] mark_tried`, `tried_minutes`; Settings).
 country file (⚠ > 60 days old), Super Check Partial (⚠ > 30 days), phone
 page and PC clock (checked against an NTP time server every 30 min). **SPOTS**
 (called RBN up to v0.7.202) is ✓ as long as **one** spot source delivers -
-RBN, Telnet, the HTTP backup, HamQTH or Telnet 2 (connected, a spot line in
-the last 2 min): "✓ SPOTS via Telnet" when RBN itself isn't logged in but
+RBN, Telnet #1 / #2 / #3, HTTP or HamQTH (connected, a spot line in
+the last 2 min): "✓ SPOTS via Telnet #1" when RBN itself isn't logged in but
 Telnet brings spots; ✗ only when no source brings any (v0.7.203). Each item
 has its own colour: **red** = not working, **amber** = check it, **green** = OK
 (N1MM closed: N1MM red, SPOTS / SCP still green). The phone
@@ -597,10 +596,9 @@ now), amber = connecting, red = connection problem, grey = off.
 
 | Light | Green | Yellow (on hold) | Amber | Red | Grey |
 |---|---|---|---|---|---|
-| SPOTS (called RBN up to v0.7.202) | **one** source brings spots - "SPOTS via RBN / Telnet / HTTP / HamQTH / Cluster" (a spot line in the last 2 min; slave: via master) | SSB contest / every radio on SSB | connecting | no source brings spots | no source on |
-| Telnet 2 | logged in, its spots of people used | N1MM's spots used instead (N1MM on the cluster itself) | connecting | disconnected | *Spots: Telnet 2* off |
+| SPOTS (called RBN up to v0.7.202) | **one** source brings spots - "SPOTS via RBN / Telnet #1 / HTTP / HamQTH ..." (a spot line in the last 2 min; slave: via master) | SSB contest / every radio on SSB | connecting | no source brings spots | no source on |
+| Telnet | every ticked Telnet #1 / #2 / #3 logged in ("Telnet #1+#3") | a ticked Telnet on the same server as RBN (nothing extra) | connecting, or some not yet | disconnected | no Telnet ticked |
 | HTTP | the HTTP feed delivers | - | starting | running, nothing comes | *Spots: HTTP* off / no URL / team slave |
-| N1MM spots | used for Cluster (own connection closed) | N1MM sends, own cluster still kept (a minute after a fallback) | - | stopped (20 s+) | Broadcast Data > Spots not ticked / off |
 
 | Light | Green | Amber | Red | Grey |
 |---|---|---|---|---|
@@ -743,12 +741,12 @@ keyboard. `[web] cw_keyboard = false` turns it off.
 
 ## SSB
 
-RBN has no SSB, so for SSB POUNCer uses a **DX cluster** (human spots,
-default azure.s53m.com:8000, only spotters in Europe) - the **Telnet 2**
-button (see *Spots: where they come in from*). The list follows the
-radio: on USB / LSB it shows SSB spots, on CW the CW spots - per radio,
-so SO2R with one radio on CW and one on SSB works. `[ssb]` in config.ini or
-the Settings page.
+RBN has no SSB, so SSB spots are people's spots from a **DX cluster**: tick
+a **Telnet #1 / #2 / #3** in the Spots menu (each brings its server's skimmer
+and people's spots, through your Spotters filter - see *Spots: where they
+come in from*). The list follows the radio: on USB / LSB it shows SSB spots,
+on CW the CW spots - per radio, so SO2R with one radio on CW and one on SSB
+works.
 
 The other way round: RBN isn't needed in an **SSB contest** open in N1MM
 (CQWWSSB, CQWPXSSB, ARRLDXSSB ... - RBN isn't even started) or while **every
@@ -759,19 +757,6 @@ each POUNCer tells the others whether it needs RBN (a radio on CW, not an SSB
 contest); the master connects only while at least one does - all on SSB =
 no RBN anywhere (the slaves' light says "RBN on hold" too). `[rbn]
 pause_on_phone = false` keeps it always connected.
-
-**Telnet 2: use N1MM's spots instead** (no second cluster connection): when N1MM sends its
-spots (Broadcast Data > **Spots**, `127.0.0.1:12060` - every spot of its
-Telnet window), POUNCer takes the SSB spots from there from N1MM's **first
-spot** and closes its own cluster connection at once (lights: "N1MM spots"
-green, "SSB cluster on hold (N1MM)" yellow). When N1MM stops
-sending (its telnet dropped, Spots unticked, N1MM closed) POUNCer's own
-cluster is back after **20 seconds** without a spot from N1MM (on a slow
-band, where N1MM's spots are usually more than 5 s apart: 4 x the usual
-gap), and stays for at least a minute before N1MM takes over again. You then see what N1MM's cluster and filters
-pass - people's spots only (skimmers come from RBN / Telnet / HTTP).
-Only while N1MM is connected to the cluster itself, not through POUNCer.
-`[ssb] use_n1mm_spots = off` (Settings > Spots > SSB) always uses POUNCer's own.
 
 **FT8 or SSB?** On 20 / 15 / 10 / 80 m the FT8 / FT4 frequencies (14074,
 21074 ...) lie below the SSB segment: a spot there (or the radio on USB there)
@@ -797,53 +782,54 @@ without a mode word are FT8 / FT4 at once anyway. `[ssb] pskreporter`
 
 ## Spots: where they come in from
 
-The menu **Spots**: RBN, Telnet, HTTP and Cluster, **each one on or off**
-(ticked = on; the menu names the server of each; `[rbn] sources =
-rbn,cluster`, the default), then the backups TelBck and HamQTH, and *The
-connections now…* (every connection, its login and state). Whatever is on goes into POUNCer's
-list **and** out to N1MM / any client of the cluster server (port 10000):
+The menu **Spots**: RBN, **Telnet #1, Telnet #2, Telnet #3** and HTTP -
+**tick as many as you like** (ticked = on; the menu names the server of
+each; `[rbn] sources`, kept for the next start; default `rbn,telnet`), then
+HamQTH, and *The connections now…* (every connection, its login and state).
+Whatever is on goes into POUNCer's list **and** out to N1MM / any client of
+the cluster server (port 10000):
 
-| Button | What | Connection |
+| Source | What | Connection |
 | --- | --- | --- |
-| **RBN** | skimmer spots | telnet.reversebeacon.net:7000, login = your call |
-| **Telnet** | everything the telnet server sends: skimmer spots (`-#`) **and** people's spots (v0.7.212; skimmers only = RBN) | `[rbn] backup_host` (azure.s53m.com:8000) |
+| **RBN** | skimmer spots only | telnet.reversebeacon.net:7000, login = your call |
+| **Telnet #1** | everything its server sends: skimmer spots (`-#`) **and** people's spots (SSB spots too) | `[telnet1]` host / port / login / commands (default azure.s53m.com:8000) |
+| **Telnet #2** | the same, from a second server | `[telnet2]` (empty by default) |
+| **Telnet #3** | the same, from a third server | `[telnet3]` (empty by default) |
 | **HTTP** | RBN's skimmer spots over HTTP - no login, works where telnet is blocked, catches up after a dropout | `[rbn] http_backup` (azure.s53m.com) |
-| **Telnet 2** (was Cluster) | the spots **of people** (no `-#`, every mode) from a **second** DX cluster of your choice, on a connection of its own - *Settings > Spots > Telnet 2*: server, port, login. Set to Telnet's server it adds nothing (Telnet already brings them) | `[ssb] host` / `port` / `login` (azure.s53m.com:8000) |
 
-- **TelBck** (after them, `[rbn] telnet_backup`, off by default): with
-  RBN on and Telnet off, when RBN has been down or silent for a minute
-  POUNCer connects to the telnet server (azure.s53m.com:8000 = S50DXS, its
-  skimmer spots) until RBN has worked for a minute again ("TelBck: RBN
-  down, telnet server meanwhile" on the Spots line). Off = nothing takes
-  over.
-- **HamQTH** (`[rbn] hamqth_backup`, off by default): the backup when
-  POUNCer's **telnet connections die**. When the skimmer telnet (RBN /
-  Telnet) has been down for a minute, RBN's skimmer spots come from
-  HamQTH.com's API (`https://www.hamqth.com/api/v2/rbn`, through your
-  skimmer choice); when the Telnet 2 connection is down, its DX cluster spots
-  (`/api/v2/spots`). Every 20 s, no login, nothing to sign up for; stopped a
-  minute after the telnet works again ("HamQTH: telnet down - ... from
-  HamQTH.com meanwhile" on the Spots line). With RBN / Telnet (or
-  Cluster) **switched off**, HamQTH is that source itself, at once - HamQTH
-  alone on = skimmer + cluster spots from HamQTH. No WPM or CQ in those spots.
-  *Data provided by [HamQTH.com](https://www.hamqth.com/).*
+- **Telnet #1 / #2 / #3** (v0.7.213; were "Telnet" and "Telnet 2") are
+  equal: each its own server, port, login call (empty = your call; e.g.
+  `S55OO-2` where your call is already logged in) and commands after login
+  (`set/skimmer` ...) - *Settings > Spots > Telnet #1 / #2 / #3*. A Telnet
+  with **the same server** as RBN or a Telnet before it opens nothing
+  ("nothing extra - the same server as Telnet #1" in its hover). A Telnet
+  without a server can't be ticked. An older config.ini keeps working:
+  `[rbn] backup_host` / `backup_port` / `backup_commands` are read as
+  Telnet #1 and `[ssb] host` / `port` / `login` / `commands` as Telnet #2
+  (the source `cluster` = `telnet2`) until you save these settings.
+- **HamQTH** (`[rbn] hamqth_backup`, off by default): the stand-in when
+  **every telnet connection** you ticked (RBN, Telnet #1 / #2 / #3) has been
+  down for a minute: RBN's skimmer spots from HamQTH.com's API
+  (`https://www.hamqth.com/api/v2/rbn`, through your skimmer choice) and,
+  with a Telnet ticked, its DX cluster spots (`/api/v2/spots`). Every 20 s,
+  no login, nothing to sign up for; stopped a minute after a telnet works
+  again ("HamQTH: telnet down - ... from HamQTH.com meanwhile" on the Spots
+  line). With nothing ticked HamQTH is the source itself, at once. No WPM or
+  CQ in those spots. *Data provided by [HamQTH.com](https://www.hamqth.com/).*
 - Two more buttons, on the **first row** (after Min SNR), for the other spot connections:
   **MyCall** (azure, login `<call>-77`, only spots of your own call - the
   SPOTTED pop-up; `[ui] self_spot_alert`) and **Relay** (`[cluster] relay`,
   needs the cluster server on): the switch that hands the
   spots out on port 10000 (N1MM's Telnet window) - no connection of its own;
-  N1MM's commands go over POUNCer's Telnet / Cluster connection.
+  N1MM's commands go over POUNCer's first Telnet connection.
 - **Hover** over a button: the connection behind it - server and port,
   login, filter, and its state now ("logged in as S55OO", "standby",
   spots and the last HTTP answer ...).
 - **The same spot from two sources counts once** (same call, frequency and
   skimmer within a minute) - e.g. RBN and HTTP both on.
-- **Only what you switched on**: nothing takes over when a source is down -
-  except RBN with **TelBck** on. All off = no spots ("nothing on - no spots" next to the
-  buttons, light "RBN: no skimmer source on").
-- **Telnet + Cluster on the same node** (both azure.s53m.com:8000) use
-  **one** connection and one login - also for what N1MM sends through the
-  Relay.
+- **Only what you ticked**: nothing takes over when a source is down -
+  except HamQTH, when it is on. All off = no spots ("nothing on - no spots"
+  next to the buttons, light "SPOTS: no source on").
 - **Spotted** (the menu **Spotted**, `[spotted]`): the same choices for the
   **spotted stations** (the DX) - Calls (prefix: `3Y0, VP8`) | DXCC (`JA,
   VK`) | Zones (`3, 4, 5`) | Continents (`NA, OC`) | WW (all, the default) -
@@ -860,7 +846,7 @@ list **and** out to N1MM / any client of the cluster server (port 10000):
   Spotters (one or many each).
 - RBN and Telnet pause while every radio is on SSB (`pause_on_phone`); a
   team slave connects nothing (the master passes the spots on).
-- Older config.ini with `source = rbn / telnet / http`: that one + Cluster
+- Older config.ini with `source = rbn / telnet / http`: that one + Telnet #1
   (unless `[ssb] mode = off`).
 
 ## Country file (cty.dat)
@@ -1045,16 +1031,14 @@ DX de S53WW-#:   14025.0  DL1ABC       CW 23 dB 28 WPM CQ             1200Z
 - **No loop:** spots that came **from N1MM** (its own telnet, via
   Broadcast Data > Spots) are never served. And POUNCer recognises its own
   spots coming back from N1MM's broadcast (the same call and frequency within
-  10 minutes) and ignores them - otherwise it would take them for N1MM's own
-  spots and close its Cluster connection, its source.
+  10 minutes) and ignores them - they are not N1MM's own spots.
 - **Relay** (the **Relay** button, `[cluster] relay = true`, the default) is
   the switch for this output - it opens **no connection of its own**:
   - **on**: every spot of the sources switched on in the Spots menu
-    (RBN, Telnet, HTTP - with your skimmer choice - and Cluster, the spots of
-    people) goes out to the clients. What a client sends after login - your
+    (RBN, Telnet #1 / #2 / #3, HTTP - through your Spotters / Spotted
+    filters) goes out to the clients. What a client sends after login - your
     `DX` spots (Alt+P / Spot It), `sh/dx`, filters - goes over **POUNCer's
-    own telnet connection** to azure (open while **Telnet** or **Telnet 2**
-    is on), and that connection's answers and announcements come back to
+    own telnet connection** (the first Telnet #1 / #2 / #3 that is on), and that connection's answers and announcements come back to
     the client. With Telnet and Cluster both off, N1MM gets `*** POUNCer:
     not sent - no telnet connection` and `sh/dx` = POUNCer's last 30 spots.
   - **off**: nothing either way (the client stays connected): no spots
@@ -1425,8 +1409,7 @@ All options live in `config.ini` and are documented there, line by line:
 | `pause_on_phone` | true | No RBN in an SSB contest or while every radio is on SSB (in a team: while no POUNCer needs it). |
 | `backup_spotters`, `backup_after_minutes` | (our continent), 5 | Skimmers used while `spotter` is quiet this long. |
 | `history` | 30 | Last spots asked at login (SH/DX); 0 = off. |
-| `sources` | rbn,cluster | Where the spots come in from, each on / off: `rbn`, `telnet`, `http`, `cluster` - the *Spots* buttons. (Older `source = rbn / telnet / http` is taken over + cluster.) |
-| `backup_host`, `backup_port`, `backup_commands` | azure.s53m.com, 8000, – | The **Telnet** source's server (its skimmer spots); commands sent after login. |
+| `sources` | rbn,telnet | Where the spots come in from, each on / off: `rbn`, `telnet`, `telnet2`, `telnet3`, `http` - the *Spots* menu (older `cluster` = `telnet2`; older `source = rbn / telnet / http` is taken over + telnet). |
 | `http_backup` | https://azure.s53m.com/cors/rbn/live | The **HTTP** source (RBN over HTTP); empty = none. |
 | `follow_modes` | CW | Modes to show (`CW`, `RTTY`, `FT8`, `FT4`). |
 | `hide_beacons` | true | Drop beacon spots as they come in - not in the list, not on port 10000: the 18 NCDXF beacons (4U1UN, W6WX, OH2B ...) on 14100 / 18110 / 21150 / 24930 / 28200 (±0.5 kHz; the same call elsewhere stays), type BEACON / NCDXF, calls ending in `/B`. Traffic console: **BEACON**. Settings > Spots. |
@@ -1481,12 +1464,12 @@ All options live in `config.ini` and are documented there, line by line:
 | `enabled`, `host`, `port` | true, 0.0.0.0, 8080 | The phone / browser page. |
 | `remote_settings` | false | Allow settings changes from other devices too. |
 | `cw_keyboard` | true | Hold ENTER 1.3 s on the phone = CW keyboard (N1MM Ctrl+K window, transmits). |
+| **[telnet1]**, **[telnet2]**, **[telnet3]** | | Telnet #1 / #2 / #3 (v0.7.213) |
+| `host`, `port` | azure.s53m.com, 8000 (#1); empty (#2, #3) | The server - a DX cluster or skimmer node; its skimmer and people's spots. Empty = not set. |
+| `login`, `commands` | (your call), – | Login call (e.g. S55OO-2); commands after login, comma separated (e.g. set/skimmer). |
+| | | Missing sections: #1 from `[rbn] backup_host` / `backup_port` / `backup_commands`, #2 from `[ssb] host` / `port` / `login` / `commands` (an older config.ini). |
 | **[ssb]** | | |
-| `mode` | auto | Only read from an older config.ini without `[rbn] sources` (`off` = no Cluster there). |
-| `host`, `port`, `login` | azure.s53m.com, 8000, (your call) | The **Telnet 2** source's DX cluster (spots of people) - any cluster you like; the same as Telnet's = one shared connection and login (v0.7.212: was "Cluster"). |
-| `spotters` | EU | Spotters' continent (EU, NA, ... or ALL). |
-| `history`, `login`, `commands` | 30, (your call), – | Last spots at login; login call (e.g. S55OO-2); commands after login. |
-| `use_n1mm_spots` | auto | `auto` = N1MM's spots (Broadcast Data > Spots) replace this cluster connection from N1MM's first spot (20 s without, or 4 x its usual gap = own cluster again, for at least a minute); `off` = always own. |
+| `mode`, `spotters` | auto, EU | Only read from an older config.ini (without `[rbn] sources` / `[filter]`). |
 | `pskreporter` | true | A spot on 7074 - 7077 / 1840 - 1843 without a mode, or a CW spot in any FT8 / FT4 window: ask PSK Reporter about that one call; FT8 / FT4 reports there = not SSB / not CW. |
 | `self_spot_host`, `self_spot_port` | azure.s53m.com, 8000 | The small cluster connection for spots of MY call only (N1MM drops them); empty host = off. Team: the master only. |
 | `self_spot_filter`, `self_spot_ssid` | accept/spots call {call}, 77 | Node filter sent after login (only spots of your call come); login `<call>-77`. pouncer.log shows the node's answer and, once, whether the filter works. |

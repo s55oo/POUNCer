@@ -113,15 +113,15 @@ class ConsoleTests(unittest.TestCase):
 
     def test_summary_tells_quiet_and_why(self) -> None:
         self.c.opened = 1000.0
-        self.c.last = {"N1MM": 1098.0, "SSB": 1090.0}
-        self.c.counts.update({"RBN": 0, "N1MM": 12, "SSB": 3})
+        self.c.last = {"N1MM": 1098.0, "TELNET": 1090.0}
+        self.c.counts.update({"RBN": 0, "N1MM": 12, "TELNET": 3})
         text = self.c.summary(now=1100.0)
         self.assertIn("RBN 0 (quiet 100s, paused - every radio on SSB)", text)
         self.assertIn("N1MM 12   ", text)
-        self.assertIn("SSB 3 (quiet 10s)", text)
+        self.assertIn("TELNET 3 (quiet 10s)", text)
         self.assertIn("WEB 0 (hidden, quiet 100s)", text)
         st = {g: v[0] for g, v in self.c.states(now=1100.0).items()}
-        self.assertEqual((st["N1MM"], st["SSB"], st["RBN"], st["TEAM"]),
+        self.assertEqual((st["N1MM"], st["TELNET"], st["RBN"], st["TEAM"]),
                          ("live", "quiet", "why", "dead"))
         self.assertIn("quiet 3m", self.c.summary(now=1200.0))
 

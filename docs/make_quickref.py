@@ -150,7 +150,7 @@ s.append(KeepTogether([P("Lights", h2), table([
     (dot(GREY) + " grey", "switched off (the clean layout hides these)"),
     (dot(BLUE) + " blue", "Update: a new version is downloaded"),
 ], 15 * mm, W, keycol=False),
-    P("SPOTS · N1MM · Log · Team · Phone · Telnet 2 · HTTP · N1MM spots · Warm-up · "
+    P("SPOTS · N1MM · Log · Team · Phone · Telnet · HTTP · Warm-up · "
       "HamFiles · Update - then the <b>Radio A/B</b> badge.", small)]))
 
 s.append(section("Top bar badges", [
@@ -194,7 +194,7 @@ s.append(section("Menus", [
     ("File", "config folder, Windows Firewall, restart, exit"),
     ("N1MM", "reconnect log, clicking a spot enters its callsign, station test"),
     ("View", "compact, always on top, detailed layout, tiles, ZO mode, rate line, look ▸"),
-    ("Spots / Spotters / Spotted", "sources on / off · whose spots (skimmers) · which DX"),
+    ("Spots / Spotters / Spotted", "sources on / off (RBN, Telnet #1 #2 #3, HTTP) · whose spots · which DX"),
     ("Tools", "summary, CQ zones, timeline, phone page ▸ (QR), alerts ▸, traffic console"),
     ("Team", "password, become master, master after restart, update all"),
     ("Settings", "All settings… or straight to a page: Display, Alerts & history, N1MM & radios, Phone page, Spots, Cluster server, Updates"),

@@ -2,6 +2,29 @@
 
 ## Next release (not released yet)
 
+- **Spots: Telnet #1, #2 and #3** - equal sources, **tick as many as you
+  like** in the Spots menu (the ticks are kept for the next start). Each one
+  is its own connection with its own server, port, login and commands
+  (*Settings > Spots > Telnet #1 / #2 / #3*, `[telnet1]` .. `[telnet3]`) and
+  brings everything its server sends: skimmer spots **and** people's spots
+  (SSB spots too), through your Spotters / Spotted filters. The menu shows
+  each one's server. A Telnet set to the same server as RBN or a Telnet
+  before it opens nothing extra; one without a server can't be ticked.
+  Changing a Telnet's server, login or commands reconnects it at once - no
+  restart.
+- **Cleared away:** "Backup telnet server" (now Telnet #1), Telnet 2 as a
+  people-only source (now Telnet #2, with skimmers too), **TelBck** (tick two
+  sources instead), "Telnet 2: use N1MM's spots instead" and its N1MM spots
+  light (N1MM's spots are still counted and checked for your call, but no
+  longer put into the list), and the **SSB** group in the traffic console
+  (people's spots are under **TELNET**). The Telnet light shows the ticked
+  ones ("Telnet #1+#3"). **HamQTH** stays: it stands in while every telnet
+  connection is down.
+- Your config.ini keeps working: without `[telnet1]` / `[telnet2]`, Telnet #1
+  is read from `[rbn] backup_host` / `backup_port` / `backup_commands` and
+  Telnet #2 from `[ssb] host` / `port` / `login` / `commands` (left empty when
+  that was Telnet #1's own server); the source `cluster` is Telnet #2. Nothing
+  is rewritten until you save one of these settings.
 - **Station test** asks **three times** before it starts (Yes, Yes, Yes - No
   is the default, so Enter or Esc stops it, and the first No stops it): it
   moves the radios, and a click by mistake during the contest must not. The

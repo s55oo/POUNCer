@@ -24,11 +24,10 @@ in the examples are private example addresses.
 | 3 | local | files | – | N1MM's log `.s3db` + `-wal`, `N1MM Logger.ini`, `wl_cty.dat`, `MASTER.SCP` | worked stations, mults, contest, callsign, countries | `[n1mm] ini`, `[worked] db` |
 | 4 | local | Windows messages | – | N1MM Entry Windows | bring to front, put the call in, read it back, keys; read the CW speed box (WPM); Ctrl+K + typed text for the phone CW keyboard | `[n1mm] type_mode`, `cw_speed`; `[web] cw_keyboard` |
 | 5 | **out** | TCP (telnet) | 7000 / 7001 | telnet.reversebeacon.net | RBN skimmer spots (CW/RTTY 7000, FT8/FT4 7001) - the **RBN** button | `[rbn] host`, `port`, `ft8_port`, `sources` |
-| 6 | **out** | TCP (telnet) | 8000 | azure.s53m.com | its skimmer spots - the **Telnet** button (with Cluster on the same node: one connection, one login) | `[rbn] backup_host`, `backup_port`, `sources` |
+| 6 | **out** | TCP (telnet) | 8000 (default) | azure.s53m.com (default), or any server you set | **Telnet #1 / #2 / #3** (Spots menu): each its own connection, its server's skimmer AND people's spots (SSB too); one on the same server as RBN or an earlier Telnet opens nothing | `[telnet1]` .. `[telnet3]` host, port, login, commands; `[rbn] sources` |
 | 7 | **out** | HTTPS | 443 | azure.s53m.com `/cors/rbn/live` | RBN over HTTP - the **HTTP** button | `[rbn] http_backup`, `sources` |
-| 8 | **out** | TCP (telnet) | 8000 | azure.s53m.com | DX cluster: spots of people (every mode) - the **Cluster** button | `[ssb] host`, `port`, `[rbn] sources` |
 | 8b | **out** | TCP (telnet) | 8000 | azure.s53m.com (`[ssb] self_spot_host`) | spots of MY call only (node filter `accept/spots call <call>`, login `<call>-77`, team: the master only) for the SPOTTED pop-up | `[ssb] self_spot_host`, `self_spot_port`, `self_spot_filter` - the log says once whether the node applies the filter ("self-spot feed: the node filter works" / "does NOT apply") |
-| 8d | **in** | TCP | 10000 | N1MM's Telnet window, other cluster clients (LAN / ZeroTier) | POUNCer as a DX cluster: `login:` -> call, then the spots of the switched-on sources as `DX de` lines (Relay on); never N1MM's own spots. A client's commands go over POUNCer's own telnet connection (row 6 / 8) | `[cluster] enabled` (off), `port`, `relay` |
+| 8d | **in** | TCP | 10000 | N1MM's Telnet window, other cluster clients (LAN / ZeroTier) | POUNCer as a DX cluster: `login:` -> call, then the spots of the switched-on sources as `DX de` lines (Relay on); never N1MM's own spots. A client's commands go over POUNCer's own telnet connection (row 6, the first Telnet) | `[cluster] enabled` (off), `port`, `relay` |
 | 8c | **out** | TCP | 53 | 1.1.1.1, 8.8.8.8, 9.9.9.9 (by IP, no DNS) | internet check: a plain connect every 30 s (10 s while down), **nothing is sent**, closed at once - one answer = internet up; no answer twice = the red "Internet down" bar | `[ui] internet_check` (off = no check) |
 | 9 | **in** + out | UDP broadcast | 12079 | other POUNCers on the network | team: who is master, who needs RBN, spots, run history; the master's band-open counts; each POUNCer's settings for the master's team settings log | `[team] port`, `peers` |
 | 10 | **in** | HTTP (TCP) | 8080 | phones, tablets, browsers on the LAN; other POUNCers | phone page, its API, settings, team sync | `[web] host`, `port` |
@@ -78,8 +77,8 @@ re-reads the log; a **contactdelete** makes it needed again (v0.7.171):
 ```
 
 **Spots** (tick *Spots*, same address): every spot of N1MM's Telnet window.
-While they come (from the first one, then at most 20 s apart) POUNCer uses the SSB
-ones and closes its own DX cluster connection (`[ssb] use_n1mm_spots`):
+POUNCer only counts them (N1MM's telnet is alive) and looks for spots of your
+own call (SPOTTED); since v0.7.213 they are not put into the list:
 
 (N1MM writes the frequency with the Windows decimal sign - `21035,56` on a
 Slovenian Windows; both are read.)
@@ -255,28 +254,27 @@ after telnet works again. No login.
 `ts` = UTC milliseconds. There is no CQ / beacon field: `…/B` calls are
 dropped as beacons. Same skimmer filter as the telnet spots.
 
-## 8. DX cluster for SSB (TCP 8000, out)
+## 8. Telnet #1 / #2 / #3 (TCP, out)
 
-`azure.s53m.com:8000` (`[ssb] host`, `port`), only while a radio is on
-USB / LSB (or on a team master; `[ssb] mode`). Login with `[ssb] login`
-(empty = your call; use e.g. `S55OO-2` if the RBN backup is on the same
-server). `[ssb] commands` 1 s after login, `sh/dx/<history>` 2 s after.
-Human spots:
+Each ticked Telnet (Spots menu; `[rbn] sources` = `telnet`, `telnet2`,
+`telnet3`) is its own connection to `[telnetN] host:port` - default #1 =
+`azure.s53m.com:8000`, #2 and #3 empty. Login with `[telnetN] login` (empty =
+your call; e.g. `S55OO-2` where your call is already logged in),
+`[telnetN] commands` after login, `sh/dx/<history>` after that. It brings
+everything the server sends: skimmer spots (`-#`) and the spots of people:
 
 ```
+DX de S53WW-#:   14025.0  K1ABC        CW    24 dB  28 WPM  CQ      1200Z
 DX de S50A:      14250.0  K1ABC        59 SSB                    1200Z
 ```
 
-POUNCer keeps spotters from your continent (`[ssb] spotters`), guesses the
-mode from the comment (SSB / USB / LSB / CW / FT8…), else an FT8 / FT4 window
-(0 - 3 kHz above 7074, 14074, 7047.5 …), else the band plan,
-and shows them as SSB spots.
-
-**Not connected while N1MM sends its spots** (section 1, `[ssb]
-use_n1mm_spots = auto`): from N1MM's first spot this connection is closed
-(light "SSB cluster on hold"); after 20 s without an N1MM spot (slow band: 4 x
-its usual gap) it is opened again, for at least a minute. A spot of your own
-call by a person on either source brings the SPOTTED pop-up.
+Both go through the Spotters / Spotted filters. For people's spots POUNCer
+guesses the mode from the comment (SSB / USB / LSB / CW / FT8 ...), else an FT8 /
+FT4 window (0 - 3 kHz above 7074, 14074, 7047.5 ...), else the band plan. A
+Telnet set to the same server as RBN or an earlier Telnet is not opened (that
+one brings the same). Not on a team slave (the master passes the spots on).
+An older config.ini: #1 = `[rbn] backup_host` / `backup_port`, #2 = `[ssb]
+host` / `port` / `login` / `commands`.
 
 ## 8b. Spots of my call (TCP 8000, out)
 

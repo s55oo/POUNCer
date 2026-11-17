@@ -57,9 +57,9 @@ text.u, text.t, text.w, text.p { stroke: none; }
 <text class="sw" x="454" y="240" text-anchor="start">TCP 10000 (cluster server)</text>
 <text class="sw" x="454" y="257" text-anchor="start"></text>
 <text class="swb" x="454" y="274" text-anchor="start">Spots menu (each on/off):</text>
-<text class="sw" x="454" y="291" text-anchor="start">RBN · Telnet · HTTP · Cluster</text>
+<text class="sw" x="454" y="291" text-anchor="start">RBN · Telnet #1 #2 #3 · HTTP</text>
 <text class="sw" x="454" y="308" text-anchor="start">same spot twice = once</text>
-<text class="sw" x="454" y="325" text-anchor="start">backups: TelBck · HamQTH</text>
+<text class="sw" x="454" y="325" text-anchor="start">stand-in: HamQTH</text>
 <text class="sw" x="454" y="342" text-anchor="start"></text>
 <text class="sw" x="454" y="359" text-anchor="start">Spotters: who spots</text>
 <text class="sw" x="454" y="376" text-anchor="start">Spotted: which DX</text>
@@ -101,11 +101,11 @@ text.u, text.t, text.w, text.p { stroke: none; }
 <text class="l t" x="782.0" y="127" text-anchor="middle">telnet 7000/7001</text>
 <rect class="box" x="876" y="184" width="490" height="136" rx="10"/>
 <text class="h" x="888" y="206" text-anchor="start">azure.s53m.com :8000 (S53ZO, node S50DXS)</text>
-<text class="s" x="888" y="226" text-anchor="start">Spots &gt; Telnet: skimmer spots (-#, SNR)</text>
-<text class="s" x="888" y="242" text-anchor="start">Spots &gt; Cluster: spots of people</text>
-<text class="s" x="888" y="258" text-anchor="start">Telnet + Cluster = ONE login (your call); N1MM&#x27;s</text>
-<text class="s" x="888" y="274" text-anchor="start">DX / commands go over it (Relay)</text>
-<text class="s" x="888" y="290" text-anchor="start">TelBck: this server while RBN is down</text>
+<text class="s" x="888" y="226" text-anchor="start">Spots &gt; Telnet #1: skimmer + people&#x27;s spots</text>
+<text class="s" x="888" y="242" text-anchor="start">Telnet #2 / #3: the same from other servers</text>
+<text class="s" x="888" y="258" text-anchor="start">each its own login (your call); N1MM&#x27;s</text>
+<text class="s" x="888" y="274" text-anchor="start">DX / commands go over the first one (Relay)</text>
+<text class="s" x="888" y="290" text-anchor="start">a Telnet on the same server = nothing extra</text>
 <text class="s" x="888" y="306" text-anchor="start">MyCall: login &lt;call&gt;-77, only spots of you</text>
 <line class="t" x1="692" y1="206" x2="874" y2="206" marker-end="url(#aT)"/>
 <text class="l t" x="782.0" y="199" text-anchor="middle">telnet 8000</text>
@@ -117,7 +117,7 @@ text.u, text.t, text.w, text.p { stroke: none; }
 <rect class="box" x="876" y="402" width="490" height="78" rx="10"/>
 <text class="h" x="888" y="424" text-anchor="start">www.hamqth.com /api/v2  (HTTPS)</text>
 <text class="s" x="888" y="444" text-anchor="start">/rbn + /spots every 20 s, no login</text>
-<text class="s" x="888" y="460" text-anchor="start">HamQTH: while the telnet is down (or alone)</text>
+<text class="s" x="888" y="460" text-anchor="start">HamQTH: while every telnet is down (or alone)</text>
 <line class="w" x1="692" y1="424" x2="874" y2="424" marker-end="url(#aH)"/>
 <text class="l w" x="782.0" y="417" text-anchor="middle">HTTPS JSON</text>
 <rect class="box" x="876" y="490" width="490" height="62" rx="10"/>

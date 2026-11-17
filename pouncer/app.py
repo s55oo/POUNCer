@@ -2618,10 +2618,12 @@ class PouncerApp:
                 same[n] = dup
             tc = clients.get(n)
             if tc is not None and (not want or dup or (tc.host, tc.port) != (host, port)
-                                   or getattr(tc, "login_call", call) != call):
+                                   or getattr(tc, "login_call", call) != call
+                                   or tuple(getattr(tc, "backup_commands", cmds)) != tuple(cmds)):
                 tc.stop()
                 clients.pop(n, None)
-                log.info("Telnet #%d client stopped", n)
+                log.info("Telnet #%d client stopped%s", n, "" if not want or dup
+                         else " - its settings changed, connecting again")
                 tc = None
             if not want or dup:
                 continue

@@ -247,10 +247,10 @@ class TkSettingsWindowTests(unittest.TestCase):
         self.assertEqual(w.pending, {})
         # a restart setting shows the Restart button after Save
         self.assertFalse(w.restart_btn.winfo_ismapped())
-        w.vars["rbn.backup_host"].set("dxc.example.org")
+        w.vars["rbn.history"].set("40")
         w.save_all()
         self.root.update()
-        self.assertEqual(w.state["rbn.backup_host"].cget("text"), "Saved - used after a restart")
+        self.assertEqual(w.state["rbn.history"].cget("text"), "Saved - used after a restart")
         self.assertTrue(w.restart_btn.winfo_ismapped())
         w.restart_btn.invoke()
         self.assertEqual(restarted, [1])
@@ -337,7 +337,7 @@ class TkSettingsWindowTests(unittest.TestCase):
         f._refresh_spot_menus()
         spots = menu("Spots")
         slabels = items(spots)
-        self.assertIn("RBN - telnet.reversebeacon.net:7000", slabels)
+        self.assertIn("RBN - telnet.reversebeacon.net:7000 (skimmer spots)", slabels)
         # RBN, Telnet #1, #2, #3, then HTTP (v0.7.213), each with its server
         order = [next(i for i, x in enumerate(slabels) if x.startswith(p))
                  for p in ("RBN - ", "Telnet #1 - ", "Telnet #2 - ", "Telnet #3 - ", "HTTP - ")]
