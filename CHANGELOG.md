@@ -1,6 +1,6 @@
 # POUNCer — Changelog
 
-## Next release (not released yet)
+## v0.7.218 — 2026-11-17 — PB times in the traffic console; nonPublishedSpots.log
 
 - **cache/nonPublishedSpots.log** - the spots that passed your filters
   (Spotters, Spotted, modes, no beacon / WARC / own call) but never went out
