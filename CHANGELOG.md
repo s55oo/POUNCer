@@ -2,6 +2,16 @@
 
 ## Next release (not released yet)
 
+- **cache/nonPublishedSpots.log** - the spots that passed your filters
+  (Spotters, Spotted, modes, no beacon / WARC / own call) but never went out
+  on port 10000, to learn from and tune the spot collector. Each spot is
+  judged 2 minutes after it came in; it counts as sent when a spot of the same
+  station went out (same call within 1 kHz, or the same skimmer under a
+  corrected call), so merged copies are not listed. One tab-separated line:
+  time, source, call, kHz, mode, spotter, the last reason known (the
+  collector's evaluation, the PSK Reporter check, or "no reason noted"), the
+  raw line. Nothing is written while the cluster server or Relay is off; kept
+  below 5 MB (older half in nonPublishedSpots.log.1).
 - **Traffic console: PB** - when a spot goes out on port 10000, every spot
   line of that station that came in shortly before gets `PB 09:48:55 +1s` at
   its end: the publish time (UTC) and how long after it came in. `as G4ZFE-#`

@@ -280,7 +280,34 @@ def people_taken(app, src: str) -> bool:
 def publish_selected(app, spot) -> bool:
     """Selection already happened before list/team admission; publish once."""
     dxc = getattr(app, "_dxc", None)
-    return bool(dxc is not None and dxc.publish(spot))
+    ok = bool(dxc is not None and dxc.publish(spot))
+    u = getattr(app, "_unpub", None)
+    if ok and u is not None:
+        u.published(spot)
+    return ok
+
+
+def flush_unpublished(app, now: float | None = None) -> None:
+    """Every 10 s: write the wanted spots that never went out (nonPublishedSpots.log)."""
+    u = getattr(app, "_unpub", None)
+    if u is None:
+        return
+    now = time.time() if now is None else now
+    if now - getattr(app, "_unpub_flushed", 0.0) < 10:
+        return
+    app._unpub_flushed = now
+    from .collector import Collector
+    dxc = getattr(app, "_dxc", None)
+    mine = getattr(app, "_is_my_call", None)
+
+    def wanted(spot) -> bool:
+        if mine is not None and mine(spot):
+            return False
+        return Collector.wanted(app, spot)
+    try:
+        u.flush(wanted, active=bool(dxc is not None and dxc.relay()), now=now)
+    except Exception as exc:  # noqa: BLE001 - a log must not stop the spots
+        log.debug("nonPublishedSpots: %s", exc)
 
 
 def telnet_label(cfg, n: int) -> str:
@@ -409,6 +436,10 @@ class PouncerApp:
         self._net_bar_text = ""
         self.spot_queue: "queue.Queue[Spot]" = queue.Queue(maxsize=20000)
         self._collector_incoming = queue.Queue(maxsize=20000)
+        # cache/nonPublishedSpots.log: wanted spots that never reached port 10000
+        from .unpublished import UnpublishedLog
+        self._unpub = UnpublishedLog(config.run_history_dir or "cache")
+        self._unpub_flushed = 0.0
         self.status_queue: "queue.Queue[str]" = queue.Queue()
         self.spots: dict[tuple, Spot] = {}
         # How long each station has been calling on one frequency, from RBN
@@ -4096,6 +4127,7 @@ class PouncerApp:
             self._track_on_freq(spot)
             got += 1
         self._relabel_overlap()
+        flush_unpublished(self)
         if got:
             self._dirty = True
         if replay_requested:
@@ -4293,6 +4325,9 @@ class PouncerApp:
             held[spot.key] = spot
             traffic.digi_out("PSKR", spot, f"held from port {dxc.port}: FT8 window - "
                              "asking PSK Reporter if he is on FT8 / FT4")
+            u = getattr(self, "_unpub", None)
+            if u is not None:
+                u.note(spot, "held: FT8 window, PSK Reporter not answered")
             return
         publish_selected(self, spot)
 
@@ -4306,6 +4341,9 @@ class PouncerApp:
         dxc = getattr(self, "_dxc", None)
         if digital:
             traffic.digi_out("PSKR", spot, f"not served: PSK Reporter has him on {digital}")
+            u = getattr(self, "_unpub", None)
+            if u is not None:
+                u.note(spot, f"PSK Reporter: he is on {digital}")
         elif dxc is not None:
             if publish_selected(self, spot):
                 traffic.digi_out("PSKR", spot, "served now: no FT8 / FT4 report of him")
@@ -5252,6 +5290,9 @@ class PouncerApp:
         """Every live spot of the whole feed (before the list filters)."""
         spot.arrived = time.time()
         remember_spot(self, spot)
+        u = getattr(self, "_unpub", None)
+        if u is not None:
+            u.seen(spot)
         incoming = getattr(self, "_collector_incoming", None)
         if incoming is not None:
             spot.collector_routed = True

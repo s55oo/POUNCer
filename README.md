@@ -500,6 +500,16 @@ in after its station went out gets `merged into PB 09:48:55`. No PB = not
 sent (yet): filtered out, held (FT8 check), or still being collected. It
 works with the SERVER group unticked too.
 
+**cache/nonPublishedSpots.log** (v0.7.218): the spots that passed your
+filters but never went out on port 10000 - for learning and tuning the spot
+collector. A spot is judged 2 minutes after it came in; a merged copy (its
+station went out under another skimmer) or a corrected call counts as sent,
+and what your own filters keep out (Spotters, Spotted, modes, FT8 / FT4,
+beacons, WARC, your own call) is not listed. Tab separated: received UTC,
+source, call, kHz, mode, spotter, reason (the collector's evaluation, the PSK
+Reporter check, or "no reason noted"), raw line. Nothing is written while the
+cluster server or Relay is off; at most 5 MB (+ nonPublishedSpots.log.1).
+
 The spot list (table): **new multiplier** rows in bold red, **worked** ones in grey
 (when *Hide worked* is off), **⚡** before the call = rare CQ, **?** after it
 = not in Super Check Partial; tuned to it = blue, DX = orange background.

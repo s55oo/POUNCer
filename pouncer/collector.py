@@ -173,6 +173,12 @@ class Collector:
         selected = [self._convert(spot, output) for output in outputs]
         if not replay and self.engine.last_observation is not None and receiver_wanted:
             self._note_observation(app, spot, evaluation)
+        if evaluation and not outputs:
+            u = getattr(app, "_unpub", None)
+            if u is not None:
+                u.note(spot, "collector: " + "; ".join(
+                    str(evaluation.get(k)) for k in ("reason", "frequency_basis", "call")
+                    if evaluation.get(k) not in (None, "")))
         if evaluation and (not outputs or evaluation.get('frequency_basis') != 'input'):
             traffic.emit("collector", f"{spot.dxcall} {spot.freq_khz:.2f}: "
                          f"{evaluation.get('reason', '')}; {evaluation.get('frequency_basis', '')}")
