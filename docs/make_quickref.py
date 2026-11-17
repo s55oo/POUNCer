@@ -203,7 +203,7 @@ s.append(section("Menus", [
 
 s.append(section("Something wrong?", [
     ("Help › Troubleshooting", "Save diagnostics: one zip (log, settings without passwords, perf log, team settings) - send it"),
-    ("N1MM › Station test", "QSY and callsign entry, per radio"),
+    ("N1MM › Station test", "QSY and callsign entry, per radio - asks 3 times (moves the radios)"),
     ("cache\\pouncer.log", "what POUNCer did · cache\\perf.csv: CPU / memory per minute"),
 ], 29 * mm, W))
 

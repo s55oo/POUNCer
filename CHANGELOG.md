@@ -1,5 +1,12 @@
 # POUNCer — Changelog
 
+## Next release (not released yet)
+
+- **Station test** asks **three times** before it starts (Yes, Yes, Yes - No
+  is the default, so Enter or Esc stops it, and the first No stops it): it
+  moves the radios, and a click by mistake during the contest must not. The
+  menu item now reads **Station test (moves the radios - asks 3 times)**.
+
 ## v0.7.212 — 2026-11-17 — Telnet brings people's spots too; Telnet 2 = a second server
 
 - **Telnet** now brings everything its connection carries: the skimmer spots

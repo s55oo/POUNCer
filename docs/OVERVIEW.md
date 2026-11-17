@@ -48,7 +48,7 @@ Several of POUNCer's strongest parts come from **S53ZO**:
 ## When something goes wrong
 
 - **Help > Troubleshooting > Save diagnostics** makes one zip (log, settings without passwords, performance log) to send for checking.
-- **N1MM > Station test** checks QSY and callsign entry per radio; **Tools > Traffic console** shows the raw data of every source.
+- **N1MM > Station test** checks QSY and callsign entry per radio (asks three times first - it moves the radios); **Tools > Traffic console** shows the raw data of every source.
 - `cache\pouncer.log` says what POUNCer did; `cache\perf.csv` holds CPU, memory and disk for POUNCer, N1MM and Windows, one row a minute.
 - The phone acts oddly in one browser only: **? > Reset this page**.
 

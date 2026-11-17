@@ -224,6 +224,32 @@ def _note_tap(app, spot: Spot, nr: int, ok: bool, short: str, full: str = "") ->
 PIN_S = 60     # a clicked / tapped station keeps its row this long (or until logged)
 DESKTOP_REFRESH_S = 5  # quiet-feed age/fade/CQ/pin updates, without a redraw every tick
 
+STATION_TEST_ASKS = (
+    ("Station test - 1 of 3",
+     "The station test MOVES THE RADIO: on every radio it changes the frequency "
+     "(0.1 kHz up and back) and types a test call into N1MM's Entry Window.\n\n"
+     "Never during a contest QSO.\n\nStart the station test?"),
+    ("Station test - 2 of 3",
+     "Are you sure? Your radios will leave their frequency for a moment.\n\n"
+     "Continue?"),
+    ("Station test - 3 of 3",
+     "Last check: YES starts the station test now and moves the radios.\n\n"
+     "Start it?"),
+)
+
+
+def station_test_confirmed(ask) -> bool:
+    """Three YES answers in a row before the station test runs (v0.7.213);
+    the first No stops it. ``ask(title, text) -> bool``."""
+    for title, text in STATION_TEST_ASKS:
+        try:
+            if not ask(title, text):
+                return False
+        except Exception:  # noqa: BLE001 - no dialog = no test
+            return False
+    return True
+
+
 def phone_contest_of(app) -> bool:
     """Is the open N1MM contest an SSB one? (False for a stand-in app.)"""
     try:
@@ -891,7 +917,7 @@ class PouncerApp:
         n1mm.add_command(label="Reconnect log", command=self._reconnect_log)
         n1mm.add_checkbutton(label="Clicking a spot enters its callsign in the N1MM Entry Window", variable=self.set_call_var)
         n1mm.add_separator()
-        n1mm.add_command(label="Station test (QSY + callsign, each radio)",
+        n1mm.add_command(label="Station test (moves the radios - asks 3 times)",
                          command=self._station_test)
         bar.add_cascade(label="N1MM", menu=n1mm)
         # -- View: this window ----------------------------------------------------------
@@ -1738,10 +1764,21 @@ class PouncerApp:
             self._flow.set_visible(self.rate_short, on and self._clean())
         self._save_setting("ui.rate_line", "true" if on else "false")
 
+    def _ask_yes_no(self, title: str, text: str) -> bool:
+        """A Yes / No question, No the default (Enter / Esc = No)."""
+        from tkinter import messagebox
+        return bool(messagebox.askyesno(title, text, icon="warning", default="no",
+                                        parent=self.root))
+
     def _station_test(self) -> None:
         """N1MM > Station test: per radio QSY 0.1 kHz up / back and a test call
-        into the empty callsign box (in a thread - the window stays live)."""
+        into the empty callsign box (in a thread - the window stays live).
+        Only after three YES answers (v0.7.213): a click by mistake during the
+        contest would move the radios."""
         if getattr(self, "_station_testing", False):
+            return
+        if not station_test_confirmed(self._ask_yes_no):
+            self.status_label.configure(text="Station test not started - the radios were not touched")
             return
         self._station_testing = True
         self.status_label.configure(text="Station test running ...")

@@ -455,7 +455,9 @@ arrived at all.
 (no TX) with N1MM's response time, then a test call into the empty callsign
 box of its Entry Window, read back and cleared (a box that holds something
 is left alone). A quick check after setting up - cables, COM ports,
-Broadcast Data.
+Broadcast Data. It **moves the radios**, so it asks three times (Yes, Yes,
+Yes - No is the default, the first No stops it): a click by mistake during
+the contest leaves the radios alone.
 
 **Phone page as an app window** (View menu): the phone page on the PC in a
 window of its own - Edge or Chrome "app" mode, no tabs, no address bar.
