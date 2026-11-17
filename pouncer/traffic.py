@@ -15,7 +15,7 @@ import time
 
 MAX_LINES = 5000          # kept between two console refreshes at most
 _sink: "collections.deque | None" = None
-GROUPS = ("RBN", "TELNET", "SSB", "HTTP", "N1MM", "TEAM", "WEB", "PSKR", "SERVER", "FT8", "BEACON")
+GROUPS = ("RBN", "TELNET", "HTTP", "N1MM", "TEAM", "WEB", "PSKR", "SERVER", "FT8", "BEACON")
 DIGITAL = ("FT8", "FT4")
 
 
@@ -91,8 +91,8 @@ def group_of(source: str) -> str:
         return "TEAM"
     if s.startswith(("SERVER", "RELAY")):   # POUNCer's own cluster server (N1MM connects)
         return "SERVER"
-    if s.startswith("TELNET"):          # the CW feed from the telnet server (azure)
-        return "TELNET"
+    if s.startswith("TELNET") or "CLUSTER" in s or s.startswith("SSB"):
+        return "TELNET"                 # Telnet #1 / #2 / #3, people's spots too (v0.7.213)
     if s.startswith("SELF"):            # the spots-of-my-call connection: same server
         return "TELNET"
     if s.startswith("WEB"):
@@ -101,6 +101,4 @@ def group_of(source: str) -> str:
         return "HTTP"
     if s.startswith("PSKR"):
         return "PSKR"
-    if "CLUSTER" in s or s.startswith("SSB"):
-        return "SSB"
     return "RBN"

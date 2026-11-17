@@ -39,8 +39,9 @@ class BuildTests(unittest.TestCase):
     def test_any_source_with_spots_is_enough(self) -> None:
         """RBN not logged in, but Telnet (or another source) brings spots: READY.
         The item is called SPOTS (v0.7.203)."""
-        for via, text in (("telnet", "via Telnet"), ("hamqth", "via HamQTH"),
-                          ("cluster", "via Telnet 2"), ("http", "via HTTP backup")):
+        for via, text in (("telnet", "via Telnet #1"), ("hamqth", "via HamQTH"),
+                          ("telnet2", "via Telnet #2"), ("telnet3", "via Telnet #3"),
+                          ("http", "via HTTP")):
             items = checks.build(dict(GOOD, rbn=via))
             self.assertEqual(by_name(items)["SPOTS"]["state"], "ok", via)
             self.assertIn(text, by_name(items)["SPOTS"]["text"])
@@ -87,7 +88,7 @@ class BuildTests(unittest.TestCase):
         self.assertEqual(checks.worst(items), "ok")
 
     def test_team_slave_and_http_backup_count_as_rbn(self) -> None:
-        for rbn, txt in (("team", "via team master"), ("http", "via HTTP backup")):
+        for rbn, txt in (("team", "via team master"), ("http", "via HTTP")):
             it = by_name(checks.build(dict(GOOD, rbn=rbn)))["SPOTS"]
             self.assertEqual((it["state"], it["text"]), ("ok", txt))
 
@@ -202,8 +203,8 @@ class SpotSourceTests(unittest.TestCase):
         except Exception as exc:  # noqa: BLE001 - needs tkinter
             self.skipTest(f"app not importable here: {exc}")
         self.f = types.SimpleNamespace(_rbn_clients={}, SOURCE_QUIET_S=P.SOURCE_QUIET_S,
-                                       _http_feed=None, _hq_feeds={}, _ssb_client=None,
-                                       _telnet_client=None, _rbn_healthy=lambda: False)
+                                       _http_feed=None, _hq_feeds={}, _telnet_clients={},
+                                       _rbn_healthy=lambda: False)
         self.f._spot_source_working = P._spot_source_working.__get__(self.f)
 
     @staticmethod
@@ -215,12 +216,12 @@ class SpotSourceTests(unittest.TestCase):
         f = self.f
         self.assertEqual(f._spot_source_working(), "")
         f._rbn_clients = {7000: self.conn(up=False)}          # RBN: not logged in
-        f._telnet_client = self.conn()                         # Telnet: spots coming
+        f._telnet_clients = {1: self.conn()}                   # Telnet #1: spots coming
         self.assertEqual(f._spot_source_working(), "telnet")
-        f._telnet_client = self.conn(quiet=300)                # Telnet quiet 5 min
+        f._telnet_clients = {1: self.conn(quiet=300)}          # Telnet #1 quiet 5 min
         self.assertEqual(f._spot_source_working(), "")
-        f._ssb_client = self.conn()
-        self.assertEqual(f._spot_source_working(), "cluster")
+        f._telnet_clients[3] = self.conn()                     # Telnet #3 brings spots
+        self.assertEqual(f._spot_source_working(), "telnet3")
         f._rbn_healthy = lambda: True
         self.assertEqual(f._spot_source_working(), "ok")
 

@@ -19,7 +19,6 @@ class TipTests(unittest.TestCase):
         cfg.team_key = "00ff" * 8
         f = types.SimpleNamespace(cfg=cfg, team=None, _dxc=None, own_call=lambda: "S55OO",
                                   _self_feed_login=lambda: "S55OO-77")
-        f._cluster_merged = lambda: app.PouncerApp._cluster_merged(f)
         return app, f
 
     def test_every_group_has_a_text(self) -> None:
@@ -38,7 +37,10 @@ class TipTests(unittest.TestCase):
         self.assertIn("Password: set", team)
         self.assertNotIn("00ff", team)
         self.assertIn("Relay: on", app.PouncerApp._console_info(f, "SERVER"))
-        self.assertIn("spots of people", app.PouncerApp._console_info(f, "SSB"))
+        tel = app.PouncerApp._console_info(f, "TELNET")
+        self.assertIn("Telnet #1: azure.s53m.com:8000", tel)
+        self.assertIn("Telnet #2: (not set)", tel)
+        self.assertNotIn("SSB", GROUPS)
 
     def test_tip_text_adds_why_and_counts(self) -> None:
         con = TrafficConsole(None, notes=lambda: {"HTTP": "backup off - RBN telnet works"},

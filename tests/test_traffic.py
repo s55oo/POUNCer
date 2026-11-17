@@ -37,8 +37,10 @@ class TapTests(unittest.TestCase):
         self.assertTrue(traffic.squeeze("x" * 500, 10).endswith(" ..."))
 
     def test_groups(self) -> None:
-        self.assertEqual(traffic.group_of("ssb"), "SSB")
-        self.assertEqual(traffic.group_of("ssb >"), "SSB")
+        self.assertEqual(traffic.group_of("ssb"), "TELNET")      # no SSB group (v0.7.213)
+        self.assertEqual(traffic.group_of("cluster"), "TELNET")
+        self.assertEqual(traffic.group_of("telnet2"), "TELNET")
+        self.assertNotIn("SSB", traffic.GROUPS)
         self.assertEqual(traffic.group_of("rbn"), "RBN")
         self.assertEqual(traffic.group_of("telnet"), "TELNET")
         self.assertEqual(traffic.group_of("telnet >"), "TELNET")
@@ -200,7 +202,7 @@ class TelnetNameTests(unittest.TestCase):
         self.assertEqual(c._traffic_name(), "telnet")
         self.assertEqual(traffic.group_of(c._traffic_name()), "TELNET")
         ssb = RBNClient("cl.example", 8000, "S55OO", "", queue.Queue(), kind="cluster", name="ssb")
-        self.assertEqual(traffic.group_of(ssb._traffic_name()), "SSB")
+        self.assertEqual(traffic.group_of(ssb._traffic_name()), "TELNET")
 
 
 if __name__ == "__main__":

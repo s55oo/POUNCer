@@ -27,13 +27,13 @@ class ReportTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             path = os.path.join(folder, "config.ini")
             Path(path).write_text(
-                "[ssb]\nhost = cluster.example.org\nlogin = DL1ABC\n"
+                "[telnet2]\nhost = cluster.example.org\nlogin = DL1ABC\n"
                 "[ui]\nmin_snr = 12\n")
             r = ts.report(load_config(path))
         from pouncer import settings
         self.assertEqual(set(r), {it["key"] for it in settings.SETTINGS})
-        self.assertEqual(r["ssb.host"], "(set)")
-        self.assertEqual(r["ssb.login"], "(set)")
+        self.assertEqual(r["telnet2.host"], "(set)")
+        self.assertEqual(r["telnet2.login"], "(set)")
         self.assertEqual(r["ui.min_snr"], "12")
         text = json.dumps(r)
         for secret in ("example.org", "DL1ABC"):

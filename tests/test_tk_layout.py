@@ -157,7 +157,7 @@ class TkSettingsWindowTests(unittest.TestCase):
 
         cfg = types.SimpleNamespace(**{it["attr"]: None for it in settingsmod.SETTINGS})
         cfg.qsy_wait_ms, cfg.focus_back_to_a, cfg.radio_b_qsy = 1500, False, "udp-left"
-        cfg.rbn_spotter, cfg.rbn_backup_commands, cfg.default_radio = "S53WW", (), 1
+        cfg.rbn_spotter, cfg.telnet1_commands, cfg.default_radio = "S53WW", (), 1
         saved, restarted = [], []
 
         def save(key, text):
@@ -278,12 +278,13 @@ class TkSettingsWindowTests(unittest.TestCase):
             _console=types.SimpleNamespace(open=lambda: None),
             cfg=types.SimpleNamespace(config_path="C:/x/config.ini", alert_popup=True, rate_line=True,
                                       alert_sound=False, look="dark", team_key="",
-                                      rbn_source="rbn,cluster", rbn_telnet_backup=False,
+                                      rbn_source="rbn,telnet2",
                                       rbn_hamqth_backup=True, filter_mode="calls",
                                       rbn_spotter="S53WW", filter_dxcc="", filter_zones="14, 15",
                                       filter_conts="EU", rbn_host="telnet.reversebeacon.net",
-                                      rbn_port=7000, rbn_backup_host="azure.s53m.com",
-                                      rbn_backup_port=8000, ssb_host="azure.s53m.com", ssb_port=8000,
+                                      rbn_port=7000, telnet1_host="azure.s53m.com",
+                                      telnet1_port=8000, telnet2_host="dx.example", telnet2_port=7300,
+                                      telnet3_host="", telnet3_port=8000,
                                       spotted_mode="ww", spotted_calls="", spotted_dxcc="JA",
                                       spotted_zones="", spotted_conts=""),
             _save_diagnostics=lambda: None, _open_path=lambda p: None,
@@ -337,14 +338,18 @@ class TkSettingsWindowTests(unittest.TestCase):
         spots = menu("Spots")
         slabels = items(spots)
         self.assertIn("RBN - telnet.reversebeacon.net:7000", slabels)
-        # RBN, Telnet, Telnet 2, then HTTP (v0.7.212)
+        # RBN, Telnet #1, #2, #3, then HTTP (v0.7.213), each with its server
         order = [next(i for i, x in enumerate(slabels) if x.startswith(p))
-                 for p in ("RBN - ", "Telnet - ", "Telnet 2 - ", "HTTP - ")]
+                 for p in ("RBN - ", "Telnet #1 - ", "Telnet #2 - ", "Telnet #3 - ", "HTTP - ")]
         self.assertEqual(order, sorted(order))
+        self.assertIn("Telnet #1 - azure.s53m.com:8000", slabels)
+        self.assertIn("Telnet #2 - dx.example:7300", slabels)
+        self.assertIn("Telnet #3 - (no server - Settings > Spots)", slabels)
+        self.assertFalse(any("TelBck" in x for x in slabels))
         # the list's own switches live with the spots now (after the relabelled sources)
         self.assertIn("Hide worked (same band + mode)", slabels)
         self.assertIn("Clear spots", slabels)
-        self.assertTrue(f._src_vars["rbn"].get() and f._src_vars["cluster"].get())
+        self.assertTrue(f._src_vars["rbn"].get() and f._src_vars["telnet2"].get())
         self.assertFalse(f._src_vars["telnet"].get())
         self.assertTrue(f._src_vars["hamqth"].get())
         spt = menu("Spotters")

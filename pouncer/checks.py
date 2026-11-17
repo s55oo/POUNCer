@@ -63,12 +63,13 @@ def build(f: dict) -> list[dict]:
 
     add("Call", "ok", f["call"]) if f.get("call") else add("Call", "bad", "no station call")
 
-    # SPOTS (was "RBN" up to v0.7.202): "ok" (RBN) / "telnet" / "http" /
-    # "hamqth" / "cluster" / "team" / "paused" / text of the problem - any one
+    # SPOTS (was "RBN" up to v0.7.202): "ok" (RBN) / "telnet" / "telnet2" /
+    # "telnet3" / "http" / "hamqth" / "team" / "paused" / text of the problem - any one
     # source delivering spots is enough (v0.7.203)
     rbn = f.get("rbn")
-    via = {"ok": "via RBN", "telnet": "via Telnet", "http": "via HTTP backup",
-           "hamqth": "via HamQTH", "cluster": "via Telnet 2", "team": "via team master",
+    via = {"ok": "via RBN", "telnet": "via Telnet #1", "telnet2": "via Telnet #2",
+           "telnet3": "via Telnet #3", "http": "via HTTP",
+           "hamqth": "via HamQTH", "team": "via team master",
            "paused": "paused - SSB, not needed"}
     if rbn in via:
         add("SPOTS", "ok", via[rbn])

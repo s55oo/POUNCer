@@ -1,6 +1,7 @@
-"""Spots buttons: each source on / off; Telnet + Cluster on the same node =
-one connection; the same spot from two sources once; the relay passes
-people's spots only with Cluster on; the hover text names the connection."""
+"""Spots menu: each source on / off; Telnet #1 / #2 / #3 equal, each its own
+connection with skimmer AND people's spots, one on the same server as an
+earlier one opens nothing; the same spot from two sources once; the hover
+text names the connection."""
 
 import queue
 import time
@@ -44,23 +45,20 @@ def fake_app(sources):
             return getattr(self, "up", False)
     f = types.SimpleNamespace(
         cfg=cfg, team=None, _rbn_clients={}, _http_feed=None, _dxc=None, rbn_status="",
-        ssb_status="", status_queue=queue.Queue(), spot_queue=queue.Queue(),
-        _ssb_status_q=queue.Queue(), spotter_filter=types.SimpleNamespace(label=lambda: "S53WW"),
+        status_queue=queue.Queue(), spot_queue=queue.Queue(), _telnet_clients={}, _telnet_same={},
+        spotter_filter=types.SimpleNamespace(label=lambda: "S53WW"),
         _continent=lambda c: "EU", home_cont="EU", _on_raw_spot=lambda s: None,
         _n1mm_spot_first=None, _n1mm_spot_last=0.0, _rbn_paused=lambda: False,
         _ensure_self_feed=lambda: None, own_call=lambda: "S55OO",
         SOURCE_NAMES=P.SOURCE_NAMES, CONN_KEYS=P.CONN_KEYS, N1MM_SPOT_BREAK_S=P.N1MM_SPOT_BREAK_S,
-        N1MM_SPOT_QUIET_S=P.N1MM_SPOT_QUIET_S, N1MM_SPOT_QUIET_X=P.N1MM_SPOT_QUIET_X,
-        MERGE_S=P.MERGE_S, BACKUP_AFTER_S=P.BACKUP_AFTER_S, BACKUP_BACK_S=P.BACKUP_BACK_S,
-        _rbn_bad_since=None, _rbn_good_since=None, _relay_back=lambda line: None,
+        MERGE_S=P.MERGE_S, _relay_back=lambda line: None,
         HQ_AFTER_S=P.HQ_AFTER_S, HQ_BACK_S=P.HQ_BACK_S)
-    for n in ("_ensure_rbn_clients", "_ensure_telnet_client", "_ensure_ssb_client",
-              "_ensure_http_feed", "_stop_http_feed", "_start_http_feed", "_ssb_wanted",
-              "_cluster_merged", "_people_filter", "_desired_rbn_ports", "_n1mm_spots_ok",
-              "_n1mm_quiet_limit", "_ssb_status_put", "_source_tip", "_merged_dup", "_conn_tip",
-              "_toggle_conn", "_set_source", "_upstream_client", "_telnet_backup_due",
-              "_rbn_healthy", "_ensure_telnet_client", "_ensure_hamqth", "_hq_state",
-              "_skimmer_telnet_ok", "_cluster_telnet_ok"):
+    for n in ("_ensure_rbn_clients", "_ensure_telnet_clients", "_telnet_wanted",
+              "_ensure_http_feed", "_stop_http_feed", "_start_http_feed",
+              "_people_filter", "_desired_rbn_ports", "_source_tip", "_merged_dup", "_conn_tip",
+              "_toggle_conn", "_set_source", "_upstream_client",
+              "_rbn_healthy", "_ensure_hamqth", "_hq_state",
+              "_skimmer_telnet_ok", "_cluster_telnet_ok", "_telnet_states"):
         setattr(f, n, getattr(P, n).__get__(f))
     return app, f, made, FakeClient
 
@@ -78,7 +76,7 @@ class SourceTests(unittest.TestCase):
         f, made = self.run_with("rbn")
         self.assertEqual([(c.host, c.port) for c in made], [("telnet.reversebeacon.net", 7000)])
         self.assertIsNone(f._http_feed)
-        self.assertEqual(f.ssb_status, "off")
+        self.assertEqual(f._telnet_clients, {})
         f, made = self.run_with("http")
         self.assertEqual(made, [])
         self.assertIsNotNone(f._http_feed)
@@ -87,27 +85,56 @@ class SourceTests(unittest.TestCase):
         self.assertEqual(made, [])
         self.assertTrue(f.rbn_status.startswith("off"))
 
-    def test_telnet_and_cluster_one_login(self) -> None:
-        f, made = self.run_with("telnet,cluster")
-        self.assertEqual(len(made), 1)                       # ONE connection to azure
-        self.assertEqual((made[0].host, made[0].port, made[0].call),
-                         ("azure.s53m.com", 8000, "S55OO"))
-        self.assertIsNotNone(made[0].people)                 # it carries people's spots too
-        self.assertIsNone(getattr(f, "_ssb_client", None))
+    def test_three_telnets_each_its_own_connection(self) -> None:
+        app, f, made, Fake = fake_app("telnet,telnet2,telnet3")
+        f.cfg.telnet2_host, f.cfg.telnet2_port, f.cfg.telnet2_login = "dx.example", 7300, "S55OO-2"
+        f.cfg.telnet3_host, f.cfg.telnet3_commands = "skim.example", ("set/skimmer",)
+        with mock.patch.object(app, "RBNClient", Fake):
+            f._ensure_rbn_clients()
+        self.assertEqual([(c.host, c.port, c.call) for c in made],
+                         [("azure.s53m.com", 8000, "S55OO"), ("dx.example", 7300, "S55OO-2"),
+                          ("skim.example", 8000, "S55OO")])
+        self.assertTrue(all(c.people is not None and c.skimmers for c in made))   # both kinds
+        self.assertEqual([c.kw.get("name") for c in made], ["telnet", "telnet2", "telnet3"])
+        self.assertEqual(made[2].kw.get("backup_commands"), ("set/skimmer",))
+        self.assertEqual(sorted(f._telnet_clients), [1, 2, 3])
+        # #2 unticked: only its connection closes
+        f.cfg.rbn_source = "telnet,telnet3"
+        with mock.patch.object(app, "RBNClient", Fake):
+            f._ensure_rbn_clients()
+        self.assertEqual([c.stopped for c in made], [False, True, False])
+        self.assertEqual(sorted(f._telnet_clients), [1, 3])
 
-    def test_cluster_alone_people_only(self) -> None:
-        f, made = self.run_with("rbn,cluster")
-        cl = [c for c in made if c.host == "azure.s53m.com"]
-        self.assertEqual(len(cl), 1)
-        self.assertFalse(cl[0].skimmers)                     # skimmers: RBN's
-        self.assertEqual(cl[0].kw.get("modes"), ())          # every mode
+    def test_same_server_opens_nothing_extra(self) -> None:
+        app, f, made, Fake = fake_app("rbn,telnet,telnet2")
+        f.cfg.telnet2_host = "AZURE.s53m.com"                # = Telnet #1
+        with mock.patch.object(app, "RBNClient", Fake):
+            f._ensure_rbn_clients()
+        self.assertEqual(sorted(c.host for c in made), ["azure.s53m.com", "telnet.reversebeacon.net"])
+        self.assertEqual(f._telnet_same, {2: "Telnet #1"})
+        self.assertIn("same server as Telnet #1", f._source_tip("telnet2"))
+        self.assertIn((2, "same"), f._telnet_states())
+
+    def test_no_server_cannot_be_ticked(self) -> None:
+        app, f, made, Fake = fake_app("rbn")
+        saved = []
+        f._save_setting = lambda k, v: saved.append((k, v))
+        msgs = []
+        f.status_label = types.SimpleNamespace(configure=lambda **k: msgs.append(k.get("text")))
+        f._src_last = None
+        f._set_source("telnet3")                             # [telnet3] host empty
+        self.assertEqual(saved, [])
+        self.assertIn("Telnet #3 has no server", msgs[-1])
+        f._set_source("cluster")                             # an older team member's name
+        self.assertEqual(saved, [])                          # = Telnet #2: no server either
 
     def test_hover_names_the_connection(self) -> None:
-        f, made = self.run_with("telnet,cluster")
+        f, made = self.run_with("telnet")
         t = f._source_tip("telnet")
         self.assertIn("azure.s53m.com:8000", t)
         self.assertIn("ON", t)
-        self.assertIn("same connection as Telnet", f._source_tip("cluster"))
+        self.assertIn("skimmers ('-#') and people", t)
+        self.assertIn("no server", f._source_tip("telnet2"))
         self.assertIn("off", f._source_tip("http"))
         self.assertIn("reversebeacon", f._source_tip("rbn"))
 
@@ -131,32 +158,8 @@ class SourceTests(unittest.TestCase):
         f._set_source("relay")
         self.assertEqual(saved[-1][0], "cluster.relay")
 
-    def test_telnet_bck_takes_over_while_rbn_is_down(self) -> None:
-        app, f, made, Fake = fake_app("rbn")
-        f.cfg.rbn_telnet_backup = True
-        now = [1000.0]
-        f.rbn_status = "disconnected, reconnecting"
-        with mock.patch.object(app, "RBNClient", Fake), \
-                mock.patch.object(app.time, "time", side_effect=lambda: now[0]):
-            f._ensure_rbn_clients()
-            self.assertEqual([c.host for c in made], ["telnet.reversebeacon.net"])
-            now[0] += 61                                    # RBN down a minute
-            f._ensure_rbn_clients()
-            self.assertEqual(made[-1].host, "azure.s53m.com")   # the telnet server meanwhile
-            self.assertIn("ACTIVE", f._source_tip("telnetbck"))
-            f.rbn_status = "logged in as S55OO"           # RBN back ...
-            f._rbn_clients[7000]._last_dx = app.time.monotonic()
-            f._ensure_rbn_clients()
-            self.assertFalse(made[-1].stopped)              # ... not closed at once
-            now[0] += 61
-            f._rbn_clients[7000]._last_dx = app.time.monotonic()
-            f._ensure_rbn_clients()
-            self.assertTrue(made[-1].stopped)               # a minute later: closed
-        f.cfg.rbn_telnet_backup = False
-        self.assertIn("off", f._source_tip("telnetbck"))
-
     def test_hamqth_only_while_telnet_is_down(self) -> None:
-        app, f, made, Fake = fake_app("rbn,cluster")
+        app, f, made, Fake = fake_app("rbn,telnet")
         f.cfg.rbn_hamqth_backup = True
         started = []
 

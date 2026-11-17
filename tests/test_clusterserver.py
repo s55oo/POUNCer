@@ -129,9 +129,9 @@ class AppEchoTests(unittest.TestCase):
 
 
 
-class ClusterButtonTests(unittest.TestCase):
-    """The 'Cluster' source: spots of people only when switched on (not on
-    a team slave)."""
+class TelnetWantedTests(unittest.TestCase):
+    """A Telnet #1 / #2 / #3: connected only when ticked and set (not on a
+    team slave)."""
 
     def _fake(self, sources, role="alone"):
         import types
@@ -139,19 +139,22 @@ class ClusterButtonTests(unittest.TestCase):
         app = _import_app()
         team = None if role == "alone" else types.SimpleNamespace(started=0.0, role=lambda: role)
         f = types.SimpleNamespace(cfg=types.SimpleNamespace(rbn_source=sources,
-                                                            ssb_host="azure.s53m.com"), team=team)
-        return app.PouncerApp._ssb_wanted, f
+                                                            telnet2_host="azure.s53m.com",
+                                                            telnet3_host=""), team=team)
+        return (lambda f, k="telnet2": app.PouncerApp._telnet_wanted(f, k)), f
 
     def test_on_off(self) -> None:
-        fn, f = self._fake("rbn,cluster")
+        fn, f = self._fake("rbn,telnet2")
         self.assertTrue(fn(f))
         fn, f = self._fake("rbn")
         self.assertFalse(fn(f))
+        fn, f = self._fake("rbn,telnet3")                 # ticked, but no server
+        self.assertFalse(fn(f, "telnet3"))
 
     def test_slave_never(self) -> None:
-        fn, f = self._fake("rbn,cluster", role="slave")
+        fn, f = self._fake("rbn,telnet2", role="slave")
         self.assertFalse(fn(f))
-        fn, f = self._fake("rbn,cluster", role="master")
+        fn, f = self._fake("rbn,telnet2", role="master")
         self.assertTrue(fn(f))
 
 
@@ -197,10 +200,10 @@ class DistributorTests(unittest.TestCase):
         self.assertIn("K2BWC 14030.0 sent", self.c.until("sent"))
 
     def test_no_telnet_connection_note(self) -> None:
-        self.why[0] = "no telnet connection (switch on Telnet or Telnet 2)"
+        self.why[0] = "no telnet connection (tick a Telnet #1 / #2 / #3 in the Spots menu)"
         self.c.buf = b""
         self.c.send("DX 14030.0 K2BWC")
-        self.assertIn("not sent - no telnet connection", self.c.until("Telnet 2)"))
+        self.assertIn("not sent - no telnet connection", self.c.until("Spots menu)"))
 
     def test_relay_off_keeps_n1mms_spot_and_says_so(self) -> None:
         self.srv.relay = lambda: False

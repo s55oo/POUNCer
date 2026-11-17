@@ -34,7 +34,7 @@ class IniTests(unittest.TestCase):
         self.assertEqual(r, {"ok": True, "key": "n1mm.qsy_settle_ms", "value": 500, "live": True})
         self.assertEqual(cfg.qsy_settle_ms, 500)                  # in use at once
         settings.save(cfg, self.path, "n1mm.type_mode", "KEYS")
-        settings.save(cfg, self.path, "rbn.backup_commands", "set/skimmer, sh/dx")
+        settings.save(cfg, self.path, "telnet1.commands", "set/skimmer, sh/dx")
         settings.save(cfg, self.path, "n1mm.default_radio", "b")
         settings.save(cfg, self.path, "n1mm.return_focus", "false")
         after = open(self.path, encoding="utf-8").read()
@@ -45,7 +45,7 @@ class IniTests(unittest.TestCase):
         again = load_config(self.path)
         self.assertEqual((again.qsy_settle_ms, again.type_mode, again.default_radio, again.return_focus),
                          (500, "keys", 2, False))
-        self.assertEqual(again.rbn_backup_commands, ("set/skimmer", "sh/dx"))
+        self.assertEqual(again.telnet1_commands, ("set/skimmer", "sh/dx"))
 
     def test_bad_values_are_refused_and_not_written(self) -> None:
         cfg = load_config(self.path)

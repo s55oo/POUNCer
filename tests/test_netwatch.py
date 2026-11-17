@@ -61,7 +61,7 @@ class AppOfflineTests(unittest.TestCase):
         kicked = []
         c = lambda n: types.SimpleNamespace(kick=lambda: kicked.append(n))  # noqa: E731
         f = types.SimpleNamespace(_dirty=False, net=types.SimpleNamespace(back_after=840),
-                                  _rbn_clients={7000: c("rbn")}, _ssb_client=c("ssb"),
+                                  _rbn_clients={7000: c("rbn")}, _telnet_clients={2: c("ssb")},
                                   _self_feed=c("self"),
                                   status_label=types.SimpleNamespace(configure=lambda **k: None))
         app.PouncerApp._on_net_change(f, True)

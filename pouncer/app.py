@@ -29,7 +29,7 @@ from .rbn import (
     beacon_why,
     is_beacon,
     is_phone_contest,
-    ports_for_modes, spot_from_n1mm, digital_sure, digital_overlap, digital_mode, unmarked_ft,
+    ports_for_modes, digital_sure, digital_overlap, digital_mode, unmarked_ft,
 )
 from .runhist import RARE_RUN_PCT, RunHistory
 from .urgency import classify as classify_urgency, format_hours
@@ -61,7 +61,7 @@ from .settings_window import SettingsWindow
 from .team import Team, derive_key
 from .clusterserver import ClusterServer, parse_dx
 from .hamqth import HamQTHFeed
-from .config import has_source, parse_sources
+from .config import has_source, parse_sources, TELNETS, telnet_conf, telnet_no
 from .winfw import add_firewall_rules, firewall_rule_exists
 from .settings import set_ini_value
 from .update import Updater
@@ -268,14 +268,25 @@ def apply_unmarked_ft(app, spot) -> None:
 
 
 def people_taken(app, src: str) -> bool:
-    """Does POUNCer take people's spots (no '-#') from this source now? Only
-    with the Cluster source on (its own connection, the Telnet one merged, or
-    N1MM's spots); HamQTH's people spots only as the Cluster's backup; a
-    stand-in without a config: yes. For the console's colours (v0.7.211)."""
+    """Does POUNCer take people's spots (no '-#') now? Only with a Telnet
+    #1 / #2 / #3 on (each brings skimmer AND people's spots); a stand-in
+    without a config: yes. For the console's colours (v0.7.211)."""
     cfg = getattr(app, "cfg", None)
     if cfg is None or not hasattr(cfg, "rbn_source"):
         return True
-    return has_source(cfg, "cluster") or has_source(cfg, "telnet")   # Telnet: both (v0.7.212)
+    return any(has_source(cfg, k) for k in TELNETS)
+
+
+def telnet_label(cfg, n: int) -> str:
+    """'azure.s53m.com:8000' for the Spots menu, or how to set it."""
+    host, port, _login, _cmds = telnet_conf(cfg, n)
+    return f"{host}:{port}" if host else "(no server - Settings > Spots)"
+
+
+def telnet_clients(app) -> list:
+    """The running Telnet #1 / #2 / #3 clients, in order (any app object)."""
+    d = getattr(app, "_telnet_clients", None) or {}
+    return [d[n] for n in sorted(d) if d[n] is not None]
 
 
 SPOT_MEMORY_S = 900        # spots the filters kept out: remembered this long (15 min)
@@ -308,7 +319,7 @@ def readmit_spots(app) -> int:
         return 0
     sf = getattr(app, "spotter_filter", None)
     cfg = getattr(app, "cfg", None)
-    skim_on = cfg is None or any(has_source(cfg, k) for k in ("rbn", "telnet", "http", "hamqth"))
+    skim_on = cfg is None or any(has_source(cfg, k) for k in ("rbn", "http", "hamqth") + TELNETS)
     digi = {m.upper() for m in getattr(cfg, "follow_modes", ("CW",))} & {"FT8", "FT4"}
     now = time.time()
     newest: dict = {}
@@ -513,20 +524,16 @@ class PouncerApp:
         self.sort_col = config.sort if config.sort in self.columns and config.sort != "wpm" else "snr"
         self.sort_reverse = self.sort_col == "snr"
         self.rbn_status = "starting"
-        self.ssb_status = "off"
-        self._ssb_status_q: "queue.Queue[str]" = queue.Queue()
         self._self_spot_q: queue.Queue = queue.Queue()   # my call spotted by a person
-        self._ssb_client = None
-        self._ssb_last_needed = 0.0
-        # N1MM's own spots (<spot> packets on the RadioInfo port): while they
-        # come they replace our SSB cluster connection (same spots, one telnet)
+        self._telnet_clients: dict = {}     # n (1 / 2 / 3) -> RBNClient (Telnet #n)
+        self._telnet_same: dict = {}        # n -> "RBN" / "Telnet #1" ...: the same server, not opened
+        # N1MM's own spots (<spot> packets on the RadioInfo port): a sign of
+        # life of N1MM's telnet, and the spots of my call
         self._n1mm_spot_first: float | None = None   # start of the current stream
         self._n1mm_spot_last = 0.0
-        self._ssb_back_at = 0.0                      # N1MM went quiet: own cluster since
         self._n1mm_gap: float | None = None          # usual seconds between N1MM spots
         self._n1mm_streak = 0                        # spots in the current stream
         self._n1mm_spots = 0
-        self._ssb_via_n1mm = False
         self._n1mm_filter = None
         self.team: Team | None = None  # other POUNCers on the network
         self._team_queue: "queue.Queue[Spot]" = queue.Queue(maxsize=5000)
@@ -953,13 +960,13 @@ class PouncerApp:
         # The first entries are relabelled by position (SPOT_MENU): add after them.
         spots = tk.Menu(bar, tearoff=False, postcommand=self._refresh_spot_menus)
         self._src_vars = {}
-        for key in ("rbn", "telnet", "http", "cluster"):
+        for key in ("rbn",) + TELNETS + ("http",):
             v = tk.BooleanVar(value=has_source(self.cfg, key))
             self._src_vars[key] = v
             spots.add_checkbutton(label=key, variable=v,
                                   command=lambda k=key: self._menu_source(k))
         spots.add_separator()
-        for key in ("telnetbck", "hamqth"):
+        for key in ("hamqth",):
             v = tk.BooleanVar(value=bool(getattr(self.cfg, self.CONN_KEYS[key][1], False)))
             self._src_vars[key] = v
             spots.add_checkbutton(label=key, variable=v,
@@ -1862,22 +1869,20 @@ class PouncerApp:
                     f"Pause while every radio is on SSB: {onoff(g(c, 'rbn_pause_on_phone', True))}\n"
                     f"Team: {role}" + (" - the master talks to RBN" if role == "slave" else ""))
         if group == "TELNET":
-            return ("TELNET - the telnet server's skimmer spots ('Spots: Telnet') and the "
-                    "spots-of-my-call feed\n"
-                    f"Server: {g(c, 'rbn_backup_host', '')}:{g(c, 'rbn_backup_port', '')} - "
-                    f"{'on' if has_source(c, 'telnet') else 'off'}\n"
+            tl = []
+            for n in (1, 2, 3):
+                host, port, login, _cmds = telnet_conf(c, n)
+                key = TELNETS[n - 1]
+                tl.append(f"Telnet #{n}: " + (f"{host}:{port}, login {login or call} - "
+                                              f"{'on' if has_source(c, key) else 'off'}"
+                                              if host else "(not set)"))
+            return ("TELNET - Telnet #1 / #2 / #3: each brings its server's skimmer AND "
+                    "people's spots (SSB spots too); and the spots-of-my-call feed\n"
+                    + "\n".join(tl) + "\n"
                     f"My-call feed: {g(c, 'self_spot_host', '')}:{g(c, 'self_spot_port', '')} as "
                     f"{self._self_feed_login() if hasattr(self, '_self_feed_login') else '-'}, "
                     f"filter '{g(c, 'self_spot_filter', '')}'\n"
                     f"SPOTTED pop-up: {onoff(g(c, 'self_spot_alert', True))}")
-        if group == "SSB":
-            return ("SSB - 'Spots: Cluster': the DX cluster's spots of people (every mode)\n"
-                    f"Cluster: {g(c, 'ssb_host', '')}:{g(c, 'ssb_port', '')}, login "
-                    f"{g(c, 'ssb_login', '') or call} - "
-                    f"{'on' if has_source(c, 'cluster') else 'off'}"
-                    f"{' (the same connection as Telnet)' if self._cluster_merged() else ''}\n"
-                    f"Spotters: {g(c, 'ssb_spotters', 'EU')}; N1MM's spots instead: "
-                    f"{g(c, 'ssb_use_n1mm', 'auto')}")
         if group == "HTTP":
             return ("HTTP - RBN's skimmer spots over HTTP ('Spots: HTTP')\n"
                     f"URL: {g(c, 'rbn_http_backup', '') or '(off)'}")
@@ -1958,7 +1963,7 @@ class PouncerApp:
         notes = {}
         role = self.team.role() if self.team is not None else "off"
         if role == "slave":
-            notes["RBN"] = notes["SSB"] = "via the team master"
+            notes["RBN"] = "via the team master"
             notes["TELNET"] = "via the team master"
             if self.team.master_paused():
                 notes["RBN"] = "paused - the whole team on SSB"
@@ -1975,16 +1980,10 @@ class PouncerApp:
                 self.cfg, "cluster_server", False) else "not running - port busy?")
         elif not dxc.client_count():
             notes["SERVER"] = f"TCP {dxc.port}: no client connected"
-        if role != "slave" and not has_source(self.cfg, "telnet"):
-            notes["TELNET"] = ("off - Spots: Telnet"
+        if role != "slave" and not any(has_source(self.cfg, k) for k in TELNETS):
+            notes["TELNET"] = ("off - Spots: Telnet #1 / #2 / #3"
                                + ("; the spots-of-my-call feed is here"
                                   if getattr(self, "_self_feed", None) else ""))
-        if role != "slave":
-            ssb = (self.ssb_status or "").lower()
-            if ssb.startswith("via n1mm"):
-                notes["SSB"] = "Cluster spots come from N1MM"
-            elif ssb in ("", "off"):
-                notes["SSB"] = "off - Spots: Cluster"
         if self._http_feed is None:
             notes["HTTP"] = "off - Spots: HTTP"
         if not self.cfg.web_enabled:
@@ -2229,34 +2228,22 @@ class PouncerApp:
         return tuple(self.cfg.follow_modes)
 
     SSB_GRACE_S = 60           # SSB cluster stays this long after the last radio left USB/LSB
+    N1MM_SPOT_BREAK_S = 300    # a gap this long ends N1MM's stream (start counting again)
 
-    def _ssb_wanted(self) -> bool:
-        """The 'Cluster' source (spots of people from the DX cluster) is on
-        - not on a team slave (the master passes the spots on)."""
-        if not has_source(self.cfg, "cluster") or not getattr(self.cfg, "ssb_host", ""):
+    def _telnet_wanted(self, key: str) -> bool:
+        """Telnet #n is ticked and has a server - not on a team slave (the
+        master passes the spots on)."""
+        if not has_source(self.cfg, key) or not telnet_conf(self.cfg, telnet_no(key))[0]:
             return False
-        if self.team is not None and (time.time() - self.team.started < 3
-                                      or self.team.role() == "slave"):
+        team = getattr(self, "team", None)
+        if team is not None and (time.time() - team.started < 3 or team.role() == "slave"):
             return False
         return True
 
-    N1MM_SPOT_START_S = 0      # N1MM's first spot: our cluster closes at once
-    N1MM_SPOT_START_N = 1
-    N1MM_SPOT_BREAK_S = 300    # a gap this long ends N1MM's stream (start counting again)
-    N1MM_SPOT_QUIET_S = 20     # no N1MM spot this long = N1MM stopped: our own cluster again ...
-    N1MM_SPOT_QUIET_X = 4      # ... or 4 x its usual gap on a slow band (at most BREAK_S)
-    N1MM_SPOT_HOLD_S = 60      # then our own cluster at least this long (one login a minute at most)
-
-    def _n1mm_quiet_limit(self) -> float:
-        """20 s without an N1MM spot = stopped; on a slow band (usual gap over
-        5 s) 4 x the usual gap, so a quiet evening doesn't switch back and forth."""
-        gap = getattr(self, "_n1mm_gap", None) or 0.0
-        return min(self.N1MM_SPOT_BREAK_S, max(self.N1MM_SPOT_QUIET_S, self.N1MM_SPOT_QUIET_X * gap))
-
     def _upstream_client(self):
-        """POUNCer's own telnet connection to the cluster (Telnet, else
-        Cluster) - where the port 10000 clients' commands go."""
-        for c in (getattr(self, "_telnet_client", None), getattr(self, "_ssb_client", None)):
+        """POUNCer's own telnet connection to the cluster (the first Telnet
+        #1 / #2 / #3 logged in) - where the port 10000 clients' commands go."""
+        for c in telnet_clients(self):
             if c is not None and c.connected():
                 return c
         return None
@@ -2266,7 +2253,7 @@ class PouncerApp:
         telnet connection; '' = sent, else why not."""
         c = self._upstream_client()
         if c is None:
-            return "no telnet connection (switch on Telnet or Telnet 2)"
+            return "no telnet connection (tick a Telnet #1 / #2 / #3 in the Spots menu)"
         return "" if c.send_line(line) else "the telnet connection is down"
 
     def _relay_back(self, line: str) -> None:
@@ -2278,8 +2265,7 @@ class PouncerApp:
 
     def _on_n1mm_spot(self, pkt: dict, via: str = "n1mm") -> None:
         """A <spot> packet from N1MM (listener thread). Any spot shows N1MM's
-        telnet is alive; people's spots go to the list while N1MM (connected
-        to the cluster itself) is the Cluster source."""
+        telnet is alive, and the spots of my call (SPOTTED)."""
         dxc = getattr(self, "_dxc", None)
         if via == "n1mm" and dxc is not None:
             if dxc.echo(str(pkt.get("call") or ""), float(pkt.get("freq_khz") or 0)):
@@ -2300,109 +2286,12 @@ class PouncerApp:
             self._note_self_spot(pkt.get("call", ""), pkt.get("spotter", ""),
                                  pkt.get("freq_khz") or 0.0, pkt.get("comment", ""))
         self._n1mm_streak = getattr(self, "_n1mm_streak", 0) + 1
-        if not self._ssb_via_n1mm or pkt.get("action") not in ("", "add"):
-            return
-        spot = spot_from_n1mm(pkt, now)
-        if (spot.spotter or "").endswith("-#"):
-            return                       # skimmers come from RBN / Telnet / HTTP
-        if self._n1mm_filter is None:
-            self._n1mm_filter = PeopleFilter(self.spotter_filter)
-        try:
-            self._on_raw_spot(spot)
-        except Exception:  # noqa: BLE001
-            pass
-        if not self._n1mm_filter.accept(spot.spotter):
-            return
-        try:
-            self.spot_queue.put_nowait(spot)
-        except queue.Full:
-            pass
-
-    def _n1mm_spots_ok(self) -> bool:
-        """N1MM sends spots (from its first one) and hasn't gone quiet."""
-        if getattr(self.cfg, "ssb_use_n1mm", "auto") == "off":
-            return False
-        first = getattr(self, "_n1mm_spot_first", None)
-        now = time.time()
-        if first is None or now - getattr(self, "_n1mm_spot_last", 0.0) > self._n1mm_quiet_limit():
-            return False
-        # once switched, stay until it goes quiet; before, wait for a steady
-        # stream - and after N1MM went quiet, keep our own cluster a while
-        if getattr(self, "_ssb_via_n1mm", False):
-            return True
-        if now - getattr(self, "_ssb_back_at", 0.0) < self.N1MM_SPOT_HOLD_S:
-            return False
-        return (now - first >= self.N1MM_SPOT_START_S
-                and getattr(self, "_n1mm_streak", 0) >= self.N1MM_SPOT_START_N)
-
-    def _cluster_merged(self) -> bool:
-        """Telnet and Cluster are both on and on the same node: one
-        connection (one login) carries both."""
-        c = self.cfg
-        return (has_source(c, "telnet") and bool(c.rbn_backup_host)
-                and (c.rbn_backup_host.lower(), int(c.rbn_backup_port))
-                == (str(c.ssb_host).lower(), int(c.ssb_port)))
+        # (up to v0.7.212 N1MM's spots could stand in for Telnet 2's
+        # connection; now every Telnet brings skimmers too - N1MM's spots are
+        # only a sign of life and the spots of my call)
 
     def _people_filter(self):
         return PeopleFilter(self.spotter_filter)     # the Spotters filter, live
-
-    def _ensure_ssb_client(self) -> None:
-        """The 'Telnet 2' source (was 'Cluster'): people's spots from a SECOND
-        server, a connection of its own. The same server as Telnet = nothing
-        extra (Telnet already brings its people's spots, v0.7.212); while N1MM
-        (connected to the cluster itself) sends its spots, from N1MM's
-        broadcast instead (no second login)."""
-        want = self._ssb_wanted()
-        via = want and self._n1mm_spots_ok()
-        if via != getattr(self, "_ssb_via_n1mm", False):
-            if not via and want:
-                self._ssb_back_at = time.time()    # N1MM quiet: own cluster for a while
-            self._ssb_via_n1mm = via
-            log.info("Cluster spots %s", "from N1MM (own cluster connection closed)" if via
-                     else (f"from our own cluster (no spot from N1MM for "
-                           f"{time.time() - getattr(self, '_n1mm_spot_last', 0.0):.0f} s)")
-                     if want else "off")
-        merged = want and not via and self._cluster_merged()
-        tc = getattr(self, "_telnet_client", None)
-        if tc is not None:
-            # v0.7.212: Telnet brings everything its connection carries -
-            # skimmer spots AND people's spots (skimmers only: RBN); not while
-            # N1MM's own spots stand in for the people's spots
-            tc.people = None if via else self._people_filter()
-        client = getattr(self, "_ssb_client", None)
-        if client is not None and (not want or via or merged):
-            client.stop()
-            self._ssb_client = None
-            client = None
-        if via:
-            self.ssb_status = "via N1MM"
-            return
-        if not want:
-            self.ssb_status = "off"
-            return
-        if merged:
-            self.ssb_status = "same as telnet"   # Telnet already brings them: nothing extra
-            return
-        if client is None:
-            self._ssb_client = RBNClient(
-                self.cfg.ssb_host, self.cfg.ssb_port,
-                self.cfg.ssb_login or self.cfg.rbn_callsign,
-                self._people_filter(),
-                self.spot_queue,
-                on_status=self._ssb_status_put,
-                history=self.cfg.ssb_history,
-                backup_commands=self.cfg.ssb_commands,
-                kind="cluster", modes=(), name="cluster",
-                on_raw=self._on_raw_spot,
-            )
-            self._ssb_client.skimmers = False      # people only; skimmers: RBN / Telnet / HTTP
-            self._ssb_client.backup_commands = tuple(self.cfg.ssb_commands)
-            self._ssb_client.on_line = self._relay_back
-            self._ssb_client.start()
-            log.info("Cluster client started on %s:%s", self.cfg.ssb_host, self.cfg.ssb_port)
-
-    def _ssb_status_put(self, text: str) -> None:
-        self._ssb_status_q.put(text)
 
     def _rbn_healthy(self) -> bool:
         """The telnet RBN feed (or its telnet backup) is logged in and lines
@@ -2572,11 +2461,9 @@ class PouncerApp:
                                  and self.team.alive_peers() else ""))
                      if paused else "on: a radio is on CW")
             self.rbn_status = "paused: SSB, not needed" if paused else "starting"
-        telnet = has_source(self.cfg, "telnet") and bool(self.cfg.rbn_backup_host)
-        if not telnet and desired and self._telnet_backup_due():
-            telnet = True                     # TelBck: RBN down, the telnet server meanwhile
+        telnet = any(self._telnet_wanted(k) for k in TELNETS)
         if paused:
-            desired, telnet = set(), False
+            desired = set()
         if self.team is not None:
             # Team: only the master talks to RBN; give discovery 3 s at start
             # so a later POUNCer doesn't log in just to hand over at once.
@@ -2584,8 +2471,7 @@ class PouncerApp:
                 desired, telnet = set(), False
         for port in [p for p in self._rbn_clients if p not in desired]:
             self._rbn_clients.pop(port).stop()
-        self._ensure_telnet_client(telnet)
-        self._ensure_ssb_client()
+        self._ensure_telnet_clients()
         self._ensure_http_feed()
         self._ensure_hamqth(paused)
         if not paused and not desired and not telnet:
@@ -2609,43 +2495,14 @@ class PouncerApp:
             self._rbn_clients[port] = client
             log.info("RBN client started on %s:%s", self.cfg.rbn_host, port)
 
-    BACKUP_AFTER_S = 60      # TelBck: RBN down / silent this long -> the telnet server
-    BACKUP_BACK_S = 60       # ... and RBN working this long -> telnet closed again
-
-    def _telnet_backup_due(self) -> bool:
-        """TelBck on, RBN on, Telnet off: RBN down or silent for a minute
-        -> True (until RBN has worked for a minute again)."""
-        if not (getattr(self.cfg, "rbn_telnet_backup", False) and self.cfg.rbn_backup_host
-                and has_source(self.cfg, "rbn")):
-            self._rbn_bad_since = self._rbn_good_since = None
-            self._bck_active = False
-            return False
-        now = time.time()
-        active = getattr(self, "_bck_active", False)
-        if self._rbn_healthy():
-            self._rbn_bad_since = None
-            self._rbn_good_since = self._rbn_good_since or now
-            if active and now - self._rbn_good_since > self.BACKUP_BACK_S:
-                active = False
-                log.info("TelBck: RBN works again - telnet server closed")
-        else:
-            self._rbn_good_since = None
-            self._rbn_bad_since = self._rbn_bad_since or now
-            if not active and now - self._rbn_bad_since > self.BACKUP_AFTER_S:
-                active = True
-                log.info("TelBck: RBN down / silent - %s:%s meanwhile",
-                         self.cfg.rbn_backup_host, self.cfg.rbn_backup_port)
-        self._bck_active = active
-        return active
-
     HQ_AFTER_S = 60     # HamQTH: a telnet connection down this long -> HamQTH meanwhile
     HQ_BACK_S = 60      # ... and working this long again -> HamQTH stopped
 
     def _skimmer_telnet_ok(self) -> bool:
-        """A skimmer telnet connection (RBN or Telnet) is logged in and lines
-        are coming."""
+        """A telnet connection (RBN or a Telnet #1 / #2 / #3) is logged in and
+        lines are coming."""
         now = time.monotonic()
-        clients = list(self._rbn_clients.values()) + [getattr(self, "_telnet_client", None)]
+        clients = list(self._rbn_clients.values()) + telnet_clients(self)
         return any(c is not None and c.connected() and now - getattr(c, "_last_dx", 0) < 120
                    for c in clients)
 
@@ -2653,8 +2510,8 @@ class PouncerApp:
 
     def _spot_source_working(self) -> str:
         """Which source brings spots now - any one is enough for the
-        pre-contest check (v0.7.203): "ok" (RBN), "telnet", "http", "hamqth",
-        "cluster"; "" = none. A telnet source counts when connected and a
+        pre-contest check (v0.7.203): "ok" (RBN), "telnet" / "telnet2" /
+        "telnet3", "http", "hamqth"; "" = none. A telnet source counts when connected and a
         "DX de" line came in the last SOURCE_QUIET_S."""
         if self._rbn_healthy():
             return "ok"
@@ -2666,25 +2523,22 @@ class PouncerApp:
                         and now - getattr(c, "_last_dx", 0) < self.SOURCE_QUIET_S)
             except Exception:  # noqa: BLE001
                 return False
-        if any(live(c) for c in self._rbn_clients.values()) or \
-                live(getattr(self, "_telnet_client", None)):
-            return "telnet" if live(getattr(self, "_telnet_client", None)) else "ok"
+        if any(live(c) for c in self._rbn_clients.values()):
+            return "ok"
+        for n, c in sorted((getattr(self, "_telnet_clients", None) or {}).items()):
+            if live(c):
+                return TELNETS[n - 1]
         hf = getattr(self, "_http_feed", None)
         if hf is not None and hf.spots_in:
             return "http"
         for f in (getattr(self, "_hq_feeds", None) or {}).values():
             if f is not None and f.spots_in and time.time() - f.last_ok < self.SOURCE_QUIET_S:
                 return "hamqth"
-        if live(getattr(self, "_ssb_client", None)) or getattr(self, "_ssb_via_n1mm", False):
-            return "cluster"
         return ""
 
     def _cluster_telnet_ok(self) -> bool:
-        if getattr(self, "_ssb_via_n1mm", False):
-            return True
-        c = getattr(self, "_telnet_client", None) if self._cluster_merged() else \
-            getattr(self, "_ssb_client", None)
-        return c is not None and c.connected()
+        """A Telnet #1 / #2 / #3 (people's spots) is connected."""
+        return any(c.connected() for c in telnet_clients(self))
 
     def _hq_state(self, kind: str, need: bool, ok: bool) -> bool:
         """Down HQ_AFTER_S -> True, until working HQ_BACK_S again."""
@@ -2707,14 +2561,14 @@ class PouncerApp:
         return st["on"]
 
     def _ensure_hamqth(self, paused: bool = False) -> None:
-        """The HamQTH button: HamQTH.com's RBN API while the skimmer telnet
-        connections are down, its DX cluster API while the Cluster one is."""
+        """The HamQTH button: HamQTH.com's RBN API while every skimmer telnet
+        connection is down, its DX cluster API while every Telnet is."""
         c = self.cfg
         team = getattr(self, "team", None)
         slave = team is not None and (time.time() - team.started < 3 or team.role() == "slave")
         on = bool(getattr(c, "rbn_hamqth_backup", False)) and not slave
-        telnet_rbn = has_source(c, "rbn") or has_source(c, "telnet")
-        telnet_cl = self._ssb_wanted()
+        telnet_cl = any(self._telnet_wanted(k) for k in TELNETS)
+        telnet_rbn = has_source(c, "rbn") or telnet_cl
         # with its telnet source on: only while that one is down (a minute);
         # with it off: HamQTH is the source itself, at once
         need = {"rbn": on and not paused and telnet_rbn,
@@ -2739,36 +2593,60 @@ class PouncerApp:
                 log.info("HamQTH %s started: the telnet connection is down (data provided by "
                          "HamQTH.com)", kind)
 
-    def _ensure_telnet_client(self, want: bool) -> None:
-        """The 'Telnet' source: the skimmer spots of the telnet server
-        (backup_host, azure.s53m.com:8000) - and its spots of people when
-        'Cluster' is on too (same node, one login)."""
-        tc = getattr(self, "_telnet_client", None)
-        if not want:
-            if tc is not None:
+    def _ensure_telnet_clients(self) -> None:
+        """Telnet #1 / #2 / #3 (v0.7.213): each ticked one its own connection,
+        all of its spots - skimmers AND people (through the Spotters /
+        Spotted filters). One with the same server as RBN or a Telnet before
+        it is not opened (that one brings the same). Off / unticked: closed."""
+        clients = self.__dict__.setdefault("_telnet_clients", {})
+        same = self.__dict__.setdefault("_telnet_same", {})
+        seen = {}
+        if has_source(self.cfg, "rbn") and not getattr(self, "_rbn_pause_on", False):
+            seen[(str(self.cfg.rbn_host).lower(), int(self.cfg.rbn_port))] = "RBN"
+        first = True
+        for n in (1, 2, 3):
+            key = TELNETS[n - 1]
+            host, port, login, cmds = telnet_conf(self.cfg, n)
+            call = login or self.cfg.rbn_callsign
+            want = self._telnet_wanted(key)
+            where = (host.lower(), port)
+            dup = seen.get(where) if want else None
+            if want and not dup:
+                seen[where] = f"Telnet #{n}"
+            same.pop(n, None)
+            if dup:
+                same[n] = dup
+            tc = clients.get(n)
+            if tc is not None and (not want or dup or (tc.host, tc.port) != (host, port)
+                                   or getattr(tc, "login_call", call) != call):
                 tc.stop()
-                self._telnet_client = None
-                log.info("Telnet client stopped")
-            return
-        if tc is not None:
-            return
+                clients.pop(n, None)
+                log.info("Telnet #%d client stopped", n)
+                tc = None
+            if not want or dup:
+                continue
+            # RBN off: the first Telnet's state is the SPOTS light's text
+            to_light = first and not has_source(self.cfg, "rbn")
+            first = False
+            if tc is not None:
+                tc.status_to_light = to_light
+                continue
 
-        def status(text, self=self):
-            if not has_source(self.cfg, "rbn"):
-                self.status_queue.put(text)       # the RBN light shows this connection
-            if self._cluster_merged() and self._ssb_wanted():
-                self._ssb_status_put(text)
-        tc = RBNClient(self.cfg.rbn_backup_host, self.cfg.rbn_backup_port, self.cfg.rbn_callsign,
-                       self.spotter_filter, self.spot_queue, on_status=status,
-                       history=self.cfg.rbn_history, name="telnet",
-                       backup_commands=self.cfg.rbn_backup_commands, on_raw=self._on_raw_spot)
-        tc.backup_commands = tuple(self.cfg.rbn_backup_commands)
-        tc.on_line = self._relay_back
-        tc.people = self._people_filter()     # skimmer AND people's spots (v0.7.212)
-        tc.start()
-        self._telnet_client = tc
-        log.info("Telnet client started on %s:%s", self.cfg.rbn_backup_host,
-                 self.cfg.rbn_backup_port)
+            def status(text, n=n, self=self):
+                tc_ = self._telnet_clients.get(n)
+                if tc_ is None or getattr(tc_, "status_to_light", False):
+                    self.status_queue.put(text)
+            tc = RBNClient(host, port, call, self.spotter_filter, self.spot_queue,
+                           on_status=status, history=self.cfg.rbn_history, name=key,
+                           backup_commands=cmds, on_raw=self._on_raw_spot)
+            tc.backup_commands = tuple(cmds)
+            tc.login_call = call
+            tc.status_to_light = to_light
+            tc.on_line = self._relay_back
+            tc.people = self._people_filter()     # skimmer AND people's spots
+            clients[n] = tc
+            tc.start()
+            log.info("Telnet #%d client started on %s:%s as %s", n, host, port, call)
 
     FILTER_NAMES = {"calls": "Calls", "dxcc": "DXCC", "zones": "Zones", "cont": "Cont",
                     "ww": "WW"}
@@ -2876,11 +2754,14 @@ class PouncerApp:
                                   if sf.backup_active() else "the listed ones")
         return head + "\n" + body
 
-    SOURCE_NAMES = {"rbn": "RBN", "telnet": "Telnet", "http": "HTTP", "cluster": "Telnet 2"}
+    SOURCE_NAMES = {"rbn": "RBN", "telnet": "Telnet #1", "telnet2": "Telnet #2",
+                    "telnet3": "Telnet #3", "http": "HTTP"}
 
     def _set_source(self, src: str, from_team: bool = False) -> None:
         """A Spots button: switch that source on / off. A team slave asks the
         master (only it is connected); otherwise switch now, save."""
+        from .config import SOURCE_ALIASES
+        src = SOURCE_ALIASES.get(src, src)       # an older team member: "cluster" = Telnet #2
         if src in self.CONN_KEYS:
             self._toggle_conn(src)
             return
@@ -2892,9 +2773,10 @@ class PouncerApp:
             self.status_label.configure(
                 text=f"Asked the team master to switch {self.SOURCE_NAMES[src]} on / off")
             return
-        need = {"telnet": ("rbn_backup_host", "No telnet server set ([rbn] backup_host)"),
-                "http": ("rbn_http_backup", "No HTTP feed set ([rbn] http_backup)"),
-                "cluster": ("ssb_host", "No DX cluster set ([ssb] host)")}
+        need = {"http": ("rbn_http_backup", "No HTTP feed set ([rbn] http_backup)")}
+        for n, k in enumerate(TELNETS, 1):
+            need[k] = (f"telnet{n}_host", f"Telnet #{n} has no server - set it in "
+                                          f"Settings > Spots > Telnet #{n}")
         cur = set(filter(None, str(self.cfg.rbn_source or "").split(",")))
         if src not in cur and src in need and not getattr(self.cfg, need[src][0], ""):
             self.status_label.configure(text=need[src][1])
@@ -2908,8 +2790,7 @@ class PouncerApp:
         self._src_last = None
 
     # the other spot connections on the Spots line: own settings, this PC only
-    CONN_KEYS = {"telnetbck": ("rbn.telnet_backup", "rbn_telnet_backup", "TelBck"),
-                 "hamqth": ("rbn.hamqth_backup", "rbn_hamqth_backup", "HamQTH"),
+    CONN_KEYS = {"hamqth": ("rbn.hamqth_backup", "rbn_hamqth_backup", "HamQTH"),
                  "mycall": ("ui.self_spot_alert", "self_spot_alert", "MyCall"),
                  "relay": ("cluster.relay", "cluster_relay", "Relay")}
 
@@ -2944,13 +2825,10 @@ class PouncerApp:
         note = "master's choice" if slave else (
             "nothing on - no spots" if not on and not getattr(self.cfg, "rbn_hamqth_backup", False)
             else "")
-        if not slave and getattr(self, "_bck_active", False):
-            note = "TelBck: RBN down, telnet server meanwhile"
         hq = [n for n, k in (("skimmers", "rbn"), ("cluster", "spots"))
               if getattr(self, "_hq_feeds", {}).get(k) is not None]
         if not slave and hq:
-            on_telnet = has_source(self.cfg, "rbn") or has_source(self.cfg, "telnet") or \
-                has_source(self.cfg, "cluster")
+            on_telnet = any(has_source(self.cfg, k) for k in ("rbn",) + TELNETS)
             note = (f"HamQTH: telnet down - {' + '.join(hq)} from HamQTH.com meanwhile"
                     if on_telnet else f"{' + '.join(hq)} from HamQTH.com")
         for key, (_s, attr, _n) in self.CONN_KEYS.items():
@@ -2964,8 +2842,8 @@ class PouncerApp:
         self._src_last = sig
         for key, b in self._src_buttons.items():
             b.configure(style="SortOn.TButton" if key in on else "Sort.TButton")
-        names = [self.SOURCE_NAMES[k] for k in ("rbn", "telnet", "cluster", "http") if k in on]
-        extra = [n for k, n in (("telnetbck", "TelBck"), ("hamqth", "HamQTH")) if k in on]
+        names = [self.SOURCE_NAMES[k] for k in ("rbn",) + TELNETS + ("http",) if k in on]
+        extra = [n for k, n in (("hamqth", "HamQTH"),) if k in on]
         summ = "Spots: " + (" + ".join(names) or "none")
         if extra:
             summ += " (backup: " + ", ".join(extra) + ")"
@@ -2977,15 +2855,13 @@ class PouncerApp:
             sl.configure(text=summ)
         self._src_note.configure(text=note)
 
-    SPOT_MENU = (("rbn", "RBN - {c.rbn_host}:{c.rbn_port}"),
-                 ("telnet", "Telnet - {c.rbn_backup_host}:{c.rbn_backup_port} "
-                            "(skimmer + people's spots)"),
-                 ("cluster", "Telnet 2 - a second server, {c.ssb_host}:{c.ssb_port} "
-                             "(people's spots; Settings > Spots > Telnet 2)"),
+    SPOT_MENU = (("rbn", "RBN - {c.rbn_host}:{c.rbn_port} (skimmer spots)"),
+                 ("telnet", "Telnet #1 - {t1}"),
+                 ("telnet2", "Telnet #2 - {t2}"),
+                 ("telnet3", "Telnet #3 - {t3}"),
                  ("http", "HTTP - RBN over HTTP (azure)"),
                  (None, None),
-                 ("telnetbck", "TelBck - the telnet server while RBN is down"),
-                 ("hamqth", "HamQTH - its APIs while the telnet is down (or alone)"))
+                 ("hamqth", "HamQTH - stands in while every telnet is down (or alone)"))
 
     def _refresh_spot_menus(self) -> None:
         """Before a menu opens: labels with the lists, ticks from the settings."""
@@ -2996,7 +2872,8 @@ class PouncerApp:
                 if key is None:
                     continue
                 try:
-                    m.entryconfigure(idx, label=text.format(c=c))
+                    m.entryconfigure(idx, label=text.format(
+                        c=c, t1=telnet_label(c, 1), t2=telnet_label(c, 2), t3=telnet_label(c, 3)))
                 except (tk.TclError, AttributeError, KeyError):
                     pass
                 on = has_source(c, key) if key in self.SOURCE_NAMES else \
@@ -3048,8 +2925,7 @@ class PouncerApp:
     def _show_connections(self) -> None:
         """Spots > The connections now: every source's connection and state."""
         text = "\n\n".join(self._source_tip(k) for k in
-                            ("rbn", "telnet", "http", "cluster", "telnetbck", "hamqth",
-                             "mycall", "relay"))
+                            ("rbn",) + TELNETS + ("http", "hamqth", "mycall", "relay"))
         text += "\n\nSpotters: " + (self.spotter_filter.label() or "all")
         sf = getattr(self, "spotted_filter", None)
         text += "\nSpotted: " + (sf.label() if sf is not None else "all")
@@ -3092,11 +2968,18 @@ class PouncerApp:
             return (f"{head}\n{c.rbn_host}:{c.rbn_port} (telnet), login {call}\n"
                     f"Skimmer spots; skimmers: {self.spotter_filter.label() or 'all'}\n"
                     f"Now: {st(cl) if on else 'off'}")
-        if key == "telnet":
-            tc = getattr(self, "_telnet_client", None)
-            return (f"{head}\n{c.rbn_backup_host}:{c.rbn_backup_port} (telnet), login {call}\n"
-                    f"Its skimmer spots ('-#'); skimmers: {self.spotter_filter.label() or 'all'}\n"
-                    f"Now: {st(tc) if on else 'off'}")
+        if key in TELNETS:
+            n = telnet_no(key)
+            host, port, login, cmds = telnet_conf(c, n)
+            tc = (getattr(self, "_telnet_clients", None) or {}).get(n)
+            dup = (getattr(self, "_telnet_same", None) or {}).get(n)
+            now = ("off" if not on else f"nothing extra - the same server as {dup}" if dup
+                   else st(tc))
+            srv = f"{host}:{port}" if host else f"(no server - Settings > Spots > Telnet #{n})"
+            return (f"{head}\n{srv} (telnet), login {login or call}"
+                    f"{', then ' + ', '.join(cmds) if cmds else ''}\n"
+                    f"All its spots: skimmers ('-#') and people; "
+                    f"spotters: {self.spotter_filter.label() or 'all'}\nNow: {now}")
         if key == "http":
             f = self._http_feed
             if f is None:
@@ -3106,15 +2989,6 @@ class PouncerApp:
                 now = (f"{f.spots_in} spots, last answer {age:.0f} s ago" if age is not None
                        else "waiting for the first answer")
             return f"{head}\n{c.rbn_http_backup or '(no URL)'}\nSkimmer spots over HTTP\nNow: {now}"
-        if key == "cluster":
-            merged = self._cluster_merged()
-            cl = getattr(self, "_telnet_client", None) if merged else getattr(self, "_ssb_client", None)
-            now = ("from N1MM's spots (N1MM is connected to the cluster itself)"
-                   if getattr(self, "_ssb_via_n1mm", False) else (st(cl) if on else "off"))
-            return (f"{head}\n{c.ssb_host}:{c.ssb_port} (telnet), login "
-                    f"{(c.rbn_callsign if merged else c.ssb_login) or call}"
-                    f"{' - the same connection as Telnet' if merged else ''}\n"
-                    f"Spots of people (no '-#'), spotters: {c.ssb_spotters}\nNow: {now}")
         return head
 
     def _conn_tip(self, key: str) -> str:
@@ -3122,25 +2996,6 @@ class PouncerApp:
         _s, attr, name = self.CONN_KEYS[key]
         on = bool(getattr(c, attr, False))
         head = f"{name} - {'ON' if on else 'off'} (click = switch {'off' if on else 'on'})"
-        if key == "telnetbck":
-            tc = getattr(self, "_telnet_client", None)
-            if not on:
-                now = "off - nothing takes over when RBN is down"
-            elif has_source(c, "telnet"):
-                now = "not needed - Telnet is on anyway"
-            elif not has_source(c, "rbn"):
-                now = "not used - RBN is off"
-            elif getattr(self, "_bck_active", False):
-                now = ("ACTIVE - RBN down / silent; " +
-                       ((getattr(tc, "status_text", "") or "connecting") if tc else "starting"))
-            else:
-                bad = getattr(self, "_rbn_bad_since", None)
-                now = (f"RBN not working for {time.time() - bad:.0f} s (takes over after "
-                       f"{self.BACKUP_AFTER_S} s)" if bad else "standby - RBN works")
-            return (f"{head}\n{c.rbn_backup_host}:{c.rbn_backup_port} (telnet), login "
-                    f"{c.rbn_callsign or '?'} - its skimmer spots\nTakes over when RBN has been "
-                    f"down or silent for {self.BACKUP_AFTER_S} s, closes after RBN works "
-                    f"{self.BACKUP_BACK_S} s again\nNow: {now}")
         if key == "hamqth":
             feeds = getattr(self, "_hq_feeds", {})
             st = getattr(self, "_hq_st", {})
@@ -3158,8 +3013,8 @@ class PouncerApp:
             now = ("off - nothing takes over" if not on else
                    one("rbn", "skimmers") + "; " + one("spots", "cluster"))
             return (f"{head}\nhttps://www.hamqth.com/api/v2/rbn (skimmers) and /api/v2/spots "
-                    f"(cluster), every 20 s, no login\nWith RBN / Telnet (skimmers) or Cluster "
-                    f"on: only while that telnet is down ({self.HQ_AFTER_S} s), stops "
+                    f"(cluster), every 20 s, no login\nWith RBN or a Telnet on: only while "
+                    f"every telnet is down ({self.HQ_AFTER_S} s), stops "
                     f"{self.HQ_BACK_S} s after it works again; with them off: the source itself. "
                     f"Data provided by HamQTH.com\nNow: {now}")
         if key == "mycall":
@@ -4181,13 +4036,6 @@ class PouncerApp:
             except queue.Empty:
                 break
             self.rbn_status = status
-        while True:
-            try:
-                status = self._ssb_status_q.get_nowait()
-            except queue.Empty:
-                break
-            if not getattr(self, "_ssb_via_n1mm", False):   # a stopped client's last words
-                self.ssb_status = status
 
     MERGE_S = 60      # the same call / frequency / spotter from two sources within this = once
 
@@ -4879,8 +4727,8 @@ class PouncerApp:
         net = self.net
         self.status_label.configure(text="Internet back after " + minutes_text(net.back_after))
         # every feed: try now, not after its backoff (up to a minute)
-        clients = list(self._rbn_clients.values()) + [
-            getattr(self, "_ssb_client", None), getattr(self, "_self_feed", None)]
+        clients = list(self._rbn_clients.values()) + telnet_clients(self) + [
+            getattr(self, "_self_feed", None)]
         for c in clients:
             if c is not None and hasattr(c, "kick"):
                 c.kick()
@@ -5570,6 +5418,20 @@ class PouncerApp:
                           relief="solid" if band in (here, self._view_band) else "flat",
                           bd=2 if viewed else (1 if band == here else 0))
 
+    def _telnet_states(self) -> list:
+        """[(n, status)] of the ticked Telnets for the Telnet light."""
+        out = []
+        for n, key in enumerate(TELNETS, 1):
+            if not has_source(self.cfg, key):
+                continue
+            if (getattr(self, "_telnet_same", None) or {}).get(n):
+                out.append((n, "same"))
+                continue
+            tc = (getattr(self, "_telnet_clients", None) or {}).get(n)
+            out.append((n, (getattr(tc, "status_text", "") or "starting") if tc is not None
+                        else ("" if telnet_conf(self.cfg, n)[0] else "no server")))
+        return out
+
     def _light_states(self, snap) -> list[tuple[str, str]]:
         role = self.team.role() if self.team is not None else "off"
         n = len(self.team.alive_peers()) + 1 if self.team is not None else 1
@@ -5584,17 +5446,11 @@ class PouncerApp:
             lights.log_light(self.worked.log_open, self.worked.log_state),
             lights.team_light(role, n, self.team.version_mismatch() if self.team else None),
             lights.web_light(self.cfg.web_enabled, self.web is not None),
-            lights.ssb_light(self.ssb_status, role),
+            lights.telnet_light(self._telnet_states(), role),
             lights.http_light(bool(getattr(self.cfg, "rbn_http_backup", "")) and role != "slave"
                               and has_source(self.cfg, "http"),
                               self._http_feed is not None,
                               self._http_feed is not None and bool(self._http_feed.spots_in)),
-            lights.n1mm_spots_light(
-                getattr(self.cfg, "ssb_use_n1mm", "auto") != "off",
-                getattr(self, "_n1mm_spot_first", None) is not None,
-                getattr(self, "_ssb_via_n1mm", False),
-                (time.time() - self._n1mm_spot_last) if getattr(self, "_n1mm_spot_last", 0) else None,
-                self._n1mm_quiet_limit()),
             lights.warm_light(self.runhist is not None and self.cfg.warmup,
                               self.runhist.warm_status if self.runhist else ""),
             lights.hamfiles_light(bool(self.cty), self.scp is not None,
@@ -6825,9 +6681,9 @@ class PouncerApp:
             self.cwspeed.stop()
         if getattr(self, "clock", None) is not None:
             self.clock.stop()
-        if getattr(self, "_ssb_client", None) is not None:
-            self._ssb_client.stop()
-            self._ssb_client = None
+        for tc in telnet_clients(self):
+            tc.stop()
+        self._telnet_clients = {}
         if self._listener is not None:
             self._listener.stop()
         self.controller.close()

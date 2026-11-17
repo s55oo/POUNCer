@@ -1,8 +1,7 @@
 """Connection lights for the main window: one coloured dot per connection.
 
 green = working (this stream delivers), yellow = on hold (ready, not
-needed now: SPOTS (RBN) on SSB, the SSB cluster while N1MM sends, the HTTP backup
-while telnet works), amber = connecting / partly there, red = not working
+needed now: SPOTS (RBN) on SSB, a Telnet on the same server as RBN), amber = connecting / partly there, red = not working
 (connection problem), grey = switched off. Pure logic (no tkinter), so it is
 testable anywhere; ``app.py`` draws the dots.
 """
@@ -19,14 +18,15 @@ N1MM_QUIET_S = 120   # no radio info this long = N1MM probably closed
 RBN_SPOT_S = 120     # a spot this recently = RBN works whatever the status says
 
 
-VIA = {"ok": "RBN", "telnet": "Telnet", "http": "HTTP", "hamqth": "HamQTH", "cluster": "Telnet 2"}
+VIA = {"ok": "RBN", "telnet": "Telnet #1", "telnet2": "Telnet #2", "telnet3": "Telnet #3",
+       "http": "HTTP", "hamqth": "HamQTH"}
 
 
 def rbn_light(status: str, last_spot_age: float | None, role: str,
               http: bool = False, working: str = "") -> tuple[str, str]:
     """The SPOTS light (called RBN up to v0.7.202): green as long as ONE source
     brings spots - ``working`` = ``app._spot_source_working()`` ("ok" = RBN,
-    "telnet", "http", "hamqth", "cluster") - else from RBN's own status."""
+    "telnet" / "telnet2" / "telnet3", "http", "hamqth") - else from RBN's own status."""
     s0 = (status or "").lower()
     if s0.startswith("paused"):
         return HOLD, "SPOTS on hold (SSB)"  # SSB contest / every radio on SSB: not needed
@@ -79,23 +79,36 @@ def team_light(role: str, pouncers: int,
     return OFF, "Team off"
 
 
-def ssb_light(status: str, role: str = "solo") -> tuple[str, str]:
-    """The 'Telnet 2' source (was 'Cluster', v0.7.212): people's spots from
-    a DX cluster of your choice."""
+def telnet_light(states, role: str = "solo") -> tuple[str, str]:
+    """The Telnet #1 / #2 / #3 sources (v0.7.213), one light: ``states`` =
+    [(n, status)] of the ticked ones; status = the connection's text, "same"
+    (the same server as one before it: nothing extra) or "" (not set)."""
     if role == "slave":
-        return OK, "Telnet 2 via master"
-    s = (status or "").lower()
-    if s in ("", "off"):
-        return OFF, "Telnet 2 off"
-    if s.startswith("via n1mm"):
-        return HOLD, "Telnet 2 via N1MM"    # N1MM's spots instead (N1MM on the cluster itself)
-    if s.startswith("same as telnet"):
-        return HOLD, "Telnet 2 = Telnet's server (nothing extra)"
-    if s.startswith(("logged in", "via n1mm's")):
-        return OK, "Telnet 2"
-    if s.startswith(("connecting", "starting")):
-        return WAIT, "Telnet 2"
-    return BAD, "Telnet 2"
+        return OK, "Telnet via master"
+    if not states:
+        return OFF, "Telnet off"
+    good, bad, wait = [], [], []
+    for n, st in states:
+        s = (st or "").lower()
+        if s == "same":
+            continue
+        if s.startswith("logged in"):
+            good.append(n)
+        elif s.startswith(("connecting", "starting")) or not s:
+            wait.append(n)
+        else:
+            bad.append(n)
+    used = sorted(good + bad + wait)
+    name = "Telnet " + "+".join(f"#{n}" for n in used) if used else "Telnet"
+    if not used:
+        return HOLD, "Telnet: same server as RBN (nothing extra)"
+    if good and not bad and not wait:
+        return OK, name
+    if good or wait:
+        down = bad + wait
+        return WAIT, name + (" (" + ", ".join(f"#{n}" for n in sorted(down)) + " not yet)"
+                             if good and down else "")
+    return BAD, name
 
 
 def http_light(configured: bool, active: bool, delivering: bool) -> tuple[str, str]:
@@ -106,17 +119,6 @@ def http_light(configured: bool, active: bool, delivering: bool) -> tuple[str, s
     if not active:
         return WAIT, "HTTP"
     return (OK, "HTTP") if delivering else (BAD, "HTTP")
-
-
-def n1mm_spots_light(use: bool, seen: bool, via: bool, quiet_s: float | None,
-                     limit_s: float) -> tuple[str, str]:
-    """N1MM's spot packets (Broadcast Data > Spots): green while they replace
-    our SSB cluster, yellow = sending but not used now, red = stopped."""
-    if not use or not seen:
-        return OFF, "N1MM spots off"
-    if quiet_s is not None and quiet_s > limit_s:
-        return BAD, "N1MM spots stopped"
-    return (OK, "N1MM spots") if via else (HOLD, "N1MM spots on hold")
 
 
 def web_light(enabled: bool, running: bool) -> tuple[str, str]:

@@ -14,7 +14,7 @@ class LightsTests(unittest.TestCase):
         self.assertEqual(L.rbn_light("starting", None, "slave"), (L.OK, "SPOTS via master"))
         # RBN not logged in, but Telnet brings spots: green, named after it
         self.assertEqual(L.rbn_light("disconnected, reconnecting", None, "solo", working="telnet"),
-                         (L.OK, "SPOTS via Telnet"))
+                         (L.OK, "SPOTS via Telnet #1"))
         self.assertEqual(L.rbn_light("logged in as S55OO", None, "solo", working="ok"),
                          (L.OK, "SPOTS via RBN"))
         self.assertEqual(L.rbn_light("paused", None, "solo", working="telnet")[0], L.HOLD)

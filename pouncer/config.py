@@ -85,16 +85,25 @@ class Config:
     spotted_zones: str = ""
     spotted_conts: str = ""
     rbn_history: int = 30
-    # backup telnet server when RBN's own telnet is down (CW feed)
-    rbn_backup_host: str = "azure.s53m.com"
-    # where the spots come in from - each on/off (the Spots buttons), comma
-    # separated: rbn (reversebeacon.net), telnet (backup_host: its skimmer
-    # spots), http (http_backup), cluster (the DX cluster's spots of people)
-    rbn_source: str = "rbn,cluster"
-    rbn_telnet_backup: bool = False  # Telnet-bck: the telnet server while RBN is down
+    # where the spots come in from - each on/off (Spots menu), comma
+    # separated: rbn (reversebeacon.net), telnet / telnet2 / telnet3 (Telnet
+    # #1 / #2 / #3: [telnet1] .. [telnet3], skimmer AND people's spots), http
+    rbn_source: str = "rbn,telnet"
     rbn_hamqth_backup: bool = False  # HamQTH: its RBN / cluster APIs while the telnets are down
-    rbn_backup_port: int = 8000
-    rbn_backup_commands: tuple = ()     # at start ask RBN for the last spots (SH/DX); 0 = off
+    # Telnet #1 / #2 / #3 (v0.7.213, were "Telnet" = [rbn] backup_host and
+    # "Telnet 2" = [ssb] host): equal sources, each its own connection
+    telnet1_host: str = "azure.s53m.com"
+    telnet1_port: int = 8000
+    telnet1_login: str = ""          # empty = the RBN callsign
+    telnet1_commands: tuple = ()     # sent after login, e.g. set/skimmer
+    telnet2_host: str = ""
+    telnet2_port: int = 8000
+    telnet2_login: str = ""
+    telnet2_commands: tuple = ()
+    telnet3_host: str = ""
+    telnet3_port: int = 8000
+    telnet3_login: str = ""
+    telnet3_commands: tuple = ()
     # RBN over HTTP (S53ZO's Azure feed) while the telnet feed is down / silent
     rbn_http_backup: str = "https://azure.s53m.com/cors/rbn/live"
     # close the RBN connection while every radio is on SSB / AM / FM (phone
@@ -208,14 +217,8 @@ class Config:
     # SSB: human DX-cluster spots (RBN has no SSB) - auto = when a radio is
     # on USB/LSB (a team master: any team radio; 60 s grace), always, off
     ssb_mode: str = "auto"
-    ssb_host: str = "azure.s53m.com"
-    ssb_port: int = 8000
     ssb_spotters: str = "EU"     # spotter continent (EU, NA, ... or ALL)
-    ssb_history: int = 30
-    ssb_login: str = ""          # empty = the RBN callsign
-    ssb_commands: tuple = ()
     ssb_pskreporter: bool = True  # 7074-7077 SSB spot: ask PSK Reporter if he is on FT8
-    ssb_use_n1mm: str = "auto"   # auto = N1MM's spot packets replace our cluster while they come; off
     follow_radio_mode: bool = True   # radio on USB/LSB -> SSB spots, CW -> CW
     web_enabled: bool = True
     web_remote_settings: bool = False  # settings page: change from other devices too
@@ -243,7 +246,24 @@ def parse_radio(text: str, fallback: int = 1) -> int:
     return 2 if fallback == 2 else 1
 
 
-SOURCES = ("rbn", "telnet", "http", "cluster")
+SOURCES = ("rbn", "telnet", "telnet2", "telnet3", "http")
+TELNETS = ("telnet", "telnet2", "telnet3")     # Telnet #1 / #2 / #3 (v0.7.213)
+# older names: "cluster" was Telnet 2 (people's spots of [ssb] host)
+SOURCE_ALIASES = {"cluster": "telnet2", "telnet1": "telnet", "telnet 2": "telnet2",
+                  "telnet #1": "telnet", "telnet #2": "telnet2", "telnet #3": "telnet3"}
+
+
+def telnet_no(key: str) -> int:
+    """'telnet' -> 1, 'telnet2' -> 2, 'telnet3' -> 3."""
+    return TELNETS.index(key) + 1
+
+
+def telnet_conf(cfg, n: int) -> tuple:
+    """(host, port, login, commands) of Telnet #n; login '' = the RBN call."""
+    return (str(getattr(cfg, f"telnet{n}_host", "") or "").strip(),
+            int(getattr(cfg, f"telnet{n}_port", 8000) or 8000),
+            str(getattr(cfg, f"telnet{n}_login", "") or "").strip(),
+            tuple(getattr(cfg, f"telnet{n}_commands", ()) or ()))
 
 
 PHONE_CONTROL = ("phone", "all", "off")
@@ -264,6 +284,7 @@ def parse_sources(text) -> str:
     """'Telnet, RBN,x' -> 'rbn,telnet': the known ones, in a fixed order,
     each once. Empty = none (no spots - the user's choice)."""
     want = {w.strip().lower() for w in str(text or "").replace(";", ",").split(",")}
+    want = {SOURCE_ALIASES.get(w, w) for w in want}
     return ",".join(x for x in SOURCES if x in want)
 
 
@@ -300,19 +321,39 @@ def load_config(path: str) -> Config:
     cfg.rbn_callsign = s("rbn", "callsign", cfg.rbn_callsign).strip().upper()
     cfg.rbn_spotter = s("rbn", "spotter", cfg.rbn_spotter)
     cfg.rbn_history = max(0, i("rbn", "history", cfg.rbn_history))
-    cfg.rbn_backup_host = s("rbn", "backup_host", cfg.rbn_backup_host).strip()
-    cfg.rbn_telnet_backup = b("rbn", "telnet_backup", cfg.rbn_telnet_backup)
     cfg.rbn_hamqth_backup = b("rbn", "hamqth_backup", cfg.rbn_hamqth_backup)
     if parser.has_option("rbn", "sources"):
         cfg.rbn_source = parse_sources(s("rbn", "sources", cfg.rbn_source))
-    else:    # older config.ini: one source (+ the SSB cluster, unless it was off)
+    elif parser.has_option("rbn", "source"):   # older config.ini: one source (+ the SSB cluster)
         one = s("rbn", "source", "rbn").strip().lower()
         one = one if one in ("rbn", "telnet", "http") else "rbn"
         ssb_off = s("ssb", "mode", "auto").strip().lower() == "off"
-        cfg.rbn_source = parse_sources(one + ("" if ssb_off else ",cluster"))
-    cfg.rbn_backup_port = i("rbn", "backup_port", cfg.rbn_backup_port)
-    cfg.rbn_backup_commands = tuple(
-        c.strip() for c in s("rbn", "backup_commands", "").split(",") if c.strip())
+        cfg.rbn_source = parse_sources(one + ("" if ssb_off else ",telnet"))
+    # Telnet #1 / #2 / #3; an older config.ini: #1 = [rbn] backup_host / port /
+    # commands, #2 = [ssb] host / port / login / commands (read, not rewritten)
+    old = {1: ("rbn", "backup_host", "backup_port", None, "backup_commands"),
+           2: ("ssb", "host", "port", "login", "commands")}
+    for n in (1, 2, 3):
+        sec = f"telnet{n}"
+        osec, ohost, oport, ologin, ocmds = old.get(n, (None,) * 5)
+
+        def pick(key, okey, default):
+            if parser.has_option(sec, key):
+                return s(sec, key, default)
+            if osec and okey and parser.has_option(osec, okey):
+                return s(osec, okey, default)
+            return default
+        setattr(cfg, f"{sec}_host", str(pick("host", ohost, getattr(cfg, f"{sec}_host"))).strip())
+        try:
+            setattr(cfg, f"{sec}_port", int(str(pick("port", oport, getattr(cfg, f"{sec}_port"))).strip()))
+        except ValueError:
+            pass
+        setattr(cfg, f"{sec}_login", str(pick("login", ologin, "")).strip().upper())
+        setattr(cfg, f"{sec}_commands", tuple(
+            c.strip() for c in str(pick("commands", ocmds, "")).split(",") if c.strip()))
+    if not parser.has_section("telnet2") and \
+            (cfg.telnet2_host.lower(), cfg.telnet2_port) == (cfg.telnet1_host.lower(), cfg.telnet1_port):
+        cfg.telnet2_host = ""   # the old Telnet 2 = Telnet's own server: nothing extra, left empty
     cfg.rbn_http_backup = s("rbn", "http_backup", cfg.rbn_http_backup).strip()
     cfg.rbn_pause_on_phone = b("rbn", "pause_on_phone", cfg.rbn_pause_on_phone)
     cfg.scp_enabled = b("scp", "enabled", cfg.scp_enabled)
@@ -439,8 +480,6 @@ def load_config(path: str) -> Config:
 
     sm = s("ssb", "mode", cfg.ssb_mode).strip().lower()
     cfg.ssb_mode = sm if sm in ("auto", "always", "off") else "auto"
-    cfg.ssb_host = s("ssb", "host", cfg.ssb_host).strip()
-    cfg.ssb_port = i("ssb", "port", cfg.ssb_port)
     cfg.ssb_spotters = s("ssb", "spotters", cfg.ssb_spotters).strip().upper() or "EU"
     # the Spotters filter; older config.ini: calls / zones from [rbn] spotter,
     # continents from [ssb] spotters
@@ -461,13 +500,8 @@ def load_config(path: str) -> Config:
     cfg.spotted_dxcc = s("spotted", "dxcc", cfg.spotted_dxcc).strip()
     cfg.spotted_zones = s("spotted", "zones", cfg.spotted_zones).strip()
     cfg.spotted_conts = s("spotted", "conts", cfg.spotted_conts).strip().upper()
-    cfg.ssb_history = max(0, i("ssb", "history", cfg.ssb_history))
-    cfg.ssb_login = s("ssb", "login", "").strip()
-    cfg.ssb_commands = tuple(c.strip() for c in s("ssb", "commands", "").split(",") if c.strip())
     cfg.follow_radio_mode = b("ssb", "follow_radio_mode", cfg.follow_radio_mode)
     cfg.ssb_pskreporter = b("ssb", "pskreporter", cfg.ssb_pskreporter)
-    un = s("ssb", "use_n1mm_spots", cfg.ssb_use_n1mm).strip().lower()
-    cfg.ssb_use_n1mm = "off" if un in ("off", "false", "no", "0") else "auto"
     cfg.web_enabled = b("web", "enabled", cfg.web_enabled)
     cfg.web_remote_settings = b("web", "remote_settings", cfg.web_remote_settings)
     cfg.web_cw_keyboard = b("web", "cw_keyboard", cfg.web_cw_keyboard)

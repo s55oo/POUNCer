@@ -1,6 +1,6 @@
 """Traffic console (Tools > Traffic console): what comes in and goes out.
 
-Raw lines of every source as they arrive - RBN and the SSB cluster (telnet
+Raw lines of every source as they arrive - RBN and the Telnet #1 / #2 / #3 (telnet
 lines, and the commands sent), N1MM (UDP packets in, QSY / call commands
 out), the HTTP backup feed, the team, the phone page's requests. The taps
 (``traffic.emit``) only work while this window is open; closed = no work.
@@ -17,7 +17,7 @@ Sources can be ticked off (they keep being counted; a line in the view marks
 the switch), a filter word (a call, "DX de", "RadioInfo" ...) shows matching
 lines only, Pause freezes the view (lines keep counting), Clear empties it.
 The top bar shows per source: lines so far, "hidden", how long it has been
-quiet, and why (``notes()`` from the app: RBN paused on SSB, SSB via N1MM,
+quiet, and why (``notes()`` from the app: RBN paused on SSB, no Telnet on,
 via the team master ...). At most ``KEEP`` lines are kept in the window.
 """
 
@@ -43,7 +43,7 @@ BACKUP_COLOR = "#ff9800"   # taken via the backup skimmers (chosen ones quiet)
 DOT = {"live": "#43a047", "quiet": "#f9a825", "dead": "#e53935", "why": "#78909c"}
 GROUPS = traffic.GROUPS
 group_of = traffic.group_of
-COLORS = {"RBN": "#81c784", "TELNET": "#80cbc4", "SSB": "#ffb74d", "HTTP": "#4fc3f7", "N1MM": "#ce93d8",
+COLORS = {"RBN": "#81c784", "TELNET": "#80cbc4", "HTTP": "#4fc3f7", "N1MM": "#ce93d8",
           "TEAM": "#90caf9", "WEB": "#b0bec5", "PSKR": "#f48fb1", "SERVER": "#ffcc80", "FT8": "#ff8a65", "BEACON": "#b0bec5",
           "OUT": "#ffeb3b"}
 

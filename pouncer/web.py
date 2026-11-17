@@ -2158,13 +2158,11 @@ continent, <span style="color:#5bc35b">green</span> = DX, brighter = more spots.
 the numbers. 6 / 12 / 24 / 48 h; kept 48 hours, also over a restart.</p>
 
 <h2>SSB</h2>
-<p>RBN has no SSB, so on SSB the spots come from a <b>DX cluster</b> (human spots, only from
-spotters in Europe): POUNCer&#39;s own cluster connection while the <b>Cluster</b> source is on
-(the Spots menu) - or N1MM&#39;s spots (Broadcast Data &gt; Spots) while N1MM is
-connected to the cluster itself. The list follows the radio: radio
-on USB / LSB = SSB spots, on CW = the RBN CW spots - per radio (A / B). In an SSB contest
-RBN is not connected at all. On SSB the WPM keys are hidden. Settings: <b>SSB</b> on the
-Settings page.</p>
+<p>RBN has no SSB, so on SSB the spots are people&#39;s spots from a <b>DX cluster</b>:
+tick a <b>Telnet #1 / #2 / #3</b> in the Spots menu (each brings its server&#39;s skimmer and
+people&#39;s spots, through your Spotters filter). The list follows the radio: radio
+on USB / LSB = SSB spots, on CW = the CW skimmer spots - per radio (A / B). In an SSB contest
+RBN is not connected at all. On SSB the WPM keys are hidden.</p>
 
 <h2>Settings</h2>
 <p><b>Settings</b> in the band menu (or <b>Settings...</b> in the main window's menu bar, a window with tabs): the

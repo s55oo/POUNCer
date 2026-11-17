@@ -111,7 +111,7 @@ class ShownTests(unittest.TestCase):
         self.assertTrue(f._console_shown("telnet", IN_ZONE))      # skimmers still yellow
         f.cfg.rbn_source = "telnet"                    # v0.7.212: Telnet brings people's too
         self.assertTrue(f._console_shown("telnet", person))
-        f.cfg.rbn_source = "rbn,cluster"               # Telnet 2 on
+        f.cfg.rbn_source = "rbn,telnet3"               # Telnet #3 on
         self.assertTrue(f._console_shown("telnet", person))
 
     def test_all_pass_without_filters(self) -> None:
