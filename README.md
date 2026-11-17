@@ -845,6 +845,16 @@ the cluster server (port 10000):
   10-second evidence window. Mirrors and upstream `Q:n` are not extra votes.
   Reports excluded by the Spotters filter may supply evidence without
   consuming a selected station's episode. Raw traffic remains visible.
+- When two distinct skimmer receiver bases have reported the same CW call in
+  the last 180 seconds, a different skimmer call within 100 Hz needs a second
+  receiver of its own. The two reports of the incumbent must also agree within
+  100 Hz. A second receiver confirming the newcomer allows it through under
+  its own callsign. An unconfirmed report expires silently. This also applies
+  to merged feeds that carry CW spots with a structured dB report. Human spots
+  with ordinary comments, other modes and clear frequencies keep their usual
+  admission rules. Adjust the radius and lifetime with `cw_conflict_hz` and
+  `cw_conflict_seconds`. A genuine station heard by only one skimmer close to
+  an established run can be withheld during this window.
 - Set each Telnet's **source role** in Settings > Spots (`role` in `[telnet1]`
   .. `[telnet4]`): `cluster` (default), `local` (direct skimmer), `rbn` (raw
   multi-receiver feed), or `gocluster` (processed reference). Only `cluster`

@@ -6,7 +6,7 @@ Unwanted receivers can supply evidence without consuming an output episode.
 from collections import OrderedDict
 from dataclasses import replace
 
-from .spot_processing import SpotProcessor, parse_spot as parse_header
+from .spot_processing import SpotProcessor, _IndexedStore, parse_spot as parse_header
 from .clusterserver import spot_comment
 from .config import TELNETS
 from .bands import band_from_khz
@@ -21,6 +21,10 @@ class Collector:
         self.templates = OrderedDict()
         self.selected = OrderedDict()
         self.deferred = OrderedDict()
+        self.cw_waiting = _IndexedStore(self.engine.config['max_entries'],
+                                        self.engine.config['cw_conflict_seconds'],
+                                        lambda pending: pending[0].at,
+                                        {'call': lambda key, pending: key[:2]}, inclusive=True)
         self._active = None
 
     @staticmethod
@@ -73,8 +77,10 @@ class Collector:
             self.epochs.clear()
             self.selected.clear()
             self.deferred.clear()
+            self.cw_waiting.clear()
         self.engine.admission = lambda obs, call, frequency: self._admission(app, obs, call, frequency)
         self.enabled = enabled
+        self.cw_waiting.prune(self.engine.clock())
 
     @staticmethod
     def _wire(spot):
@@ -107,6 +113,9 @@ class Collector:
         for spot in spots:
             key = (spot.dxcall.upper(), band_from_khz(spot.freq_khz), spot.mode)
             self._put(self.selected, key, spot)
+            if key[1] and spot.mode == 'CW':
+                for waiting in list(self.cw_waiting.keys_for('call', (key[1].upper(), key[0]))):
+                    del self.cw_waiting[waiting]
         return spots
 
     def _template(self, obs):
@@ -171,18 +180,45 @@ class Collector:
         else:
             self.deferred.pop(deferred_key, None)
         selected = [self._convert(spot, output) for output in outputs]
+        obs = self.engine.last_observation
+        if obs is not None and not replay:
+            if evaluation.get('reason') == 'cw-conflict-unconfirmed':
+                self._wait_for_cw(obs, spot)
+            elif not receiver_wanted:
+                released.extend(self._confirm_waiting_cw(app, obs))
         if not replay and self.engine.last_observation is not None and receiver_wanted:
             self._note_observation(app, spot, evaluation)
+        reason = evaluation.get('reason', '')
+        if evaluation.get('occupant'):
+            reason += " (occupied by " + evaluation['occupant'] + ")"
         if evaluation and not outputs:
             u = getattr(app, "_unpub", None)
             if u is not None:
                 u.note(spot, "collector: " + "; ".join(
-                    str(evaluation.get(k)) for k in ("reason", "frequency_basis", "call")
-                    if evaluation.get(k) not in (None, "")))
+                    str(value) for value in (reason, evaluation.get('frequency_basis'), evaluation.get('call'))
+                    if value not in (None, '')))
         if evaluation and (not outputs or evaluation.get('frequency_basis') != 'input'):
             traffic.emit("collector", f"{spot.dxcall} {spot.freq_khz:.2f}: "
-                         f"{evaluation.get('reason', '')}; {evaluation.get('frequency_basis', '')}")
+                         f"{reason}; {evaluation.get('frequency_basis', '')}")
         return released + self._remember(selected) + self.drain(app, through=received_at)
+
+    def _wait_for_cw(self, obs, spot):
+        if obs.spot.observed_at is not None:
+            key = (obs.spot.band, obs.spot.call, obs.source, obs.spot.origin)
+            self._put(self.cw_waiting, key, (obs, spot))
+
+    def _confirm_waiting_cw(self, app, confirmer):
+        identity = (confirmer.spot.band, confirmer.spot.call)
+        for waiting, template in self.cw_waiting.values_for('call', identity):
+            self._active = (waiting.source, waiting.spot.raw, template)
+            try:
+                outputs = self.engine.confirm_waiting_cw(waiting, confirmer)
+            finally:
+                self._active = None
+            if outputs:
+                self._note_observation(app, template, self.engine.last_evaluation)
+                return self._remember([self._convert(template, output) for output in outputs])
+        return []
 
     def _note_observation(self, app, spot, evaluation):
         observed = replace(spot, dxcall=evaluation.get('call', spot.dxcall),
@@ -201,6 +237,8 @@ class Collector:
                 continue
             if not event['delta'].get('stale_spots'):
                 self._note_observation(app, template, event['evaluation'])
+            if event['evaluation'].get('reason') == 'cw-conflict-unconfirmed':
+                self._wait_for_cw(event['observation'], template)
             for output in event['outputs']:
                 selected.append(self._convert(template, output))
             if event['evaluation'].get('reason') == 'filtered':
@@ -238,6 +276,7 @@ class Collector:
         text = (f"Collector: {'on' if self.enabled else 'off'} | "
                 f"selected {counts.get('delivered_spots', 0)} | "
                 f"repeats suppressed {counts.get('suppressed_repeats', 0)} | "
+                f"CW conflicts held {counts.get('cw_conflicts_held', 0)} | "
                 f"moves confirmed {counts.get('confirmed_moves', 0)} | "
                 f"calls corrected {counts.get('callsign_corrections', 0)}")
         rows = self.engine.alignment_snapshot()
