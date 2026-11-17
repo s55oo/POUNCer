@@ -316,6 +316,24 @@ def note_served(app, spot, now: float | None = None) -> None:
             del sent[c]
 
 
+def publish_merged(app, spot) -> bool:
+    """dxc.publish, but one spot per station (merged_away) when the Spots
+    menu tick is on; a held-back one is a 'server' line in the console."""
+    dxc = getattr(app, "_dxc", None)
+    if dxc is None:
+        return False
+    why = merged_away(app, spot)
+    if why:
+        if dxc.relay() and getattr(spot, "source", "") != "n1mm":
+            traffic.emit("server", f"not resent {spot.dxcall} {spot.freq_khz:.1f} "
+                                   f"({spot.spotter}): {why}")
+        return False
+    ok = dxc.publish(spot)
+    if ok:
+        note_served(app, spot)
+    return ok
+
+
 def telnet_label(cfg, n: int) -> str:
     """'azure.s53m.com:8000' for the Spots menu, or how to set it."""
     host, port, _login, _cmds = telnet_conf(cfg, n)
@@ -4256,24 +4274,7 @@ class PouncerApp:
             traffic.digi_out("PSKR", spot, f"held from port {dxc.port}: FT8 window - "
                              "asking PSK Reporter if he is on FT8 / FT4")
             return
-        self._publish_merged(spot)
-
-    def _publish_merged(self, spot) -> bool:
-        """dxc.publish, but one spot per station (merged_away) when the Spots
-        menu tick is on; a held-back one is a 'server' line in the console."""
-        dxc = getattr(self, "_dxc", None)
-        if dxc is None:
-            return False
-        why = merged_away(self, spot)
-        if why:
-            if dxc.relay() and getattr(spot, "source", "") != "n1mm":
-                traffic.emit("server", f"not resent {spot.dxcall} {spot.freq_khz:.1f} "
-                                       f"({spot.spotter}): {why}")
-            return False
-        ok = dxc.publish(spot)
-        if ok:
-            note_served(self, spot)
-        return ok
+        publish_merged(self, spot)
 
     def _serve_verdict(self, key, digital: str = "") -> None:
         """PSK Reporter's answer for a held spot: FT8 / FT4 = not served;
@@ -4286,7 +4287,7 @@ class PouncerApp:
         if digital:
             traffic.digi_out("PSKR", spot, f"not served: PSK Reporter has him on {digital}")
         elif dxc is not None:
-            if self._publish_merged(spot):
+            if publish_merged(self, spot):
                 traffic.digi_out("PSKR", spot, "served now: no FT8 / FT4 report of him")
 
     def _check_overlap(self, spot: Spot) -> None:
