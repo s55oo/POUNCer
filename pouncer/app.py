@@ -277,6 +277,45 @@ def people_taken(app, src: str) -> bool:
     return any(has_source(cfg, k) for k in TELNETS)
 
 
+MERGE_SERVED_S = 30       # spot-collector merge: the same station again within this = not resent
+MERGE_KHZ = 0.5           # ... within this much of the frequency already sent
+MERGE_BETTER_Q = 3        # ... unless its Q is at least this much higher
+
+
+def merged_away(app, spot, now: float | None = None) -> str:
+    """Port 10000, S53ZO spot-collector style (Spots > One spot per station,
+    v0.7.214): the same call within MERGE_KHZ of a spot sent in the last
+    MERGE_SERVED_S - from another server, another skimmer - is not sent again,
+    unless its Q:n is clearly higher. '' = send it; else why not. Off = ''."""
+    cfg = getattr(app, "cfg", None)
+    if not getattr(cfg, "cluster_merge", True):
+        return ""
+    now = time.time() if now is None else now
+    sent = app.__dict__.setdefault("_served_recent", {})
+    call = (spot.dxcall or "").upper()
+    q = int(getattr(spot, "quality", 0) or 0)
+    for khz, t, q0 in sent.get(call, ()):
+        if now - t < MERGE_SERVED_S and abs(float(spot.freq_khz) - khz) <= MERGE_KHZ:
+            if q >= q0 + MERGE_BETTER_Q:
+                return ""                    # clearly better confirmed: once more
+            return (f"same station {now - t:.0f} s ago on {khz:.1f}"
+                    + (f" (Q:{q0})" if q0 else ""))
+    return ""
+
+
+def note_served(app, spot, now: float | None = None) -> None:
+    """A spot went out on port 10000: remember it for merged_away."""
+    now = time.time() if now is None else now
+    sent = app.__dict__.setdefault("_served_recent", {})
+    call = (spot.dxcall or "").upper()
+    keep = [e for e in sent.get(call, ()) if now - e[1] < MERGE_SERVED_S]
+    keep.append((float(spot.freq_khz), now, int(getattr(spot, "quality", 0) or 0)))
+    sent[call] = keep[-5:]
+    if len(sent) > 3000:
+        for c in [c for c, v in sent.items() if not v or now - v[-1][1] > MERGE_SERVED_S]:
+            del sent[c]
+
+
 def telnet_label(cfg, n: int) -> str:
     """'azure.s53m.com:8000' for the Spots menu, or how to set it."""
     host, port, _login, _cmds = telnet_conf(cfg, n)
@@ -972,6 +1011,9 @@ class PouncerApp:
             spots.add_checkbutton(label=key, variable=v,
                                   command=lambda k=key: self._menu_source(k))
         spots.add_separator()
+        self._merge_var = tk.BooleanVar(value=bool(getattr(self.cfg, "cluster_merge", True)))
+        spots.add_checkbutton(label="One spot per station to port 10000 (S53ZO spot-collector)",
+                              variable=self._merge_var, command=lambda: self._toggle_merge())
         spots.add_checkbutton(label="Hide worked (same band + mode)", accelerator="Ctrl+H",
                               variable=self.hide_worked_var, command=self._on_toggle_worked)
         spots.add_command(label="Clear spots", command=self._clear_spots, accelerator="Ctrl+L")
@@ -2827,6 +2869,18 @@ class PouncerApp:
                 except tk.TclError:
                     pass
             self._spd_var.set(getattr(c, "spotted_mode", "ww"))
+        mv = getattr(self, "_merge_var", None)
+        if mv is not None:
+            mv.set(bool(getattr(c, "cluster_merge", True)))
+
+    def _toggle_merge(self) -> None:
+        """Spots > One spot per station to port 10000: on / off, saved."""
+        new = bool(self._merge_var.get())
+        self._save_setting("cluster.merge", new)
+        self.status_label.configure(text="Port 10000: " + (
+            f"one spot per station - the same call within {MERGE_KHZ} kHz is not resent for "
+            f"{MERGE_SERVED_S} s (unless its Q is {MERGE_BETTER_Q}+ higher)" if new
+            else "every spot of the ticked sources"))
 
     def _menu_source(self, key: str) -> None:
         self._set_source(key)
@@ -4202,7 +4256,24 @@ class PouncerApp:
             traffic.digi_out("PSKR", spot, f"held from port {dxc.port}: FT8 window - "
                              "asking PSK Reporter if he is on FT8 / FT4")
             return
-        dxc.publish(spot)
+        self._publish_merged(spot)
+
+    def _publish_merged(self, spot) -> bool:
+        """dxc.publish, but one spot per station (merged_away) when the Spots
+        menu tick is on; a held-back one is a 'server' line in the console."""
+        dxc = getattr(self, "_dxc", None)
+        if dxc is None:
+            return False
+        why = merged_away(self, spot)
+        if why:
+            if dxc.relay() and getattr(spot, "source", "") != "n1mm":
+                traffic.emit("server", f"not resent {spot.dxcall} {spot.freq_khz:.1f} "
+                                       f"({spot.spotter}): {why}")
+            return False
+        ok = dxc.publish(spot)
+        if ok:
+            note_served(self, spot)
+        return ok
 
     def _serve_verdict(self, key, digital: str = "") -> None:
         """PSK Reporter's answer for a held spot: FT8 / FT4 = not served;
@@ -4215,7 +4286,7 @@ class PouncerApp:
         if digital:
             traffic.digi_out("PSKR", spot, f"not served: PSK Reporter has him on {digital}")
         elif dxc is not None:
-            if dxc.publish(spot):
+            if self._publish_merged(spot):
                 traffic.digi_out("PSKR", spot, "served now: no FT8 / FT4 report of him")
 
     def _check_overlap(self, spot: Spot) -> None:

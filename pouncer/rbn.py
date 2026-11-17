@@ -86,6 +86,7 @@ class Spot:
     received: float
     source: str = ""          # "n1mm" = came from N1MM (never served back to it)
     mode_guessed: bool = False  # a person's spot without a mode word (band plan)
+    quality: int = 0          # Q:n of a merged skimmer spot (S53ZO's spot-collector), 0 = none
 
     @property
     def key(self) -> tuple[str, int]:
@@ -158,6 +159,7 @@ def is_beacon(spot: Spot) -> bool:
 
 
 _DB_RE = re.compile(r"^-?\d{1,2}dB$")
+_Q_RE = re.compile(r"^Q:(\d+)", re.IGNORECASE)
 _WPM_RE = re.compile(r"^\d{1,2}WPM$")
 # a skimmer line's mode word; anything else there (a time "0724Z", "[-POTA-]",
 # "tnx") = not a skimmer spot but a person's, read by parse_cluster_spot (v0.7.211)
@@ -203,6 +205,12 @@ def parse_spot(line: str) -> Spot | None:
             break
 
     time_utc = rest[-1] if rest and rest[-1].endswith("Z") else ""
+    quality = 0
+    for tok_s in rest:              # "Q:9*+" = merged from 9 skimmers (spot-collector)
+        qm = _Q_RE.match(tok_s)
+        if qm:
+            quality = int(qm.group(1))
+            break
 
     return Spot(
         dxcall=dxcall,
@@ -214,6 +222,7 @@ def parse_spot(line: str) -> Spot | None:
         spotter=spotter,
         time_utc=time_utc,
         received=time.time(),
+        quality=quality,
     )
 
 

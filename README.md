@@ -815,6 +815,14 @@ the cluster server (port 10000):
   spots and the last HTTP answer ...).
 - **The same spot from two sources counts once** (same call, frequency and
   skimmer within a minute) - e.g. RBN and HTTP both on.
+- **One spot per station to port 10000** (Spots menu tick, `[cluster] merge`,
+  on by default; like S53ZO's spot-collector): the same call within 0.5 kHz
+  of a spot sent in the last 30 s - from another Telnet server or another
+  skimmer - is not sent to N1MM's Telnet window again, unless its `Q:n` (how
+  many skimmers the server merged) is at least 3 higher. The first one goes
+  out at once - no waiting; a new band or a move of more than 0.5 kHz goes
+  out too. POUNCer's list and the traffic console still show every spot (a
+  `server  not resent ...` line for each one held back).
 - **Only what you ticked**: nothing takes over when a source is down -
   except HamQTH, when it is on. All off = no spots ("nothing on - no spots"
   next to the buttons, light "SPOTS: no source on").
@@ -1027,7 +1035,7 @@ DX de S53WW-#:   14025.0  DL1ABC       CW 23 dB 28 WPM CQ             1200Z
     filters) goes out to the clients. What a client sends after login - your
     `DX` spots (Alt+P / Spot It), `sh/dx`, filters - goes over **POUNCer's
     own telnet connection** (the first Telnet #1 / #2 / #3 that is on), and that connection's answers and announcements come back to
-    the client. With Telnet and Cluster both off, N1MM gets `*** POUNCer:
+    the client. With no Telnet on, N1MM gets `*** POUNCer:
     not sent - no telnet connection` and `sh/dx` = POUNCer's last 30 spots.
   - **off**: nothing either way (the client stays connected): no spots
     come to N1MM, and a spot made in N1MM stays here - N1MM gets `*** POUNCer:
@@ -1036,8 +1044,10 @@ DX de S53WW-#:   14025.0  DL1ABC       CW 23 dB 28 WPM CQ             1200Z
     nothing).
   - One connection to azure, POUNCer's (login = your call); N1MM never logs
     in there itself, so no "Reconnected as S55OO ..." fights.
-- The same call / frequency / skimmer once a minute; up to 10 clients;
-  `bye` = disconnect.
+- The same call / frequency / skimmer once a minute; with **One spot per
+  station** on (`[cluster] merge`, the Spots menu) also the same call within
+  0.5 kHz from another server or skimmer once in 30 s (unless its Q:n is 3+
+  higher); up to 10 clients; `bye` = disconnect.
 - Other PCs need the port open: *File > Allow POUNCer in Windows Firewall…*
   adds `POUNCer cluster TCP` while the server is on.
 - The traffic console shows it as **SERVER** (logins, commands). On your own

@@ -52,6 +52,13 @@ SETTINGS: list[dict] = [
              "POUNCer's own telnet connection to the DX cluster (a Telnet #1 / #2 / #3 on); the "
              "answers come back. Off = nothing either way (a spot gets '*** POUNCer: spot "
              "not sent - Relay is off'). Also the Relay button."},
+    {"key": "cluster.merge", "attr": "cluster_merge", "kind": "bool", "live": True,
+     "group": "Cluster server", "label": "  ... One spot per station (S53ZO spot-collector)",
+     "help": "Like S53ZO's spot-collector: the same call within 0.5 kHz of a spot sent "
+             "in the last 30 s - from another Telnet server or another skimmer - is not "
+             "sent to port 10000 again, unless its Q:n is at least 3 higher. The first one "
+             "goes out at once (no waiting); POUNCer's list and the traffic console still "
+             "show every spot ('server  not resent ...' lines). Also the Spots menu."},
     {"key": "n1mm.qsy_wait_ms", "attr": "qsy_wait_ms", "kind": "int", "min": 0, "max": 10000,
      "live": True, "group": "Tap -> N1MM",
      "label": "Wait for N1MM's new frequency (ms)",
@@ -394,7 +401,7 @@ PAGES: list[tuple[str, list[tuple[str, list[str]]]]] = [
                                      "spotted.zones", "spotted.conts"]),
     ]),
     ("Cluster server", [
-        ("", ["cluster.enabled", "cluster.port", "cluster.relay"]),
+        ("", ["cluster.enabled", "cluster.port", "cluster.relay", "cluster.merge"]),
     ]),
     ("Updates", [
         ("Country file & Super Check Partial", ["cty.auto_update", "cty.update_n1mm",

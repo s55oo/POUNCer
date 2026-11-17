@@ -2,6 +2,14 @@
 
 ## Next release (not released yet)
 
+- **Spots > One spot per station to port 10000 (S53ZO spot-collector)** - a
+  tick, on by default (`[cluster] merge`, also Settings > Cluster server). Two
+  servers running S53ZO's spot-collector each send one merged spot of a
+  station (`Q:9*`), but each names its own skimmer - so N1MM got both. Now the
+  same call within 0.5 kHz of a spot sent in the last 30 s is not sent again,
+  unless its Q:n is at least 3 higher. The first goes out at once (POUNCer
+  never waits); POUNCer's list and the traffic console still show every
+  spot. The Q:n of a spot is read now (`Spot.quality`).
 - **No MyCall button any more**, and no extra connection for the spots of
   your own call (`<call>-77` with a node filter, up to v0.7.213): they come
   with the spots POUNCer already gets - a Telnet #1 / #2 / #3, N1MM's spots,

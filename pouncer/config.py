@@ -228,6 +228,7 @@ class Config:
     cluster_server: bool = False    # serve POUNCer's spots as a telnet DX cluster
     cluster_port: int = 10000
     cluster_relay: bool = True      # pass the real cluster through to the client (N1MM)
+    cluster_merge: bool = True      # port 10000: one spot per station (S53ZO spot-collector style)
     touch_view: bool = False  # open the phone page in the default browser at start
 
 
@@ -502,6 +503,7 @@ def load_config(path: str) -> Config:
     cfg.cluster_server = b("cluster", "enabled", cfg.cluster_server)
     cfg.cluster_port = i("cluster", "port", cfg.cluster_port)
     cfg.cluster_relay = b("cluster", "relay", cfg.cluster_relay)
+    cfg.cluster_merge = b("cluster", "merge", cfg.cluster_merge)
 
     if cfg.sort not in ("time", "freq", "snr", "call", "cont", "mult", "mode", "type", "spotter"):
         cfg.sort = "snr"
