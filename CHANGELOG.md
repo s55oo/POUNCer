@@ -1,6 +1,6 @@
 # POUNCer — Changelog
 
-## Next release (not released yet)
+## v0.7.213 — 2026-11-17 — Telnet #1 / #2 / #3; station test asks three times
 
 - **Spots: Telnet #1, #2 and #3** - equal sources, **tick as many as you
   like** in the Spots menu (the ticks are kept for the next start). Each one
