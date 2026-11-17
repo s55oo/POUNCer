@@ -1,5 +1,11 @@
 # POUNCer — Changelog
 
+## Next release (not released yet)
+
+- **Telnet #4**: a fourth telnet source, the same as #1 - #3 (its own server,
+  port, login and commands - *Settings > Spots > Telnet #4*, `[telnet4]`;
+  `telnet4` in `[rbn] sources`; the Spots menu). Empty by default.
+
 ## v0.7.214 — 2026-11-17 — one spot per station (S53ZO spot-collector); no MyCall
 
 - **Spots > One spot per station to port 10000 (S53ZO spot-collector)** - a

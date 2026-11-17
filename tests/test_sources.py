@@ -86,23 +86,24 @@ class SourceTests(unittest.TestCase):
         self.assertTrue(f.rbn_status.startswith("off"))
 
     def test_three_telnets_each_its_own_connection(self) -> None:
-        app, f, made, Fake = fake_app("telnet,telnet2,telnet3")
+        app, f, made, Fake = fake_app("telnet,telnet2,telnet3,telnet4")
         f.cfg.telnet2_host, f.cfg.telnet2_port, f.cfg.telnet2_login = "dx.example", 7300, "S55OO-2"
         f.cfg.telnet3_host, f.cfg.telnet3_commands = "skim.example", ("set/skimmer",)
+        f.cfg.telnet4_host, f.cfg.telnet4_port = "four.example", 23
         with mock.patch.object(app, "RBNClient", Fake):
             f._ensure_rbn_clients()
         self.assertEqual([(c.host, c.port, c.call) for c in made],
                          [("azure.s53m.com", 8000, "S55OO"), ("dx.example", 7300, "S55OO-2"),
-                          ("skim.example", 8000, "S55OO")])
+                          ("skim.example", 8000, "S55OO"), ("four.example", 23, "S55OO")])
         self.assertTrue(all(c.people is not None and c.skimmers for c in made))   # both kinds
-        self.assertEqual([c.kw.get("name") for c in made], ["telnet", "telnet2", "telnet3"])
+        self.assertEqual([c.kw.get("name") for c in made], ["telnet", "telnet2", "telnet3", "telnet4"])
         self.assertEqual(made[2].kw.get("backup_commands"), ("set/skimmer",))
-        self.assertEqual(sorted(f._telnet_clients), [1, 2, 3])
-        # #2 unticked: only its connection closes
+        self.assertEqual(sorted(f._telnet_clients), [1, 2, 3, 4])
+        # #2 and #4 unticked: only their connections close
         f.cfg.rbn_source = "telnet,telnet3"
         with mock.patch.object(app, "RBNClient", Fake):
             f._ensure_rbn_clients()
-        self.assertEqual([c.stopped for c in made], [False, True, False])
+        self.assertEqual([c.stopped for c in made], [False, True, False, True])
         self.assertEqual(sorted(f._telnet_clients), [1, 3])
 
     def test_same_server_opens_nothing_extra(self) -> None:

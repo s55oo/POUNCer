@@ -24,7 +24,7 @@ in the examples are private example addresses.
 | 3 | local | files | – | N1MM's log `.s3db` + `-wal`, `N1MM Logger.ini`, `wl_cty.dat`, `MASTER.SCP` | worked stations, mults, contest, callsign, countries | `[n1mm] ini`, `[worked] db` |
 | 4 | local | Windows messages | – | N1MM Entry Windows | bring to front, put the call in, read it back, keys; read the CW speed box (WPM); Ctrl+K + typed text for the phone CW keyboard | `[n1mm] type_mode`, `cw_speed`; `[web] cw_keyboard` |
 | 5 | **out** | TCP (telnet) | 7000 / 7001 | telnet.reversebeacon.net | RBN skimmer spots (CW/RTTY 7000, FT8/FT4 7001) - the **RBN** button | `[rbn] host`, `port`, `ft8_port`, `sources` |
-| 6 | **out** | TCP (telnet) | 8000 (default) | azure.s53m.com (default), or any server you set | **Telnet #1 / #2 / #3** (Spots menu): each its own connection, its server's skimmer AND people's spots (SSB too); one on the same server as RBN or an earlier Telnet opens nothing | `[telnet1]` .. `[telnet3]` host, port, login, commands; `[rbn] sources` |
+| 6 | **out** | TCP (telnet) | 8000 (default) | azure.s53m.com (default), or any server you set | **Telnet #1 - #4** (Spots menu): each its own connection, its server's skimmer AND people's spots (SSB too); one on the same server as RBN or an earlier Telnet opens nothing | `[telnet1]` .. `[telnet4]` host, port, login, commands; `[rbn] sources` |
 | 7 | **out** | HTTPS | 443 | azure.s53m.com `/cors/rbn/live` | RBN over HTTP - the **HTTP** button | `[rbn] http_backup`, `sources` |
 | 8d | **in** | TCP | 10000 | N1MM's Telnet window, other cluster clients (LAN / ZeroTier) | POUNCer as a DX cluster: `login:` -> call, then the spots of the switched-on sources as `DX de` lines (Relay on); never N1MM's own spots. A client's commands go over POUNCer's own telnet connection (row 6, the first Telnet) | `[cluster] enabled` (off), `port`, `relay` |
 | 8c | **out** | TCP | 53 | 1.1.1.1, 8.8.8.8, 9.9.9.9 (by IP, no DNS) | internet check: a plain connect every 30 s (10 s while down), **nothing is sent**, closed at once - one answer = internet up; no answer twice = the red "Internet down" bar | `[ui] internet_check` (off = no check) |
@@ -253,7 +253,7 @@ after telnet works again. No login.
 `ts` = UTC milliseconds. There is no CQ / beacon field: `…/B` calls are
 dropped as beacons. Same skimmer filter as the telnet spots.
 
-## 8. Telnet #1 / #2 / #3 (TCP, out)
+## 8. Telnet #1 - #4 (TCP, out)
 
 Each ticked Telnet (Spots menu; `[rbn] sources` = `telnet`, `telnet2`,
 `telnet3`) is its own connection to `[telnetN] host:port` - default #1 =
@@ -279,7 +279,7 @@ host` / `port` / `login` / `commands`.
 
 Up to v0.7.213 a separate connection (`<call>-77`, node filter `accept/spots
 call <call>`) brought the spots of your own call. Since v0.7.214 the SPOTTED
-pop-up comes from the spots POUNCer already gets - a Telnet #1 / #2 / #3,
+pop-up comes from the spots POUNCer already gets - a Telnet #1 - #4,
 N1MM's spot packets (section 1), or the team master (`self`, section 9). A
 spot of your call by a person (not a skimmer) brings the pop-up - on the PC
 whose radio is on that band (`[ui] self_spot_band_only`).

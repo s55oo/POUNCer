@@ -92,7 +92,7 @@ def group_of(source: str) -> str:
     if s.startswith(("SERVER", "RELAY")):   # POUNCer's own cluster server (N1MM connects)
         return "SERVER"
     if s.startswith("TELNET") or "CLUSTER" in s or s.startswith("SSB"):
-        return "TELNET"                 # Telnet #1 / #2 / #3, people's spots too (v0.7.213)
+        return "TELNET"                 # Telnet #1 - #4, people's spots too (v0.7.213)
     if s.startswith("SELF"):            # the spots-of-my-call connection: same server
         return "TELNET"
     if s.startswith("WEB"):

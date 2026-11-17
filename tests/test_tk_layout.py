@@ -285,6 +285,7 @@ class TkSettingsWindowTests(unittest.TestCase):
                                       rbn_port=7000, telnet1_host="azure.s53m.com",
                                       telnet1_port=8000, telnet2_host="dx.example", telnet2_port=7300,
                                       telnet3_host="", telnet3_port=8000,
+                                      telnet4_host="four.example", telnet4_port=23,
                                       spotted_mode="ww", spotted_calls="", spotted_dxcc="JA",
                                       spotted_zones="", spotted_conts=""),
             _save_diagnostics=lambda: None, _open_path=lambda p: None,
@@ -340,11 +341,13 @@ class TkSettingsWindowTests(unittest.TestCase):
         self.assertIn("RBN - telnet.reversebeacon.net:7000 (skimmer spots)", slabels)
         # RBN, Telnet #1, #2, #3, then HTTP (v0.7.213), each with its server
         order = [next(i for i, x in enumerate(slabels) if x.startswith(p))
-                 for p in ("RBN - ", "Telnet #1 - ", "Telnet #2 - ", "Telnet #3 - ", "HTTP - ")]
+                 for p in ("RBN - ", "Telnet #1 - ", "Telnet #2 - ", "Telnet #3 - ", "Telnet #4 - ",
+                           "HTTP - ")]
         self.assertEqual(order, sorted(order))
         self.assertIn("Telnet #1 - azure.s53m.com:8000", slabels)
         self.assertIn("Telnet #2 - dx.example:7300", slabels)
         self.assertIn("Telnet #3 - (no server - Settings > Spots)", slabels)
+        self.assertIn("Telnet #4 - four.example:23", slabels)
         self.assertFalse(any("TelBck" in x for x in slabels))
         # the list's own switches live with the spots now (after the relabelled sources)
         self.assertIn("Hide worked (same band + mode)", slabels)

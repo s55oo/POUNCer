@@ -194,7 +194,7 @@ s.append(section("Menus", [
     ("File", "config folder, Windows Firewall, restart, exit"),
     ("N1MM", "reconnect log, clicking a spot enters its callsign, station test"),
     ("View", "compact, always on top, detailed layout, tiles, ZO mode, rate line, look ▸"),
-    ("Spots / Spotters / Spotted", "sources on / off (RBN, Telnet #1 #2 #3, HTTP) · whose spots · which DX"),
+    ("Spots / Spotters / Spotted", "sources on / off (RBN, Telnet #1 - #4, HTTP) · whose spots · which DX"),
     ("Tools", "summary, CQ zones, timeline, phone page ▸ (QR), alerts ▸, traffic console"),
     ("Team", "password, become master, master after restart, update all"),
     ("Settings", "All settings… or straight to a page: Display, Alerts & history, N1MM & radios, Phone page, Spots, Cluster server, Updates"),

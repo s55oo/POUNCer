@@ -109,7 +109,7 @@ class AppButtonTests(unittest.TestCase):
                                      send_src=sent.append)
         f = types.SimpleNamespace(team=team, cfg=types.SimpleNamespace(
             telnet1_host="telnet.example", telnet1_port=8000, rbn_source="rbn",
-            rbn_http_backup="", telnet2_host="", telnet3_host=""),
+            rbn_http_backup="", telnet2_host="", telnet3_host="", telnet4_host=""),
             status_label=types.SimpleNamespace(configure=lambda **k: None),
             _save_setting=lambda k, v: saved.append((k, v)), _src_last=1,
             SOURCE_NAMES=app.PouncerApp.SOURCE_NAMES, CONN_KEYS=app.PouncerApp.CONN_KEYS)
@@ -146,7 +146,8 @@ class AppButtonTests(unittest.TestCase):
             fh.write("[rbn]\nsource = http\n[ssb]\nmode = off\n")
         self.assertEqual(load_config(p).rbn_source, "http")
         for val, want in (("Cluster, http,RBN", "rbn,telnet2,http"), ("", ""), ("x", ""),
-                          ("telnet3, Telnet #2", "telnet2,telnet3")):
+                          ("telnet3, Telnet #2", "telnet2,telnet3"),
+                          ("Telnet #4, rbn", "rbn,telnet4")):
             with open(p, "w") as fh:
                 fh.write(f"[rbn]\nsources = {val}\n")
             self.assertEqual(load_config(p).rbn_source, want)

@@ -41,6 +41,7 @@ class BuildTests(unittest.TestCase):
         The item is called SPOTS (v0.7.203)."""
         for via, text in (("telnet", "via Telnet #1"), ("hamqth", "via HamQTH"),
                           ("telnet2", "via Telnet #2"), ("telnet3", "via Telnet #3"),
+                          ("telnet4", "via Telnet #4"),
                           ("http", "via HTTP")):
             items = checks.build(dict(GOOD, rbn=via))
             self.assertEqual(by_name(items)["SPOTS"]["state"], "ok", via)
