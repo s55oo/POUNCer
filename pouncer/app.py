@@ -4211,34 +4211,36 @@ class PouncerApp:
             return None
         spot, spotter, call, khz, skimmer = got
         if not skimmer and not people_taken(self, src):
-            return False          # a person's spot, but POUNCer takes none (Telnet / Telnet 2 off)
+            return traffic.Excl("EXCL PEOPLE (no Telnet on)")   # a person's spot, POUNCer takes none
         sf = getattr(self, "spotter_filter", None)
         result = True
         if sf is not None:
             ok = sf.matches(spotter) if skimmer and hasattr(sf, "matches") else (
                 sf.people_accept(spotter) if hasattr(sf, "people_accept") else sf.accept(spotter))
             if not ok:
-                return False
+                return traffic.Excl("EXCL SPOTTER")          # the Spotters filter
             if (skimmer and hasattr(sf, "chosen") and sf.active()
                     and not sf.chosen((spotter or "").upper())):
                 result = "backup"          # only while the chosen ones are quiet: orange
         spf = getattr(self, "spotted_filter", None)
         if spf is not None and not spf.accept(call):
-            return False
+            return traffic.Excl("EXCL SPOTTED")              # the Spotted filter
         mode = (getattr(spot, "mode", "") or "").upper()
         if mode in traffic.DIGITAL and mode not in self._digi_wanted():
-            return False                  # FT8 / FT4 (by its mode or the FT8 window): kept out
+            return traffic.Excl(f"EXCL {mode}")   # FT8 / FT4 (its mode or the FT8 window): kept out
         if isinstance(spot, Spot) and getattr(self.cfg, "hide_beacons", False) and is_beacon(spot):
-            return False
+            return traffic.Excl("EXCL BCN")
         if getattr(self.cfg, "hide_warc", False) and is_warc(khz):
-            return False                  # Remove WARC spots
+            return traffic.Excl("EXCL WARC")      # Remove WARC spots
         if spot is not None and mode == "SSB":
             ft = unmarked_ft(spot, phone_contest_of(self))
             if ft and ft not in self._digi_wanted():
-                return False              # unmarked on 7074 / 1840 in a CW contest: FT8
+                return traffic.Excl(f"EXCL {ft} (unmarked, FT8 window)")   # 7074 / 1840 in a CW contest
         psk = self._console_psk(call, khz, mode)
+        if psk is False:
+            return traffic.Excl("EXCL FT8 (PSK Reporter)")   # he is on FT8 / FT4 there
         if psk is not None:
-            return psk                    # False = PSK Reporter: FT8 there; "wait" = asking
+            return psk                    # "wait" = asking PSK Reporter
         return result
 
     CONSOLE_PSK_WAIT_S = 150   # a CW / SSB line in an FT8 window: wait this long for PSK Reporter

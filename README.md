@@ -491,14 +491,21 @@ again. An error while showing a line is written into the view and the
 console goes on. The taps only
 work while the console is open - closed, it costs nothing.
 
-**PB** (v0.7.218): when a spot goes out on port 10000 (the `server >` line),
-each spot line of that station that came in shortly before gets **`PB
-09:48:55 +1s`** at its end - when it was sent (UTC) and how long after it
-came in. `as G4ZFE-#` = it went out under another skimmer's spot (merged by
-the spot collector), `as SQ6OEP` = under a corrected call; a copy that comes
-in after its station went out gets `merged into PB 09:48:55`. No PB = not
-sent (yet): filtered out, held (FT8 check), or still being collected. It
-works with the SERVER group unticked too.
+**PT** (published time; v0.7.218 as PB): when a spot goes out on port 10000
+(the `server >` line), each spot line of that station that came in shortly
+before gets **`PT 09:48:55 +1s`** at its end - when it was sent (UTC) and how
+long after it came in. `as G4ZFE-#` = it went out under another skimmer's
+spot (merged by the spot collector), `as SQ6OEP` = under a corrected call; a
+copy that comes in after its station went out gets `merged into PT 09:48:55`.
+No PT = not sent (yet): filtered out, held (FT8 check), or still being
+collected. It works with the SERVER group unticked too.
+
+**EXCL** (v0.7.221): a spot line your filters keep out (white) gets the
+reason at its end, in grey, about 5 s after it came in: `EXCL SPOTTER` (the
+Spotters filter), `EXCL SPOTTED` (the Spotted filter), `EXCL FT8` / `EXCL FT4`
+(its mode, `(unmarked, FT8 window)` or `(PSK Reporter)` - he is on FT8
+there), `EXCL BCN` (a beacon), `EXCL WARC` (Remove WARC spots), `EXCL PEOPLE
+(no Telnet on)` (a person's spot, but no Telnet ticked).
 
 **cache/nonPublishedSpots.log** (v0.7.218): the spots that passed your
 filters but never went out on port 10000 - for learning and tuning the spot

@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## Next release (not released yet)
+
+- **Traffic console: PT** (published time) instead of PB - `PT 09:48:55 +1s`,
+  `merged into PT ...`.
+- **Traffic console: EXCL** - a spot line your filters keep out (white) gets
+  the reason at its end, in grey: `EXCL SPOTTER`, `EXCL SPOTTED`, `EXCL FT8` /
+  `EXCL FT4` (its mode, unmarked in the FT8 window, or PSK Reporter has him
+  there), `EXCL BCN`, `EXCL WARC`, `EXCL PEOPLE (no Telnet on)`.
+
 ## v0.7.220 — 2026-11-17 — CW spots on occupied frequencies
 
 - When two independent skimmers report a CW station, a new callsign within

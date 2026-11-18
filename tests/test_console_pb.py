@@ -28,11 +28,11 @@ class NoteTests(unittest.TestCase):
     def test_notes(self) -> None:
         a, b = console.spot_key(A), console.spot_key(B)
         t = 35334.0                                      # 09:48:54 UTC
-        self.assertEqual(console.pb_note(a, t, a, t + 1), "  PB 09:48:55 +1s")
-        self.assertEqual(console.pb_note(b, t, a, t + 1), "  PB 09:48:55 +1s as G4ZFE-#")
-        self.assertEqual(console.pb_note(b, t + 3, a, t + 1), "  merged into PB 09:48:55")
+        self.assertEqual(console.pb_note(a, t, a, t + 1), "  PT 09:48:55 +1s")
+        self.assertEqual(console.pb_note(b, t, a, t + 1), "  PT 09:48:55 +1s as G4ZFE-#")
+        self.assertEqual(console.pb_note(b, t + 3, a, t + 1), "  merged into PT 09:48:55")
         self.assertEqual(console.pb_note(console.spot_key(BUST), t, a, t + 1),
-                         "  PB 09:48:55 +1s as SQ6OEP")       # a corrected call
+                         "  PT 09:48:55 +1s as SQ6OEP")       # a corrected call
         self.assertEqual(console.pb_note(console.spot_key(OTHER), t, a, t + 1), "")
         self.assertEqual(console.pb_note(a, t, a, t + console.PB_LINK_S + 5), "")
 
@@ -55,10 +55,10 @@ class ConsolePbTests(unittest.TestCase):
         self.c.add([(t + 1.5, "server >", A)])                 # A goes out
         self.c.add([(t + 4, "telnet3", B.replace("OE9GHV", "YO2KAR"))])
         got = self.lines()
-        self.assertTrue(got[0].endswith("PB 09:48:55 +2s"), got[0])
-        self.assertTrue(got[1].endswith("PB 09:48:55 +0s as G4ZFE-#"), got[1])
-        self.assertNotIn("PB", got[2])                         # DL1ABC: not sent
-        self.assertTrue(got[4].endswith("merged into PB 09:48:55"), got[4])
+        self.assertTrue(got[0].endswith("PT 09:48:55 +2s"), got[0])
+        self.assertTrue(got[1].endswith("PT 09:48:55 +0s as G4ZFE-#"), got[1])
+        self.assertNotIn("PT ", got[2])                         # DL1ABC: not sent
+        self.assertTrue(got[4].endswith("merged into PT 09:48:55"), got[4])
 
     def test_pb_even_with_server_unticked(self) -> None:
         t = 35334.0
@@ -66,7 +66,32 @@ class ConsolePbTests(unittest.TestCase):
         self.c.add([(t, "telnet", A), (t + 1, "server >", A)])
         got = self.lines()
         self.assertEqual(len([x for x in got if x.strip()]), 1)   # no server line shown
-        self.assertIn("PB 09:48:55", got[0])
+        self.assertIn("PT 09:48:55", got[0])
+
+
+@unittest.skipIf(_root is None, "no display")
+class ConsoleExclTests(unittest.TestCase):
+    def test_reason_at_the_end_of_a_kept_out_line(self) -> None:
+        from pouncer import traffic
+        why = {A: traffic.Excl("EXCL WARC"), B: True}
+        c = console.TrafficConsole(_root, shown=lambda src, txt: why.get(txt))
+        c.open()
+        try:
+            t = 35334.0
+            c.add([(t, "telnet", A), (t, "telnet2", B)])
+            c.recheck(now=10 ** 12)                    # the 5 s look-again is over
+            got = c.text.get("1.0", "end").splitlines()
+            self.assertTrue(got[0].endswith("EXCL WARC"), got[0])
+            self.assertNotIn("EXCL", got[1])            # yellow: no reason
+            self.assertIn("excl", c.text.tag_names("1.end-2c"))
+        finally:
+            c.close()
+
+    def test_excl_is_false(self) -> None:
+        from pouncer import traffic
+        e = traffic.Excl("EXCL BCN")
+        self.assertFalse(e)
+        self.assertEqual(str(e), "EXCL BCN")
 
 
 if __name__ == "__main__":

@@ -20,13 +20,19 @@ The top bar shows per source: lines so far, "hidden", how long it has been
 quiet, and why (``notes()`` from the app: RBN paused on SSB, no Telnet on,
 via the team master ...). At most ``KEEP`` lines are kept in the window.
 
-**PB** (v0.7.218): when a spot goes out on port 10000 (a ``server >`` line),
+**EXCL** (v0.7.221): a spot line your filters keep out gets the reason at
+its end, in grey - ``EXCL SPOTTER`` / ``EXCL SPOTTED`` (the Spotters /
+Spotted filter), ``EXCL FT8`` / ``EXCL FT4`` (its mode, an unmarked one in the
+FT8 window, or PSK Reporter has him there), ``EXCL BCN`` (beacon), ``EXCL
+WARC``, ``EXCL PEOPLE`` (a person's spot with no Telnet on).
+
+**PT** (published time; v0.7.218 as PB): when a spot goes out on port 10000 (a ``server >`` line),
 every spot line of that station that came in shortly before (the same call
-within ``PB_KHZ``, the last ``PB_LINK_S``) gets ``PB 09:48:55 +1s`` at its
+within ``PB_KHZ``, the last ``PB_LINK_S``) gets ``PT 09:48:55 +1s`` at its
 end - the publish time (UTC) and how long after it came in; ``as G4ZFE-#`` =
 the spot went out under another skimmer (merged), ``as SQ6OEP`` = under a
 corrected call. A line that comes in after its station went out gets ``merged
-into PB 09:48:55``. No PB = not (yet) sent: filtered, held, or one of a group
+into PT 09:48:55``. No PT = not (yet) sent: filtered, held, or one of a group
 still being collected.
 """
 
@@ -50,7 +56,8 @@ SHOWN_WAIT_S = 5     # a spot line: look again this long whether POUNCer shows i
 PSK_WAIT_S = 160     # ... or this long when the app says "wait" (asking PSK Reporter)
 SHOWN_COLOR = "#ffeb3b"
 BACKUP_COLOR = "#ff9800"   # taken via the backup skimmers (chosen ones quiet)
-PB_COLOR = "#ffcc80"       # "PB 09:48:55" - sent to port 10000
+PB_COLOR = "#ffcc80"       # "PT 09:48:55" - published to port 10000
+EXCL_COLOR = "#9e9e9e"     # "EXCL WARC" - kept out by your filters
 PB_LINK_S = 120            # a spot line links to a publish of its station this long after it
 PB_KHZ = 1.0               # ... within this much of the frequency
 PB_BUSTED_KHZ = 0.2        # same skimmer, other call this close: a corrected call
@@ -79,11 +86,11 @@ def pb_note(line_key, line_t: float, pb_key, pb_t: float) -> str:
     stamp = time.strftime("%H:%M:%S", time.gmtime(pb_t))
     if call == pcall and abs(khz - pkhz) <= PB_KHZ:
         if line_t > pb_t:
-            return f"  merged into PB {stamp}"
+            return f"  merged into PT {stamp}"
         delay = f" +{pb_t - line_t:.0f}s"
-        return f"  PB {stamp}{delay}" + ("" if spotter == pspotter else f" as {pspotter}")
+        return f"  PT {stamp}{delay}" + ("" if spotter == pspotter else f" as {pspotter}")
     if spotter == pspotter and abs(khz - pkhz) <= PB_BUSTED_KHZ and line_t <= pb_t:
-        return f"  PB {stamp} +{pb_t - line_t:.0f}s as {pcall}"      # a corrected call
+        return f"  PT {stamp} +{pb_t - line_t:.0f}s as {pcall}"      # a corrected call
     return ""
 DOT = {"live": "#43a047", "quiet": "#f9a825", "dead": "#e53935", "why": "#78909c"}
 GROUPS = traffic.GROUPS
@@ -156,7 +163,8 @@ class TrafficConsole:
             # the look's own text colour (yellow on the light look's grey bar
             # could not be read); only the lines below are yellow (v0.7.202)
             ttk.Label(bar, text="yellow = spots that match your filters, "
-                                "orange = via backup skimmers, PB = sent to port 10000 (UTC)",
+                                "orange = via backup skimmers, PT = published to port 10000 (UTC), "
+                                "EXCL = why not",
                       font=(theme.FONT, 9)).pack(side="left", padx=(10, 0))
         # one chip per source: coloured dot (green = lines now, amber = quiet,
         # red = quiet long, grey = quiet for a known reason) + count / why
@@ -204,6 +212,7 @@ class TrafficConsole:
         self.text.tag_configure("shown", foreground=SHOWN_COLOR, font=("Consolas", 9, "bold"))
         self.text.tag_configure("backup", foreground=BACKUP_COLOR, font=("Consolas", 9, "bold"))
         self.text.tag_configure("pb", foreground=PB_COLOR)
+        self.text.tag_configure("excl", foreground=EXCL_COLOR)
         self._pending = []
         self._waiting_pb = []
         self._recent_pb = []
@@ -389,6 +398,15 @@ class TrafficConsole:
         except Exception:  # noqa: BLE001 - colour only: never stops the console
             return None
 
+    def _note_excl(self, mark: str, how) -> None:
+        """'EXCL WARC' ... at the end of a line the filters keep out (grey)."""
+        if how or not isinstance(how, str) or not str(how):
+            return
+        try:
+            self.text.insert(f"{mark} lineend", "  " + str(how), "excl")
+        except tk.TclError:
+            pass
+
     def _mark_shown(self, mark: str, how=True) -> None:
         """Yellow (matches the filters) or orange (``how == "backup"``)."""
         try:
@@ -468,6 +486,8 @@ class TrafficConsole:
             elif now < until:
                 keep.append((mark, src, txt, until))
                 continue
+            else:
+                self._note_excl(mark, how)    # still kept out: say why
             try:
                 self.text.mark_unset(mark)
             except tk.TclError:
@@ -519,6 +539,7 @@ class TrafficConsole:
                         wait = PSK_WAIT_S if yes == "wait" else SHOWN_WAIT_S
                         self._pending.append((mark, src, txt, time.time() + wait))
                     else:
+                        self._note_excl(mark, yes)
                         self.text.mark_unset(mark)
         self.recheck()
         if shown:

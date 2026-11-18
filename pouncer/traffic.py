@@ -13,6 +13,14 @@ from __future__ import annotations
 import collections
 import time
 
+
+class Excl(str):
+    """Not shown, and why: 'EXCL WARC', 'EXCL BCN', 'EXCL FT8' ... - a str
+    that counts as False (the traffic console writes it at the line's end)."""
+
+    def __bool__(self) -> bool:
+        return False
+
 MAX_LINES = 5000          # kept between two console refreshes at most
 _sink: "collections.deque | None" = None
 GROUPS = ("RBN", "TELNET", "HTTP", "N1MM", "TEAM", "WEB", "PSKR", "SERVER", "FT8", "BEACON")

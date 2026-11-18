@@ -46,6 +46,7 @@ class ShownTests(unittest.TestCase):
         self.assertIsNone(f._console_shown("telnet", "Hello S55OO, this is a node"))
         self.assertTrue(f._console_shown("telnet", IN_ZONE))          # skimmer in zone 14
         self.assertFalse(f._console_shown("rbn", OUT_ZONE))           # zone 5: filtered out
+        self.assertEqual(f._console_shown("rbn", OUT_ZONE), "EXCL SPOTTER")
         self.assertTrue(f._console_shown("telnet", "S55OO de NODE >" + IN_ZONE))
         # every source: HamQTH, the HTTP feed (JSON), N1MM's spot packets
         self.assertTrue(f._console_shown("HAMQTH", "DL1ABC-# 14025.0 K1ABC CW 24"))
@@ -59,8 +60,10 @@ class ShownTests(unittest.TestCase):
         self.assertTrue(f._console_shown("telnet", IN_ZONE))
         other = IN_ZONE.replace("K1ABC", "G3XYZ")
         self.assertFalse(f._console_shown("telnet", other))          # not a Spotted station
+        self.assertEqual(f._console_shown("telnet", other), "EXCL SPOTTED")
         beacon = "DX de DL1ABC-#:   14100.0  4U1UN          CW    24 dB  22 WPM  NCDXF B 1802Z"
         self.assertFalse(_app()._console_shown("telnet", beacon))
+        self.assertEqual(_app()._console_shown("telnet", beacon), "EXCL BCN")
 
     def test_backup_skimmers_are_orange_and_can_be_switched_off(self) -> None:
         now = [1000.0]
@@ -79,6 +82,7 @@ class ShownTests(unittest.TestCase):
         f.spotter_filter.configure("ww")
         ft8 = "DX de W7O:       14074.4  JH8ESQ"            # a person, no mode, FT8 window
         self.assertFalse(f._console_shown("telnet", ft8))
+        self.assertTrue(str(f._console_shown("telnet", ft8)).startswith("EXCL FT"))
         self.assertFalse(f._console_shown("HAMQTH", "W7O 14074.4 JH8ESQ FT8"))
         self.assertTrue(f._console_shown("telnet", IN_ZONE))      # CW on 14025: yellow
         f.cfg.follow_modes = ("CW", "FT8")                        # FT8 wanted: yellow
@@ -95,6 +99,7 @@ class ShownTests(unittest.TestCase):
         self.assertEqual(asked, ["RA1ABC"])
         reports["RA1ABC"] = "FT8"
         self.assertFalse(f._console_shown("telnet", cw))               # he is on FT8: white
+        self.assertEqual(f._console_shown("telnet", cw), "EXCL FT8 (PSK Reporter)")
         del reports["RA1ABC"]
         f._console_psk_seen = {("RA1ABC", 7075): time.time() - 200}
         self.assertTrue(f._console_shown("telnet", cw))                # no FT8 report: real CW
