@@ -1,6 +1,6 @@
 # POUNCer — Changelog
 
-## Next release (not released yet)
+## v0.7.221 — 2026-11-18 — traffic console: PT (published time) and EXCL reasons
 
 - **Traffic console: PT** (published time) instead of PB - `PT 09:48:55 +1s`,
   `merged into PT ...`.
