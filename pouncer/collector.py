@@ -7,7 +7,7 @@ from collections import OrderedDict
 from dataclasses import replace
 
 from .spot_processing import SpotProcessor, _IndexedStore, parse_spot as parse_header
-from .clusterserver import spot_comment
+from .clusterserver import spot_comment, dx_line
 from .config import TELNETS
 from .bands import band_from_khz
 from . import traffic
@@ -65,15 +65,21 @@ class Collector:
         parsed = parse_header(output, self.engine.clock())
         if parsed is None:
             return replace(spot, collector_routed=False, collector_selected=True)
-        # The engine's own text keeps whatever precision its input carried
-        # (full Hz for a receiver-less synthetic line, .2f for a correction)
-        # - never what a human or N1MM should see on the wire (one decimal).
-        start, end = parsed.freq_span
-        freq_text = f"{parsed.frequency_hz / 1000:.1f}".encode("ascii")
-        output = output[:start] + freq_text + output[end:]
-        return replace(spot, dxcall=parsed.call, freq_khz=parsed.frequency_hz / 1000,
-                       raw_line=output.decode("latin-1"), collector_routed=False,
-                       collector_selected=True)
+        freq_khz = parsed.frequency_hz / 1000
+        if spot.raw_line:
+            # A real wire line (telnet): keep its own layout, only fixing up
+            # the frequency - the engine's own text keeps whatever precision
+            # its input carried (.2f for a correction), never six decimals.
+            start, end = parsed.freq_span
+            freq_text = f"{freq_khz:.1f}".encode("ascii")
+            raw_line = (output[:start] + freq_text + output[end:]).decode("latin-1")
+        else:
+            # No native line (e.g. the RBN HTTP feed): the engine's own text
+            # is evidence serialization, not a display format - lay it out
+            # the same DXSpider way a real telnet line already looks.
+            raw_line = dx_line(spot.spotter, freq_khz, parsed.call, self._comment(spot), spot.time_utc)
+        return replace(spot, dxcall=parsed.call, freq_khz=freq_khz,
+                       raw_line=raw_line, collector_routed=False, collector_selected=True)
 
     def _sync(self, app):
         enabled = bool(getattr(app.cfg, "cluster_merge", True))
@@ -89,17 +95,19 @@ class Collector:
         self.cw_waiting.prune(self.engine.clock())
 
     @staticmethod
+    def _comment(spot):
+        comment = spot_comment(spot)
+        return "" if spot.mode_guessed else comment  # a guessed API mode is not independent mode evidence
+
+    @staticmethod
     def _wire(spot):
         if spot.raw_line:
             return spot.raw_line.encode("latin-1", "replace")
         # Evidence serialization must never use the width-limited display
         # formatter: clipping a receiver ID can invent an independent vote.
-        comment = spot_comment(spot)
-        if spot.mode_guessed:
-            comment = ""  # a guessed API mode is not independent mode evidence
         stamp = f" {spot.time_utc}" if spot.time_utc else ""
         return (f"DX de {spot.spotter}: {spot.freq_khz:.6f} "
-                f"{spot.dxcall} {comment}{stamp}").encode("latin-1", "replace")
+                f"{spot.dxcall} {Collector._comment(spot)}{stamp}").encode("latin-1", "replace")
 
     @staticmethod
     def _template_key(source, header):

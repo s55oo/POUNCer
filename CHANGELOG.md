@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## v0.7.237 — 2026-11-19 — HTTP spots now laid out like a real telnet line (fix)
+
+- **Collector: layout of a receiver-less spot** - a spot with no native
+  telnet text (the RBN HTTP feed) was served as loose, unpadded text
+  (`DX de X-#: 7033.0 K9VAN CW 36 dB CQ 1631Z`) instead of the fixed-width
+  DXSpider-style columns every real telnet "DX de" line already has
+  (`DX de X-#:    7033.0  K9VAN        CW 36 dB CQ                1631Z`).
+  It now goes through the same layout, so port 10000 (N1MM's Telnet
+  window) and the traffic console look the same whatever the source.
+
 ## v0.7.236 — 2026-11-19 — spots with no native line got six decimals (fix)
 
 - **Collector: frequency precision** - a spot with no original telnet text
