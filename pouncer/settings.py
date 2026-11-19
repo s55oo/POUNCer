@@ -184,6 +184,12 @@ SETTINGS: list[dict] = [
      "help": "No spots on the WARC bands 60 m, 30 m, 17 m and 12 m (no contests there): "
              "not in the list or on the phone, not on port 10000 (N1MM's Telnet window), "
              "not yellow in the traffic console. Off again = they show again."},
+    {"key": "rbn.serve_own_spots", "attr": "serve_own_spots", "kind": "bool", "live": True,
+     "group": "RBN", "label": "Allow my own spots",
+     "help": "A spot of your own call is never put in the list (it still triggers the "
+             "SPOTTED pop-up) - off (default), it is also kept off port 10000 (N1MM's "
+             "Telnet window and other clients), silently. On: it goes out there too, "
+             "like any other spot. Traffic console: EXCL SELF while off."},
     {"key": "rbn.history", "attr": "rbn_history", "kind": "int", "min": 0, "max": 500,
      "live": False, "group": "RBN", "label": "Last spots at start (SH/DX)",
      "help": "0 = off."},
@@ -456,6 +462,7 @@ PAGES: list[tuple[str, list[tuple[str, list[str]]]]] = [
     ]),
     ("Spots", [
         ("Sources", ["rbn.sources", "rbn.history", "rbn.hide_beacons", "rbn.hide_warc",
+                     "rbn.serve_own_spots",
                      "rbn.backup_off",
                      "rbn.pause_on_phone",
                      "rbn.skimmer_quiet_minutes", "rbn.http_backup", "rbn.hamqth_backup"]),

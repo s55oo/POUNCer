@@ -56,9 +56,10 @@ class MasterListTests(unittest.TestCase):
         f = types.SimpleNamespace(
             spot_queue=queue.Queue(), _team_queue=queue.Queue(), spots={}, _dirty=False,
             _perf={"spots_in": 0}, _last_own_spot=0.0, own_call=lambda: "S55OO",
+            cfg=types.SimpleNamespace(serve_own_spots=False),
             team=types.SimpleNamespace(is_master=lambda: True, send_spot=sent.append),
             _note_self_spot=lambda *a, **k: noted.append(a))
-        for n in ("_drain_spots", "_is_my_call"):
+        for n in ("_drain_spots", "_is_my_call", "_is_my_callsign"):
             setattr(f, n, getattr(P, n).__get__(f))
         f._note_own = f._check_overlap = f._track_on_freq = f._serve = lambda s: None
         f._beacon_out = lambda s: False

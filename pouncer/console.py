@@ -4,6 +4,10 @@ Raw lines of every source as they arrive - RBN and the Telnet #1 - #4 (telnet
 lines, and the commands sent), N1MM (UDP packets in, QSY / call commands
 out), the HTTP backup feed, the team, the phone page's requests. The taps
 (``traffic.emit``) only work while this window is open; closed = no work.
+The red / green / yellow colour and the PT note (below) need ``spot_key`` to
+recognize the line - the telnet "DX de ..." format (any source), or, for the
+HTTP group only, HamQTH's bare line or the HTTP feed's JSON (v0.7.234); a
+format it does not recognize keeps the group's own colour, never red.
 
 **Colour is the publish outcome, nothing else** (v0.7.225): every spot line
 starts **red** - not (yet) sent to port 10000. The moment the collector
@@ -61,6 +65,7 @@ already-EXCL'd line is left alone - that reason already explains the red.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import time
@@ -93,16 +98,41 @@ PB_BUSTED_KHZ = 0.2        # same skimmer, other call this close: a corrected ca
 _SPOT_RE = re.compile(r"DX de\s+([^\s:]+):?\s+(\d+(?:\.\d+)?)\s+(\S+)", re.IGNORECASE)
 
 
-def spot_key(text: str):
-    """(call, kHz, spotter) of a 'DX de ...' line, else None."""
+def spot_key(text: str, src: str = ""):
+    """(call, kHz, spotter) of a spot line - a telnet 'DX de ...' line (any
+    source), or, for the HTTP group only (v0.7.234): HamQTH's bare
+    ``spotter freq call ...`` line, or the HTTP feed's JSON (``dxCall`` /
+    ``freqKHz`` / ``spotterRaw`` or ``spotter``, matching ``rbnhttp.to_spot``)
+    - else None. Without this, HamQTH / HTTP spots never got a PT note or a
+    colour at all: ``spot_key`` (text only, no ``src``) never recognized
+    them, so they never entered ``_waiting_pb`` in the first place."""
     m = _SPOT_RE.search(text or "")
-    if not m:
+    if m:
+        try:
+            khz = float(m.group(2))
+        except ValueError:
+            return None
+        return m.group(3).upper(), khz, m.group(1).upper()
+    if traffic.group_of(src) != "HTTP":
+        return None
+    t = (text or "").strip()
+    if t.startswith("{"):
+        try:
+            d = json.loads(t)
+            call = str(d.get("dxCall") or "").strip()
+            khz = float(d["freqKHz"])
+            spotter = str(d.get("spotterRaw") or d.get("spotter") or "").strip()
+        except (ValueError, TypeError, KeyError, json.JSONDecodeError):
+            return None
+        return (call.upper(), khz, spotter.upper()) if call and spotter else None
+    parts = t.split()
+    if len(parts) < 4:
         return None
     try:
-        khz = float(m.group(2))
+        khz = float(parts[1])
     except ValueError:
         return None
-    return m.group(3).upper(), khz, m.group(1).upper()
+    return parts[2].upper(), khz, parts[0].upper()
 
 
 def pb_note(line_key, line_t: float, pb_key, pb_t: float) -> str:
@@ -644,7 +674,7 @@ class TrafficConsole:
             self.text.insert("end", txt + "\n")
             shown += 1
             if not out:
-                key = spot_key(txt)
+                key = spot_key(txt, src)
                 if key:
                     line = int(self.text.index("end-1c").split(".")[0]) - 1
                     pbm = f"pb{id(txt)}_{t}_{shown}"

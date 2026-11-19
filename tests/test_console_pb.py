@@ -25,6 +25,21 @@ class NoteTests(unittest.TestCase):
         self.assertEqual(console.spot_key("S55OO de NODE >" + B)[2], "OE9GHV-#")
         self.assertIsNone(console.spot_key("login: S55OO"))
 
+    def test_spot_key_hamqth_and_http_json(self) -> None:
+        # v0.7.234: HamQTH's bare line and the HTTP feed's JSON never got a
+        # PT note or a colour at all - spot_key only ever recognized the
+        # telnet "DX de ..." format, regardless of source
+        self.assertEqual(console.spot_key("ES2RR-# 7012.0 DL0GSH CW 34", "HAMQTH"),
+                         ("DL0GSH", 7012.0, "ES2RR-#"))
+        http_line = ('{"spotter": "KM3T", "spotterRaw": "KM3T-3-#", "dxCall": "UA1T", '
+                    '"freqKHz": 21015.1, "band": "15M", "mode": "CW", "snr": 13}')
+        self.assertEqual(console.spot_key(http_line, "HTTP"), ("UA1T", 21015.1, "KM3T-3-#"))
+        # the HamQTH-shaped text means nothing outside the HTTP group - no
+        # false positives from an unrelated line that happens to look similar
+        self.assertIsNone(console.spot_key("ES2RR-# 7012.0 DL0GSH CW 34", "telnet"))
+        self.assertIsNone(console.spot_key("not json at all", "HTTP"))
+        self.assertIsNone(console.spot_key('{"no": "dxCall or freqKHz here"}', "HTTP"))
+
     def test_notes(self) -> None:
         a, b = console.spot_key(A), console.spot_key(B)
         t = 35334.0                                      # 09:48:54 UTC

@@ -1,5 +1,25 @@
 # POUNCer — Changelog
 
+## v0.7.234 — 2026-11-19 — traffic console: HamQTH / HTTP spots get a colour and PT too (fix)
+
+- **Traffic console: HamQTH / HTTP** - `spot_key` only ever recognized the
+  telnet `DX de ...` format, so a HamQTH line or an HTTP feed JSON line
+  never entered the publish-tracking at all: always the group's own
+  colour, never red / green / yellow, never a PT note or a "not sent"
+  note either. It now also parses HamQTH's bare line and the HTTP feed's
+  JSON (for the HTTP group only), so those sources get the same treatment
+  as telnet / RBN.
+
+## v0.7.233 — 2026-11-19 — "Allow my own spots" setting; traffic console EXCL SELF
+
+- **Allow my own spots** (Settings > Spots > Sources, `[rbn] serve_own_spots`,
+  off by default) - a spot of your own call is never listed, and was
+  silently kept off port 10000 too, with no way to tell why from the
+  traffic console. It now shows `EXCL SELF` there while the setting is
+  off (the SPOTTED pop-up still fires either way); turning it on forwards
+  your own spots to N1MM's Telnet window and other clients, like any other
+  spot.
+
 ## v0.7.232 — 2026-11-19 — a skimmer's own "BCN" mode is now recognized as a beacon
 
 - **Beacons: mode BCN** - some skimmers report a beacon detection with

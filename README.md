@@ -76,7 +76,10 @@ team) and UDP 12079 (team); everything else is outgoing.
 
 * **Own call** - taken from the open N1MM log's *Change Your Station Data*
   (follows the log you open); your own spots are never listed, and EU/DX
-  colouring is from that call's continent.
+  colouring is from that call's continent. Not on port 10000 either, by
+  default - the SPOTTED pop-up still fires; tick **Allow my own spots**
+  (Settings > Spots) to also forward them to N1MM's Telnet window and other
+  clients. Traffic console: **EXCL SELF** while off (v0.7.233).
 * **RBN** - a telnet client connects to `telnet.reversebeacon.net:7000`, logs in
   with your callsign (from N1MM unless `[rbn] callsign` is set), and keeps only the spots whose spotting node matches the
   configured `spotter` (e.g. `S53WW`). By default it is **CW only**; the
@@ -1490,6 +1493,7 @@ All options live in `config.ini` and are documented there, line by line:
 | `follow_modes` | CW | Modes to show (`CW`, `RTTY`, `FT8`, `FT4`). |
 | `hide_beacons` | true | Drop beacon spots as they come in - not in the list, not on port 10000: the 18 NCDXF beacons (4U1UN, W6WX, OH2B ...) on 14100 / 18110 / 21150 / 24930 / 28200 (±0.5 kHz; the same call elsewhere stays), type BEACON / NCDXF, calls ending in `/B`, or a skimmer's own `BCN` where the mode normally sits (v0.7.232). Traffic console: **BEACON**. Settings > Spots. |
 | `hide_warc` | false | **Remove WARC spots** (Settings > Spots > Sources): no spots on 60 m, 30 m, 17 m and 12 m (no contests there) - not in the list or on the phone, not on port 10000, not yellow in the traffic console. Off again = they show again (v0.7.205). |
+| `serve_own_spots` | false | **Allow my own spots** (Settings > Spots > Sources): a spot of your own call is never listed - off also keeps it off port 10000 (N1MM's Telnet window, other clients), though the SPOTTED pop-up still fires; on, it goes out there too. Traffic console: EXCL SELF while off (v0.7.233). |
 | `backup_off` | false | **Disable backup spots** (Settings > Spots > Sources): only the chosen skimmers (the Spotters filter), always. Off: while they all send nothing for `backup_after_minutes`, the backup skimmers are used too (orange in the traffic console) (v0.7.206). |
 | `cty` | POUNCer's download (S53M's cty.dat) | Country file for continent / DX / mults; a path here overrides it. |
 | **[n1mm]** | | |

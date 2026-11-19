@@ -11,7 +11,7 @@ LINE = "DX de EA8BFK-#:   14025.0  DL1ABC         CW    24 dB  28 WPM  CQ      1
 OTHER_SKIMMER = "DX de W3LPL-#:    14025.0  DL1ABC         CW    18 dB  28 WPM  CQ      1802Z"
 
 
-def _app(zones=(14, 15), spotted=None, clock=None):
+def _app(zones=(14, 15), spotted=None, clock=None, own_call=""):
     """A stand-in app with the real Spotters filter: skimmers in the zones."""
     from tests.test_so2r import _import_app
     from pouncer.rbn import SpotterFilter
@@ -21,11 +21,14 @@ def _app(zones=(14, 15), spotted=None, clock=None):
     sf = SpotterFilter("", zone_of=lambda c: zone.get(c), continent_of=lambda c: "EU",
                        home_cont=lambda: "EU", quiet_s=300, **kw)
     sf.configure("zones", zones=zones)
-    f = types.SimpleNamespace(spotter_filter=sf, spotted_filter=spotted,
-                              cfg=types.SimpleNamespace(hide_beacons=True, follow_modes=("CW",)))
+    f = types.SimpleNamespace(
+        spotter_filter=sf, spotted_filter=spotted, own_call=lambda: own_call,
+        cfg=types.SimpleNamespace(hide_beacons=True, follow_modes=("CW",),
+                                   serve_own_spots=False))
     f.pskr = None
     f.CONSOLE_PSK_WAIT_S = P.CONSOLE_PSK_WAIT_S
-    for name in ("_console_spot", "_console_shown", "_digi_wanted", "_console_psk"):
+    for name in ("_console_spot", "_console_shown", "_digi_wanted", "_console_psk",
+                 "_is_my_callsign"):
         setattr(f, name, getattr(P, name).__get__(f))
     return f
 
@@ -283,6 +286,24 @@ class ConsolePublishColorTests(unittest.TestCase):
         # real EXCL reason ever lands
         from pouncer import console
         self.assertGreater(console.UNSENT_NOTE_S, console.PSK_WAIT_S)
+
+    def test_hamqth_and_http_lines_get_a_colour_and_pt_too(self) -> None:
+        # v0.7.234: before spot_key knew about HamQTH / HTTP, these never
+        # entered _waiting_pb at all - always the group's own colour, never
+        # red/green/yellow, never a PT note, never "not sent" either
+        hamqth_line = "ES2RR-# 7012.0 DL0GSH CW 34"
+        self.yes.add(hamqth_line)
+        t = time.time()
+        self.c.add([(t, "HAMQTH", hamqth_line)])
+        self.assertIn("DL0GSH", self.tagged("notsent"))
+        self.c.add([(t + 1, "server >", "DX de ES2RR-#:   7012.0  DL0GSH  CW 34 dB 1800Z")])
+        self.assertIn("DL0GSH", self.tagged("sent"))
+        http_line = ('{"spotter": "KM3T", "spotterRaw": "KM3T-3-#", "dxCall": "UA1T", '
+                    '"freqKHz": 21015.1, "band": "15M", "mode": "CW", "snr": 13}')
+        self.yes.add(http_line)
+        t2 = time.time()
+        self.c.add([(t2, "HTTP", http_line)])
+        self.assertIn("UA1T", self.tagged("notsent"))
 
 
 if __name__ == "__main__":

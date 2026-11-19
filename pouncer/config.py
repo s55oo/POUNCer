@@ -136,6 +136,8 @@ class Config:
     cty_update_n1mm: bool = False    # also copy it into N1MM's SupportFiles
     hide_beacons: bool = True
     hide_warc: bool = False        # [rbn] hide_warc: no spots on 60 / 30 / 17 / 12 m
+    serve_own_spots: bool = False   # [rbn] serve_own_spots: a spot of my own call on
+                                    # port 10000 too (v0.7.233); off = SPOTTED pop-up only
     follow_modes: tuple[str, ...] = ("CW",)
     rbn_ft8_port: int = 7001
 
@@ -383,6 +385,7 @@ def load_config(path: str) -> Config:
     cfg.cty_update_n1mm = b("cty", "update_n1mm", cfg.cty_update_n1mm)
     cfg.hide_beacons = b("rbn", "hide_beacons", cfg.hide_beacons)
     cfg.hide_warc = b("rbn", "hide_warc", cfg.hide_warc)
+    cfg.serve_own_spots = b("rbn", "serve_own_spots", cfg.serve_own_spots)
     cfg.follow_modes = parse_modes(
         s("rbn", "follow_modes", ",".join(cfg.follow_modes))
     )

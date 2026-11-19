@@ -1330,8 +1330,13 @@ class PouncerApp:
             alert_beep(self.root)
 
     def _is_my_call(self, spot) -> bool:
+        return self._is_my_callsign(getattr(spot, "dxcall", ""))
+
+    def _is_my_callsign(self, call: str) -> bool:
+        """Same comparison as ``_is_my_call``, from a bare call string - the
+        traffic console has no Spot object for every source (v0.7.233)."""
         me = self.own_call() if hasattr(self, "own_call") else ""
-        return bool(me) and alert_base_call(spot.dxcall) == alert_base_call(me)
+        return bool(me) and alert_base_call(call or "") == alert_base_call(me)
 
     def _note_self_spot(self, dxcall: str, spotter: str, freq_khz: float,
                         comment: str = "", from_team: bool = False) -> None:
@@ -4090,10 +4095,12 @@ class PouncerApp:
                 spot.time_utc = time.strftime("%H%MZ", time.gmtime(spot.received))
             if self._is_my_call(spot):
                 # a spot of MY call (live, or the last spots after a cluster
-                # login, up to 15 min old): the SPOTTED pop-up, not a row
+                # login, up to 15 min old): the SPOTTED pop-up, not a row -
+                # port 10000 too, unless allowed ([rbn] serve_own_spots, v0.7.233)
                 if time.time() - spot.received < 900:
                     self._note_self_spot(spot.dxcall, spot.spotter, spot.freq_khz)
-                continue
+                if not getattr(self.cfg, "serve_own_spots", False):
+                    continue
             if self._beacon_out(spot):
                 continue                  # a beacon: not in the list, not on port 10000
             sf = getattr(self, "spotted_filter", None)
@@ -4123,7 +4130,10 @@ class PouncerApp:
             if not spot.time_utc:
                 spot.time_utc = time.strftime("%H%MZ", time.gmtime(spot.received))
             if self._is_my_call(spot):
-                continue                  # (the pop-up came with it: _team_spot)
+                # (the pop-up came with it: _team_spot) - still this PC's own
+                # port 10000 choice ([rbn] serve_own_spots, v0.7.233)
+                if not getattr(self.cfg, "serve_own_spots", False):
+                    continue
             if self._beacon_out(spot):
                 continue
             sf = getattr(self, "spotted_filter", None)
@@ -4215,11 +4225,15 @@ class PouncerApp:
         An FT8 / FT4 spot (its mode, or a person's spot in an FT8 window) is
         never yellow unless FT8 / FT4 is in the Spots modes (v0.7.208).
         "backup" (orange, v0.7.206) = taken only because the chosen skimmers
-        are quiet and the backup skimmers are in use."""
+        are quiet and the backup skimmers are in use. A spot of my own call
+        is EXCL SELF, unless [rbn] serve_own_spots is on (v0.7.233) - it
+        always triggers the SPOTTED pop-up, just not on port 10000 by default."""
         got = self._console_spot(src, txt)
         if got is None:
             return None
         spot, spotter, call, khz, skimmer = got
+        if self._is_my_callsign(call) and not getattr(self.cfg, "serve_own_spots", False):
+            return traffic.Excl("EXCL SELF")   # own call: kept off port 10000 (v0.7.233)
         if not skimmer and not people_taken(self, src):
             return traffic.Excl("EXCL PEOPLE (no Telnet on)")   # a person's spot, POUNCer takes none
         sf = getattr(self, "spotter_filter", None)
