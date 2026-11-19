@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.228 — 2026-11-19 — traffic console: BEACON unticked hides the raw line too (fix)
+
+- **Traffic console: BEACON** - unticking the BEACON group used to hide only
+  the separate "kept out" summary line; a beacon's own raw line (under its
+  real source: telnet, rbn ...), marked `EXCL BCN`, still showed. It is now
+  removed too when BEACON is unticked - ticked (the default), it still
+  shows with the `EXCL BCN` reason, as before.
+
 ## v0.7.227 — 2026-11-19 — Settings > Telnet: enable each connection there too
 
 - **Settings > Telnet: enable this connection** - a tick next to each

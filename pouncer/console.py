@@ -32,7 +32,10 @@ red) gets the reason at its end, in grey - ``EXCL SPOTTER`` / ``EXCL
 SPOTTED`` (the Spotters / Spotted filter), ``EXCL FT8`` / ``EXCL FT4`` (its
 mode, an unmarked one in the FT8 window, or PSK Reporter has him there),
 ``EXCL BCN`` (beacon), ``EXCL WARC``, ``EXCL PEOPLE`` (a person's spot with
-no Telnet on).
+no Telnet on). ``EXCL BCN`` with the BEACON group unticked removes the
+whole raw line instead (v0.7.228) - the BEACON checkbox then hides a
+beacon's line everywhere, not only the separate "kept out" summary line
+under the BEACON group itself.
 
 **PT** (published time; v0.7.218 as PB): when a spot goes out on port 10000 (a ``server >`` line),
 every spot line of that station that came in shortly before (the same call
@@ -415,11 +418,24 @@ class TrafficConsole:
             return None
 
     def _note_excl(self, mark: str, how) -> None:
-        """'EXCL WARC' ... at the end of a line the filters keep out (grey)."""
+        """'EXCL WARC' ... at the end of a line the filters keep out (grey).
+        'EXCL BCN' with the BEACON group unticked removes the whole raw line
+        instead (v0.7.228) - unticking BEACON otherwise only hid the
+        separate "kept out" summary line (``traffic.kept_out``), not the
+        beacon's own raw line under its source (telnet / rbn ...)."""
         if how or not isinstance(how, str) or not str(how):
             return
+        reason = str(how)
+        if reason == "EXCL BCN":
+            beacon = self.show.get("BEACON")
+            if beacon is not None and not beacon.get():
+                try:
+                    self.text.delete(f"{mark} linestart", f"{mark} linestart +1 line")
+                except tk.TclError:
+                    pass
+                return
         try:
-            self.text.insert(f"{mark} lineend", "  " + str(how), "excl")
+            self.text.insert(f"{mark} lineend", "  " + reason, "excl")
         except tk.TclError:
             pass
 

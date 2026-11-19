@@ -93,6 +93,36 @@ class ConsoleExclTests(unittest.TestCase):
         self.assertFalse(e)
         self.assertEqual(str(e), "EXCL BCN")
 
+    def test_beacon_line_removed_with_beacon_group_unticked(self) -> None:
+        # v0.7.228: EXCL WARC etc. still just get the reason at the end, but
+        # EXCL BCN with BEACON unticked removes the whole raw line - before,
+        # unticking BEACON only hid the separate "kept out" summary line,
+        # not the beacon's own line under its real source (telnet / rbn ...)
+        from pouncer import traffic
+        why = {A: traffic.Excl("EXCL BCN"), B: True}
+        c = console.TrafficConsole(_root, shown=lambda src, txt: why.get(txt))
+        c.open()
+        c.show["BEACON"].set(False)
+        try:
+            t = 35334.0
+            c.add([(t, "telnet", A), (t, "telnet2", B)])
+            c.recheck(now=10 ** 12)
+            got = c.text.get("1.0", "end").splitlines()
+            self.assertNotIn("G4ZFE", got)              # the beacon's line is gone
+            self.assertTrue(any("OE9GHV" in line for line in got))  # the other line stays
+        finally:
+            c.close()
+        # BEACON still ticked (default): the line stays, with its reason
+        why2 = {A: traffic.Excl("EXCL BCN")}
+        c2 = console.TrafficConsole(_root, shown=lambda src, txt: why2.get(txt))
+        c2.open()
+        try:
+            c2.add([(t, "telnet", A)])
+            c2.recheck(now=10 ** 12)
+            self.assertTrue(c2.text.get("1.0", "end").splitlines()[0].endswith("EXCL BCN"))
+        finally:
+            c2.close()
+
 
 if __name__ == "__main__":
     unittest.main()
