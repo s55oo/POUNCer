@@ -242,6 +242,11 @@ SETTINGS: list[dict] = [
              "is asked about that one call; FT8 / FT4 reports there = not SSB (in an SSB contest too). "
              "Also a CW spot in any FT8 / FT4 window (14074, 14080, 7047.5 ...): FT8 / FT4 reports "
              "= not CW; none = a real CW station, it stays."},
+    {"key": "telnet1.enabled", "attr": "rbn_source", "kind": "bool", "live": True,
+     "group": "RBN", "label": "Telnet #1: enable this connection", "source_key": "telnet",
+     "help": "The very same switch as 'Telnet #1' in the Spots menu - ticking either one "
+             "ticks the other. Refused (and says why) without a server below; in a team, "
+             "the master's choice."},
     {"key": "telnet1.host", "attr": "telnet1_host", "kind": "text", "live": True,
      "group": "RBN", "label": "Telnet #1: server",
      "help": "A DX cluster / skimmer node, e.g. azure.s53m.com. "
@@ -262,6 +267,11 @@ SETTINGS: list[dict] = [
     {"key": "telnet1.commands", "attr": "telnet1_commands", "kind": "text", "live": True,
      "group": "RBN", "label": "Telnet #1: commands after login",
      "help": "Comma separated, e.g. set/skimmer."},
+    {"key": "telnet2.enabled", "attr": "rbn_source", "kind": "bool", "live": True,
+     "group": "RBN", "label": "Telnet #2: enable this connection", "source_key": "telnet2",
+     "help": "The very same switch as 'Telnet #2' in the Spots menu - ticking either one "
+             "ticks the other. Refused (and says why) without a server below; in a team, "
+             "the master's choice."},
     {"key": "telnet2.host", "attr": "telnet2_host", "kind": "text", "live": True,
      "group": "RBN", "label": "Telnet #2: server",
      "help": "A DX cluster / skimmer node, e.g. dxc.example.net. "
@@ -282,6 +292,11 @@ SETTINGS: list[dict] = [
     {"key": "telnet2.commands", "attr": "telnet2_commands", "kind": "text", "live": True,
      "group": "RBN", "label": "Telnet #2: commands after login",
      "help": "Comma separated, e.g. set/skimmer."},
+    {"key": "telnet3.enabled", "attr": "rbn_source", "kind": "bool", "live": True,
+     "group": "RBN", "label": "Telnet #3: enable this connection", "source_key": "telnet3",
+     "help": "The very same switch as 'Telnet #3' in the Spots menu - ticking either one "
+             "ticks the other. Refused (and says why) without a server below; in a team, "
+             "the master's choice."},
     {"key": "telnet3.host", "attr": "telnet3_host", "kind": "text", "live": True,
      "group": "RBN", "label": "Telnet #3: server",
      "help": "A DX cluster / skimmer node, e.g. dxc.example.net. "
@@ -302,6 +317,11 @@ SETTINGS: list[dict] = [
     {"key": "telnet3.commands", "attr": "telnet3_commands", "kind": "text", "live": True,
      "group": "RBN", "label": "Telnet #3: commands after login",
      "help": "Comma separated, e.g. set/skimmer."},
+    {"key": "telnet4.enabled", "attr": "rbn_source", "kind": "bool", "live": True,
+     "group": "RBN", "label": "Telnet #4: enable this connection", "source_key": "telnet4",
+     "help": "The very same switch as 'Telnet #4' in the Spots menu - ticking either one "
+             "ticks the other. Refused (and says why) without a server below; in a team, "
+             "the master's choice."},
     {"key": "telnet4.host", "attr": "telnet4_host", "kind": "text", "live": True,
      "group": "RBN", "label": "Telnet #4: server",
      "help": "A DX cluster / skimmer node, e.g. dxc.example.net. "
@@ -425,10 +445,14 @@ PAGES: list[tuple[str, list[tuple[str, list[str]]]]] = [
         ("", ["web.phone_control", "web.cw_keyboard"]),
     ]),
     ("Telnet", [
-        ("", ["telnet1.host", "telnet1.port", "telnet1.login", "telnet1.role", "telnet1.commands",
-              "telnet2.host", "telnet2.port", "telnet2.login", "telnet2.role", "telnet2.commands",
-              "telnet3.host", "telnet3.port", "telnet3.login", "telnet3.role", "telnet3.commands",
-              "telnet4.host", "telnet4.port", "telnet4.login", "telnet4.role", "telnet4.commands"]),
+        ("", ["telnet1.enabled", "telnet1.host", "telnet1.port", "telnet1.login",
+              "telnet1.role", "telnet1.commands",
+              "telnet2.enabled", "telnet2.host", "telnet2.port", "telnet2.login",
+              "telnet2.role", "telnet2.commands",
+              "telnet3.enabled", "telnet3.host", "telnet3.port", "telnet3.login",
+              "telnet3.role", "telnet3.commands",
+              "telnet4.enabled", "telnet4.host", "telnet4.port", "telnet4.login",
+              "telnet4.role", "telnet4.commands"]),
     ]),
     ("Spots", [
         ("Sources", ["rbn.sources", "rbn.history", "rbn.hide_beacons", "rbn.hide_warc",
@@ -464,6 +488,8 @@ _ORDER = {k: i for i, k in enumerate(k for _p, parts in PAGES for _q, keys in pa
 
 
 def _show(item: dict, value) -> object:
+    if item.get("source_key"):          # telnetN.enabled: "on" in [rbn] sources (a CSV)
+        return item["source_key"] in set(filter(None, str(value or "").split(",")))
     if item["attr"] == "default_radio":
         return "B" if value == 2 else "A"
     if item["attr"].endswith("_commands"):

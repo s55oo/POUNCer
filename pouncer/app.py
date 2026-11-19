@@ -2751,7 +2751,7 @@ class PouncerApp:
         need = {"http": ("rbn_http_backup", "No HTTP feed set ([rbn] http_backup)")}
         for n, k in enumerate(TELNETS, 1):
             need[k] = (f"telnet{n}_host", f"Telnet #{n} has no server - set it in "
-                                          f"Settings > Spots > Telnet #{n}")
+                                          f"Settings > Telnet")
         cur = set(filter(None, str(self.cfg.rbn_source or "").split(",")))
         if src not in cur and src in need and not getattr(self.cfg, need[src][0], ""):
             self.status_label.configure(text=need[src][1])
@@ -2964,7 +2964,7 @@ class PouncerApp:
             dup = (getattr(self, "_telnet_same", None) or {}).get(n)
             now = ("off" if not on else f"nothing extra - the same server as {dup}" if dup
                    else st(tc))
-            srv = f"{host}:{port}" if host else f"(no server - Settings > Spots > Telnet #{n})"
+            srv = f"{host}:{port}" if host else "(no server - Settings > Telnet)"
             return (f"{head}\n{srv} (telnet), login {login or call}"
                     f"{', then ' + ', '.join(cmds) if cmds else ''}\n"
                     f"All its spots: skimmers ('-#') and people; "
@@ -5588,10 +5588,28 @@ class PouncerApp:
         """A change from the web page."""
         return self._save_setting(key, value)
 
+    def _save_source_tick(self, key: str, src: str, value: str) -> dict:
+        """Settings > Telnet's 'enable this connection' tick: the very same
+        switch as that source's button on the Spots line (v0.7.227) - goes
+        through ``_set_source`` so it gets the same team-ask and "no server"
+        guard, not a separate path that could disagree with it."""
+        want = str(value).strip().lower() in ("1", "true", "yes", "on")
+        cur = set(filter(None, str(self.cfg.rbn_source or "").split(",")))
+        if want == (src in cur):
+            return {"ok": True, "key": key, "value": want, "live": True}
+        self._set_source(src)
+        now_on = src in set(filter(None, str(self.cfg.rbn_source or "").split(",")))
+        if now_on != want:          # refused (no server) or asked the team master
+            return {"ok": False, "error": self.status_label.cget("text")}
+        return {"ok": True, "key": key, "value": now_on, "live": True}
+
     def _save_setting(self, key: str, value: str) -> dict:
         """Settings window / page (web thread): write config.ini, update the
         config - and log what changed (old -> new)."""
         item = settingsmod.BY_KEY.get(key, {})
+        src = item.get("source_key")
+        if src:
+            return self._save_source_tick(key, src, value)
         old = getattr(self.cfg, item.get("attr", ""), None) if item else None
         res = settingsmod.save(self.cfg, self.cfg.config_path, key, value)
         if res.get("ok"):

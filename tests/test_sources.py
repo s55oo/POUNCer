@@ -129,6 +129,53 @@ class SourceTests(unittest.TestCase):
         f._set_source("cluster")                             # an older team member's name
         self.assertEqual(saved, [])                          # = Telnet #2: no server either
 
+    def test_settings_tick_is_the_same_switch_as_the_spots_button(self) -> None:
+        # v0.7.227: Settings > Telnet's "enable this connection" tick goes
+        # through the very same _set_source as the Spots line's button
+        import os
+        import shutil
+        import tempfile
+
+        app, f, made, Fake = fake_app("rbn,telnet")
+        d = tempfile.mkdtemp()
+        here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        path = os.path.join(d, "config.ini")
+        shutil.copy(os.path.join(here, "config.ini"), path)
+        f.cfg.config_path = path
+        msgs = []
+        f.status_label = types.SimpleNamespace(
+            configure=lambda **k: msgs.append(k.get("text")),
+            cget=lambda *_a: (msgs[-1] if msgs else ""))
+        for n in ("_save_setting", "_save_source_tick", "_apply_source"):
+            setattr(f, n, getattr(app.PouncerApp, n).__get__(f))
+        try:
+            with mock.patch.object(app, "RBNClient", Fake), \
+                    mock.patch.object(app, "RBNHttpFeed", lambda *a, **k: types.SimpleNamespace(
+                        start=lambda: None, stop=lambda: None, spots_in=0, last_ok=0.0)):
+                # Telnet #1 ("telnet") is on: tick it off
+                res = f._save_source_tick("telnet1.enabled", "telnet", "false")
+                self.assertEqual(res, {"ok": True, "key": "telnet1.enabled",
+                                       "value": False, "live": True})
+                self.assertNotIn("telnet", f.cfg.rbn_source.split(","))
+                # tick it back on: it has a default server, so it succeeds
+                res = f._save_source_tick("telnet1.enabled", "telnet", "true")
+                self.assertEqual(res, {"ok": True, "key": "telnet1.enabled",
+                                       "value": True, "live": True})
+                self.assertIn("telnet", f.cfg.rbn_source.split(","))
+                # already on: a no-op, nothing touched
+                before = f.cfg.rbn_source
+                res = f._save_source_tick("telnet1.enabled", "telnet", "true")
+                self.assertEqual(res, {"ok": True, "key": "telnet1.enabled",
+                                       "value": True, "live": True})
+                self.assertEqual(f.cfg.rbn_source, before)
+                # Telnet #3 has no server: refused, same reason as the Spots button
+                res = f._save_source_tick("telnet3.enabled", "telnet3", "true")
+                self.assertFalse(res["ok"])
+                self.assertIn("Telnet #3 has no server", res["error"])
+                self.assertNotIn("telnet3", f.cfg.rbn_source.split(","))
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
     def test_hover_names_the_connection(self) -> None:
         f, made = self.run_with("telnet")
         t = f._source_tip("telnet")

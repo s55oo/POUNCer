@@ -869,7 +869,7 @@ the cluster server (port 10000):
   admission rules. Adjust the radius and lifetime with `cw_conflict_hz` and
   `cw_conflict_seconds`. A genuine station heard by only one skimmer close to
   an established run can be withheld during this window.
-- Set each Telnet's **source role** in Settings > Spots (`role` in `[telnet1]`
+- Set each Telnet's **source role** in Settings > Telnet (`role` in `[telnet1]`
   .. `[telnet4]`): `cluster` (default), `local` (direct skimmer), `rbn` (raw
   multi-receiver feed), or `gocluster` (processed reference). Only `cluster`
   receives relayed logger commands. GoCluster sends only the login: automatic

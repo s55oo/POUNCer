@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.227 — 2026-11-19 — Settings > Telnet: enable each connection there too
+
+- **Settings > Telnet: enable this connection** - a tick next to each
+  Telnet #1 - #4, the very same switch as that source's button on the
+  Spots line: ticking either one ticks the other, refused (and says why)
+  without a server, and in a team it is the master's choice, same as the
+  Spots button.
+
 ## v0.7.226 — 2026-11-19 — KVP: new mults for a station never worked before
 
 - **KVP exchange multiplier** - S53ZO's contest-log archive (already used for
