@@ -1,5 +1,16 @@
 # POUNCer — Changelog
 
+## v0.7.222 — 2026-11-19 — traffic console: green for published spots; settings dividers
+
+- **Traffic console: green** - a primary (non-backup, yellow) spot line turns
+  green once it actually goes out on port 10000; a backup (orange) line keeps
+  its colour even when it is the one that gets forwarded.
+- **Settings: dividers** - a line above every topic but the first on a page
+  (window and the /settings page), so Sources / Telnet / SSB / Spotters /
+  Spotted (and every other group of settings) are clearly set apart.
+- **Settings: Telnet** - Telnet #1 - #4 are now one "Telnet" topic (Settings >
+  Spots) instead of four separate ones.
+
 ## v0.7.221 — 2026-11-18 — traffic console: PT (published time) and EXCL reasons
 
 - **Traffic console: PT** (published time) instead of PB - `PT 09:48:55 +1s`,

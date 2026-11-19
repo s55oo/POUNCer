@@ -11,7 +11,10 @@ skimmers / zones, and the Spotted filter; not a dropped beacon) are drawn in
 watched; a line that doesn't is looked at again for ``SHOWN_WAIT_S`` (the
 backup skimmers can switch on meanwhile). A spot taken only because the
 chosen skimmers are quiet and the backup skimmers are in use is **orange**
-(v0.7.206).
+(v0.7.206). Once a yellow (primary, non-backup) line actually goes out on
+port 10000 it turns **green** (v0.7.222) - backup (orange) lines keep their
+colour even when they are the one that gets forwarded, so orange still means
+"via the backup skimmers" at a glance.
 
 Sources can be ticked off (they keep being counted; a line in the view marks
 the switch), a filter word (a call, "DX de", "RadioInfo" ...) shows matching
@@ -56,6 +59,7 @@ SHOWN_WAIT_S = 5     # a spot line: look again this long whether POUNCer shows i
 PSK_WAIT_S = 160     # ... or this long when the app says "wait" (asking PSK Reporter)
 SHOWN_COLOR = "#ffeb3b"
 BACKUP_COLOR = "#ff9800"   # taken via the backup skimmers (chosen ones quiet)
+PUBLISHED_COLOR = "#4caf50"  # a primary (non-backup) spot that went out on port 10000
 PB_COLOR = "#ffcc80"       # "PT 09:48:55" - published to port 10000
 EXCL_COLOR = "#9e9e9e"     # "EXCL WARC" - kept out by your filters
 PB_LINK_S = 120            # a spot line links to a publish of its station this long after it
@@ -163,6 +167,7 @@ class TrafficConsole:
             # the look's own text colour (yellow on the light look's grey bar
             # could not be read); only the lines below are yellow (v0.7.202)
             ttk.Label(bar, text="yellow = spots that match your filters, "
+                                "green = those forwarded to port 10000, "
                                 "orange = via backup skimmers, PT = published to port 10000 (UTC), "
                                 "EXCL = why not",
                       font=(theme.FONT, 9)).pack(side="left", padx=(10, 0))
@@ -213,6 +218,9 @@ class TrafficConsole:
         self.text.tag_configure("backup", foreground=BACKUP_COLOR, font=("Consolas", 9, "bold"))
         self.text.tag_configure("pb", foreground=PB_COLOR)
         self.text.tag_configure("excl", foreground=EXCL_COLOR)
+        # highest priority (configured last): a primary spot that was actually
+        # forwarded to port 10000 turns green, on top of its yellow "shown" tag
+        self.text.tag_configure("published", foreground=PUBLISHED_COLOR, font=("Consolas", 9, "bold"))
         self._pending = []
         self._waiting_pb = []
         self._recent_pb = []
@@ -408,10 +416,29 @@ class TrafficConsole:
             pass
 
     def _mark_shown(self, mark: str, how=True) -> None:
-        """Yellow (matches the filters) or orange (``how == "backup"``)."""
+        """Yellow (matches the filters) or orange (``how == "backup"``); green
+        instead of yellow when this line has already been noted as published
+        to port 10000 (the PT note can arrive before or after this, v0.7.222)."""
         try:
-            self.text.tag_add("backup" if how == "backup" else "shown",
+            backup = how == "backup"
+            self.text.tag_add("backup" if backup else "shown",
                               f"{mark} linestart", f"{mark} lineend")
+            if not backup and self.text.tag_nextrange(
+                    "pb", f"{mark} linestart", f"{mark} lineend"):
+                self.text.tag_add("published", f"{mark} linestart", f"{mark} lineend")
+        except tk.TclError:
+            pass
+
+    def _mark_published(self, mark: str) -> None:
+        """The line a ``PT ...`` note was just added to: green, but only when
+        it is a primary (non-backup) spot already marked yellow - a backup
+        (orange) line keeps its colour, and a line not yet decided picks up
+        green itself once ``_mark_shown`` runs (v0.7.222)."""
+        try:
+            if (self.text.tag_nextrange("shown", f"{mark} linestart", f"{mark} lineend")
+                    and not self.text.tag_nextrange(
+                        "backup", f"{mark} linestart", f"{mark} lineend")):
+                self.text.tag_add("published", f"{mark} linestart", f"{mark} lineend")
         except tk.TclError:
             pass
 
@@ -437,6 +464,7 @@ class TrafficConsole:
             self.text.insert(f"{mark} lineend", note, "pb")
         except tk.TclError:
             pass
+        self._mark_published(mark)
 
     def _published(self, key, t: float) -> None:
         """A spot went out on port 10000: PB on the lines of that station."""

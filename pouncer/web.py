@@ -2948,7 +2948,9 @@ SETTINGS_HTML = """<!doctype html>
   .bar button.restart { background: #ef6c00; }
   h1 { font-size: 20px; margin: 6px 0 2px; }
   h2 { font-size: 16px; margin: 22px 0 8px; border-bottom: 1px solid #263238; padding-bottom: 4px; }
-  h3 { font-size: 13px; margin: 14px 0 6px; color: #90a4ae; font-weight: 600; }
+  h3 { font-size: 13px; margin: 18px 0 6px; color: #90a4ae; font-weight: 600;
+    border-top: 1px solid #1c2329; padding-top: 12px; }
+  h2 + h3, h2:first-child + h3 { border-top: 0; margin-top: 8px; padding-top: 0; }
   p.lead { opacity: .75; margin: 0 0 8px; font-size: 13px; }
   .row { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center;
     padding: 10px 0; border-bottom: 1px solid #1c2329; }

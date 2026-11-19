@@ -187,6 +187,49 @@ class ConsoleYellowTests(unittest.TestCase):
         self.assertEqual(self.c._pending, [])
         self.assertEqual(self.tagged(), "")
 
+    def published_tagged(self) -> str:
+        r = self.c.text.tag_ranges("published")
+        return "".join(self.c.text.get(r[i], r[i + 1]) for i in range(0, len(r), 2))
+
+    def test_green_once_a_primary_spot_is_published(self) -> None:
+        self.yes.add(LINE)
+        t = time.time()
+        self.c.add([(t, "telnet", LINE)])
+        self.c.add([(t + 1, "server >", LINE)])
+        self.assertIn("DL1ABC", self.published_tagged())
+        self.assertIn("DL1ABC", self.tagged())            # still yellow underneath
+
+    def test_backup_spot_stays_orange_even_when_published(self) -> None:
+        self.c.shown = lambda src, txt: "backup" if "DX de" in txt else None
+        t = time.time()
+        self.c.add([(t, "telnet", LINE)])
+        self.c.add([(t + 1, "server >", LINE)])
+        self.assertEqual(self.published_tagged(), "")     # never turns green
+        r = self.c.text.tag_ranges("backup")
+        self.assertIn("DL1ABC", "".join(self.c.text.get(r[i], r[i + 1]) for i in range(0, len(r), 2)))
+
+    def test_not_green_while_still_pending(self) -> None:
+        # not in self.yes yet: the line is pending, not yellow - a publish
+        # that comes in meanwhile must not turn it green on its own
+        t = time.time()
+        self.c.add([(t, "telnet", LINE)])
+        self.c.add([(t + 1, "server >", LINE)])
+        self.assertEqual(self.published_tagged(), "")
+        self.assertEqual(self.tagged(), "")
+
+    def test_green_either_way_the_pt_note_and_the_shown_tag_land(self) -> None:
+        # the PT note can be noted before the shown/yellow decision resolves
+        # (a spot that was "wait"-ing on PSK Reporter, already published by
+        # the time POUNCer decides to show it) - still turns green (v0.7.222)
+        t = time.time()
+        self.c.add([(t, "telnet", LINE)])                  # not in self.yes: pending
+        self.c.add([(t + 1, "server >", LINE)])             # published while still pending
+        self.assertEqual(self.published_tagged(), "")
+        self.yes.add(LINE)
+        self.c.recheck()                                    # now decided: shown
+        self.assertIn("DL1ABC", self.published_tagged())
+        self.assertIn("DL1ABC", self.tagged())
+
 
 if __name__ == "__main__":
     unittest.main()

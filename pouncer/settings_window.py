@@ -5,8 +5,11 @@ Built from ``settings.SETTINGS``, laid out by ``settings.PAGES`` (the
 the left (Display, Alerts & history, N1MM & radios, Phone page, Spots,
 Cluster server, Updates), all of them on one scrolling sheet on
 the right - a page name jumps to its part, and the name of the part in view
-is lit while scrolling. The search box at the top (Ctrl+F) keeps only the
-settings whose name or help has every typed word.
+is lit while scrolling. A horizontal line sits above every part but the
+first in a page, so each topic (e.g. Spots > Sources, Telnet, SSB,
+Spotters, Spotted) is visually set off from the one before it (v0.7.222);
+the Telnet settings (#1 - #4) are one part, "Telnet". The search box at the
+top (Ctrl+F) keeps only the settings whose name or help has every typed word.
 
 Each row: the name, its box / tick right next to it, then one grey help line
 ("more" opens the rest). Nothing is written until **Save** (top right, or
@@ -102,6 +105,7 @@ class SettingsWindow:
         self.pending: dict[str, tuple[dict, str]] = {}   # key -> (item, new text), not saved yet
         self.rows: list[dict] = []          # {item, frame, page, part}
         self.heads: list[dict] = []         # {widget, page, part (None = page heading)}
+        self.seps: list[dict] = []          # {widget, page, part}: the line above that part
         self.helps: list[dict] = []         # {label, more, text, open, indent}
         self.pages: list[str] = []
         self._wrap_w = 0
@@ -151,7 +155,7 @@ class SettingsWindow:
         win = tk.Toplevel(self.root)
         win.after(10, lambda w=win: theme.title_bar(w))      # dark title bar in the dark look
         self.win = win
-        self.rows, self.heads, self.helps, self.pages = [], [], [], []
+        self.rows, self.heads, self.helps, self.pages, self.seps = [], [], [], [], []
         win.title("POUNCer settings")
         h = max(theme.px(420), min(theme.px(760), win.winfo_screenheight() - 120))
         win.geometry(f"{theme.px(880)}x{h}")
@@ -233,13 +237,20 @@ class SettingsWindow:
             head.grid(row=row, column=0, sticky="w", pady=(14 if row else 4, 2))
             self.heads.append({"widget": head, "page": page, "part": None})
             row += 1
+            first_part = True
             for part, items in parts:
                 if part:
+                    if not first_part:          # a line between this topic and the one before
+                        sep = ttk.Separator(inner, orient="horizontal")
+                        sep.grid(row=row, column=0, sticky="ew", pady=(10, 0))
+                        self.seps.append({"widget": sep, "page": page, "part": part})
+                        row += 1
                     ph = ttk.Label(inner, text=part, font=self.part_font,
                                    foreground=theme.MUTED)
                     ph.grid(row=row, column=0, sticky="w", pady=(8, 2))
                     self.heads.append({"widget": ph, "page": page, "part": part})
                     row += 1
+                first_part = False
                 for it in items:
                     self._row(inner, row, it, page, part)
                     row += 1
@@ -447,6 +458,11 @@ class SettingsWindow:
                 hd["widget"].grid()
             else:
                 hd["widget"].grid_remove()
+        for sp in self.seps:                # the divider above a part: with it
+            if (sp["page"], sp["part"]) in shown:
+                sp["widget"].grid()
+            else:
+                sp["widget"].grid_remove()
         for i, page in enumerate(self.pages):
             has = (page, None) in shown
             try:

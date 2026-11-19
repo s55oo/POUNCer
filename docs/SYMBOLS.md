@@ -204,7 +204,7 @@ Marks in the call and Mult columns:
 | yellow source, `>` | sent by POUNCer (commands, QSY, login) |
 | **PSKR** | PSK Reporter: `subscribe` / `unsubscribe` of one call and its FT8 / FT4 reports (the FT8-or-SSB check on 7074 - 7077, and FT8-or-CW for a CW spot in an FT8 / FT4 window) |
 | **FT8** | FT8 / FT4 spots kept out of port 10000 (v0.7.174): `dropped` by a feed (mode not in the Spots modes), `not served to port 10000`, `held` (CW / SSB in an FT8 window, asking PSK Reporter), then `not served` (he is on FT8) or `served now`. Never a red dot: quiet = nothing kept out |
-| yellow spot line | matches your filters (Spotters + Spotted); **orange** = via the backup skimmers |
+| yellow spot line | matches your filters (Spotters + Spotted); **orange** = via the backup skimmers; **green** = a yellow line that went out on port 10000 (v0.7.222) - orange stays orange even once it is the one forwarded |
 | **PT 09:48:55 +1s** at a line's end | published to port 10000 at that time (UTC), 1 s after the line came in; `as G4ZFE-#` = merged into another skimmer's spot, `as SQ6OEP` = a corrected call, `merged into PT ...` = the station had already gone out (v0.7.221; PB in v0.7.218 - 220) |
 | grey **EXCL ...** at a line's end | kept out by your filters: `SPOTTER`, `SPOTTED`, `FT8` / `FT4` (mode, unmarked in the FT8 window, PSK Reporter), `BCN`, `WARC`, `PEOPLE (no Telnet on)` (v0.7.221) |
 | cache\nonPublishedSpots.log | spots that passed your filters but never went out on port 10000, with the reason (v0.7.218) |
