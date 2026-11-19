@@ -160,6 +160,40 @@ class ConsoleExclTests(unittest.TestCase):
         self.assertNotIn("BEACON", console.GROUP_LABEL)
         self.assertNotIn("WARC", console.GROUP_LABEL)
 
+    def test_ft8_ft4_lines_removed_with_ft8_group_unticked(self) -> None:
+        # v0.7.231: every EXCL FT8 / FT4 variant (plain, PSK Reporter, an
+        # unmarked one in the FT8 window) is removed too, same mechanism as
+        # BEACON / WARC - before, unticking FT8 only hid the separate "kept
+        # out" summary line (digi_out), not the raw line under telnet / rbn
+        from pouncer import traffic
+        variants = ["EXCL FT8", "EXCL FT4", "EXCL FT8 (PSK Reporter)",
+                    "EXCL FT4 (unmarked, FT8 window)"]
+        for reason in variants:
+            with self.subTest(reason=reason):
+                why = {A: traffic.Excl(reason), B: True}
+                c = console.TrafficConsole(_root, shown=lambda src, txt: why.get(txt))
+                c.open()
+                c.show["FT8"].set(False)
+                try:
+                    t = 35334.0
+                    c.add([(t, "telnet", A), (t, "telnet2", B)])
+                    c.recheck(now=10 ** 12)
+                    got = c.text.get("1.0", "end").splitlines()
+                    self.assertNotIn("G4ZFE", got)
+                    self.assertTrue(any("OE9GHV" in line for line in got))
+                finally:
+                    c.close()
+        # FT8 still ticked (default): the line stays, with its reason
+        why2 = {A: traffic.Excl("EXCL FT8")}
+        c2 = console.TrafficConsole(_root, shown=lambda src, txt: why2.get(txt))
+        c2.open()
+        try:
+            c2.add([(35334.0, "telnet", A)])
+            c2.recheck(now=10 ** 12)
+            self.assertTrue(c2.text.get("1.0", "end").splitlines()[0].endswith("EXCL FT8"))
+        finally:
+            c2.close()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -32,11 +32,12 @@ red) gets the reason at its end, in grey - ``EXCL SPOTTER`` / ``EXCL
 SPOTTED`` (the Spotters / Spotted filter), ``EXCL FT8`` / ``EXCL FT4`` (its
 mode, an unmarked one in the FT8 window, or PSK Reporter has him there),
 ``EXCL BCN`` (beacon), ``EXCL WARC``, ``EXCL PEOPLE`` (a person's spot with
-no Telnet on). ``EXCL BCN`` with BEACON unticked, or ``EXCL WARC`` with
-WARC unticked (``HIDE_WITH_GROUP``), removes the whole raw line instead
-(v0.7.228 / 229) - a WARC spot has no separate "kept out" summary line at
-all (unlike BEACON / FT8), so its checkbox only ever works this way; the
-FT8 checkbox (shown as "FT8/FT4") also keeps out FT4.
+no Telnet on). With its own group unticked (``hide_group_for``), EXCL BCN /
+WARC / FT8 / FT4 remove the whole raw line instead (v0.7.228 / 229 / 231) -
+a WARC spot has no separate "kept out" summary line at all (unlike BEACON /
+FT8), so its checkbox only ever works this way; the FT8 checkbox (shown as
+"FT8/FT4") covers every FT8 / FT4 EXCL variant (plain, PSK Reporter, an
+unmarked one in the FT8 window).
 
 **PT** (published time; v0.7.218 as PB): when a spot goes out on port 10000 (a ``server >`` line),
 every spot line of that station that came in shortly before (the same call
@@ -131,6 +132,18 @@ GROUP_LABEL = {"FT8": "FT8/FT4"}
 # EXCL reason -> the group whose checkbox, unticked, removes that raw line
 # too (not only its own "kept out" summary line, if it has one) (v0.7.228/229)
 HIDE_WITH_GROUP = {"EXCL BCN": "BEACON", "EXCL WARC": "WARC"}
+# EXCL FT8 / EXCL FT4 have several variants ("EXCL FT8", "EXCL FT4
+# (unmarked, FT8 window)", "EXCL FT8 (PSK Reporter)" ...) - all of them
+# mean the FT8/FT4 group (v0.7.231)
+FT8_EXCL_PREFIXES = ("EXCL FT8", "EXCL FT4")
+
+
+def hide_group_for(reason: str) -> str | None:
+    """The group whose checkbox, unticked, removes a line with this EXCL
+    reason - or None (it only ever gets the reason at its end)."""
+    if reason.startswith(FT8_EXCL_PREFIXES):
+        return "FT8"
+    return HIDE_WITH_GROUP.get(reason)
 
 
 class TrafficConsole:
@@ -439,16 +452,16 @@ class TrafficConsole:
 
     def _note_excl(self, mark: str, how) -> None:
         """'EXCL WARC' ... at the end of a line the filters keep out (grey).
-        'EXCL BCN' with BEACON unticked, or 'EXCL WARC' with WARC unticked
-        (``HIDE_WITH_GROUP``), removes the whole raw line instead (v0.7.228 /
-        229) - unticking BEACON otherwise only hid the separate "kept out"
-        summary line (``traffic.kept_out``), not the beacon's own raw line
-        under its source (telnet / rbn ...); WARC has no summary line at
-        all, so its button only ever worked this way."""
+        With its own group unticked (``hide_group_for``), EXCL BCN / WARC /
+        FT8 / FT4 remove the whole raw line instead (v0.7.228 / 229 / 231) -
+        unticking BEACON or FT8 otherwise only hid the separate "kept out"
+        summary line (``traffic.kept_out`` / ``digi_out``), not the raw line
+        under its real source (telnet / rbn ...); WARC has no summary line
+        at all, so its button only ever worked this way."""
         if how or not isinstance(how, str) or not str(how):
             return
         reason = str(how)
-        group = HIDE_WITH_GROUP.get(reason)
+        group = hide_group_for(reason)
         if group:
             var = self.show.get(group)
             if var is not None and not var.get():

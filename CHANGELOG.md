@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.231 — 2026-11-19 — traffic console: FT8 unticked now hides the raw line too
+
+- **Traffic console: FT8/FT4** - unticking FT8 used to hide only the
+  separate "kept out" summary line (`digi_out`); an `EXCL FT8` / `EXCL FT4`
+  raw line under its real source (telnet, rbn ...) still showed. Every
+  variant (plain, PSK Reporter, an unmarked one in the FT8 window) is
+  removed too now, same mechanism as BEACON / WARC.
+
 ## v0.7.230 — 2026-11-19 — traffic console: "not sent" note on an unexplained red line
 
 - **Traffic console: "not sent (likely a recent repeat)"** - a shown spot
