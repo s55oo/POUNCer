@@ -160,6 +160,13 @@ team) and UDP 12079 (team); everything else is outgoing.
   (`[ui] run_history`, cached in a `cache` folder). The **⚡** header button
   sorts the rarely-running stations to the top. A new call is known in about
   a second (8 looked up at a time; instant once cached).
+  **Exchange multipliers** (v0.7.226): for a contest whose multiplier is a
+  station's own exchange rather than geography - KVP's two-digit licence-year
+  number - the same archive lookup supplies it for a station never worked
+  before and not in N1MM's call history, so it can show as a **new mult**
+  the first time it is spotted, not only after you work it once. A spot's
+  debug view (phone: hold a tile → Debug) shows "from the call's past logs"
+  as the source when this is what decided it.
   **Warm-up:** at start POUNCer downloads (once, refreshed after 30 days)
   ready lists: **CW** - about 46 000 stations from CQWW CW, ARRL DX CW and
   CQ WPX CW - and, **separately, SSB** - the same contests' phone versions

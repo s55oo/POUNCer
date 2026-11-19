@@ -961,12 +961,15 @@ class WorkedLog:
         """IARU HF counts ITU zones; CQ contests count CQ zones."""
         return self.contest_name.upper().startswith("IARU")
 
-    def station_value(self, field: str, call: str | None, from_call: dict) -> tuple:
+    def station_value(self, field: str, call: str | None, from_call: dict,
+                       exchange_hint: str | None = None) -> tuple:
         """(value, source) of one multiplier field for a spotted station:
         country / zone / prefix / continent from cty.dat and the call (a zone
         the log has for this call wins); exchange fields (section, DOK ...)
         from the log - the station worked on another band - else N1MM's call
-        history; else (None, "unknown")."""
+        history; else the app's ``exchange_hint`` (e.g. a stable exchange
+        from the call's past logs in the archive - KVP's licence-year number
+        barely changes, v0.7.226) for ``Exchange1``; else (None, "unknown")."""
         c = (call or "").strip().upper()
         logged = self._call_vals.get(c, {}).get(field) if c else None
         if field == "ZN" and logged is not None:      # the zone logged for this call wins
@@ -979,9 +982,14 @@ class WorkedLog:
         hist = self._callhist.get(c, {}).get(field) if c else None
         if hist is not None:
             return hist, "call history"
+        if field == "Exchange1" and exchange_hint:
+            v = multsmod.normalize(field, exchange_hint)
+            if v is not None:
+                return v, "history"
         return None, "unknown"
 
-    def _spot_mults(self, freq_khz, country_prefix, zone, wpx, call, continent, mode):
+    def _spot_mults(self, freq_khz, country_prefix, zone, wpx, call, continent, mode,
+                     exchange_hint=None):
         band = band_from_khz(freq_khz)
         base = {"CountryPrefix": country_prefix, "ZN": zone, "WPXPrefix": wpx,
                 "Continent": continent}
@@ -992,7 +1000,7 @@ class WorkedLog:
             if f is None:
                 out.append((sl, None, "unknown", None, None))
                 continue
-            v, src = self.station_value(f, call, base)
+            v, src = self.station_value(f, call, base, exchange_hint)
             scope = sl["scope"]
             if scope == "bandmode" and not m:
                 scope = "band"
@@ -1011,17 +1019,19 @@ class WorkedLog:
         call: str | None = None,
         continent: str | None = None,
         mode: str | None = None,
+        exchange_hint: str | None = None,
     ) -> int:
         """How many multipliers a station would be (0, 1, 2 ... - e.g. new
         zone + new country = a double mult in CQWW). Exchange multipliers
-        (section, DOK ...) count when the log or the call history knows the
+        (section, DOK ...) count when the log, the call history, or
+        ``exchange_hint`` (the app's historical-archive lookup) knows the
         station's value."""
         if self.profile:
             return sum(int(d["new"]) for d in self._profile_mult_detail(freq_khz, call, mode))
         if not band_from_khz(freq_khz) or not self.mult_slots:
             return 0
         return sum(1 for _sl, _v, _src, new, _sc in self._spot_mults(
-            freq_khz, country_prefix, zone, wpx, call, continent, mode) if new)
+            freq_khz, country_prefix, zone, wpx, call, continent, mode, exchange_hint) if new)
 
     def mult_detail(
         self,
@@ -1032,6 +1042,7 @@ class WorkedLog:
         call: str | None = None,
         continent: str | None = None,
         mode: str | None = None,
+        exchange_hint: str | None = None,
     ) -> list[dict]:
         """Why ``new_mults`` says what it says (phone debug): per multiplier
         slot its column, the station's value and where it came from, where it
@@ -1042,7 +1053,7 @@ class WorkedLog:
         band = band_from_khz(freq_khz)
         out = []
         for sl, v, src, new, scope in self._spot_mults(
-                freq_khz, country_prefix, zone, wpx, call, continent, mode):
+                freq_khz, country_prefix, zone, wpx, call, continent, mode, exchange_hint):
             sc = scope or sl["scope"]
             where = "contest" if sc == "contest" else (
                 f"{band or '?'} {normalize_mode(mode)}" if sc == "bandmode" and mode else (band or "?"))

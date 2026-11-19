@@ -5,16 +5,20 @@ lines, and the commands sent), N1MM (UDP packets in, QSY / call commands
 out), the HTTP backup feed, the team, the phone page's requests. The taps
 (``traffic.emit``) only work while this window is open; closed = no work.
 
-Spot lines - of every source - that match the filters (the Spotters filter:
-skimmers / zones, and the Spotted filter; not a dropped beacon) are drawn in
-**yellow** (``shown`` from the app, v0.7.203), so the filtering can be
-watched; a line that doesn't is looked at again for ``SHOWN_WAIT_S`` (the
-backup skimmers can switch on meanwhile). A spot taken only because the
-chosen skimmers are quiet and the backup skimmers are in use is **orange**
-(v0.7.206). Once a yellow (primary, non-backup) line actually goes out on
-port 10000 it turns **green** (v0.7.222) - backup (orange) lines keep their
-colour even when they are the one that gets forwarded, so orange still means
-"via the backup skimmers" at a glance.
+**Colour is the publish outcome, nothing else** (v0.7.225): every spot line
+starts **red** - not (yet) sent to port 10000. The moment the collector
+actually sends the station out (a ``server >`` line), every spot line of
+that station that came in at or before that moment turns **green**; one
+that comes in **after** turns **yellow** ("merged into" its ``PT`` note -
+see below - because another, earlier line is the one that was actually
+sent). A line stays red forever when it is never sent at all: filtered out,
+held, a repeat within 180 s, Relay off ... (hover a source, or the ``EXCL``
+reason below, says why). This replaces the earlier scheme (yellow = matches
+your filters, v0.7.203; orange = via the backup skimmers, v0.7.206; green =
+a yellow line that got sent, v0.7.222) - whether a spot is sent now matters
+more than whether it is "primary" or "backup", and a spot that is still
+being decided (``SHOWN_WAIT_S`` / PSK Reporter) can still turn green the
+moment it is sent, even before that decision is in.
 
 Sources can be ticked off (they keep being counted; a line in the view marks
 the switch), a filter word (a call, "DX de", "RadioInfo" ...) shows matching
@@ -23,11 +27,12 @@ The top bar shows per source: lines so far, "hidden", how long it has been
 quiet, and why (``notes()`` from the app: RBN paused on SSB, no Telnet on,
 via the team master ...). At most ``KEEP`` lines are kept in the window.
 
-**EXCL** (v0.7.221): a spot line your filters keep out gets the reason at
-its end, in grey - ``EXCL SPOTTER`` / ``EXCL SPOTTED`` (the Spotters /
-Spotted filter), ``EXCL FT8`` / ``EXCL FT4`` (its mode, an unmarked one in the
-FT8 window, or PSK Reporter has him there), ``EXCL BCN`` (beacon), ``EXCL
-WARC``, ``EXCL PEOPLE`` (a person's spot with no Telnet on).
+**EXCL** (v0.7.221): a spot line your filters keep out (and so will stay
+red) gets the reason at its end, in grey - ``EXCL SPOTTER`` / ``EXCL
+SPOTTED`` (the Spotters / Spotted filter), ``EXCL FT8`` / ``EXCL FT4`` (its
+mode, an unmarked one in the FT8 window, or PSK Reporter has him there),
+``EXCL BCN`` (beacon), ``EXCL WARC``, ``EXCL PEOPLE`` (a person's spot with
+no Telnet on).
 
 **PT** (published time; v0.7.218 as PB): when a spot goes out on port 10000 (a ``server >`` line),
 every spot line of that station that came in shortly before (the same call
@@ -35,10 +40,11 @@ within ``PB_KHZ``, the last ``PB_LINK_S``) gets ``PT 09:48:55 +1s`` at its
 end - the publish time (UTC) and how long after it came in; ``as G4ZFE-#`` =
 the spot went out under another skimmer (merged), ``as SQ6OEP`` = under a
 corrected call. A line that comes in after its station went out gets ``merged
-into PT 09:48:55``. No PT = not (yet) sent: filtered, held, or one of a group
-still being collected. The ``PT`` note always keeps its own light orange
-colour, even on a green line - green only reaches up to where the note
-starts (v0.7.224; in v0.7.222 green painted the note too, hiding it).
+into PT 09:48:55`` (that line turns yellow). No PT = not (yet) sent: filtered,
+held, or one of a group still being collected (that line stays red). The
+``PT`` note always keeps its own light orange colour, on every line colour -
+green or yellow only reach up to where the note starts (v0.7.224; in
+v0.7.222 green painted the note too, hiding it).
 """
 
 from __future__ import annotations
@@ -59,9 +65,9 @@ QUIET_S = 5          # no line this long = "quiet" (amber dot)
 DEAD_S = 30          # this long = red dot (unless the app says why: grey)
 SHOWN_WAIT_S = 5     # a spot line: look again this long whether POUNCer shows it
 PSK_WAIT_S = 160     # ... or this long when the app says "wait" (asking PSK Reporter)
-SHOWN_COLOR = "#ffeb3b"
-BACKUP_COLOR = "#ff9800"   # taken via the backup skimmers (chosen ones quiet)
-PUBLISHED_COLOR = "#4caf50"  # a primary (non-backup) spot that went out on port 10000
+NOT_SENT_COLOR = "#e53935"  # red: not (yet) sent to port 10000 - the default
+SENT_COLOR = "#4caf50"      # green: this line's station went out (now or already)
+MERGED_COLOR = "#ffeb3b"    # yellow: this line's station already went out via another line
 PB_COLOR = "#ffcc80"       # "PT 09:48:55" - published to port 10000
 EXCL_COLOR = "#9e9e9e"     # "EXCL WARC" - kept out by your filters
 PB_LINK_S = 120            # a spot line links to a publish of its station this long after it
@@ -167,10 +173,10 @@ class TrafficConsole:
         ttk.Button(bar, text="Reset counters", command=self.reset_counts).pack(side="left", padx=2)
         if self.shown is not None:
             # the look's own text colour (yellow on the light look's grey bar
-            # could not be read); only the lines below are yellow (v0.7.202)
-            ttk.Label(bar, text="yellow = spots that match your filters, "
-                                "green = those forwarded to port 10000, "
-                                "orange = via backup skimmers, PT = published to port 10000 (UTC), "
+            # could not be read); only the lines below are coloured (v0.7.202)
+            ttk.Label(bar, text="green = sent to port 10000, yellow = merged into "
+                                "another spot's send (still has its own PT time), "
+                                "red = never sent, PT = published to port 10000 (UTC), "
                                 "EXCL = why not",
                       font=(theme.FONT, 9)).pack(side="left", padx=(10, 0))
         # one chip per source: coloured dot (green = lines now, amber = quiet,
@@ -216,13 +222,13 @@ class TrafficConsole:
             self.text.tag_configure(g, foreground=col)
         self.text.tag_configure("time", foreground="#607d8b")
         self.text.tag_configure("mark", foreground="#607d8b", font=("Consolas", 9, "italic"))
-        self.text.tag_configure("shown", foreground=SHOWN_COLOR, font=("Consolas", 9, "bold"))
-        self.text.tag_configure("backup", foreground=BACKUP_COLOR, font=("Consolas", 9, "bold"))
+        # the publish outcome, nothing else (v0.7.225): red by default, green
+        # once sent, yellow once merged into another line's send
+        self.text.tag_configure("notsent", foreground=NOT_SENT_COLOR)
+        self.text.tag_configure("merged", foreground=MERGED_COLOR, font=("Consolas", 9, "bold"))
+        self.text.tag_configure("sent", foreground=SENT_COLOR, font=("Consolas", 9, "bold"))
         self.text.tag_configure("pb", foreground=PB_COLOR)
         self.text.tag_configure("excl", foreground=EXCL_COLOR)
-        # highest priority (configured last): a primary spot that was actually
-        # forwarded to port 10000 turns green, on top of its yellow "shown" tag
-        self.text.tag_configure("published", foreground=PUBLISHED_COLOR, font=("Consolas", 9, "bold"))
         self._pending = []
         self._waiting_pb = []
         self._recent_pb = []
@@ -417,41 +423,22 @@ class TrafficConsole:
         except tk.TclError:
             pass
 
-    def _green_end(self, mark: str) -> str:
-        """Where to stop painting a line green: right before its own ``PT
-        ...`` note, if it already has one - that note keeps its own light
-        orange ("pb") colour instead of disappearing into the green
-        (v0.7.224), on every line colour (yellow, orange, now green too)."""
+    def _mark_not_sent(self, mark: str) -> None:
+        """Red by default - every spot line starts here (v0.7.225); a later
+        ``_note_pb`` overrides it with green or yellow, in either order."""
+        try:
+            self.text.tag_add("notsent", f"{mark} linestart", f"{mark} lineend")
+        except tk.TclError:
+            pass
+
+    def _color_end(self, mark: str) -> str:
+        """Where to stop painting a line red / yellow / green: right before
+        its own ``PT ...`` note, if it already has one - that note keeps its
+        own light orange ("pb") colour instead of disappearing into it
+        (v0.7.224)."""
         start, end = f"{mark} linestart", f"{mark} lineend"
         pb = self.text.tag_nextrange("pb", start, end)
         return pb[0] if pb else end
-
-    def _mark_shown(self, mark: str, how=True) -> None:
-        """Yellow (matches the filters) or orange (``how == "backup"``); green
-        instead of yellow when this line has already been noted as published
-        to port 10000 (the PT note can arrive before or after this, v0.7.222)."""
-        try:
-            backup = how == "backup"
-            self.text.tag_add("backup" if backup else "shown",
-                              f"{mark} linestart", f"{mark} lineend")
-            if not backup and self.text.tag_nextrange(
-                    "pb", f"{mark} linestart", f"{mark} lineend"):
-                self.text.tag_add("published", f"{mark} linestart", self._green_end(mark))
-        except tk.TclError:
-            pass
-
-    def _mark_published(self, mark: str) -> None:
-        """The line a ``PT ...`` note was just added to: green, but only when
-        it is a primary (non-backup) spot already marked yellow - a backup
-        (orange) line keeps its colour, and a line not yet decided picks up
-        green itself once ``_mark_shown`` runs (v0.7.222)."""
-        try:
-            if (self.text.tag_nextrange("shown", f"{mark} linestart", f"{mark} lineend")
-                    and not self.text.tag_nextrange(
-                        "backup", f"{mark} linestart", f"{mark} lineend")):
-                self.text.tag_add("published", f"{mark} linestart", self._green_end(mark))
-        except tk.TclError:
-            pass
 
     def _drop_pending(self) -> None:
         for mark, *_ in self._pending:
@@ -471,11 +458,17 @@ class TrafficConsole:
         self._waiting_pb = []
 
     def _note_pb(self, mark: str, note: str) -> None:
+        """A ``PT ...`` note means this line's station went out: green - or
+        yellow when it is "merged into" another line's send (v0.7.225)."""
         try:
             self.text.insert(f"{mark} lineend", note, "pb")
         except tk.TclError:
             pass
-        self._mark_published(mark)
+        try:
+            tag = "merged" if note.strip().startswith("merged into") else "sent"
+            self.text.tag_add(tag, f"{mark} linestart", self._color_end(mark))
+        except tk.TclError:
+            pass
 
     def _published(self, key, t: float) -> None:
         """A spot went out on port 10000: PB on the lines of that station."""
@@ -513,7 +506,10 @@ class TrafficConsole:
         self._waiting_pb.append((mark, key, t))
 
     def recheck(self, now: float | None = None) -> None:
-        """Spot lines not yellow yet: shown by now? (until SHOWN_WAIT_S)."""
+        """Spot lines not decided yet: shown by now? (until SHOWN_WAIT_S).
+        Colour never depends on this (v0.7.225) - only whether it is kept
+        out gets a reason here (EXCL); a line can turn green or yellow
+        (``_note_pb``) at any time, decided or not."""
         if not self._pending:
             return
         now = time.time() if now is None else now
@@ -521,7 +517,7 @@ class TrafficConsole:
         for mark, src, txt, until in self._pending:
             how = self._is_shown(src, txt)
             if how and how != "wait":
-                self._mark_shown(mark, how)
+                pass
             elif now < until:
                 keep.append((mark, src, txt, until))
                 continue
@@ -565,6 +561,7 @@ class TrafficConsole:
                     pbm = f"pb{id(txt)}_{t}_{shown}"
                     self.text.mark_set(pbm, f"{line}.0")
                     self.text.mark_gravity(pbm, "left")
+                    self._mark_not_sent(pbm)     # red by default (v0.7.225)
                     self._spot_in(pbm, key, t)
                 yes = self._is_shown(src, txt)
                 if yes is not None:
@@ -572,7 +569,6 @@ class TrafficConsole:
                     mark = f"sp{id(txt)}_{t}_{shown}"
                     self.text.mark_set(mark, f"{line}.0")
                     if yes and yes != "wait":
-                        self._mark_shown(mark, yes)
                         self.text.mark_unset(mark)
                     elif len(self._pending) < 500:
                         wait = PSK_WAIT_S if yes == "wait" else SHOWN_WAIT_S

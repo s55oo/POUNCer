@@ -1,5 +1,30 @@
 # POUNCer — Changelog
 
+## v0.7.226 — 2026-11-19 — KVP: new mults for a station never worked before
+
+- **KVP exchange multiplier** - S53ZO's contest-log archive (already used for
+  run % / hours / rare CQ) now also supplies a station's own sent exchange
+  from its newest archived log, for contests whose multiplier is the
+  exchange itself rather than geography (KVP's two-digit licence-year
+  number): a station never worked this session and not in N1MM's call
+  history can now show as a **new mult** the first time it is spotted, not
+  only after you work it once. Known from a single archived QSO - it does
+  not wait for enough QSOs for a run % figure. Debug view (phone: hold a
+  tile → Debug) shows "from the call's past logs" as the source.
+
+## v0.7.225 — 2026-11-19 — traffic console: colour is the publish outcome
+
+- **Traffic console: red / yellow / green** - every spot line now starts
+  **red** (not sent to port 10000); the moment its station actually goes
+  out it turns **green**; a line that comes in after its station already
+  went out turns **yellow** ("merged into ...", still with its own `PT`
+  note). This replaces the earlier scheme (yellow = matches your filters,
+  orange = via the backup skimmers, green = a yellow line that got sent) -
+  whether a spot is forwarded to N1MM now matters more than whether it is
+  "primary" or "backup": a backup-sourced spot is green too once sent, and
+  a spot still being decided (PSK Reporter, the 5 s look-again) can turn
+  green right away, before that decision is in.
+
 ## v0.7.224 — 2026-11-19 — traffic console: PT fix (fix)
 
 - **Traffic console: PT visible again** - v0.7.222's green (a primary spot

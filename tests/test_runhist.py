@@ -8,7 +8,7 @@ import unittest
 import zlib
 
 from pouncer.runhist import (
-    RunHistory, archive_target, on_air_hours, pick_logs, run_share, shard_name,
+    RunHistory, archive_target, constant_exchange, on_air_hours, pick_logs, run_share, shard_name,
 )
 
 
@@ -81,6 +81,16 @@ class HelperTests(unittest.TestCase):
         # logs without CAT: every QSO on "28000" - not 100% running (common on SSB)
         self.assertEqual(run_share(cabrillo([28000.0] * 50)), (0, 0))
         self.assertEqual(run_share(cabrillo([14000.0] * 5 + [14250.0] * 5)), (4, 5))
+
+    def test_constant_exchange(self) -> None:
+        # the Cabrillo QSO: line's own sent exchange (field 7) - a real KVP
+        # line: "QSO:  3528 CW 2026-04-19 0726 S50B 599 86     S53K 599 87"
+        self.assertEqual(constant_exchange(cabrillo([3528.0, 3529.0])), "15")
+        self.assertIsNone(constant_exchange(""))
+        self.assertIsNone(constant_exchange("QSO:  3528 CW 2026-04-19 0726 S50B 599"))
+        self.assertEqual(constant_exchange(
+            "QSO:  3528 CW 2026-04-19 0726 S50B          599 86     S53K          599 87    "
+        ), "86")
 
 
 class RunHistoryTests(unittest.TestCase):
@@ -400,6 +410,39 @@ class RunHistoryTests(unittest.TestCase):
                     break
                 time.sleep(0.05)
             self.assertIn("failed", rh.warm_status)
+
+    def test_exchange_known_even_with_too_few_qsos_for_run_percent(self) -> None:
+        # KVP-style: a handful of QSOs - too few for a run % figure, but the
+        # sent exchange (licence-year number) is already certain (v0.7.226)
+        with tempfile.TemporaryDirectory() as d:
+            shard = os.path.join(d, "src.sqlite")
+            con = sqlite3.connect(shard)
+            con.execute("CREATE TABLE logs (path TEXT, callsign TEXT, contest TEXT,"
+                        " year INTEGER, mode TEXT, season TEXT, subcontest TEXT, detail TEXT)")
+            con.execute("INSERT INTO logs VALUES ('ZRS_KVP/2026/s50b.log','S50B','ZRS_KVP',"
+                        "2026,'CW',NULL,NULL,NULL)")
+            con.commit()
+            con.close()
+            with open(shard, "rb") as fh:
+                shard_bytes = fh.read()
+            log_text = (
+                "QSO:  3528 CW 2026-04-19 0726 S50B          599 86     S53K          599 87    \n"
+                "QSO:  3528 CW 2026-04-19 0727 S50B          599 86     S53M          599 50    \n"
+            )
+
+            def fetch(url):
+                return shard_bytes if url.endswith(shard_name("S50B")) else log_text.encode()
+
+            rh = RunHistory(os.path.join(d, "cache"), fetch=fetch, base_url="X/")
+            info = None
+            for _ in range(100):
+                info = rh.get("S50B", "KVP", "CW")
+                if info is not None:
+                    break
+                time.sleep(0.05)
+            self.assertIsNotNone(info)
+            self.assertIsNone(info.get("run"))         # 2 QSOs: below MIN_QSOS
+            self.assertEqual(info["exchange"], "86")
 
 
 if __name__ == "__main__":

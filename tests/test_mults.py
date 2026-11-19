@@ -97,5 +97,61 @@ class WorkedExchangeTests(unittest.TestCase):
         self.assertEqual(wl.mult_detail(14010, "K", 5, "K9", call="K9XYZ")[0]["source"], "unknown")
 
 
+class ExchangeHintTests(unittest.TestCase):
+    """v0.7.226: a station never worked and not in N1MM's call history can
+    still count as a new Exchange1 mult from ``exchange_hint`` (the app's
+    historical-archive lookup, e.g. KVP's licence-year number) - but only
+    for Exchange1, and only when nothing closer (log / call history) knows
+    better."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        d = os.path.join(self.tmp.name, "Databases")
+        os.makedirs(d)
+        self.db = os.path.join(d, "log.s3db")
+        con = sqlite3.connect(self.db)
+        con.execute("CREATE TABLE DXLOG (TS TEXT, Call TEXT, Band REAL, Mode TEXT, ContestNR INTEGER, "
+                    "Exchange1 TEXT, IsMultiplier1 INTEGER)")
+        con.executemany("INSERT INTO DXLOG VALUES (?,?,?,?,?,?,?)", [
+            ("2026-04-19 07:30:00", "S53K", 3.5, "CW", 7, "87", 1),
+        ])
+        con.execute("CREATE TABLE Contest (Name TEXT, Multiplier1Name TEXT, Multiplier2Name TEXT, "
+                    "Multiplier3Name TEXT)")
+        con.execute("INSERT INTO Contest VALUES ('KVP', 'Exchange1', 'N/A', 'N/A')")
+        con.commit()
+        con.close()
+        a = sqlite3.connect(os.path.join(d, "N1MM Admin.s3db"))
+        a.execute("CREATE TABLE CallHist (Call TEXT, Exchange1 TEXT)")
+        a.execute("INSERT INTO CallHist VALUES ('S51B', '79')")
+        a.commit()
+        a.close()
+        self.wl = WorkedLog(self.db)
+        self.wl._load(self.db, ("x",), 7, "KVP")
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def test_hint_only_fills_in_when_nothing_closer_is_known(self) -> None:
+        wl = self.wl
+        # worked already (logged): the log wins over any hint
+        d = wl.mult_detail(3528, None, None, None, call="S53K", exchange_hint="99")[0]
+        self.assertEqual((d["value"], d["source"]), ("87", "log"))
+        # in N1MM's call history: that wins over the hint too
+        d = wl.mult_detail(3528, None, None, None, call="S51B", exchange_hint="99")[0]
+        self.assertEqual((d["value"], d["source"]), ("79", "call history"))
+        # never worked, not in call history: the hint fills it in
+        d = wl.mult_detail(3528, None, None, None, call="S50B", exchange_hint="86")[0]
+        self.assertEqual((d["value"], d["source"], d["new"]), ("86", "history", True))
+        self.assertEqual(wl.new_mults(3528, None, None, None, call="S50B", exchange_hint="86"), 1)
+        # no hint at all: still unknown, as before
+        d = wl.mult_detail(3528, None, None, None, call="S50B")[0]
+        self.assertEqual(d["source"], "unknown")
+
+    def test_hint_never_applies_to_a_non_exchange_field(self) -> None:
+        # station_value() only reads exchange_hint for the "Exchange1" field
+        self.assertEqual(self.wl.station_value("ZN", "S50B", {}, exchange_hint="86"),
+                         (None, "unknown"))
+
+
 if __name__ == "__main__":
     unittest.main()

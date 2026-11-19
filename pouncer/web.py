@@ -1505,7 +1505,8 @@ INDEX_HTML = """<!doctype html>
     const NAMES = {CountryPrefix: 'Country', ZN: f.zone_kind + ' zone', WPXPrefix: 'WPX prefix', Sect: 'Section',
       Exchange1: 'Exchange', MiscText: 'Misc text', GridSquare: 'Grid', Continent: 'Continent', CK: 'Check', Prec: 'Precedence'};
     const SRC = {'cty.dat': 'from cty.dat / the call', log: 'from your log (worked on another band)',
-      'call history': 'from N1MM call history', unknown: 'not known for this station (a spot has no exchange)'};
+      'call history': 'from N1MM call history', history: 'from the call’s past logs (S53ZO’s archive)',
+      unknown: 'not known for this station (a spot has no exchange)'};
     (f.mults || []).forEach(m => {
       const name = (NAMES[m.type] || m.type) + ' (mult ' + (m.n || '?') + ')';
       h += row(name, m.value == null ? '<span class="warn">unknown</span>' : esc(String(m.value)) + ' - ' +

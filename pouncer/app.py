@@ -3684,7 +3684,7 @@ class PouncerApp:
             "mults": self.worked.mult_detail(s.freq_khz, ent.prefix if ent else None, zone,
                                              wpx_prefix(s.dxcall), call=s.dxcall,
                                              continent=ent.continent if ent else None,
-                                             mode=s.mode),
+                                             mode=s.mode, exchange_hint=run.get("exchange")),
             "mult_rules": self.worked.mult_summary(),
             "mult": self._mults(s),
             "run": run, "rare_run": RARE_RUN_PCT,
@@ -4804,6 +4804,16 @@ class PouncerApp:
         ent = self._entity(call)
         return ent.name if ent else ""
 
+    def _exchange_hint(self, call: str, mode: str) -> str | None:
+        """The call's own exchange in its newest archived log of the open
+        contest (e.g. KVP's licence-year number) - stands in for an
+        exchange multiplier the log / call history don't know yet, for a
+        station never worked before (v0.7.226)."""
+        if self.runhist is None:
+            return None
+        info = self.runhist.get(call, self.worked.contest_name, mode)
+        return (info or {}).get("exchange")
+
     def _mults(self, s: Spot) -> int:
         """New multipliers this spot would give on its band: 0, 1 or 2
         (double = e.g. new zone + new country in CQWW)."""
@@ -4814,6 +4824,7 @@ class PouncerApp:
         return self.worked.new_mults(
             s.freq_khz, ent.prefix if ent else None, zone, wpx_prefix(s.dxcall),
             call=s.dxcall, continent=ent.continent if ent else None, mode=s.mode,
+            exchange_hint=self._exchange_hint(s.dxcall, s.mode),
         )
 
     def _run_fields(self, s: Spot) -> dict:
@@ -4828,6 +4839,7 @@ class PouncerApp:
         return {"run": info.get("run"), "hours": info.get("hours"),
                 "hours_unrounded": info.get("hours_unrounded") is True,
                 "rec": bool(info.get("rec")), "run_band": info.get("band"),
+                "exchange": info.get("exchange"),
                 **classify_urgency(info, self.worked.contest_name,
                                    getattr(self.cfg, "urgency_contest_minutes", 0))}
 

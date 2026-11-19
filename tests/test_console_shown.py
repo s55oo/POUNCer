@@ -134,7 +134,10 @@ except Exception:  # noqa: BLE001
 
 
 @unittest.skipIf(_root is None, "no display")
-class ConsoleYellowTests(unittest.TestCase):
+class ConsolePendingTests(unittest.TestCase):
+    """The filter decision (shown / EXCL) still runs as before - it just no
+    longer drives the line's colour (v0.7.225; see ConsolePublishColorTests)."""
+
     def setUp(self) -> None:
         from pouncer import console
         self.yes = set()
@@ -145,30 +148,9 @@ class ConsoleYellowTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.c.close()
 
-    def tagged(self) -> str:
-        r = self.c.text.tag_ranges("shown")
+    def excl_text(self) -> str:
+        r = self.c.text.tag_ranges("excl")
         return "".join(self.c.text.get(r[i], r[i + 1]) for i in range(0, len(r), 2))
-
-    def test_yellow_now_or_a_moment_later(self) -> None:
-        self.yes.add(LINE)
-        self.c.add([(time.time(), "telnet", LINE), (time.time(), "telnet", "login: S55OO"),
-                    (time.time(), "rbn", OTHER_SKIMMER)])
-        self.assertIn("DL1ABC", self.tagged())
-        self.assertNotIn("W3LPL", self.tagged())
-        self.assertNotIn("login", self.tagged())
-        self.assertEqual(len(self.c._pending), 1)                    # W3LPL: looked at again
-        self.yes.add(OTHER_SKIMMER)
-        self.c.recheck()
-        self.assertIn("W3LPL", self.tagged())
-        self.assertEqual(self.c._pending, [])
-
-    def test_orange_for_backup(self) -> None:
-        self.c.shown = lambda src, txt: "backup" if "W3LPL" in txt else (
-            None if "DX de" not in txt else False)
-        self.c.add([(time.time(), "rbn", OTHER_SKIMMER)])
-        r = self.c.text.tag_ranges("backup")
-        self.assertIn("W3LPL", "".join(self.c.text.get(r[i], r[i + 1]) for i in range(0, len(r), 2)))
-        self.assertEqual(self.tagged(), "")
 
     def test_wait_keeps_the_line_pending_longer(self) -> None:
         from pouncer import console
@@ -179,43 +161,81 @@ class ConsoleYellowTests(unittest.TestCase):
         self.assertEqual(len(self.c._pending), 1)
         self.c.shown = lambda src, txt: True
         self.c.recheck()
-        self.assertIn("W3LPL", self.tagged())
+        self.assertEqual(self.c._pending, [])
 
     def test_given_up_after_the_wait(self) -> None:
         self.c.add([(time.time(), "rbn", OTHER_SKIMMER)])
         self.c.recheck(now=time.time() + 60)
         self.assertEqual(self.c._pending, [])
-        self.assertEqual(self.tagged(), "")
 
-    def published_tagged(self) -> str:
-        r = self.c.text.tag_ranges("published")
+
+@unittest.skipIf(_root is None, "no display")
+class ConsolePublishColorTests(unittest.TestCase):
+    """v0.7.225: colour is the publish outcome, nothing else - red by
+    default (never sent), green (this line's station went out), yellow
+    (merged into another line's send, with its own PT note)."""
+
+    def setUp(self) -> None:
+        from pouncer import console
+        self.yes = set()
+        self.c = console.TrafficConsole(
+            _root, shown=lambda src, txt: (None if "DX de" not in txt else txt in self.yes))
+        self.c.open()
+
+    def tearDown(self) -> None:
+        self.c.close()
+
+    def tagged(self, name: str) -> str:
+        r = self.c.text.tag_ranges(name)
         return "".join(self.c.text.get(r[i], r[i + 1]) for i in range(0, len(r), 2))
 
-    def test_green_once_a_primary_spot_is_published(self) -> None:
+    def test_red_by_default_green_once_published(self) -> None:
         self.yes.add(LINE)
         t = time.time()
         self.c.add([(t, "telnet", LINE)])
+        self.assertIn("DL1ABC", self.tagged("notsent"))
+        self.assertNotIn("DL1ABC", self.tagged("sent"))
         self.c.add([(t + 1, "server >", LINE)])
-        self.assertIn("DL1ABC", self.published_tagged())
-        self.assertIn("DL1ABC", self.tagged())            # still yellow underneath
+        self.assertIn("DL1ABC", self.tagged("sent"))
 
-    def test_backup_spot_stays_orange_even_when_published(self) -> None:
+    def test_never_shown_stays_red(self) -> None:
+        # excluded by the filters, never published: stays red, no green/yellow
+        self.c.add([(time.time(), "telnet", LINE)])
+        self.c.recheck(now=time.time() + 60)
+        self.assertIn("DL1ABC", self.tagged("notsent"))
+        self.assertEqual(self.tagged("sent"), "")
+        self.assertEqual(self.tagged("merged"), "")
+
+    def test_backup_sourced_turns_green_too_once_published(self) -> None:
+        # there is no separate "backup" colour any more - whether a spot
+        # actually reaches port 10000 is what matters (v0.7.225)
         self.c.shown = lambda src, txt: "backup" if "DX de" in txt else None
         t = time.time()
         self.c.add([(t, "telnet", LINE)])
+        self.assertIn("DL1ABC", self.tagged("notsent"))
         self.c.add([(t + 1, "server >", LINE)])
-        self.assertEqual(self.published_tagged(), "")     # never turns green
-        r = self.c.text.tag_ranges("backup")
-        self.assertIn("DL1ABC", "".join(self.c.text.get(r[i], r[i + 1]) for i in range(0, len(r), 2)))
+        self.assertIn("DL1ABC", self.tagged("sent"))
 
-    def test_not_green_while_still_pending(self) -> None:
-        # not in self.yes yet: the line is pending, not yellow - a publish
-        # that comes in meanwhile must not turn it green on its own
+    def test_green_even_while_the_filter_decision_is_still_pending(self) -> None:
+        # a spot still "wait"-ing on a filter decision (e.g. PSK Reporter)
+        # can be published in the meantime - it turns green right away,
+        # the filter decision does not gate colour at all
+        self.c.shown = lambda src, txt: "wait" if "DX de" in txt else None
         t = time.time()
         self.c.add([(t, "telnet", LINE)])
+        self.assertEqual(len(self.c._pending), 1)
         self.c.add([(t + 1, "server >", LINE)])
-        self.assertEqual(self.published_tagged(), "")
-        self.assertEqual(self.tagged(), "")
+        self.assertIn("DL1ABC", self.tagged("sent"))
+
+    def test_merged_line_is_yellow_with_its_own_pt_note(self) -> None:
+        from tests.test_console_pb import A, B
+        t = 35334.0
+        self.c.add([(t, "telnet", A)])
+        self.c.add([(t + 1, "server >", A)])        # A's station goes out: A is "sent"
+        self.c.add([(t + 4, "telnet2", B)])          # same station, after the publish: merged
+        self.assertIn("SQ6OEP", self.tagged("sent"))
+        self.assertIn("SQ6OEP", self.tagged("merged"))
+        self.assertIn("merged into PT", self.tagged("pb"))
 
     def test_pt_note_keeps_its_own_colour_on_a_green_line(self) -> None:
         # v0.7.224 regression: green used to swallow the whole line, PT
@@ -224,25 +244,11 @@ class ConsoleYellowTests(unittest.TestCase):
         t = time.time()
         self.c.add([(t, "telnet", LINE)])
         self.c.add([(t + 1, "server >", LINE)])
-        pb = self.c.text.tag_ranges("pb")
-        pb_text = "".join(self.c.text.get(pb[i], pb[i + 1]) for i in range(0, len(pb), 2))
+        pb_text = self.tagged("pb")
         self.assertTrue(pb_text.strip().startswith("PT "), pb_text)
-        green = self.published_tagged()
+        green = self.tagged("sent")
         self.assertNotIn("PT ", green)              # the note itself stays "pb"-coloured
         self.assertIn("DL1ABC", green)               # the rest of the line is green
-
-    def test_green_either_way_the_pt_note_and_the_shown_tag_land(self) -> None:
-        # the PT note can be noted before the shown/yellow decision resolves
-        # (a spot that was "wait"-ing on PSK Reporter, already published by
-        # the time POUNCer decides to show it) - still turns green (v0.7.222)
-        t = time.time()
-        self.c.add([(t, "telnet", LINE)])                  # not in self.yes: pending
-        self.c.add([(t + 1, "server >", LINE)])             # published while still pending
-        self.assertEqual(self.published_tagged(), "")
-        self.yes.add(LINE)
-        self.c.recheck()                                    # now decided: shown
-        self.assertIn("DL1ABC", self.published_tagged())
-        self.assertIn("DL1ABC", self.tagged())
 
 
 if __name__ == "__main__":

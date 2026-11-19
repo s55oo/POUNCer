@@ -118,6 +118,21 @@ def qso_count(cabrillo: str) -> int:
     return sum(1 for line in cabrillo.splitlines() if line.startswith("QSO:"))
 
 
+def constant_exchange(cabrillo: str) -> str | None:
+    """The sent exchange (Cabrillo ``QSO:`` field 7: freq, mode, date, time,
+    call1, RST1, exch1, call2 ...) of the first usable line - the
+    submitter's own exchange, assumed constant through the log (e.g. KVP's
+    two-digit licence-year number, v0.7.226). None if there is no QSO line
+    or it carries no exchange; a multi-token exchange is left as its first
+    token (most contests' Cabrillo exchange is a single token)."""
+    for line in cabrillo.splitlines():
+        if line.startswith("QSO:"):
+            parts = line.split()
+            if len(parts) > 7 and parts[7]:
+                return parts[7]
+    return None
+
+
 def run_share_by_band(cabrillo: str) -> dict[str, tuple[int, int]]:
     """{band: (QSOs running, QSOs with a real frequency)} - e.g. a station
     that runs on 20 m but only S&Ps on 80 m. Band-only frequencies (no CAT)
@@ -444,11 +459,17 @@ class RunHistory:
 
     def get(self, call: str, n1mm_contest: str, mode: str,
             band: str | None = None) -> dict | None:
-        """{"run": %, "hours": h or None, "rec": bool, "band": band or None}
-        (None = unknown / not looked up yet). With ``band``: the run % on
-        that band when its logs have enough QSOs there ("band" set), else
-        the overall run %. "run" can be None (logs without frequencies:
-        hours only)."""
+        """{"run": %, "hours": h or None, "rec": bool, "band": band or None,
+        "exchange": str or None} (None = unknown / not looked up yet). With
+        ``band``: the run % on that band when its logs have enough QSOs
+        there ("band" set), else the overall run %. "run" can be None (logs
+        without frequencies: hours only). "exchange" is the call's own sent
+        exchange in its newest archived log of this contest - set even when
+        "run"/"hours" are None (too few QSOs for those, v0.7.226), since a
+        single QSO already tells it; the field is generic (the Cabrillo
+        sent-exchange token), useful for any contest whose exchange multiplier
+        is stable per call (KVP's licence year), misleading for one that
+        isn't (don't read it for a contest that doesn't need it)."""
         contest, amode = archive_target(n1mm_contest, mode)
         key = f"{call.upper()}|{contest or '*'}|{amode}"
         with self._lock:
@@ -578,15 +599,22 @@ class RunHistory:
             with self._fetch_slots:
                 text = self._fetch(self.base_url + quote(path)).decode("latin-1", "replace")
             r, t = run_share(text)
-            return r, t, on_air_hours(text), qso_count(text), run_share_by_band(text)
+            return r, t, on_air_hours(text), qso_count(text), run_share_by_band(text), \
+                constant_exchange(text)
 
         with ThreadPoolExecutor(max_workers=len(paths)) as pool:
             stats = list(pool.map(measure, paths))
         # run %: over all QSOs of those logs (overall and per band);
-        # hours: average per contest
+        # hours: average per contest; exchange: the newest log that has one
+        # (paths is newest-first) - known even from a single QSO, so it does
+        # not wait on MIN_QSOS like run %/hours do (v0.7.226)
+        exchange = next((st[5] for st in stats if st[5]), None)
         out = summarize(stats)
         if out is None:
-            return None
+            if exchange is None:
+                return None
+            out = {}
+        out["exchange"] = exchange
         out["rec"] = rec
         contexts = [r[1] for r in rows if r[0] in paths]
         out["history_contests"] = (sorted(set(contexts)) if contexts and
