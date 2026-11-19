@@ -68,6 +68,19 @@ class BeaconTests(unittest.TestCase):
         spot = parse_spot("DX de S53WW-#:  14014.0  K1ABC  CW  13 dB  25 WPM  CQ  1135Z")
         self.assertFalse(is_beacon(spot))
 
+    def test_skimmer_mode_bcn_is_a_beacon(self) -> None:
+        # v0.7.232: a skimmer's own beacon detection - not an NCDXF beacon
+        # call/frequency, no "BEACON"/"NCDXF" marker, not a "/B" call - just
+        # "BCN" where the mode normally sits (WB4NCT on 28225.7, far from
+        # the 28200 NCDXF slot)
+        from pouncer.rbn import beacon_why
+        line = "DX de EA8/DF-#:  28225.7  WB4NCT       BCN  2dB Q:2 Z:5,33            1337Z"
+        spot = parse_spot(line)
+        self.assertIsNotNone(spot, line)
+        self.assertEqual(spot.mode, "BCN")
+        self.assertTrue(is_beacon(spot), line)
+        self.assertEqual(beacon_why(spot), "mode BCN")
+
 
 class OnFreqTrackerTests(unittest.TestCase):
     def _spot(self, freq, t, call="M0KTZ", kind="CQ"):

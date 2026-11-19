@@ -145,16 +145,18 @@ def ncdxf_beacon(call: str, khz: float) -> bool:
 
 def beacon_why(spot: Spot) -> str:
     """Why this spot is a beacon ("" = it is not one)."""
-    return _beacon_why(spot.dxcall, spot.freq_khz, spot.spot_type)
+    return _beacon_why(spot.dxcall, spot.freq_khz, spot.spot_type, spot.mode)
 
 
 @functools.lru_cache(maxsize=32768)
-def _beacon_why(call: str, khz: float, spot_type: str) -> str:
+def _beacon_why(call: str, khz: float, spot_type: str, mode: str = "") -> str:
     # cached (v0.7.182): the list asks it for every spot on every refresh
     if ncdxf_beacon(call, khz):
         return "NCDXF beacon on its frequency"
     if spot_type in ("BEACON", "NCDXF"):
         return f"spot type {spot_type}"
+    if (mode or "").upper() == "BCN":    # a skimmer's own beacon detection (v0.7.232)
+        return "mode BCN"
     if (call or "").upper().endswith("/B"):
         return "call ends in /B"
     return ""
@@ -171,7 +173,11 @@ _Q_RE = re.compile(r"^Q:(\d+)", re.IGNORECASE)
 _WPM_RE = re.compile(r"^\d{1,2}WPM$")
 # a skimmer line's mode word; anything else there (a time "0724Z", "[-POTA-]",
 # "tnx") = not a skimmer spot but a person's, read by parse_cluster_spot (v0.7.211)
-_MODE_RE = re.compile(r"^(?:CW|RTTY|FT8|FT4|SSB|USB|LSB|AM|FM|JS8|DIGI|"
+# "BCN" = a skimmer's own beacon detection, not a radio mode (v0.7.232) -
+# kept as the spot's mode so beacon_why() can still see it; is_beacon() takes
+# it from there (not a real mode, so it never reaches normalize_mode() for
+# contest purposes - the spot is dropped first).
+_MODE_RE = re.compile(r"^(?:CW|RTTY|FT8|FT4|SSB|USB|LSB|AM|FM|JS8|DIGI|BCN|"
                       r"[BQ]?PSK\d*|MSK\d*|FSK\d*|JT\d+[A-Z]?|Q65|OLIVIA\d*)$")
 
 

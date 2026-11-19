@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.232 — 2026-11-19 — a skimmer's own "BCN" mode is now recognized as a beacon
+
+- **Beacons: mode BCN** - some skimmers report a beacon detection with
+  `BCN` where the mode normally sits, not an NCDXF beacon call/frequency,
+  not type `BEACON` / `NCDXF`, not a `.../B` call (e.g. `WB4NCT` on
+  28225.7, far from the 28200 NCDXF slot) - `hide_beacons` now drops these
+  too (traffic console: `EXCL BCN`, removed outright with BEACON unticked).
+
 ## v0.7.231 — 2026-11-19 — traffic console: FT8 unticked now hides the raw line too
 
 - **Traffic console: FT8/FT4** - unticking FT8 used to hide only the
