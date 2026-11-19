@@ -65,6 +65,12 @@ class Collector:
         parsed = parse_header(output, self.engine.clock())
         if parsed is None:
             return replace(spot, collector_routed=False, collector_selected=True)
+        # The engine's own text keeps whatever precision its input carried
+        # (full Hz for a receiver-less synthetic line, .2f for a correction)
+        # - never what a human or N1MM should see on the wire (one decimal).
+        start, end = parsed.freq_span
+        freq_text = f"{parsed.frequency_hz / 1000:.1f}".encode("ascii")
+        output = output[:start] + freq_text + output[end:]
         return replace(spot, dxcall=parsed.call, freq_khz=parsed.frequency_hz / 1000,
                        raw_line=output.decode("latin-1"), collector_routed=False,
                        collector_selected=True)

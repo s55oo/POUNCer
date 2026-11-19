@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## v0.7.236 — 2026-11-19 — spots with no native line got six decimals (fix)
+
+- **Collector: frequency precision** - a spot with no original telnet text
+  (e.g. the RBN HTTP feed) is wired internally with the full Hz precision
+  the merge engine needs for its own receiver-corroboration matching; that
+  internal text was leaking straight through as the spot actually shown
+  in the traffic console and sent to N1MM, e.g. `7008.000000` instead of
+  `7008.0`. The frequency in what gets served now always reads with one
+  decimal, whatever precision the internal evidence carried.
+
 ## v0.7.235 — 2026-11-19 — a fifth Telnet connection (Telnet #5)
 
 - **Telnet #5** (Settings > Telnet, `[telnet5]`) - a fifth independent

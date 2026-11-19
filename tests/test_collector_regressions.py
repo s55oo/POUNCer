@@ -36,6 +36,16 @@ class AuditedBridgeTests(unittest.TestCase):
         self.assertEqual(parsed.call, 'EA8/VERYLONG1ABC')
         self.assertAlmostEqual(parsed.frequency_hz, 14020123.456)
 
+    def test_receiverless_spot_is_served_with_one_decimal_not_six(self):
+        # A spot with no native raw_line (e.g. the RBN HTTP feed) is wired
+        # internally with full Hz precision for evidence matching; what
+        # actually goes out must still read like a normal "DX de" line.
+        report = replace(self.spot('GM0UDL-#'), freq_khz=7008.0, dxcall='EI0CZ', raw_line='')
+        selected = self.collector.process(self.app, report)
+        self.assertTrue(selected)
+        self.assertIn(' 7008.0 ', selected[0].raw_line)
+        self.assertNotIn('7008.000000', selected[0].raw_line)
+
     def _hold(self):
         self.collector.process(self.app, self.spot('B1BBB-#', call='S53M'))
         local = self.spot('LOCAL1-#', 14020.1, 'S53MM', source='telnet2', role='local')
@@ -51,7 +61,7 @@ class AuditedBridgeTests(unittest.TestCase):
         self.now += 3
         released = self.collector.drain(self.app)
         self.assertEqual([s.dxcall for s in released], ['S53MM'])
-        self.assertEqual(released[0].raw_line, local.raw_line)
+        self.assertEqual(released[0].raw_line, local.raw_line.replace('14020.10', '14020.1'))
 
     def test_out_of_order_repeat_keeps_the_original_held_payload(self):
         local = self._hold()
@@ -107,7 +117,7 @@ class AuditedBridgeTests(unittest.TestCase):
         mirror = report('ON6URE-2-#')
         self.assertEqual(self.collector.process(self.app, mirror), [])
         selected = self.collector.process(self.app, report('DK0KK-#'))
-        self.assertEqual([s.raw_line for s in selected], [pending.raw_line])
+        self.assertEqual([s.raw_line for s in selected], [pending.raw_line.replace('14020.00', '14020.0')])
         self.assertFalse(self.collector.cw_waiting)
         self.assertFalse(self.collector.process(self.app, pending))
 

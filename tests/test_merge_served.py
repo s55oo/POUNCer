@@ -103,7 +103,7 @@ class CollectorBridgeTests(unittest.TestCase):
         self.now += 3
         selected = self.collector.drain(self.app)
         self.assertEqual(selected[0].dxcall, 'S53MM')
-        self.assertEqual(selected[0].raw_line, suspicious.raw_line)
+        self.assertEqual(selected[0].raw_line, suspicious.raw_line.replace('14020.10', '14020.1'))
         self.assertFalse(self.collector.templates)
 
     def test_local_correction_uses_unselected_external_receivers(self):
@@ -195,5 +195,5 @@ class CollectorAppTests(unittest.TestCase):
         self.assertEqual(len(app.spots), 1)
         self.assertEqual(len(team), 1)
         self.assertEqual(len(served), 1)
-        self.assertEqual(team[0]['raw_line'], raw)
-        self.assertEqual(served[0].raw_line, raw)
+        self.assertEqual(team[0]['raw_line'], raw.replace('14020.00', '14020.0'))
+        self.assertEqual(served[0].raw_line, raw.replace('14020.00', '14020.0'))
