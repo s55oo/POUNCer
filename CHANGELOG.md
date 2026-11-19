@@ -1,5 +1,11 @@
 # POUNCer — Changelog
 
+## v0.7.223 — 2026-11-19 — Telnet is its own settings page
+
+- **Settings: Telnet** - the Telnet #1 - #4 topic is now its own page
+  ("Telnet"), listed right above "Spots", instead of a part of the Spots
+  page.
+
 ## v0.7.222 — 2026-11-19 — traffic console: green for published spots; settings dividers
 
 - **Traffic console: green** - a primary (non-backup, yellow) spot line turns

@@ -818,7 +818,7 @@ the cluster server (port 10000):
 - **Telnet #1 - #4** (v0.7.213; were "Telnet" and "Telnet 2") are
   equal: each its own server, port, login call (empty = your call; e.g.
   `S55OO-2` where your call is already logged in) and commands after login
-  (`set/skimmer` ...) - *Settings > Spots > Telnet #1 - #4*. A Telnet
+  (`set/skimmer` ...) - *Settings > Telnet*. A Telnet
   with **the same server** as RBN or a Telnet before it opens nothing
   ("nothing extra - the same server as Telnet #1" in its hover). A Telnet
   without a server can't be ticked. An older config.ini keeps working:

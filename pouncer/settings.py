@@ -424,15 +424,17 @@ PAGES: list[tuple[str, list[tuple[str, list[str]]]]] = [
     ("Phone page", [
         ("", ["web.phone_control", "web.cw_keyboard"]),
     ]),
+    ("Telnet", [
+        ("", ["telnet1.host", "telnet1.port", "telnet1.login", "telnet1.role", "telnet1.commands",
+              "telnet2.host", "telnet2.port", "telnet2.login", "telnet2.role", "telnet2.commands",
+              "telnet3.host", "telnet3.port", "telnet3.login", "telnet3.role", "telnet3.commands",
+              "telnet4.host", "telnet4.port", "telnet4.login", "telnet4.role", "telnet4.commands"]),
+    ]),
     ("Spots", [
         ("Sources", ["rbn.sources", "rbn.history", "rbn.hide_beacons", "rbn.hide_warc",
                      "rbn.backup_off",
                      "rbn.pause_on_phone",
                      "rbn.skimmer_quiet_minutes", "rbn.http_backup", "rbn.hamqth_backup"]),
-        ("Telnet", ["telnet1.host", "telnet1.port", "telnet1.login", "telnet1.role", "telnet1.commands",
-                    "telnet2.host", "telnet2.port", "telnet2.login", "telnet2.role", "telnet2.commands",
-                    "telnet3.host", "telnet3.port", "telnet3.login", "telnet3.role", "telnet3.commands",
-                    "telnet4.host", "telnet4.port", "telnet4.login", "telnet4.role", "telnet4.commands"]),
         ("SSB", ["ssb.follow_radio_mode", "ssb.pskreporter"]),
         ("Spotters - who heard it", ["filter.mode", "rbn.spotter", "filter.dxcc",
                                      "filter.zones", "filter.conts"]),

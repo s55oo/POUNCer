@@ -2,14 +2,15 @@
 
 Built from ``settings.SETTINGS``, laid out by ``settings.PAGES`` (the
 /settings page uses the same pages): a list of pages on
-the left (Display, Alerts & history, N1MM & radios, Phone page, Spots,
-Cluster server, Updates), all of them on one scrolling sheet on
+the left (Display, Alerts & history, N1MM & radios, Phone page, Telnet,
+Spots, Cluster server, Updates), all of them on one scrolling sheet on
 the right - a page name jumps to its part, and the name of the part in view
 is lit while scrolling. A horizontal line sits above every part but the
-first in a page, so each topic (e.g. Spots > Sources, Telnet, SSB,
-Spotters, Spotted) is visually set off from the one before it (v0.7.222);
-the Telnet settings (#1 - #4) are one part, "Telnet". The search box at the
-top (Ctrl+F) keeps only the settings whose name or help has every typed word.
+first in a page, so each topic (e.g. Spots > Sources, SSB, Spotters,
+Spotted) is visually set off from the one before it (v0.7.222); the Telnet
+settings (#1 - #4) are their own page, "Telnet", right above Spots
+(v0.7.223). The search box at the top (Ctrl+F) keeps only the settings
+whose name or help has every typed word.
 
 Each row: the name, its box / tick right next to it, then one grey help line
 ("more" opens the rest). Nothing is written until **Save** (top right, or
