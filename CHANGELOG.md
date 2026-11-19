@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.224 — 2026-11-19 — traffic console: PT fix (fix)
+
+- **Traffic console: PT visible again** - v0.7.222's green (a primary spot
+  that went out on port 10000) painted the whole line, including its own
+  `PT ...` note, so the note disappeared into the green instead of standing
+  out. The note now always keeps its own light orange colour, on every line
+  colour (yellow, orange, green).
+
 ## v0.7.223 — 2026-11-19 — Telnet is its own settings page
 
 - **Settings: Telnet** - the Telnet #1 - #4 topic is now its own page

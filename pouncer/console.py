@@ -36,7 +36,9 @@ end - the publish time (UTC) and how long after it came in; ``as G4ZFE-#`` =
 the spot went out under another skimmer (merged), ``as SQ6OEP`` = under a
 corrected call. A line that comes in after its station went out gets ``merged
 into PT 09:48:55``. No PT = not (yet) sent: filtered, held, or one of a group
-still being collected.
+still being collected. The ``PT`` note always keeps its own light orange
+colour, even on a green line - green only reaches up to where the note
+starts (v0.7.224; in v0.7.222 green painted the note too, hiding it).
 """
 
 from __future__ import annotations
@@ -415,6 +417,15 @@ class TrafficConsole:
         except tk.TclError:
             pass
 
+    def _green_end(self, mark: str) -> str:
+        """Where to stop painting a line green: right before its own ``PT
+        ...`` note, if it already has one - that note keeps its own light
+        orange ("pb") colour instead of disappearing into the green
+        (v0.7.224), on every line colour (yellow, orange, now green too)."""
+        start, end = f"{mark} linestart", f"{mark} lineend"
+        pb = self.text.tag_nextrange("pb", start, end)
+        return pb[0] if pb else end
+
     def _mark_shown(self, mark: str, how=True) -> None:
         """Yellow (matches the filters) or orange (``how == "backup"``); green
         instead of yellow when this line has already been noted as published
@@ -425,7 +436,7 @@ class TrafficConsole:
                               f"{mark} linestart", f"{mark} lineend")
             if not backup and self.text.tag_nextrange(
                     "pb", f"{mark} linestart", f"{mark} lineend"):
-                self.text.tag_add("published", f"{mark} linestart", f"{mark} lineend")
+                self.text.tag_add("published", f"{mark} linestart", self._green_end(mark))
         except tk.TclError:
             pass
 
@@ -438,7 +449,7 @@ class TrafficConsole:
             if (self.text.tag_nextrange("shown", f"{mark} linestart", f"{mark} lineend")
                     and not self.text.tag_nextrange(
                         "backup", f"{mark} linestart", f"{mark} lineend")):
-                self.text.tag_add("published", f"{mark} linestart", f"{mark} lineend")
+                self.text.tag_add("published", f"{mark} linestart", self._green_end(mark))
         except tk.TclError:
             pass
 

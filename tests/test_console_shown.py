@@ -217,6 +217,20 @@ class ConsoleYellowTests(unittest.TestCase):
         self.assertEqual(self.published_tagged(), "")
         self.assertEqual(self.tagged(), "")
 
+    def test_pt_note_keeps_its_own_colour_on_a_green_line(self) -> None:
+        # v0.7.224 regression: green used to swallow the whole line, PT
+        # suffix included, so the publish time stopped standing out
+        self.yes.add(LINE)
+        t = time.time()
+        self.c.add([(t, "telnet", LINE)])
+        self.c.add([(t + 1, "server >", LINE)])
+        pb = self.c.text.tag_ranges("pb")
+        pb_text = "".join(self.c.text.get(pb[i], pb[i + 1]) for i in range(0, len(pb), 2))
+        self.assertTrue(pb_text.strip().startswith("PT "), pb_text)
+        green = self.published_tagged()
+        self.assertNotIn("PT ", green)              # the note itself stays "pb"-coloured
+        self.assertIn("DL1ABC", green)               # the rest of the line is green
+
     def test_green_either_way_the_pt_note_and_the_shown_tag_land(self) -> None:
         # the PT note can be noted before the shown/yellow decision resolves
         # (a spot that was "wait"-ing on PSK Reporter, already published by
