@@ -1,5 +1,16 @@
 # POUNCer — Changelog
 
+## v0.7.230 — 2026-11-19 — traffic console: "not sent" note on an unexplained red line
+
+- **Traffic console: "not sent (likely a recent repeat)"** - a shown spot
+  line that never gets a PT (no new publish ever matches it, and nothing
+  ever will) now says so at its end, instead of staying red with no
+  explanation forever. The usual real cause: the same station was already
+  published moments earlier - before this console's own memory of it, or
+  within the collector's / cluster server's own repeat window - so this
+  copy of it is a genuine duplicate, not a fresh one. A line already
+  showing an `EXCL ...` reason is left alone.
+
 ## v0.7.229 — 2026-11-19 — traffic console: a WARC button; FT8 shown as FT8/FT4
 
 - **Traffic console: WARC** - a new group button next to BEACON: unticked,

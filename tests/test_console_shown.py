@@ -250,6 +250,40 @@ class ConsolePublishColorTests(unittest.TestCase):
         self.assertNotIn("PT ", green)              # the note itself stays "pb"-coloured
         self.assertIn("DL1ABC", green)               # the rest of the line is green
 
+    def test_not_sent_note_after_giving_up(self) -> None:
+        # v0.7.230: a shown line that never gets a PT at all - most likely
+        # a recent repeat the collector / server didn't resend - says so,
+        # instead of staying a silently unexplained red line forever
+        from pouncer import console
+        self.yes.add(LINE)
+        t = time.time()
+        self.c.add([(t, "telnet", LINE)])
+        self.c._sweep_unsent(now=t + console.UNSENT_NOTE_S - 1)   # not yet
+        self.assertEqual(self.tagged("excl"), "")
+        self.c._sweep_unsent(now=t + console.UNSENT_NOTE_S + 1)   # now give up
+        self.assertIn("not sent", self.tagged("excl"))
+        self.assertEqual(self.c._waiting_pb, [])
+
+    def test_not_sent_note_skipped_when_already_excluded(self) -> None:
+        # an EXCL'd line already explains the red - no second, redundant note
+        from pouncer import console
+        from pouncer import traffic
+        self.c.shown = lambda src, txt: traffic.Excl("EXCL WARC") if "DX de" in txt else None
+        t = time.time()
+        self.c.add([(t, "telnet", LINE)])
+        self.c.recheck(now=t + console.SHOWN_WAIT_S + 1)   # resolves to EXCL WARC
+        self.c._sweep_unsent(now=t + console.UNSENT_NOTE_S + 1)
+        excl = self.tagged("excl")
+        self.assertIn("EXCL WARC", excl)
+        self.assertNotIn("not sent", excl)
+
+    def test_sweep_never_fires_before_the_psk_wait_can_resolve(self) -> None:
+        # UNSENT_NOTE_S must stay comfortably past PSK_WAIT_S, or a CW spot
+        # still waiting on PSK Reporter could get "not sent" before its
+        # real EXCL reason ever lands
+        from pouncer import console
+        self.assertGreater(console.UNSENT_NOTE_S, console.PSK_WAIT_S)
+
 
 if __name__ == "__main__":
     unittest.main()

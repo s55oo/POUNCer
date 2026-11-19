@@ -48,7 +48,14 @@ into PT 09:48:55`` (that line turns yellow). No PT = not (yet) sent: filtered,
 held, or one of a group still being collected (that line stays red). The
 ``PT`` note always keeps its own light orange colour, on every line colour -
 green or yellow only reach up to where the note starts (v0.7.224; in
-v0.7.222 green painted the note too, hiding it).
+v0.7.222 green painted the note too, hiding it). A shown line that never
+gets a PT at all - no new publish ever matched it, and nothing else ever
+will - gets ``  not sent (likely a recent repeat)`` at its end instead,
+once ``UNSENT_NOTE_S`` has passed with nothing (v0.7.230): the most common
+real cause is the same station already published moments before this
+console's own memory of it, or within the collector's / cluster server's
+own repeat window, so a red line is never silently unexplained forever. An
+already-EXCL'd line is left alone - that reason already explains the red.
 """
 
 from __future__ import annotations
@@ -75,6 +82,11 @@ MERGED_COLOR = "#ffeb3b"    # yellow: this line's station already went out via a
 PB_COLOR = "#ffcc80"       # "PT 09:48:55" - published to port 10000
 EXCL_COLOR = "#9e9e9e"     # "EXCL WARC" - kept out by your filters
 PB_LINK_S = 120            # a spot line links to a publish of its station this long after it
+# when to give up waiting for a PT and say "not sent" (v0.7.230): well past
+# PSK_WAIT_S, so the filter decision (EXCL or not) has always landed first -
+# PB_LINK_S itself stays the merge-matching window only (pb_note), unrelated
+# to how long a line is kept waiting for one
+UNSENT_NOTE_S = PSK_WAIT_S + 20
 PB_KHZ = 1.0               # ... within this much of the frequency
 PB_BUSTED_KHZ = 0.2        # same skimmer, other call this close: a corrected call
 _SPOT_RE = re.compile(r"DX de\s+([^\s:]+):?\s+(\d+(?:\.\d+)?)\s+(\S+)", re.IGNORECASE)
@@ -404,6 +416,8 @@ class TrafficConsole:
             traffic.start()
         try:
             self.add(traffic.drain())
+            self._sweep_unsent(time.time())    # real wall clock - add()'s own lines
+                                                # may use a test's synthetic one (v0.7.230)
         except Exception as exc:  # noqa: BLE001 - one bad line must not stop the console
             log.exception("traffic console")
             try:
@@ -495,6 +509,21 @@ class TrafficConsole:
         except tk.TclError:
             pass
 
+    def _note_unsent(self, mark: str) -> None:
+        """A spot line that got no PT at all within ``UNSENT_NOTE_S``: say
+        so (v0.7.230), unless it already has its own EXCL reason - that
+        already explains the red, and this would just be noise on top of
+        it. Most likely cause: the same station, already sent moments
+        before this console's own ``PB_LINK_S`` memory of it, or within the
+        collector's / cluster server's own repeat window - a real
+        duplicate, not a fresh one, even though nothing here proves which."""
+        try:
+            if "EXCL" not in self.text.get(f"{mark} linestart", f"{mark} lineend"):
+                self.text.insert(f"{mark} lineend", "  not sent (likely a recent repeat)",
+                                 "excl")
+        except tk.TclError:
+            pass
+
     def _published(self, key, t: float) -> None:
         """A spot went out on port 10000: PB on the lines of that station."""
         keep = []
@@ -502,7 +531,9 @@ class TrafficConsole:
             note = pb_note(lkey, lt, key, t) if lt <= t else ""
             if note:
                 self._note_pb(mark, note)
-            if note or t - lt > PB_LINK_S:
+            elif t - lt > UNSENT_NOTE_S:
+                self._note_unsent(mark)
+            if note or t - lt > UNSENT_NOTE_S:
                 try:
                     self.text.mark_unset(mark)
                 except tk.TclError:
@@ -513,6 +544,26 @@ class TrafficConsole:
         self._recent_pb = [(k, pt) for k, pt in self._recent_pb if t - pt <= PB_LINK_S]
         self._recent_pb.append((key, t))
         del self._recent_pb[:-500]
+
+    def _sweep_unsent(self, now: float) -> None:
+        """Lines that got no PT within ``UNSENT_NOTE_S`` and never will,
+        because no later publish happened to trigger ``_published``'s own
+        sweep either (v0.7.230) - called every tick, so this is the only
+        thing that ever resolves a station nothing else ever publishes
+        again."""
+        if not self._waiting_pb:
+            return
+        keep = []
+        for mark, lkey, lt in self._waiting_pb:
+            if now - lt > UNSENT_NOTE_S:
+                self._note_unsent(mark)
+                try:
+                    self.text.mark_unset(mark)
+                except tk.TclError:
+                    pass
+                continue
+            keep.append((mark, lkey, lt))
+        self._waiting_pb = keep
 
     def _spot_in(self, mark: str, key, t: float) -> None:
         """A spot line came in: already sent (merged into) - or wait for its PB."""
