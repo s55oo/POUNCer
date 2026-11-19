@@ -23,7 +23,7 @@ class Excl(str):
 
 MAX_LINES = 5000          # kept between two console refreshes at most
 _sink: "collections.deque | None" = None
-GROUPS = ("RBN", "TELNET", "HTTP", "N1MM", "TEAM", "WEB", "PSKR", "SERVER", "FT8", "BEACON")
+GROUPS = ("RBN", "TELNET", "HTTP", "N1MM", "TEAM", "WEB", "PSKR", "SERVER", "FT8", "BEACON", "WARC")
 DIGITAL = ("FT8", "FT4")
 
 

@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## v0.7.229 — 2026-11-19 — traffic console: a WARC button; FT8 shown as FT8/FT4
+
+- **Traffic console: WARC** - a new group button next to BEACON: unticked,
+  it removes a WARC-band spot's raw line (it has no separate "kept out"
+  summary line of its own, unlike BEACON / FT8 - so this is the only way
+  it ever worked).
+- **Traffic console: FT8/FT4** - the FT8 checkbox and chip are now labelled
+  "FT8/FT4" - it always kept out FT4 too, just didn't say so.
+
 ## v0.7.228 — 2026-11-19 — traffic console: BEACON unticked hides the raw line too (fix)
 
 - **Traffic console: BEACON** - unticking the BEACON group used to hide only

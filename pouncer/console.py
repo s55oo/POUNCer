@@ -32,10 +32,11 @@ red) gets the reason at its end, in grey - ``EXCL SPOTTER`` / ``EXCL
 SPOTTED`` (the Spotters / Spotted filter), ``EXCL FT8`` / ``EXCL FT4`` (its
 mode, an unmarked one in the FT8 window, or PSK Reporter has him there),
 ``EXCL BCN`` (beacon), ``EXCL WARC``, ``EXCL PEOPLE`` (a person's spot with
-no Telnet on). ``EXCL BCN`` with the BEACON group unticked removes the
-whole raw line instead (v0.7.228) - the BEACON checkbox then hides a
-beacon's line everywhere, not only the separate "kept out" summary line
-under the BEACON group itself.
+no Telnet on). ``EXCL BCN`` with BEACON unticked, or ``EXCL WARC`` with
+WARC unticked (``HIDE_WITH_GROUP``), removes the whole raw line instead
+(v0.7.228 / 229) - a WARC spot has no separate "kept out" summary line at
+all (unlike BEACON / FT8), so its checkbox only ever works this way; the
+FT8 checkbox (shown as "FT8/FT4") also keeps out FT4.
 
 **PT** (published time; v0.7.218 as PB): when a spot goes out on port 10000 (a ``server >`` line),
 every spot line of that station that came in shortly before (the same call
@@ -112,7 +113,12 @@ GROUPS = traffic.GROUPS
 group_of = traffic.group_of
 COLORS = {"RBN": "#81c784", "TELNET": "#80cbc4", "HTTP": "#4fc3f7", "N1MM": "#ce93d8",
           "TEAM": "#90caf9", "WEB": "#b0bec5", "PSKR": "#f48fb1", "SERVER": "#ffcc80", "FT8": "#ff8a65", "BEACON": "#b0bec5",
-          "OUT": "#ffeb3b"}
+          "WARC": "#8d6e63", "OUT": "#ffeb3b"}
+# a group's checkbox / chip text, where it differs from the GROUPS key itself
+GROUP_LABEL = {"FT8": "FT8/FT4"}
+# EXCL reason -> the group whose checkbox, unticked, removes that raw line
+# too (not only its own "kept out" summary line, if it has one) (v0.7.228/229)
+HIDE_WITH_GROUP = {"EXCL BCN": "BEACON", "EXCL WARC": "WARC"}
 
 
 class TrafficConsole:
@@ -155,7 +161,7 @@ class TrafficConsole:
         bar.pack(fill="x")
         self.show = {g: tk.BooleanVar(value=g != "WEB") for g in GROUPS}
         for g in GROUPS:
-            cb = ttk.Checkbutton(bar, text=g, variable=self.show[g],
+            cb = ttk.Checkbutton(bar, text=GROUP_LABEL.get(g, g), variable=self.show[g],
                                  command=lambda g=g: self._switched(g))
             cb.pack(side="left", padx=(0, 6))
             self._hoverable(cb, g)
@@ -196,7 +202,7 @@ class TrafficConsole:
             dot.create_oval(1, 1, d, d, fill=DOT["why"], outline="", tags="dot")
             dot.pack(side="left", padx=(0, 4))
             dot.state = "why"
-            lbl = ttk.Label(box, text=g, font=(theme.FONT, 9))
+            lbl = ttk.Label(box, text=GROUP_LABEL.get(g, g), font=(theme.FONT, 9))
             lbl.pack(side="left")
             self.chips[g] = (dot, lbl)
             for w in (dot, lbl):
@@ -419,16 +425,19 @@ class TrafficConsole:
 
     def _note_excl(self, mark: str, how) -> None:
         """'EXCL WARC' ... at the end of a line the filters keep out (grey).
-        'EXCL BCN' with the BEACON group unticked removes the whole raw line
-        instead (v0.7.228) - unticking BEACON otherwise only hid the
-        separate "kept out" summary line (``traffic.kept_out``), not the
-        beacon's own raw line under its source (telnet / rbn ...)."""
+        'EXCL BCN' with BEACON unticked, or 'EXCL WARC' with WARC unticked
+        (``HIDE_WITH_GROUP``), removes the whole raw line instead (v0.7.228 /
+        229) - unticking BEACON otherwise only hid the separate "kept out"
+        summary line (``traffic.kept_out``), not the beacon's own raw line
+        under its source (telnet / rbn ...); WARC has no summary line at
+        all, so its button only ever worked this way."""
         if how or not isinstance(how, str) or not str(how):
             return
         reason = str(how)
-        if reason == "EXCL BCN":
-            beacon = self.show.get("BEACON")
-            if beacon is not None and not beacon.get():
+        group = HIDE_WITH_GROUP.get(reason)
+        if group:
+            var = self.show.get(group)
+            if var is not None and not var.get():
                 try:
                     self.text.delete(f"{mark} linestart", f"{mark} linestart +1 line")
                 except tk.TclError:
@@ -627,13 +636,14 @@ class TrafficConsole:
                 extra.append(notes[g])
             if quiet < QUIET_S:
                 st = "live"
-            elif g in ("FT8", "BEACON"):    # nothing kept out lately: fine, not "dead"
+            elif g in ("FT8", "BEACON", "WARC"):   # nothing kept out lately: fine, not "dead"
                 st = "why"
             elif notes.get(g):
                 st = "why"
             else:
                 st = "quiet" if quiet < DEAD_S else "dead"
-            text = f"{g} {self.counts.get(g, 0)}" + (f" ({', '.join(extra)})" if extra else "")
+            text = f"{GROUP_LABEL.get(g, g)} {self.counts.get(g, 0)}" + (
+                f" ({', '.join(extra)})" if extra else "")
             out[g] = (st, text)
         return out
 

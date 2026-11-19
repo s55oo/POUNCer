@@ -1997,6 +1997,16 @@ class PouncerApp:
                     "PSK Reporter answers: 'not served' (he is on FT8) or 'served now'.\n"
                     + (f"FT8 / FT4 in the Spots modes ({want}): those ARE served."
                        if want else "Spots modes without FT8 / FT4: none is served."))
+        if group == "WARC":
+            on = g(c, "hide_warc", False)
+            return ("WARC - WARC-band spots (v0.7.229)\n"
+                    "60 m, 30 m, 17 m, 12 m: no contests there. Unticking this box removes "
+                    "a WARC spot's raw line too (it has no separate 'kept out' summary line "
+                    "of its own, unlike BEACON / FT8).\n"
+                    + ("Remove WARC spots: on ([rbn] hide_warc) - also not in the list, not "
+                       "on port 10000." if on else
+                       "Remove WARC spots is OFF ([rbn] hide_warc): WARC spots are listed "
+                       "and served."))
         if group == "SERVER":
             dxc = g(self, "_dxc", None)
             return ("SERVER - POUNCer as a DX cluster for N1MM's Telnet window (port 10000)\n"

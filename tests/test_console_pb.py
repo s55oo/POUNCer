@@ -123,6 +123,43 @@ class ConsoleExclTests(unittest.TestCase):
         finally:
             c2.close()
 
+    def test_warc_line_removed_with_warc_group_unticked(self) -> None:
+        # v0.7.229: a WARC-band spot has no separate "kept out" summary line
+        # of its own (unlike BEACON / FT8) - the WARC checkbox only ever
+        # works by removing the raw line, same mechanism as BEACON's
+        from pouncer import traffic
+        why = {A: traffic.Excl("EXCL WARC"), B: True}
+        c = console.TrafficConsole(_root, shown=lambda src, txt: why.get(txt))
+        c.open()
+        c.show["WARC"].set(False)
+        try:
+            t = 35334.0
+            c.add([(t, "telnet", A), (t, "telnet2", B)])
+            c.recheck(now=10 ** 12)
+            got = c.text.get("1.0", "end").splitlines()
+            self.assertNotIn("G4ZFE", got)
+            self.assertTrue(any("OE9GHV" in line for line in got))
+        finally:
+            c.close()
+        # WARC still ticked (default): the line stays, with its reason
+        why2 = {A: traffic.Excl("EXCL WARC")}
+        c2 = console.TrafficConsole(_root, shown=lambda src, txt: why2.get(txt))
+        c2.open()
+        try:
+            c2.add([(t, "telnet", A)])
+            c2.recheck(now=10 ** 12)
+            self.assertTrue(c2.text.get("1.0", "end").splitlines()[0].endswith("EXCL WARC"))
+        finally:
+            c2.close()
+
+    def test_ft8_checkbox_is_labelled_ft8_ft4(self) -> None:
+        # v0.7.229: the FT8 group also keeps out FT4 (it always did); the
+        # checkbox / chip text says so, without changing the GROUPS key
+        # itself (app._console_info, EXCL reasons etc. still key on "FT8")
+        self.assertEqual(console.GROUP_LABEL.get("FT8"), "FT8/FT4")
+        self.assertNotIn("BEACON", console.GROUP_LABEL)
+        self.assertNotIn("WARC", console.GROUP_LABEL)
+
 
 if __name__ == "__main__":
     unittest.main()
