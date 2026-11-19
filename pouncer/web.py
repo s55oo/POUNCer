@@ -2160,7 +2160,7 @@ the numbers. 6 / 12 / 24 / 48 h; kept 48 hours, also over a restart.</p>
 
 <h2>SSB</h2>
 <p>RBN has no SSB, so on SSB the spots are people&#39;s spots from a <b>DX cluster</b>:
-tick a <b>Telnet #1 - #4</b> in the Spots menu (each brings its server&#39;s skimmer and
+tick a <b>Telnet #1 - #5</b> in the Spots menu (each brings its server&#39;s skimmer and
 people&#39;s spots, through your Spotters filter). The list follows the radio: radio
 on USB / LSB = SSB spots, on CW = the CW skimmer spots - per radio (A / B). In an SSB contest
 RBN is not connected at all. On SSB the WPM keys are hidden.</p>

@@ -313,11 +313,11 @@ def flush_unpublished(app, now: float | None = None) -> None:
 def telnet_label(cfg, n: int) -> str:
     """'azure.s53m.com:8000' for the Spots menu, or how to set it."""
     host, port, _login, _cmds = telnet_conf(cfg, n)
-    return f"{host}:{port}" if host else "(no server - Settings > Spots)"
+    return f"{host}:{port}" if host else "(no server - Settings > Telnet)"
 
 
 def telnet_clients(app) -> list:
-    """The running Telnet #1 - #4 clients, in order (any app object)."""
+    """The running Telnet #1 - #5 clients, in order (any app object)."""
     d = getattr(app, "_telnet_clients", None) or {}
     return [d[n] for n in sorted(d) if d[n] is not None]
 
@@ -1927,14 +1927,14 @@ class PouncerApp:
                     f"Team: {role}" + (" - the master talks to RBN" if role == "slave" else ""))
         if group == "TELNET":
             tl = []
-            for n in (1, 2, 3, 4):
+            for n in range(1, len(TELNETS) + 1):
                 host, port, login, _cmds = telnet_conf(c, n)
                 key = TELNETS[n - 1]
                 tl.append(f"Telnet #{n}: " + (f"{host}:{port}, login {login or call} - "
                                               f"{'on' if has_source(c, key) else 'off'}"
                                               if host else "(not set)"))
-            return ("TELNET - Telnet #1 - #4: each brings its server's skimmer AND "
-                    "people's spots (SSB spots too)\n" + "\n".join(tl) + "\n"
+            return (f"TELNET - Telnet #1 - #{len(TELNETS)}: each brings its server's skimmer "
+                    "AND people's spots (SSB spots too)\n" + "\n".join(tl) + "\n"
                     f"SPOTTED pop-up (a spot of my call from any source): "
                     f"{onoff(g(c, 'self_spot_alert', True))}")
         if group == "HTTP":
@@ -2045,7 +2045,7 @@ class PouncerApp:
         elif not dxc.client_count():
             notes["SERVER"] = f"TCP {dxc.port}: no client connected"
         if role != "slave" and not any(has_source(self.cfg, k) for k in TELNETS):
-            notes["TELNET"] = "off - Spots: Telnet #1 - #4"
+            notes["TELNET"] = "off - Spots: Telnet #1 - #5"
         if self._http_feed is None:
             notes["HTTP"] = "off - Spots: HTTP"
         if not self.cfg.web_enabled:
@@ -2313,7 +2313,7 @@ class PouncerApp:
         telnet connection; '' = sent, else why not."""
         c = self._upstream_client()
         if c is None:
-            return "no telnet connection (tick a Telnet #1 - #4 in the Spots menu)"
+            return "no telnet connection (tick a Telnet #1 - #5 in the Spots menu)"
         return "" if c.send_line(line) else "the telnet connection is down"
 
     def _relay_back(self, line: str) -> None:
@@ -2481,7 +2481,7 @@ class PouncerApp:
     HQ_BACK_S = 60      # ... and working this long again -> HamQTH stopped
 
     def _skimmer_telnet_ok(self) -> bool:
-        """A telnet connection (RBN or a Telnet #1 - #4) is logged in and
+        """A telnet connection (RBN or a Telnet #1 - #5) is logged in and
         lines are coming."""
         now = time.monotonic()
         clients = list(self._rbn_clients.values()) + telnet_clients(self)
@@ -2519,7 +2519,7 @@ class PouncerApp:
         return ""
 
     def _cluster_telnet_ok(self) -> bool:
-        """A Telnet #1 - #4 (people's spots) is connected."""
+        """A Telnet #1 - #5 (people's spots) is connected."""
         return any(c.connected() for c in telnet_clients(self))
 
     def _hq_state(self, kind: str, need: bool, ok: bool) -> bool:
@@ -2576,7 +2576,7 @@ class PouncerApp:
                          "HamQTH.com)", kind)
 
     def _ensure_telnet_clients(self) -> None:
-        """Telnet #1 - #4 (v0.7.213): each ticked one its own connection,
+        """Telnet #1 - #5 (v0.7.213): each ticked one its own connection,
         all of its spots - skimmers AND people (through the Spotters /
         Spotted filters). One with the same server as RBN or a Telnet before
         it is not opened (that one brings the same). Off / unticked: closed."""
@@ -2586,7 +2586,7 @@ class PouncerApp:
         if has_source(self.cfg, "rbn") and not getattr(self, "_rbn_pause_on", False):
             seen[(str(self.cfg.rbn_host).lower(), int(self.cfg.rbn_port))] = "RBN"
         first = True
-        for n in (1, 2, 3, 4):
+        for n in range(1, len(TELNETS) + 1):
             key = TELNETS[n - 1]
             host, port, login, cmds = telnet_conf(self.cfg, n)
             call = login or self.cfg.rbn_callsign
@@ -2745,7 +2745,8 @@ class PouncerApp:
         return head + "\n" + body
 
     SOURCE_NAMES = {"rbn": "RBN", "telnet": "Telnet #1", "telnet2": "Telnet #2",
-                    "telnet3": "Telnet #3", "telnet4": "Telnet #4", "http": "HTTP"}
+                    "telnet3": "Telnet #3", "telnet4": "Telnet #4", "telnet5": "Telnet #5",
+                    "http": "HTTP"}
 
     def _set_source(self, src: str, from_team: bool = False) -> None:
         """A Spots button: switch that source on / off. A team slave asks the
@@ -2848,6 +2849,7 @@ class PouncerApp:
                  ("telnet2", "Telnet #2 - {t2}"),
                  ("telnet3", "Telnet #3 - {t3}"),
                  ("telnet4", "Telnet #4 - {t4}"),
+                 ("telnet5", "Telnet #5 - {t5}"),
                  ("http", "HTTP - RBN over HTTP (azure)"),
                  (None, None),
                  ("hamqth", "HamQTH - stands in while every telnet is down (or alone)"))
@@ -2863,7 +2865,7 @@ class PouncerApp:
                 try:
                     m.entryconfigure(idx, label=text.format(
                         c=c, t1=telnet_label(c, 1), t2=telnet_label(c, 2), t3=telnet_label(c, 3),
-                        t4=telnet_label(c, 4)))
+                        t4=telnet_label(c, 4), t5=telnet_label(c, 5)))
                 except (tk.TclError, AttributeError, KeyError):
                     pass
                 on = has_source(c, key) if key in self.SOURCE_NAMES else \
@@ -3033,7 +3035,7 @@ class PouncerApp:
             now = (f"{dxc.client_count()} client(s); commands go over "
                    + (f"{up.host}:{up.port}" if up else "nothing (no Telnet on)"))
         return (f"{head}\nOpens no connection: hands out the spots of the ticked sources "
-                f"(RBN, Telnet #1 - #4, HTTP) to POUNCer's cluster server, TCP "
+                f"(RBN, Telnet #1 - #5, HTTP) to POUNCer's cluster server, TCP "
                 f"{c.cluster_port} (N1MM's Telnet window)\nWhat N1MM sends (DX spots, sh/dx) "
                 f"goes over POUNCer's first Telnet connection\nNow: {now}")
 

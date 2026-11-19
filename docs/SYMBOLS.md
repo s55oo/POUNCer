@@ -35,7 +35,7 @@ colour - green, amber, red - so one red item doesn't colour the whole line:
 | N1MM | radio info arrives | ✗ no radio info for 30 s (N1MM: Config > Broadcast Data > Radio) |
 | Log | a contest log is open | ⚠ N1MM's ini names another contest than today's QSOs · ✗ no log open |
 | Call | your station call is known | ✗ no station call |
-| SPOTS (was RBN) | one source brings spots - RBN, Telnet #1 - #4, HTTP or HamQTH (the Spots menu) or the team master - "✓ SPOTS via Telnet #1"; or "paused - SSB, not needed" | ✗ no source brings spots |
+| SPOTS (was RBN) | one source brings spots - RBN, Telnet #1 - #5, HTTP or HamQTH (the Spots menu) or the team master - "✓ SPOTS via Telnet #1"; or "paused - SSB, not needed" | ✗ no source brings spots |
 | Skimmer | your listed skimmers (S53WW, TK0C) send spots | ⚠ one sent nothing for 3 min while RBN works - offline or its connection down |
 | cty | country file loaded, 60 days old or less | ⚠ older · ✗ not loaded (no mults / DX) |
 | SCP | Super Check Partial loaded, 30 days old or less | ⚠ older or not loaded (no **?** marks) |
@@ -58,7 +58,7 @@ One coloured dot per connection, under the top bar:
 | 🔵 blue | Update only: a new version is downloaded - click it (or **Restart**) |
 
 The lights are SPOTS (any source bringing spots; called RBN up to v0.7.202), N1MM, Log, Team, Phone, Telnet (the ticked
-Telnet #1 - #4: "Telnet #1+#3"), HTTP, Warm-up, HamFiles (cty.dat + MASTER.DTA: green both there, amber one
+Telnet #1 - #5: "Telnet #1+#3"), HTTP, Warm-up, HamFiles (cty.dat + MASTER.DTA: green both there, amber one
 missing, red both missing) and Update. What each colour means per light is in the
 [README](../README.md#connection-lights-windows-window). Click the
 **Update** light to check for a new version now.
@@ -176,7 +176,7 @@ Marks in the call and Mult columns:
 | **▲** / **▼** in a column heading | sorted up / down by that column |
 | **Radio A (A/B)** badge (lights row, after Update; blue = A, orange = B) | SO2R / SO2V: the radio that clicks, F-keys and the band follow go to (N1MM Entry Window A / B); click = switch. Shown only when N1MM reports two radios |
 | **Relay** (first row, after Min SNR) | hand the spots out on port 10000 (N1MM's Telnet window) - no connection of its own, N1MM's commands go over POUNCer's first Telnet connection; blue = on, hover = details |
-| "Spots: RBN + Telnet #1 + Telnet #2   Spotters: S53WW" | what is in use: the sources ticked in the menu **Spots** (RBN, Telnet #1 - #4, HTTP; HamQTH as the stand-in) and the filter chosen in the menu **Spotters** (Calls / DXCC / Zones / Continents / WW); click = every connection and its state |
+| "Spots: RBN + Telnet #1 + Telnet #2   Spotters: S53WW" | what is in use: the sources ticked in the menu **Spots** (RBN, Telnet #1 - #5, HTTP; HamQTH as the stand-in) and the filter chosen in the menu **Spotters** (Calls / DXCC / Zones / Continents / WW); click = every connection and its state |
 | "Spotted: continent NA" in that line | the Spotted menu filters the spotted stations (the DX): only these are kept, from every source; not shown when it is WW (all) |
 | "nothing on - no spots" after it | every source is off |
 | "master's choice" after it | team slave: the master's sources; a click asks the master |

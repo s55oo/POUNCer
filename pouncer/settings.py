@@ -49,7 +49,7 @@ SETTINGS: list[dict] = [
      "help": "On = everything both ways: the spots of the sources switched on in the "
              "Spots menu go out to the clients on the port above, and whatever a client "
              "types (spots made in N1MM - Alt+P / Spot It, sh/dx, filters) goes over "
-             "POUNCer's own telnet connection to the DX cluster (a Telnet #1 - #4 on); the "
+             "POUNCer's own telnet connection to the DX cluster (a Telnet #1 - #5 on); the "
              "answers come back. Off = nothing either way (a spot gets '*** POUNCer: spot "
              "not sent - Relay is off'). Also the Relay button."},
     {"key": "cluster.merge", "attr": "cluster_merge", "kind": "bool", "live": True,
@@ -132,7 +132,7 @@ SETTINGS: list[dict] = [
     {"key": "filter.mode", "attr": "filter_mode", "kind": "choice",
      "choices": ["calls", "dxcc", "zones", "cont", "ww"], "live": True,
      "group": "Spotters", "label": "Spots from these spotters",
-     "help": "One filter for every source (RBN, Telnet #1 - #4, HTTP, HamQTH): calls = the "
+     "help": "One filter for every source (RBN, Telnet #1 - #5, HTTP, HamQTH): calls = the "
              "listed skimmers / spotters, dxcc = spotters in the listed countries, zones = in "
              "the listed CQ zones, cont = on the listed continents, ww = all. Also the "
              "Spotters menu."},
@@ -196,7 +196,7 @@ SETTINGS: list[dict] = [
     {"key": "rbn.sources", "attr": "rbn_source", "kind": "text", "live": True,
      "group": "RBN", "label": "Spots come in from",
      "help": "Comma separated, each one on or off: rbn (telnet.reversebeacon.net: skimmer "
-             "spots only), telnet, telnet2, telnet3, telnet4 (Telnet #1 - #4 - the servers below: "
+             "spots only), telnet, telnet2, telnet3, telnet4, telnet5 (Telnet #1 - #5 - the servers below: "
              "everything each one carries, skimmer AND people's spots), http (the HTTP feed). "
              "Tick as many as you like (Spots menu); what is on goes into POUNCer and out to "
              "the cluster server (port 10000), the same spot from two sources counts once, a "
@@ -204,7 +204,7 @@ SETTINGS: list[dict] = [
              "start. In a team: the master's choice."},
     {"key": "rbn.hamqth_backup", "attr": "rbn_hamqth_backup", "kind": "bool", "live": True,
      "group": "RBN", "label": "HamQTH: stands in while every telnet is down",
-     "help": "When all the telnet connections you ticked (RBN, Telnet #1 - #4) have "
+     "help": "When all the telnet connections you ticked (RBN, Telnet #1 - #5) have "
              "been down for a minute: RBN's skimmer spots (www.hamqth.com/api/v2/rbn) and, "
              "with a Telnet ticked, DX cluster spots (/api/v2/spots) from HamQTH.com. Every "
              "20 s, no login. Closed a minute after a telnet works again. Nothing ticked: "
@@ -213,7 +213,7 @@ SETTINGS: list[dict] = [
     {"key": "rbn.pause_on_phone", "attr": "rbn_pause_on_phone", "kind": "bool", "live": True,
      "group": "RBN", "label": "Pause RBN while the radio is on SSB",
      "help": "Every radio on SSB / AM / FM for a minute: the RBN connection is closed (SSB "
-             "spots are people's spots: Telnet #1 - #4); back at once when a radio goes "
+             "spots are people's spots: Telnet #1 - #5); back at once when a radio goes "
              "to CW. Not "
              "while other team POUNCers use this one's feed."},
     {"key": "rbn.http_backup", "attr": "rbn_http_backup", "kind": "text", "live": True,
@@ -240,7 +240,7 @@ SETTINGS: list[dict] = [
     {"key": "ssb.follow_radio_mode", "attr": "follow_radio_mode", "kind": "bool",
      "live": True, "group": "SSB",
      "label": "List follows the radio mode",
-     "help": "Radio on USB / LSB = SSB spots (people's spots: Telnet #1 - #4), on CW = "
+     "help": "Radio on USB / LSB = SSB spots (people's spots: Telnet #1 - #5), on CW = "
              "the CW skimmer spots."},
     {"key": "ssb.pskreporter", "attr": "ssb_pskreporter", "kind": "bool", "live": False,
      "group": "SSB", "label": "FT8 check with PSK Reporter",
@@ -347,6 +347,31 @@ SETTINGS: list[dict] = [
              "GoCluster is login-only: no automatic history or startup commands."},
     {"key": "telnet4.commands", "attr": "telnet4_commands", "kind": "text", "live": True,
      "group": "RBN", "label": "Telnet #4: commands after login",
+     "help": "Comma separated, e.g. set/skimmer."},
+    {"key": "telnet5.enabled", "attr": "rbn_source", "kind": "bool", "live": True,
+     "group": "RBN", "label": "Telnet #5: enable this connection", "source_key": "telnet5",
+     "help": "The very same switch as 'Telnet #5' in the Spots menu - ticking either one "
+             "ticks the other. Refused (and says why) without a server below; in a team, "
+             "the master's choice."},
+    {"key": "telnet5.host", "attr": "telnet5_host", "kind": "text", "live": True,
+     "group": "RBN", "label": "Telnet #5: server",
+     "help": "A DX cluster / skimmer node, e.g. dxc.example.net. "
+             "Tick 'Telnet #5' in the Spots menu to use it: all its spots, skimmers and "
+             "people. Empty = not set."},
+    {"key": "telnet5.port", "attr": "telnet5_port", "kind": "int", "min": 1, "max": 65535,
+     "live": True, "group": "RBN", "label": "Telnet #5: port", "help": ""},
+    {"key": "telnet5.login", "attr": "telnet5_login", "kind": "text", "live": True,
+     "group": "RBN", "label": "Telnet #5: login call",
+     "help": "Empty = your call. Another SSID (e.g. S55OO-2) where your call is already "
+             "logged in on that node."},
+    {"key": "telnet5.role", "attr": "telnet5_role", "kind": "choice", "live": True,
+     "choices": ["cluster", "local", "rbn", "gocluster"], "group": "RBN",
+     "label": "Telnet #5: source role",
+     "help": "cluster = DX cluster; local = direct skimmer; rbn = raw receiver feed; "
+             "gocluster = processed reference. Only cluster receives relayed commands. "
+             "GoCluster is login-only: no automatic history or startup commands."},
+    {"key": "telnet5.commands", "attr": "telnet5_commands", "kind": "text", "live": True,
+     "group": "RBN", "label": "Telnet #5: commands after login",
      "help": "Comma separated, e.g. set/skimmer."},
     {"key": "ui.min_snr", "attr": "min_snr", "kind": "int", "min": 0, "max": 60,
      "live": True, "group": "Program", "label": "Minimum SNR (dB)",
@@ -458,7 +483,9 @@ PAGES: list[tuple[str, list[tuple[str, list[str]]]]] = [
               "telnet3.enabled", "telnet3.host", "telnet3.port", "telnet3.login",
               "telnet3.role", "telnet3.commands",
               "telnet4.enabled", "telnet4.host", "telnet4.port", "telnet4.login",
-              "telnet4.role", "telnet4.commands"]),
+              "telnet4.role", "telnet4.commands",
+              "telnet5.enabled", "telnet5.host", "telnet5.port", "telnet5.login",
+              "telnet5.role", "telnet5.commands"]),
     ]),
     ("Spots", [
         ("Sources", ["rbn.sources", "rbn.history", "rbn.hide_beacons", "rbn.hide_warc",
@@ -546,7 +573,7 @@ def parse(item: dict, text: str):
     if any(ch in text for ch in "\r\n[]"):
         raise ValueError(f"{item['label']}: no line breaks or brackets")
     if item["attr"] in ("rbn_spotter", "ssb_spotters", "telnet1_login", "telnet2_login",
-                        "telnet3_login", "telnet4_login", "filter_conts",
+                        "telnet3_login", "telnet4_login", "telnet5_login", "filter_conts",
                         "spotted_calls", "spotted_conts"):
         text = text.upper()
     return text, text

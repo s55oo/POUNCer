@@ -1,6 +1,6 @@
 """Traffic console (Tools > Traffic console): what comes in and goes out.
 
-Raw lines of every source as they arrive - RBN and the Telnet #1 - #4 (telnet
+Raw lines of every source as they arrive - RBN and the Telnet #1 - #5 (telnet
 lines, and the commands sent), N1MM (UDP packets in, QSY / call commands
 out), the HTTP backup feed, the team, the phone page's requests. The taps
 (``traffic.emit``) only work while this window is open; closed = no work.

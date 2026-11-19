@@ -106,6 +106,29 @@ class SourceTests(unittest.TestCase):
         self.assertEqual([c.stopped for c in made], [False, True, False, True])
         self.assertEqual(sorted(f._telnet_clients), [1, 3])
 
+    def test_five_telnets_each_its_own_connection(self) -> None:
+        # v0.7.235: Telnet #5
+        app, f, made, Fake = fake_app("telnet,telnet2,telnet3,telnet4,telnet5")
+        f.cfg.telnet2_host, f.cfg.telnet2_port, f.cfg.telnet2_login = "dx.example", 7300, "S55OO-2"
+        f.cfg.telnet3_host, f.cfg.telnet3_commands = "skim.example", ("set/skimmer",)
+        f.cfg.telnet4_host, f.cfg.telnet4_port = "four.example", 23
+        f.cfg.telnet5_host, f.cfg.telnet5_port = "five.example", 41
+        with mock.patch.object(app, "RBNClient", Fake):
+            f._ensure_rbn_clients()
+        self.assertEqual([(c.host, c.port, c.call) for c in made],
+                         [("azure.s53m.com", 8000, "S55OO"), ("dx.example", 7300, "S55OO-2"),
+                          ("skim.example", 8000, "S55OO"), ("four.example", 23, "S55OO"),
+                          ("five.example", 41, "S55OO")])
+        self.assertEqual([c.kw.get("name") for c in made],
+                         ["telnet", "telnet2", "telnet3", "telnet4", "telnet5"])
+        self.assertEqual(sorted(f._telnet_clients), [1, 2, 3, 4, 5])
+        # only #5 unticked: only its connection closes
+        f.cfg.rbn_source = "telnet,telnet2,telnet3,telnet4"
+        with mock.patch.object(app, "RBNClient", Fake):
+            f._ensure_rbn_clients()
+        self.assertEqual([c.stopped for c in made], [False, False, False, False, True])
+        self.assertEqual(sorted(f._telnet_clients), [1, 2, 3, 4])
+
     def test_same_server_opens_nothing_extra(self) -> None:
         app, f, made, Fake = fake_app("rbn,telnet,telnet2")
         f.cfg.telnet2_host = "AZURE.s53m.com"                # = Telnet #1

@@ -339,15 +339,16 @@ class TkSettingsWindowTests(unittest.TestCase):
         spots = menu("Spots")
         slabels = items(spots)
         self.assertIn("RBN - telnet.reversebeacon.net:7000 (skimmer spots)", slabels)
-        # RBN, Telnet #1, #2, #3, then HTTP (v0.7.213), each with its server
+        # RBN, Telnet #1 - #5, then HTTP (v0.7.213; #5: v0.7.235), each with its server
         order = [next(i for i, x in enumerate(slabels) if x.startswith(p))
                  for p in ("RBN - ", "Telnet #1 - ", "Telnet #2 - ", "Telnet #3 - ", "Telnet #4 - ",
-                           "HTTP - ")]
+                           "Telnet #5 - ", "HTTP - ")]
         self.assertEqual(order, sorted(order))
         self.assertIn("Telnet #1 - azure.s53m.com:8000", slabels)
         self.assertIn("Telnet #2 - dx.example:7300", slabels)
-        self.assertIn("Telnet #3 - (no server - Settings > Spots)", slabels)
+        self.assertIn("Telnet #3 - (no server - Settings > Telnet)", slabels)
         self.assertIn("Telnet #4 - four.example:23", slabels)
+        self.assertIn("Telnet #5 - (no server - Settings > Telnet)", slabels)
         self.assertFalse(any("TelBck" in x for x in slabels))
         # the list's own switches live with the spots now (after the relabelled sources)
         self.assertIn("Hide worked (same band + mode)", slabels)

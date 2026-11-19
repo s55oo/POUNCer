@@ -86,12 +86,12 @@ class Config:
     spotted_conts: str = ""
     rbn_history: int = 30
     # where the spots come in from - each on/off (Spots menu), comma
-    # separated: rbn (reversebeacon.net), telnet / telnet2 / telnet3 / telnet4 (Telnet
-    # #1 - #4: [telnet1] .. [telnet4], skimmer AND people's spots), http
+    # separated: rbn (reversebeacon.net), telnet / telnet2 / telnet3 / telnet4 /
+    # telnet5 (Telnet #1 - #5: [telnet1] .. [telnet5], skimmer AND people's spots), http
     rbn_source: str = "rbn,telnet"
     rbn_hamqth_backup: bool = False  # HamQTH: its RBN / cluster APIs while the telnets are down
-    # Telnet #1 - #4 (v0.7.213, were "Telnet" = [rbn] backup_host and
-    # "Telnet 2" = [ssb] host): equal sources, each its own connection
+    # Telnet #1 - #5 (v0.7.213, were "Telnet" = [rbn] backup_host and
+    # "Telnet 2" = [ssb] host; #5: v0.7.235): equal sources, each its own connection
     telnet1_host: str = "azure.s53m.com"
     telnet1_port: int = 8000
     telnet1_login: str = ""          # empty = the RBN callsign
@@ -108,10 +108,15 @@ class Config:
     telnet4_port: int = 8000
     telnet4_login: str = ""
     telnet4_commands: tuple = ()
+    telnet5_host: str = ""
+    telnet5_port: int = 8000
+    telnet5_login: str = ""
+    telnet5_commands: tuple = ()
     telnet1_role: str = "cluster"
     telnet2_role: str = "cluster"
     telnet3_role: str = "cluster"
     telnet4_role: str = "cluster"
+    telnet5_role: str = "cluster"
     spot_processing: dict = field(default_factory=dict)
     # RBN over HTTP (S53ZO's Azure feed) while the telnet feed is down / silent
     rbn_http_backup: str = "https://azure.s53m.com/cors/rbn/live"
@@ -253,16 +258,17 @@ def parse_radio(text: str, fallback: int = 1) -> int:
     return 2 if fallback == 2 else 1
 
 
-SOURCES = ("rbn", "telnet", "telnet2", "telnet3", "telnet4", "http")
-TELNETS = ("telnet", "telnet2", "telnet3", "telnet4")   # Telnet #1 - #4 (#4: v0.7.215)
+SOURCES = ("rbn", "telnet", "telnet2", "telnet3", "telnet4", "telnet5", "http")
+TELNETS = ("telnet", "telnet2", "telnet3", "telnet4", "telnet5")  # Telnet #1 - #5
+                                                                   # (#4: v0.7.215; #5: v0.7.235)
 # older names: "cluster" was Telnet 2 (people's spots of [ssb] host)
 SOURCE_ALIASES = {"cluster": "telnet2", "telnet1": "telnet", "telnet 2": "telnet2",
                   "telnet #1": "telnet", "telnet #2": "telnet2", "telnet #3": "telnet3",
-                  "telnet #4": "telnet4"}
+                  "telnet #4": "telnet4", "telnet #5": "telnet5"}
 
 
 def telnet_no(key: str) -> int:
-    """'telnet' -> 1, 'telnet2' -> 2, 'telnet3' -> 3, 'telnet4' -> 4."""
+    """'telnet' -> 1, 'telnet2' -> 2, 'telnet3' -> 3, 'telnet4' -> 4, 'telnet5' -> 5."""
     return TELNETS.index(key) + 1
 
 
@@ -337,11 +343,11 @@ def load_config(path: str) -> Config:
         one = one if one in ("rbn", "telnet", "http") else "rbn"
         ssb_off = s("ssb", "mode", "auto").strip().lower() == "off"
         cfg.rbn_source = parse_sources(one + ("" if ssb_off else ",telnet"))
-    # Telnet #1 - #4; an older config.ini: #1 = [rbn] backup_host / port /
+    # Telnet #1 - #5; an older config.ini: #1 = [rbn] backup_host / port /
     # commands, #2 = [ssb] host / port / login / commands (read, not rewritten)
     old = {1: ("rbn", "backup_host", "backup_port", None, "backup_commands"),
            2: ("ssb", "host", "port", "login", "commands")}
-    for n in (1, 2, 3, 4):
+    for n in (1, 2, 3, 4, 5):
         sec = f"telnet{n}"
         osec, ohost, oport, ologin, ocmds = old.get(n, (None,) * 5)
 

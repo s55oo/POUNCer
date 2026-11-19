@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## v0.7.235 — 2026-11-19 — a fifth Telnet connection (Telnet #5)
+
+- **Telnet #5** (Settings > Telnet, `[telnet5]`) - a fifth independent
+  Telnet connection, the same as Telnet #1 - #4: its own host / port /
+  login / commands / role and its own enable tick (same switch as its
+  button under Settings > Spots). The Spots menu, the traffic console,
+  the connection light, the cluster-server relay upstream and the team
+  source list all treat it like any other Telnet.
+
 ## v0.7.234 — 2026-11-19 — traffic console: HamQTH / HTTP spots get a colour and PT too (fix)
 
 - **Traffic console: HamQTH / HTTP** - `spot_key` only ever recognized the

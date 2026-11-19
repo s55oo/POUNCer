@@ -19,7 +19,7 @@ RBN_SPOT_S = 120     # a spot this recently = RBN works whatever the status says
 
 
 VIA = {"ok": "RBN", "telnet": "Telnet #1", "telnet2": "Telnet #2", "telnet3": "Telnet #3",
-       "telnet4": "Telnet #4",
+       "telnet4": "Telnet #4", "telnet5": "Telnet #5",
        "http": "HTTP", "hamqth": "HamQTH"}
 
 
@@ -27,7 +27,8 @@ def rbn_light(status: str, last_spot_age: float | None, role: str,
               http: bool = False, working: str = "") -> tuple[str, str]:
     """The SPOTS light (called RBN up to v0.7.202): green as long as ONE source
     brings spots - ``working`` = ``app._spot_source_working()`` ("ok" = RBN,
-    "telnet" / "telnet2" / "telnet3" / "telnet4", "http", "hamqth") - else from RBN's own status."""
+    "telnet" / "telnet2" / "telnet3" / "telnet4" / "telnet5", "http", "hamqth") - else from
+    RBN's own status."""
     s0 = (status or "").lower()
     if s0.startswith("paused"):
         return HOLD, "SPOTS on hold (SSB)"  # SSB contest / every radio on SSB: not needed
@@ -81,7 +82,7 @@ def team_light(role: str, pouncers: int,
 
 
 def telnet_light(states, role: str = "solo") -> tuple[str, str]:
-    """The Telnet #1 - #4 sources (v0.7.213), one light: ``states`` =
+    """The Telnet #1 - #5 sources (v0.7.213), one light: ``states`` =
     [(n, status)] of the ticked ones; status = the connection's text, "same"
     (the same server as one before it: nothing extra) or "" (not set)."""
     if role == "slave":
