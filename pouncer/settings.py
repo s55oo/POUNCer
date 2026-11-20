@@ -56,9 +56,17 @@ SETTINGS: list[dict] = [
      "group": "Cluster server", "label": "Receiver-aware spot collection",
      "help": "For the list, team and port 10000: suppress repeats for 180 seconds; "
              "admit up to two frequency moves above 500 Hz when two distinct receivers "
-             "agree within 100 Hz. Align receiver frequencies when qualified evidence "
+             "agree within 100 Hz (or a spot with Q:n from Trust DXSpider quality). Align receiver frequencies when qualified evidence "
              "is available; guard local CW callsign corrections. First discoveries pass "
-             "promptly. Upstream Q:n is not an independent receiver count."},
+             "promptly. Mirrors never count as extra receivers."},
+    {"key": "cluster.trust_q", "attr": "cluster_trust_q", "kind": "int", "min": 0, "max": 99,
+     "live": True, "group": "Cluster server", "label": "Trust DXSpider quality from Q:",
+     "help": "A cluster spot with Q:n (DXSpider: n different skimmers heard it) from this "
+             "number on counts as confirmed: never held as cw-conflict-unconfirmed, and a "
+             "frequency move with it (no '*') needs no second receiver of POUNCer's own. "
+             "A GoCluster spot rated V (Telnet role gocluster) confirms the call too, never "
+             "a move. The same spot from several Telnets counts once (the highest Q, never "
+             "a sum). Default 3; 0 = off (only POUNCer's own receiver count)."},
     {"key": "n1mm.qsy_wait_ms", "attr": "qsy_wait_ms", "kind": "int", "min": 0, "max": 10000,
      "live": True, "group": "Tap -> N1MM",
      "label": "Wait for N1MM's new frequency (ms)",
@@ -494,6 +502,7 @@ PAGES: list[tuple[str, list[tuple[str, list[str]]]]] = [
                      "rbn.pause_on_phone",
                      "rbn.skimmer_quiet_minutes", "rbn.http_backup", "rbn.hamqth_backup"]),
         ("SSB", ["ssb.follow_radio_mode", "ssb.pskreporter"]),
+        ("Spot collector", ["cluster.trust_q"]),
         ("Spotters - who heard it", ["filter.mode", "rbn.spotter", "filter.dxcc",
                                      "filter.zones", "filter.conts"]),
         ("Spotted - who was heard", ["spotted.mode", "spotted.calls", "spotted.dxcc",

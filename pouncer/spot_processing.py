@@ -53,8 +53,12 @@ DEFAULTS = {
     'calibration_match_tolerance_hz': 1000, 'calibration_retry_batch': 16,
     'cw_conflict_seconds': 180, 'cw_conflict_hz': 100,
     'local_call_hold_seconds': 3, 'local_call_tolerance_hz': 200,
+    # DXSpider's Q:n = n different skimmers heard it: from this many on the
+    # call counts as confirmed (CW conflict, frequency move); 0 = off
+    'trust_quality': 3,
     'max_entries': 4096,
 }
+_QUALITY = re.compile(rb'(?:^|\s)Q:(\d{1,3})([*+]*)(?=\s|$)')
 _HEADER = re.compile(
     rb'^DX\s+de\s+(?P<origin>[A-Z0-9/#@-]+):\s*'
     rb'(?P<freq>\d+(?:\.\d{1,6})?)\s+'
@@ -88,6 +92,8 @@ class ParsedSpot:
     call_span: tuple
     receiver_base: str = ''
     cw_skimmer: bool = False
+    quality: int = 0          # DXSpider Q:n - n distinct skimmers upstream; 0 = none
+    quality_split: bool = False  # Q:n* - those skimmers disagreed on the frequency
 
     def __post_init__(self):
         # A property of this immutable record, not a process-global identity cache.
@@ -153,16 +159,24 @@ def parse_spot(line, now, role='cluster'):
     confidence = ''
     # GC's mode begins at column 40; confidence/time are anchored to the end,
     # independently of the configured line length. Never interpret a prose C.
-    if role == 'gocluster' and len(line) >= 65 and match.start('tail') == 39:
+    if role == 'gocluster' and match.start('tail') == 39:
         conf = re.search(rb' ([?SPVCB]) ([0-2][0-9][0-5][0-9]Z)$', line)
-        if conf:
+        # a short line (no WPM) is fine when a grid square stands before it
+        if conf and (len(line) >= 65 or re.search(
+                rb' [A-Ra-r]{2}[0-9]{2}(?:[A-Xa-x]{2})? [?SPVCB] [0-2][0-9][0-5][0-9]Z$', line)):
             confidence = conf.group(1).decode('ascii')
     origin = match.group('origin').decode('ascii').upper()
     # Merged feeds can strip the -# suffix but retain the structured CW dB field.
     cw_skimmer = mode == 'CW' and (role in ('local', 'rbn') or origin.endswith('-#') or report is not None)
+    # Q:n is DXSpider's count of distinct skimmers - only a cluster node
+    # writes it; in a local skimmer's / raw RBN / GoCluster line it is text
+    q = _QUALITY.search(tail) if role == 'cluster' else None
+    quality = min(int(q.group(1)), 99) if q else 0
+    quality_split = bool(q) and b'*' in q.group(2)
     return ParsedSpot(line, receiver_identity(origin),
                       call, frequency * 1000, band, mode, report, observed,
-                      confidence, match.span('freq'), match.span('call'), cw_skimmer=cw_skimmer)
+                      confidence, match.span('freq'), match.span('call'), cw_skimmer=cw_skimmer,
+                      quality=quality, quality_split=quality_split)
 
 
 @dataclass
@@ -316,7 +330,8 @@ class SpotProcessor:
                     raise ValueError('spot_processing.enabled must be boolean')
             elif isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
                 raise ValueError('spot_processing.%s must be finite numeric' % key)
-            elif value < 0 or (value == 0 and key not in ('max_changes', 'future_tolerance_seconds')):
+            elif value < 0 or (value == 0 and key not in ('max_changes', 'future_tolerance_seconds',
+                                                          'trust_quality')):
                 raise ValueError('spot_processing.%s must be positive' % key)
         for key in ('max_entries', 'max_changes', 'calibration_min_calls', 'calibration_retry_batch'):
             if not isinstance(self.config[key], int):
@@ -699,10 +714,28 @@ class SpotProcessor:
                 abs(spot.frequency_hz - other.frequency_hz) <= self.config['cw_conflict_hz'] and
                 abs(spot.observed_at - other.observed_at) < self.config['cw_conflict_seconds'] + 60)
 
+    def _trusted(self, spot):
+        """The upstream node's Q:n (n distinct skimmers) reaches
+        ``trust_quality``, or GoCluster rated it V: its call is confirmed.
+        Mirrors repeat the same Q, never add to it - the highest one counts,
+        not a sum."""
+        need = self.config['trust_quality']
+        # GoCluster's V = "strongly corroborated" (several reporters, >= 51 %
+        # agree on the call) - its counterpart of a high Q:n
+        return bool(need) and (spot.quality >= need or spot.confidence == 'V')
+
+    def _trusted_frequency(self, spot):
+        """Q:n confirms the frequency too - unless '*' (the skimmers did not
+        agree on it). GoCluster's V never does: it rates the call only."""
+        need = self.config['trust_quality']
+        return bool(need) and spot.quality >= need and not spot.quality_split
+
     def _cw_conflict(self, obs, frequency, now, before):
         """Find a corroborated occupant, unless a second receiver backs this call."""
         spot = obs.spot
         tolerance = self.config['cw_conflict_hz']
+        if self._trusted(spot):
+            return None               # Q:n upstream: n skimmers already agree on the call
         by_call = {}
         # Timestamps on the wire have minute precision. Check both that clock
         # and receipt time so delayed copies cannot renew an old occupation.
@@ -714,7 +747,7 @@ class SpotProcessor:
                     abs(ref.frequency_hz - frequency) > tolerance):
                 continue
             if ref.call == spot.call:
-                if can_confirm and self._cw_confirmed_by(spot, ref):
+                if can_confirm and (self._cw_confirmed_by(spot, ref) or self._trusted(ref)):
                     return None
             else:
                 by_call.setdefault(ref.call, []).append((ref.frequency_hz, ref.receiver_base))
@@ -747,6 +780,9 @@ class SpotProcessor:
         if groups and group is None:
             self.counts['move_conflicts'] += 1
             return None, 'corroboration-conflict', 0, None
+        if group is None and self._trusted_frequency(obs.spot):
+            # Q:n upstream (no '*'): n skimmers already agree on the new frequency
+            return frequency, 'frequency-move-quality', obs.spot.quality, 'quality'
         if group is None:
             pending_key = (call, obs.spot.band, obs.spot.mode,
                            int(round(frequency/self.config['corroboration_tolerance_hz'])))

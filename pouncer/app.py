@@ -1329,6 +1329,13 @@ class PouncerApp:
         if self.cfg.alert_sound:
             alert_beep(self.root)
 
+    def _collector_policy(self) -> dict:
+        """The collector's policy: [spot_processing] plus [cluster] trust_q
+        (the Spots setting wins over an advanced trust_quality)."""
+        policy = dict(getattr(self.cfg, "spot_processing", None) or {})
+        policy["trust_quality"] = int(getattr(self.cfg, "cluster_trust_q", 3))
+        return policy
+
     def _console_merge_s(self) -> float:
         """Traffic console: how long after a send a later line of the same
         station is "merged into" it (yellow) - the collector's repeat window
@@ -4075,7 +4082,7 @@ class PouncerApp:
             from .collector import Collector
             collector = getattr(self, "_collector", None)
             if collector is None:
-                collector = self._collector = Collector(getattr(self.cfg, "spot_processing", {}))
+                collector = self._collector = Collector(self._collector_policy())
             for _ in range(500):
                 try:
                     raw = incoming.get_nowait()
@@ -5674,6 +5681,9 @@ class PouncerApp:
                 self._src_last = None
             if key.startswith("cluster."):
                 self._apply_cluster_server()
+            if key == "cluster.trust_q" and getattr(self, "_collector", None) is not None:
+                # live, keeping episodes and holds: only the trust threshold changes
+                self._collector.engine.config["trust_quality"] = int(self.cfg.cluster_trust_q)
             if key == "web.phone_control":
                 self._apply_phone_control()
             if key == "ui.urgency_contest_minutes":

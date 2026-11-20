@@ -1,5 +1,25 @@
 # POUNCer — Changelog
 
+## v0.7.239 — 2026-11-21 — trust DXSpider's Q:n and GoCluster's V
+
+- **Trust DXSpider quality** (Settings > Spots > Spot collector, `[cluster]
+  trust_q`, default 3, 0 = off) - DXSpider's `Q:n` means n different
+  skimmers heard the spot, yet the collector counted such a line as one
+  receiver: `Q:9+` spots (nine skimmers, calling CQ over an hour) were held
+  back as `cw-conflict-unconfirmed` - 703 spots with Q:2 or more in three
+  days of nonPublishedSpots.log. From `trust_q` on the call counts as
+  confirmed, and a frequency move with it needs no second receiver of
+  POUNCer's own - unless `*` (the skimmers disagreed on the frequency).
+  The same spot from several Telnets counts once (the highest Q, never a
+  sum); repeats are still suppressed for 180 s. Q: is read only from
+  cluster-role Telnets (in a local skimmer / raw RBN / GoCluster line it is
+  text).
+- **GoCluster's V** (a Telnet with `role = gocluster`, e.g. N2WQ's GoCluster)
+  - "strongly corroborated" - confirms the call like a high Q:n, never a
+  frequency move (V rates the call only). `?`, `S`, `P` keep the usual
+  checks. The confidence letter is now read on short lines (no WPM) too,
+  when a grid square stands before it.
+
 ## v0.7.238 — 2026-11-21 — traffic console: held-back repeats are yellow, not red (fix)
 
 - **Traffic console: merge window = the collector's** - a spot line that

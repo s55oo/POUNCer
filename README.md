@@ -860,7 +860,7 @@ the cluster server (port 10000):
   first unrelated discovery passes promptly. Repeats share a 180-second
   episode; ordinary repeats do not extend it. Up to two moves greater than
   500 Hz can pass when two distinct receivers agree within 100 Hz in the
-  10-second evidence window. Mirrors and upstream `Q:n` are not extra votes.
+  10-second evidence window. Mirrors are not extra votes (upstream `Q:n`: see trust_q below).
   Reports excluded by the Spotters filter may supply evidence without
   consuming a selected station's episode. Raw traffic remains visible.
 - When two distinct skimmer receiver bases have reported the same CW call in
@@ -894,6 +894,11 @@ the cluster server (port 10000):
   reports without one); the rest of the comment stays intact. No Q/Z tags are
   generated.
 - Advanced numeric policy is in `[spot_processing]` (restart after editing).
+  **Trust DXSpider quality** (`[cluster] trust_q`, default 3; Settings >
+  Spots > Spot collector): a spot with `Q:n` (n different skimmers) from
+  that n on counts as confirmed - never held as a CW conflict, and a move
+  with it (no `*`) needs no receiver of POUNCer's own; a GoCluster `V`
+  confirms the call only. Mirrors count once; 0 = off (v0.7.239).
   `[cluster] merge = false` bypasses the engine. Startup history bypasses
   learning; textual `sh/dx` replies use a five-second/200-row bypass which may
   also include concurrent live spots. Team slaves consume the master's

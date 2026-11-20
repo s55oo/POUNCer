@@ -245,6 +245,7 @@ class Config:
     cluster_port: int = 10000
     cluster_relay: bool = True      # pass the real cluster through to the client (N1MM)
     cluster_merge: bool = True      # receiver-aware selection for list, team and port 10000
+    cluster_trust_q: int = 3        # [cluster] trust_q: Q:n from this on = call confirmed; 0 = off
     touch_view: bool = False  # open the phone page in the default browser at start
 
 
@@ -527,6 +528,7 @@ def load_config(path: str) -> Config:
     cfg.cluster_port = i("cluster", "port", cfg.cluster_port)
     cfg.cluster_relay = b("cluster", "relay", cfg.cluster_relay)
     cfg.cluster_merge = b("cluster", "merge", cfg.cluster_merge)
+    cfg.cluster_trust_q = max(0, min(99, i("cluster", "trust_q", cfg.cluster_trust_q)))
     from .spot_processing import DEFAULTS, SpotProcessor
     if parser.has_section("spot_processing"):
         for key, text in parser.items("spot_processing"):

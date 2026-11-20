@@ -49,6 +49,9 @@ class FrequencyCorroborationTests(unittest.TestCase):
         self.assertEqual(self.engine.last_evaluation['reason'],'move-budget-exhausted')
 
     def test_mirrors_and_unknown_numeric_aliases_cannot_confirm(self):
+        # the receiver rule itself: the payload's Q:9 would confirm the move
+        # on its own since v0.7.239 (trust_quality), so that is off here
+        self.engine = SpotProcessor({'trust_quality': 0}, clock=lambda: self.now)
         self.send('A1AAA',7009)
         self.send('B1BBB-1-#',7009.7,'rbn')
         self.assertFalse(self.send('B1BBB',7009.7,'gocluster'))
