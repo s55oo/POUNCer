@@ -659,7 +659,7 @@ class PouncerApp:
                                             browser=lambda: self._open_browser("timeline"))
         # Tools > Traffic console: the taps only work while it is open
         self._console = TrafficConsole(self.root, notes=self._console_notes, info=self._console_info,
-                                       shown=self._console_shown)
+                                       shown=self._console_shown, merge_s=self._console_merge_s)
         self.root.bind_all("<Control-Shift-D>", lambda _e: self._console.open())
         self.root.bind_all("<Control-Shift-d>", lambda _e: self._console.open())
 
@@ -1328,6 +1328,22 @@ class PouncerApp:
                                 "\nclick = QSY and call")
         if self.cfg.alert_sound:
             alert_beep(self.root)
+
+    def _console_merge_s(self) -> float:
+        """Traffic console: how long after a send a later line of the same
+        station is "merged into" it (yellow) - the collector's repeat window
+        ([spot_processing] repeat_seconds) while [cluster] merge is on, so a
+        repeat it held back 120 - 180 s after the send is not red; merge off
+        = the console's own PB_LINK_S."""
+        from .console import PB_LINK_S
+        if not getattr(self.cfg, "cluster_merge", True):
+            return PB_LINK_S
+        collector = getattr(self, "_collector", None)
+        if collector is not None:
+            return collector.engine.config["repeat_seconds"]
+        from .spot_processing import DEFAULTS
+        sp = getattr(self.cfg, "spot_processing", None) or {}
+        return sp.get("repeat_seconds", DEFAULTS["repeat_seconds"])
 
     def _is_my_call(self, spot) -> bool:
         return self._is_my_callsign(getattr(spot, "dxcall", ""))

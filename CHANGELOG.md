@@ -1,5 +1,17 @@
 # POUNCer — Changelog
 
+## v0.7.238 — 2026-11-21 — traffic console: held-back repeats are yellow, not red (fix)
+
+- **Traffic console: merge window = the collector's** - a spot line that
+  came in after its station went out on port 10000 turned yellow ("merged
+  into PT ...") only within the console's own 120 s, while the collector
+  holds a station's repeats back for 180 s (`[spot_processing]
+  repeat_seconds`). A repeat 120 - 180 s after the send stayed red with no
+  note, as if never sent. With `[cluster] merge` on the console now uses
+  the collector's repeat window (and remembers sends that long); merge off
+  keeps 120 s. A line that came in before a delayed send still links
+  within 120 s.
+
 ## v0.7.237 — 2026-11-19 — HTTP spots now laid out like a real telnet line (fix)
 
 - **Collector: layout of a receiver-less spot** - a spot with no native

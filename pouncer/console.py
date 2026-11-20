@@ -88,6 +88,11 @@ MERGED_COLOR = "#ffeb3b"    # yellow: this line's station already went out via a
 PB_COLOR = "#ffcc80"       # "PT 09:48:55" - published to port 10000
 EXCL_COLOR = "#9e9e9e"     # "EXCL WARC" - kept out by your filters
 PB_LINK_S = 120            # a spot line links to a publish of its station this long after it
+# ... and a line that comes in AFTER the publish is "merged into" it this long:
+# the collector's own repeat window ([spot_processing] repeat_seconds, 180 s)
+# when merge is on - the console asks the app (TrafficConsole ``merge_s``), so a
+# repeat the collector held back 120 - 180 s after the send is yellow, not red
+MERGE_LINK_S = 180
 # when to give up waiting for a PT and say "not sent" (v0.7.230): well past
 # PSK_WAIT_S, so the filter decision (EXCL or not) has always landed first -
 # PB_LINK_S itself stays the merge-matching window only (pb_note), unrelated
@@ -135,12 +140,15 @@ def spot_key(text: str, src: str = ""):
     return parts[2].upper(), khz, parts[0].upper()
 
 
-def pb_note(line_key, line_t: float, pb_key, pb_t: float) -> str:
+def pb_note(line_key, line_t: float, pb_key, pb_t: float,
+            merge_s: float = PB_LINK_S) -> str:
     """The text a spot line gets when its station went out at ``pb_t``; ''
-    when the publish is not about this line."""
+    when the publish is not about this line. A line before the publish
+    links within ``PB_LINK_S``; one after it within ``merge_s`` (the
+    collector's repeat window, so its held-back repeats read "merged into")."""
     call, khz, spotter = line_key
     pcall, pkhz, pspotter = pb_key
-    if not (0 <= pb_t - line_t <= PB_LINK_S or 0 <= line_t - pb_t <= PB_LINK_S):
+    if not (0 <= pb_t - line_t <= PB_LINK_S or 0 <= line_t - pb_t <= merge_s):
         return ""
     stamp = time.strftime("%H:%M:%S", time.gmtime(pb_t))
     if call == pcall and abs(khz - pkhz) <= PB_KHZ:
@@ -177,8 +185,9 @@ def hide_group_for(reason: str) -> str | None:
 
 
 class TrafficConsole:
-    def __init__(self, root, notes=None, info=None, shown=None) -> None:
+    def __init__(self, root, notes=None, info=None, shown=None, merge_s=None) -> None:
         self.root = root
+        self.merge_s = merge_s        # () -> seconds a later line counts as merged into a send
         self.notes = notes            # () -> {group: "paused - radio on SSB", ...}
         self.shown = shown            # (source, line) -> True / False / None (not a spot)
         self._pending: list = []      # [(mark, source, line, until)] not yet shown
@@ -584,9 +593,20 @@ class TrafficConsole:
                 continue
             keep.append((mark, lkey, lt))
         self._waiting_pb = keep
-        self._recent_pb = [(k, pt) for k, pt in self._recent_pb if t - pt <= PB_LINK_S]
+        keep_s = max(PB_LINK_S, self._merge_window())
+        self._recent_pb = [(k, pt) for k, pt in self._recent_pb if t - pt <= keep_s]
         self._recent_pb.append((key, t))
         del self._recent_pb[:-500]
+
+    def _merge_window(self) -> float:
+        """How long after a send a later line of that station is "merged
+        into" it: the app's answer (the collector's repeat window while
+        merge is on), else ``PB_LINK_S``."""
+        try:
+            got = float(self.merge_s()) if self.merge_s is not None else PB_LINK_S
+        except Exception:  # noqa: BLE001 - never break the console over it
+            got = PB_LINK_S
+        return got if got > 0 else PB_LINK_S
 
     def _sweep_unsent(self, now: float) -> None:
         """Lines that got no PT within ``UNSENT_NOTE_S`` and never will,
@@ -611,7 +631,7 @@ class TrafficConsole:
     def _spot_in(self, mark: str, key, t: float) -> None:
         """A spot line came in: already sent (merged into) - or wait for its PB."""
         for pkey, pt in reversed(self._recent_pb):
-            note = pb_note(key, t, pkey, pt) if t >= pt else ""
+            note = pb_note(key, t, pkey, pt, self._merge_window()) if t >= pt else ""
             if note and pkey[0] == key[0]:
                 self._note_pb(mark, note)
                 self.text.mark_unset(mark)

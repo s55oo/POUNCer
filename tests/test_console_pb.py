@@ -83,6 +83,32 @@ class ConsolePbTests(unittest.TestCase):
         self.assertEqual(len([x for x in got if x.strip()]), 1)   # no server line shown
         self.assertIn("PT 09:48:55", got[0])
 
+    def test_repeat_within_collector_window_is_merged(self) -> None:
+        # a repeat the collector held back 150 s after the send (its 180 s
+        # repeat window) was red with no note - it is "merged into" (yellow)
+        t = 35334.0
+        c = console.TrafficConsole(_root, shown=lambda src, txt: None, merge_s=lambda: 180)
+        c.open()
+        try:
+            c.add([(t, "telnet", A), (t + 1, "server >", A)])
+            c.add([(t + 150, "telnet4", B)])
+            c.add([(t + 200, "telnet4", B.replace("OE9GHV", "DO4DXA"))])   # past 180 s
+            got = [x for x in c.text.get("1.0", "end").splitlines() if x.strip()]
+            self.assertTrue(got[-2].endswith("merged into PT 09:48:55"), got[-2])
+            self.assertNotIn("merged into", got[-1])
+        finally:
+            c.close()
+
+    def test_merge_window_defaults_to_pb_link(self) -> None:
+        # no merge_s (merge off): the old 120 s, nothing later is merged
+        t = 35334.0
+        self.c.add([(t, "telnet", A), (t + 1, "server >", A)])
+        self.c.add([(t + 150, "telnet4", B)])
+        got = [x for x in self.lines() if x.strip()]
+        self.assertNotIn("merged into", got[-1])
+        self.assertEqual(console.pb_note(console.spot_key(B), t + 150, console.spot_key(A),
+                                         t + 1, merge_s=180), "  merged into PT 09:48:55")
+
 
 @unittest.skipIf(_root is None, "no display")
 class ConsoleExclTests(unittest.TestCase):
@@ -212,3 +238,22 @@ class ConsoleExclTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class MergeWindowFromAppTests(unittest.TestCase):
+    """The app tells the console the collector's repeat window (merge on)."""
+
+    def _merge_s(self, **cfg) -> float:
+        import types
+        from pouncer.app import PouncerApp
+        fake = types.SimpleNamespace(cfg=types.SimpleNamespace(**cfg), _collector=None)
+        return PouncerApp._console_merge_s(fake)
+
+    def test_follows_repeat_seconds(self) -> None:
+        self.assertEqual(self._merge_s(cluster_merge=True, spot_processing={}), 180)
+        self.assertEqual(self._merge_s(cluster_merge=True,
+                                       spot_processing={"repeat_seconds": 240}), 240)
+
+    def test_merge_off_keeps_pb_link(self) -> None:
+        from pouncer.console import PB_LINK_S
+        self.assertEqual(self._merge_s(cluster_merge=False, spot_processing={}), PB_LINK_S)
