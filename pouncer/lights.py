@@ -1,7 +1,8 @@
 """Connection lights for the main window: one coloured dot per connection.
 
 green = working (this stream delivers), yellow = on hold (ready, not
-needed now: SPOTS (RBN) on SSB, a Telnet on the same server as RBN), amber = connecting / partly there, red = not working
+needed now: SPOTS (RBN) on SSB with no Telnet delivering, a Telnet on the same
+server as RBN), amber = connecting / partly there, red = not working
 (connection problem), grey = switched off. Pure logic (no tkinter), so it is
 testable anywhere; ``app.py`` draws the dots.
 """
@@ -30,6 +31,10 @@ def rbn_light(status: str, last_spot_age: float | None, role: str,
     "telnet" / "telnet2" / "telnet3" / "telnet4" / "telnet5", "http", "hamqth") - else from
     RBN's own status."""
     s0 = (status or "").lower()
+    # RBN paused for SSB, but a Telnet still delivers (dual mode: people's SSB
+    # and skimmer CW spots go on): that one is the light, green (v0.7.244)
+    if s0.startswith("paused") and role != "slave" and working in VIA and working != "ok":
+        return OK, f"SPOTS via {VIA[working]}"
     if s0.startswith("paused"):
         return HOLD, "SPOTS on hold (SSB)"  # SSB contest / every radio on SSB: not needed
     if role == "slave":

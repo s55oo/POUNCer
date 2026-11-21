@@ -318,6 +318,9 @@ class AppRadioTests(unittest.TestCase):
         # so Entry Window B must be in front first (like a spot tap)
         app = _import_app()
         f = self._fake(app, radio=1)
+        # a fixed decimal sign: "auto" would follow this PC's Windows setting
+        # ("," on a Slovenian PC) and the test would depend on where it runs
+        f.cfg.freq_decimal = "."
         focused = []
         typed = []
         with mock.patch.object(app, "force_foreground", side_effect=lambda h: focused.append(h) or True), \

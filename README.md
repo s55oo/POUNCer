@@ -634,7 +634,7 @@ now), amber = connecting, red = connection problem, grey = off.
 
 | Light | Green | Yellow (on hold) | Amber | Red | Grey |
 |---|---|---|---|---|---|
-| SPOTS (called RBN up to v0.7.202) | **one** source brings spots - "SPOTS via RBN / Telnet #1 / HTTP / HamQTH ..." (a spot line in the last 2 min; slave: via master) | SSB contest / every radio on SSB | connecting | no source brings spots | no source on |
+| SPOTS (called RBN up to v0.7.202) | **one** source brings spots - "SPOTS via RBN / Telnet #1 / HTTP / HamQTH ..." (a spot line in the last 2 min; slave: via master) | SSB contest / every radio on SSB, and no Telnet delivers (a Telnet that does keeps it green, v0.7.244) | connecting | no source brings spots | no source on |
 | Telnet | every ticked Telnet #1 - #5 logged in ("Telnet #1+#3") | a ticked Telnet on the same server as RBN (nothing extra) | connecting, or some not yet | disconnected | no Telnet ticked |
 | HTTP | the HTTP feed delivers | - | starting | running, nothing comes | *Spots: HTTP* off / no URL / team slave |
 
@@ -789,8 +789,12 @@ works.
 The other way round: RBN isn't needed in an **SSB contest** open in N1MM
 (CQWWSSB, CQWPXSSB, ARRLDXSSB ... - RBN isn't even started) or while **every
 radio is on SSB / AM / FM** for a minute: POUNCer **closes the RBN
-connection** (light "RBN on hold (SSB)", yellow; the check line says "paused - SSB,
-not needed"). It reconnects at once when a radio goes to CW. **In a team**
+connection** (light "SPOTS on hold (SSB)", yellow; the check line says "paused - SSB,
+not needed"). It reconnects at once when a radio goes to CW. Only RBN (and the
+HTTP backup) pause: **Telnet #1 - #5 keep running** - people's SSB spots and
+the skimmer CW spots go on, for dual-mode operation - and while one of them
+delivers the SPOTS light stays green, "SPOTS via Telnet #1" (v0.7.244; it was
+yellow before, though nothing was missing). **In a team**
 each POUNCer tells the others whether it needs RBN (a radio on CW, not an SSB
 contest); the master connects only while at least one does - all on SSB =
 no RBN anywhere (the slaves' light says "RBN on hold" too). `[rbn]

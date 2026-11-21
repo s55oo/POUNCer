@@ -6,6 +6,18 @@ from pouncer import lights as L
 
 
 class LightsTests(unittest.TestCase):
+    def test_ssb_pause_with_a_working_telnet_is_green(self) -> None:
+        # dual mode: RBN paused on SSB, Telnet #1 - #4 still deliver (v0.7.244)
+        self.assertEqual(L.rbn_light("paused", 5, "solo", working="telnet"),
+                         (L.OK, "SPOTS via Telnet #1"))
+        self.assertEqual(L.rbn_light("paused", 5, "off", working="telnet4"),
+                         (L.OK, "SPOTS via Telnet #4"))
+        # nothing else delivers: really on hold
+        self.assertEqual(L.rbn_light("paused", None, "solo", working=""),
+                         (L.HOLD, "SPOTS on hold (SSB)"))
+        # a team slave with the master paused stays on hold
+        self.assertEqual(L.rbn_light("paused", None, "slave", working="telnet")[0], L.HOLD)
+
     def test_rbn(self) -> None:
         self.assertEqual(L.rbn_light("logged in as S55OO", None, "solo")[0], L.OK)
         self.assertEqual(L.rbn_light("connecting to x:7000", None, "off")[0], L.WAIT)
@@ -17,7 +29,8 @@ class LightsTests(unittest.TestCase):
                          (L.OK, "SPOTS via Telnet #1"))
         self.assertEqual(L.rbn_light("logged in as S55OO", None, "solo", working="ok"),
                          (L.OK, "SPOTS via RBN"))
-        self.assertEqual(L.rbn_light("paused", None, "solo", working="telnet")[0], L.HOLD)
+        # RBN paused for SSB while a Telnet delivers: green since v0.7.244 (was on hold)
+        self.assertEqual(L.rbn_light("paused", None, "solo", working="telnet")[0], L.OK)
 
     def test_n1mm_log(self) -> None:
         self.assertEqual(L.n1mm_light(None)[0], L.BAD)

@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## v0.7.244 — 2026-11-21 — SPOTS light green on SSB while a Telnet delivers (fix)
+
+- **SPOTS light on SSB** - with every radio on SSB (or an SSB contest open)
+  POUNCer pauses RBN, and the SPOTS light turned yellow "SPOTS on hold
+  (SSB)" - even when RBN wasn't a source at all and Telnet #1 - #5 went on
+  delivering (people's SSB spots and skimmer CW spots, for dual-mode
+  operation). Nothing was missing, but the light said so. Now a Telnet that
+  delivers keeps it green ("SPOTS via Telnet #1"); yellow only when nothing
+  else brings spots, and "paused" counts only with RBN ticked as a source.
+
 ## v0.7.243 — 2026-11-21 — POUNCer's N1MM port in Settings (12060 - 12069)
 
 - **POUNCer's N1MM port** (Settings > N1MM & radios > N1MM connection,

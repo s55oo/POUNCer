@@ -5632,7 +5632,8 @@ class PouncerApp:
         n = len(self.team.alive_peers()) + 1 if self.team is not None else 1
         spot_age = time.time() - self._last_own_spot if self._last_own_spot else None
         return [
-            lights.rbn_light("paused" if getattr(self, "_rbn_pause_on", False) or (
+            lights.rbn_light("paused" if (getattr(self, "_rbn_pause_on", False)
+                                          and has_source(self.cfg, "rbn")) or (
                 role == "slave" and self.team.master_paused()) else self.rbn_status,
                              spot_age, role,
                              http=self._http_feed is not None and bool(self._http_feed.spots_in),
