@@ -10,7 +10,9 @@ from tests.test_collector_spot_processing import START, line, gc
 class FrequencyCorroborationTests(unittest.TestCase):
     def setUp(self):
         self.now = START
-        self.engine = SpotProcessor(clock=lambda:self.now)
+        # POUNCer's own receiver count only: a GoCluster V would confirm a
+        # move on its own (v0.7.247) - these test the two-receiver rule
+        self.engine = SpotProcessor({'trust_quality': 0}, clock=lambda:self.now)
 
     def send(self, origin, frequency, role='gocluster', call='HA8LNN', source=None, extra=b'original Q:9 > payload'):
         stamp=time.strftime('%H%MZ',time.gmtime(self.now))

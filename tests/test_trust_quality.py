@@ -110,15 +110,29 @@ class TrustQualityTests(unittest.TestCase):
         self.occupy(e, 'G4ALD', 21031.2)
         self.assertEqual(self.gc(e, 'SE5E-#', 'F6FLU', 21031.2, 'V', wpm=False), [])
 
-    def test_star_or_gocluster_v_does_not_confirm_a_move(self):
+    def test_star_or_gocluster_v_confirms_a_move_over_500_hz(self):
+        # v0.7.247 (S55OO): over 500 Hz away with the call confirmed = he moved
         e = self.engine()
         self.send(e, 'DF7GB-#', 'K1KT', 14015.0, '7dB Q:5*')
         self.now += 20
-        self.assertEqual(self.send(e, 'KM7W-#', 'K1KT', 14020.0, '7dB Q:5*'), [])
+        self.assertTrue(self.send(e, 'KM7W-#', 'K1KT', 14020.0, '7dB Q:5*'))
+        self.assertEqual(e.last_evaluation['reason'], 'frequency-move-quality')
         e = self.engine()
         self.gc(e, 'DF7GB-#', 'K1KT', 14015.0, 'V')
         self.now += 20
-        self.assertEqual(self.gc(e, 'KM7W-#', 'K1KT', 14020.0, 'V'), [])
+        self.assertTrue(self.gc(e, 'KM7W-#', 'K1KT', 14020.0, 'V'))
+
+    def test_low_q_or_within_500_hz_still_waits(self):
+        e = self.engine()
+        self.send(e, 'DF7GB-#', 'K1KT', 14015.0, '7dB Q:1*')
+        self.now += 20
+        self.assertEqual(self.send(e, 'KM7W-#', 'K1KT', 14020.0, '7dB Q:1*'), [])
+        self.assertEqual(e.last_evaluation['reason'], 'pending-corroboration')
+        e = self.engine()
+        self.send(e, 'DF7GB-#', 'K1KT', 14015.0, '7dB Q:5*')
+        self.now += 20
+        self.assertEqual(self.send(e, 'KM7W-#', 'K1KT', 14015.3, '7dB Q:5*'), [])
+        self.assertEqual(e.last_evaluation['reason'], 'repeat')
 
     def test_gocluster_q_text_is_not_quality(self):
         line = b'DX de DF7GB-#:    7008.50  9A2G        CW 6 dB Q:9 WPM        - JN95 P 2257Z'

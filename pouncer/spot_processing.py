@@ -724,12 +724,6 @@ class SpotProcessor:
         # agree on the call) - its counterpart of a high Q:n
         return bool(need) and (spot.quality >= need or spot.confidence == 'V')
 
-    def _trusted_frequency(self, spot):
-        """Q:n confirms the frequency too - unless '*' (the skimmers did not
-        agree on it). GoCluster's V never does: it rates the call only."""
-        need = self.config['trust_quality']
-        return bool(need) and spot.quality >= need and not spot.quality_split
-
     def _cw_conflict(self, obs, frequency, now, before):
         """Find a corroborated occupant, unless a second receiver backs this call."""
         spot = obs.spot
@@ -780,8 +774,9 @@ class SpotProcessor:
         if groups and group is None:
             self.counts['move_conflicts'] += 1
             return None, 'corroboration-conflict', 0, None
-        if group is None and self._trusted_frequency(obs.spot):
-            # Q:n upstream (no '*'): n skimmers already agree on the new frequency
+        if group is None and self._trusted(obs.spot):
+            # Over move_tolerance (500 Hz) away and the call confirmed upstream
+            # (Q:n, even with '*', or GoCluster V): he moved (v0.7.247, S55OO)
             return frequency, 'frequency-move-quality', obs.spot.quality, 'quality'
         if group is None:
             pending_key = (call, obs.spot.band, obs.spot.mode,

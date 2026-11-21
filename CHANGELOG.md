@@ -1,5 +1,16 @@
 # POUNCer — Changelog
 
+## v0.7.247 — 2026-11-21 — A confirmed spot over 500 Hz away is a move: sent at once
+
+- **Frequency moves with Q / V** - a station already sent within the last
+  180 s, spotted again more than 500 Hz away, waited for a second skimmer of
+  POUNCer's own ("pending-corroboration") unless its `Q:n` had no `*` -
+  so R8XF with `Q:9*` on a new 15 m frequency was held. Now a spot whose
+  call is confirmed upstream (`Q:n` from Trust DXSpider quality, also with
+  `*`, or GoCluster `V`) moves the station at once: 500 Hz away, he moved.
+  A lone low-Q skimmer still needs a second one to agree; within 500 Hz it
+  stays a repeat; at most two moves per 180 s as before.
+
 ## v0.7.246 — 2026-11-21 — Traffic console: an unticked WARC box hides WARC lines at once (fix)
 
 - **WARC / BEACON / FT8 unticked in the traffic console** - a line your

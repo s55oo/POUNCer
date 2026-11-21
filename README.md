@@ -912,8 +912,9 @@ the cluster server (port 10000):
   **Trust DXSpider quality** (`[cluster] trust_q`, default 3; Settings >
   Spots > Spot collector): a spot with `Q:n` (n different skimmers) from
   that n on counts as confirmed - never held as a CW conflict, and a move
-  with it (no `*`) needs no receiver of POUNCer's own; a GoCluster `V`
-  confirms the call only. Mirrors count once; 0 = off (v0.7.239).
+  over 500 Hz with it (also with `*`) needs no receiver of POUNCer's own: he
+  moved; a GoCluster `V` counts the same (v0.7.247). Mirrors count once;
+  0 = off (v0.7.239).
   **People's spots** (`[cluster] people_all`, default on; Settings > Spots >
   Spot collector): a spot by a person (no `-#`) from a cluster Telnet goes to
   port 10000 as it is, in every mode - past the repeat window, the CW-conflict

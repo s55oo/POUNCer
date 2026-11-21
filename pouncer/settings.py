@@ -63,10 +63,11 @@ SETTINGS: list[dict] = [
      "live": True, "group": "Cluster server", "label": "Trust DXSpider quality from Q:",
      "help": "A cluster spot with Q:n (DXSpider: n different skimmers heard it) from this "
              "number on counts as confirmed: never held as cw-conflict-unconfirmed, and a "
-             "frequency move with it (no '*') needs no second receiver of POUNCer's own. "
-             "A GoCluster spot rated V (Telnet role gocluster) confirms the call too, never "
-             "a move. The same spot from several Telnets counts once (the highest Q, never "
-             "a sum). Default 3; 0 = off (only POUNCer's own receiver count)."},
+             "frequency move over 500 Hz with it (also with '*') needs no second receiver "
+             "of POUNCer's own - he moved. A GoCluster spot rated V (Telnet role "
+             "gocluster) counts the same. The same spot from several Telnets counts once "
+             "(the highest Q, never a sum). Default 3; 0 = off (only POUNCer's own "
+             "receiver count)."},
     {"key": "cluster.people_all", "attr": "cluster_people_all", "kind": "bool", "live": True,
      "group": "Cluster server", "label": "Send every person's spot (no -#), all modes",
      "help": "A spot by a person (spotter without '-#') from a cluster Telnet goes to port "
