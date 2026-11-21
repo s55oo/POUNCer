@@ -1489,8 +1489,9 @@ spots; only the brief N1MM listen below).
 No setting is needed for the control direction (port 13064 is always listened
 to by N1MM).
 
-**Another program already listens on 12060?** Give POUNCer its own port in
-config.ini:
+**Another program already listens on 12060?** Give POUNCer its own port -
+*Settings > N1MM & radios > N1MM connection*, 12060 - 12069, applied at once
+(v0.7.243) - or in config.ini:
 
 ```ini
 [n1mm]
@@ -1539,7 +1540,7 @@ All options live in `config.ini` and are documented there, line by line:
 | `backup_off` | false | **Disable backup spots** (Settings > Spots > Sources): only the chosen skimmers (the Spotters filter), always. Off: while they all send nothing for `backup_after_minutes`, the backup skimmers are used too (orange in the traffic console) (v0.7.206). |
 | `cty` | POUNCer's download (S53M's cty.dat) | Country file for continent / DX / mults; a path here overrides it. |
 | **[n1mm]** | | |
-| `listen_ip`, `listen_port` | 0.0.0.0, 12060 | Where POUNCer listens for N1MM's RadioInfo. |
+| `listen_ip`, `listen_port` | 0.0.0.0, 12060 | Where POUNCer listens for N1MM's RadioInfo, AppInfo and spots. The port is also in *Settings > N1MM & radios > N1MM connection* (12060 - 12069), applied at once; set the same `127.0.0.1:<port>` in N1MM's *Broadcast Data*. A port another program holds is reported in the status line (v0.7.243). |
 | `control_ip`, `control_port` | 127.0.0.1, 13064 | N1MM's UDP control port (QSY, wipe, CAT). |
 | `radionr`, `default_radio` | 1, A | Radio to QSY; SO2R/SO2V radio the main window works at start. |
 | `radio_b_qsy` | udp-left | Radio B QSY: `udp-left` (UDP radio 2 + Left), `type` (frequency typed into Entry Window B), `udp` (Right). |

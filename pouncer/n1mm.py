@@ -284,6 +284,8 @@ class RadioListener(threading.Thread):
         self.on_spot = on_spot          # (parse_spot_packet dict) - N1MM's cluster spots
         self._stopped = threading.Event()
         self._sock: socket.socket | None = None
+        self.bind_error = ""            # why the port could not be opened ('' = fine)
+        self.bound = threading.Event()  # set once listening (or failed: bind_error)
 
     def stop(self) -> None:
         self._stopped.set()
@@ -304,9 +306,16 @@ class RadioListener(threading.Thread):
             sock.bind((self.ip, self.port))
         except OSError as exc:
             log.error("cannot bind UDP %s:%s for N1MM info: %s", self.ip, self.port, exc)
+            self.bind_error = str(exc)
+            self.bound.set()
+            try:
+                sock.close()
+            except OSError:
+                pass
             return
         sock.settimeout(1.0)
         self._sock = sock
+        self.bound.set()
         log.info("listening for N1MM RadioInfo on %s:%s", self.ip, self.port)
         while not self._stopped.is_set():
             try:

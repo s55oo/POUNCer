@@ -67,6 +67,13 @@ SETTINGS: list[dict] = [
              "A GoCluster spot rated V (Telnet role gocluster) confirms the call too, never "
              "a move. The same spot from several Telnets counts once (the highest Q, never "
              "a sum). Default 3; 0 = off (only POUNCer's own receiver count)."},
+    {"key": "n1mm.listen_port", "attr": "n1mm_listen_port", "kind": "choice",
+     "choices": [str(p) for p in range(12060, 12070)], "live": True, "group": "N1MM",
+     "label": "POUNCer's N1MM port (UDP, in)",
+     "help": "Where POUNCer listens for N1MM's Radio / App Info and spots. Set the same "
+             "address in N1MM: Config > Configure Ports... > Broadcast Data - Radio, App "
+             "Info (and Spots) to 127.0.0.1:<this port>. 12060 is N1MM's default; give each "
+             "program that listens to N1MM its own port (12061, 12062 ...). Applied at once."},
     {"key": "n1mm.qsy_wait_ms", "attr": "qsy_wait_ms", "kind": "int", "min": 0, "max": 10000,
      "live": True, "group": "Tap -> N1MM",
      "label": "Wait for N1MM's new frequency (ms)",
@@ -481,6 +488,7 @@ PAGES: list[tuple[str, list[tuple[str, list[str]]]]] = [
         ("History hints", ["worked.profile", "ui.urgency_contest_minutes"]),
     ]),
     ("N1MM & radios", [
+        ("N1MM connection", ["n1mm.listen_port"]),
         ("Tap -> N1MM", ["n1mm.qsy_wait_ms", "n1mm.qsy_settle_ms", "n1mm.type_mode",
                          "n1mm.wipe_before_call", "n1mm.focus_n1mm"]),
         ("SO2R / SO2V", ["n1mm.default_radio", "n1mm.radio_b_qsy", "n1mm.freq_decimal",
@@ -581,6 +589,8 @@ def parse(item: dict, text: str):
         c = low[text.lower()]
         if item["attr"] == "default_radio":
             return parse_radio(c, 1), c
+        if item["attr"] == "n1mm_listen_port":
+            return int(c), c
         return c, c
     if item["attr"].endswith("_commands"):
         parts = tuple(p.strip() for p in text.split(",") if p.strip())

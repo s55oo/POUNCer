@@ -1,5 +1,17 @@
 # POUNCer — Changelog
 
+## v0.7.243 — 2026-11-21 — POUNCer's N1MM port in Settings (12060 - 12069)
+
+- **POUNCer's N1MM port** (Settings > N1MM & radios > N1MM connection,
+  `[n1mm] listen_port`) - the UDP port POUNCer listens on for N1MM's Radio /
+  App Info and spots could only be changed in config.ini, and took a
+  restart. Now a choice of 12060 - 12069, applied at once: POUNCer lets go
+  of the old port and listens on the new one. Set the same
+  127.0.0.1:<port> in N1MM (Config > Configure Ports... > Broadcast Data).
+  A port another program already holds is reported in the status line
+  ("N1MM port 12061 could not be opened ... Pick another one.") instead of
+  only in pouncer.log.
+
 ## v0.7.242 — 2026-11-21 — N1MM Autostarter: minimized goes to the system tray
 
 - **N1MM Autostarter in the tray** - minimizing its window now takes it

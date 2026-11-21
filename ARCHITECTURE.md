@@ -433,7 +433,7 @@ LAN/VPN-only and unauthenticated.
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `listen_ip` / `listen_port` | `0.0.0.0` / `12060` | RadioInfo UDP receive. |
+| `listen_ip` / `listen_port` | `0.0.0.0` / `12060` | RadioInfo UDP receive. Settings `n1mm.listen_port` (choice 12060 - 12069, live): `_save_setting` -> `_restart_listener` (stop + join the old `RadioListener`, `_start_listener`, wait for `bound`; `bind_error` -> status via `status_queue`, safe from the web thread) (v0.7.243). |
 | `control_ip` / `control_port` | `127.0.0.1` / `13064` | Control UDP send. |
 | `radionr` | `1` | Radio to QSY. |
 | `set_callsign` | `true` | Also type the callsign into the Entry Window. |

@@ -5754,6 +5754,8 @@ class PouncerApp:
                 self._src_last = None
             if key.startswith("cluster."):
                 self._apply_cluster_server()
+            if key == "n1mm.listen_port":
+                self._restart_listener()
             if key == "rbn.telnet_silent_minutes":
                 self._apply_rx_silent()
             if key == "cluster.trust_q" and getattr(self, "_collector", None) is not None:
@@ -6734,12 +6736,38 @@ class PouncerApp:
         except Exception as exc:  # no browser registered
             self.status_label.configure(text=f"Could not open the browser: {exc}")
 
-    def run(self) -> None:
+    def _start_listener(self) -> None:
+        """N1MM's Radio / App Info and spots in ([n1mm] listen_ip / listen_port)."""
         self._listener = RadioListener(
             self.cfg.n1mm_listen_ip, self.cfg.n1mm_listen_port, self.state,
             on_spot=self._on_n1mm_spot,
         )
         self._listener.start()
+
+    def _restart_listener(self) -> None:
+        """The N1MM port changed (Settings): listen on the new one at once
+        (v0.7.243) - and say so if it can't be opened."""
+        old = getattr(self, "_listener", None)
+        if old is not None:
+            old.stop()
+            old.join(3.0)
+        self._start_listener()
+        lst = self._listener
+        lst.bound.wait(2.0)
+        port = self.cfg.n1mm_listen_port
+        if lst.bind_error:
+            text = (f"N1MM port {port} could not be opened ({lst.bind_error}) - "
+                    "another program uses it? Pick another one.")
+        else:
+            text = (f"Listening for N1MM on UDP {port} - set N1MM's Broadcast Data "
+                    f"to 127.0.0.1:{port}")
+        q = getattr(self, "status_queue", None)   # a save may come from the web thread:
+        if q is not None:                          # the Tk thread shows it
+            q.put(text)
+        log.info("%s", text)
+
+    def run(self) -> None:
+        self._start_listener()
         self._start_services()
         if getattr(self.cfg, "legacy_autostart", 0):
             # an old config.ini with [autostart] programs: they no longer start from here
