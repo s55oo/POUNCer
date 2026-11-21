@@ -435,6 +435,17 @@ back - "✔ Internet back after 14 min" for 8 s - every feed reconnects at once
 instead of after its backoff of up to a minute, and old spots age out
 normally again.
 
+**A hung connection reconnects too** (v0.7.241): RBN and Telnet #1 - #5
+reconnect when the server closes the connection or the network fails - and
+also when a connection stays open with nothing coming any more (a router
+that forgot it, a frozen node): nothing at all received for *Reconnect a
+silent connection after* minutes (Settings > Spots > Sources, `[rbn]
+telnet_silent_minutes`, default 5, 0 = off) drops it and connects again -
+"nothing received for 5 min - the connection hung, reconnecting" in
+`cache\pouncer.log`. Every RBN / Telnet socket also has TCP keepalive (a
+probe after 60 s of quiet, then every 10 s), so Windows notices a dead
+server in about three minutes even on a quiet node.
+
 **SPOTTED pop-up** (`[ui] self_spot_alert`; also a yellow bar in the window
 under the top bar, for 3 s): when your call (the log's
 station call - S55OO, TK0C ...) is spotted by a person (not a skimmer -#) in
@@ -1111,6 +1122,24 @@ DX de S53WW-#:   14025.0  DL1ABC       CW 23 dB 28 WPM CQ             1200Z
   (*Tools > Traffic console*, the **FT8** group - type a call in *filter*):
   `dropped` (a feed kept it out: not in the list either), `not served to
   port 10000`, `held`, `served now`.
+- **Trusted CW in an FT window is not held** (v0.7.241): a CW skimmer spot
+  with `Q:n` from *Trust DXSpider quality* on (`[cluster] trust_q`, from a
+  cluster-role Telnet) or rated `V` by GoCluster (role `gocluster`) is served
+  at once - that many skimmers decoded CW there, not an FT false decode
+  (e.g. N4OW 7050.5 `Q:6` in the 40 m FT4 window). FT8 group: `not held:
+  Q:6 - skimmers decoded CW there`. A lower Q, a `Q:` from a raw RBN feed,
+  SSB spots and `trust_q = 0` still wait for PSK Reporter.
+- **Trust DXSpider quality** (*Spots > Trust DXSpider quality (Q:n) /
+  GoCluster V*: Q:2 and up / Q:3 and up / Off; also Settings > Spots > Spot
+  collector, `[cluster] trust_q`, default 3): DXSpider's `Q:n` = n different
+  skimmers heard the spot (`*` = they disagreed on the frequency, `+` = he
+  has been calling CQ over an hour); GoCluster's letter: `V` strongly
+  corroborated, `P` corroborated, `S` / `?` one reporter, `C` corrected, `B`
+  correction failed. From that Q on, or with `V`, the call counts as
+  confirmed: never held back as `cw-conflict-unconfirmed`. A Q:n without `*`
+  also confirms a frequency move (`V` never does - it rates the call only).
+  The same spot from several Telnets counts once (the highest Q, never a
+  sum); repeats are still suppressed for 180 s (v0.7.239 / 240).
 - **No loop:** spots that came **from N1MM** (its own telnet, via
   Broadcast Data > Spots) are never served. And POUNCer recognises its own
   spots coming back from N1MM's broadcast (the same call and frequency within
@@ -1490,6 +1519,7 @@ All options live in `config.ini` and are documented there, line by line:
 | `callsign` | N1MM's station call | Your call, the RBN / cluster login (nothing else is sent). |
 | `host`, `port`, `ft8_port` | telnet.reversebeacon.net, 7000, 7001 | RBN telnet (CW/RTTY; FT8/FT4 on `ft8_port`). |
 | `spotter` | S53WW | Only spots of these skimmers: calls (prefix match) and `ZONE14` = all in a CQ zone, comma separated; empty = all. |
+| `telnet_silent_minutes` | 5 | **Reconnect a silent connection after** (Settings > Spots > Sources): RBN or a Telnet #1 - #5 that receives nothing at all this many minutes is dropped and connected again (a hung connection). 0 = off. TCP keepalive is always on (v0.7.241). |
 | `skimmer_quiet_minutes` | 3 | Check line warns when a listed skimmer has sent nothing this long while RBN works (offline / its connection down). |
 | `pause_on_phone` | true | No RBN in an SSB contest or while every radio is on SSB (in a team: while no POUNCer needs it). |
 | `backup_spotters`, `backup_after_minutes` | (our continent), 5 | Skimmers used while `spotter` is quiet this long. |

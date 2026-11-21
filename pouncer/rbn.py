@@ -766,6 +766,34 @@ class _BackToPrimary(Exception):
     """Backup has run long enough: try RBN's own telnet again."""
 
 
+KEEPALIVE_IDLE_MS = 60000      # TCP keepalive: first probe after a minute of quiet
+KEEPALIVE_INTERVAL_MS = 10000  # ... then every 10 s; Windows gives up after 10 = ~3 min
+
+
+def enable_keepalive(sock) -> bool:
+    """TCP keepalive on a telnet socket, so the OS notices a dead peer (a
+    router that forgot the connection, a frozen node) even when the feed is
+    quiet - the read then fails and the client reconnects (v0.7.241).
+    Never fails the connection itself."""
+    try:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        if hasattr(socket, "SIO_KEEPALIVE_VALS"):          # Windows
+            sock.ioctl(socket.SIO_KEEPALIVE_VALS,
+                       (1, KEEPALIVE_IDLE_MS, KEEPALIVE_INTERVAL_MS))
+        else:                                              # Linux / macOS
+            idle = getattr(socket, "TCP_KEEPIDLE", None) or getattr(socket, "TCP_KEEPALIVE", None)
+            if idle is not None:
+                sock.setsockopt(socket.IPPROTO_TCP, idle, KEEPALIVE_IDLE_MS // 1000)
+            if hasattr(socket, "TCP_KEEPINTVL"):
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL,
+                                KEEPALIVE_INTERVAL_MS // 1000)
+            if hasattr(socket, "TCP_KEEPCNT"):
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 10)
+        return True
+    except (OSError, ValueError, AttributeError):
+        return False
+
+
 class RBNClient(threading.Thread):
     """Connects to the RBN telnet feed and pushes matching spots to a queue."""
 
@@ -807,6 +835,11 @@ class RBNClient(threading.Thread):
         self.prefer_backup = False
         self._switch_now = False
         self._last_dx = time.monotonic()
+        # nothing at all received this long on an open connection = it hung
+        # (NAT forgot it, the node froze): drop it and reconnect; 0 = off
+        # ([rbn] telnet_silent_minutes, v0.7.241)
+        self.rx_silent_s = 0.0
+        self._last_rx = time.monotonic()
         self._login_at = 0.0
         # "cluster": human DX-cluster spots (SSB); only ``modes`` are kept
         self.kind = kind
@@ -941,6 +974,14 @@ class RBNClient(threading.Thread):
         self._wake.wait(seconds)
         self._wake.clear()
 
+    def _close_sock(self) -> None:
+        sock, self._sock = self._sock, None
+        if sock is not None:
+            try:
+                sock.close()
+            except OSError:
+                pass
+
     def stop(self) -> None:
         self._stop.set()
         self._wake.set()
@@ -1000,6 +1041,7 @@ class RBNClient(threading.Thread):
                                     *(self.backup if self.on_backup else (self.host, self.port)),
                                     ", backup" if self.on_backup else "", exc,
                                     f" ({self._errs} in a row)" if self._errs > 1 else "")
+            self._close_sock()            # a failed / hung connection: really closed now
             if self.on_reset is not None:
                 self.on_reset(self._feed_id(), self._feed_epoch)
             if self._stop.is_set():
@@ -1051,7 +1093,9 @@ class RBNClient(threading.Thread):
                      host, port, self._errs)
             self._errs = 0
         sock.settimeout(1.0)   # wake up every second (login / SH/DX timing)
+        enable_keepalive(sock)
         self._sock = sock
+        self._last_rx = time.monotonic()
         telnet = TelnetFilter()
         buf = ""
         logged_in = False
@@ -1098,9 +1142,15 @@ class RBNClient(threading.Thread):
                 if not logged_in and time.monotonic() > login_deadline:
                     self._send_login(sock)
                     logged_in = True
+                silent = self.rx_silent_s
+                if silent and time.monotonic() - self._last_rx > silent:
+                    took = f"{silent / 60:.0f} min" if silent >= 60 else f"{silent:.0f} s"
+                    raise ConnectionError(f"nothing received for {took} - "
+                                          "the connection hung, reconnecting")
                 continue
             if not chunk:
                 raise ConnectionError("the server closed the connection")
+            self._last_rx = time.monotonic()
             data, reply = telnet.feed(chunk)
             if reply:
                 try:

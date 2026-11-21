@@ -134,6 +134,7 @@ class Config:
     backup_after_minutes: int = 5
     backup_off: bool = False      # [rbn] backup_off: never the backup skimmers
     skimmer_quiet_minutes: int = 3   # own skimmer silent this long = warning
+    telnet_silent_minutes: int = 5   # [rbn] telnet_silent_minutes: nothing received = reconnect; 0 = off
     cty_file: str = ""
     cty_auto_update: bool = True     # S53M's cty.dat, downloaded every Friday
     cty_check_days: int = 5          # ... this often
@@ -385,6 +386,8 @@ def load_config(path: str) -> Config:
     cfg.backup_after_minutes = max(1, i("rbn", "backup_after_minutes", cfg.backup_after_minutes))
     cfg.backup_off = b("rbn", "backup_off", cfg.backup_off)
     cfg.skimmer_quiet_minutes = max(1, i("rbn", "skimmer_quiet_minutes", cfg.skimmer_quiet_minutes))
+    cfg.telnet_silent_minutes = max(0, min(120, i("rbn", "telnet_silent_minutes",
+                                                 cfg.telnet_silent_minutes)))
     cfg.cty_file = s("rbn", "cty", cfg.cty_file).strip()
     cfg.cty_auto_update = b("cty", "auto_update", cfg.cty_auto_update)
     cfg.cty_check_days = max(1, i("cty", "check_days", cfg.cty_check_days))

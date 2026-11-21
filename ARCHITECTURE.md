@@ -286,6 +286,29 @@ a contest/log switch) is throttled to `[worked] refresh_seconds`.
 - `RBNClient` connects, logs in with the callsign (on the `call` prompt or after
   a 3 s deadline), and keeps only spots whose spotter name starts with the
   configured prefix. Reconnects with exponential backoff (2→60 s).
+- (v0.7.241) Hung connections: `enable_keepalive(sock)` on every socket
+  (`SO_KEEPALIVE`; Windows `SIO_KEEPALIVE_VALS` 60 s idle / 10 s interval,
+  else `TCP_KEEPIDLE` / `TCP_KEEPINTVL` / `TCP_KEEPCNT`; never fails the
+  connection). `RBNClient.rx_silent_s` (app `rx_silent_s(app)` =
+  `[rbn] telnet_silent_minutes` × 60, 0 = off; set on every RBN / Telnet
+  client, `_apply_rx_silent` on a save): `_last_rx` = the last bytes received,
+  checked on each 1 s read timeout -> `ConnectionError("nothing received for
+  ... - the connection hung, reconnecting")` -> the normal backoff loop.
+  `run()` closes the failed socket at once (`_close_sock`). Tests:
+  `tests/test_telnet_silent.py` (a local server that goes silent).
+- (v0.7.239 - 241) Quality trust: `spot_processing.parse_spot` reads `Q:n`
+  (`quality`, `quality_split` for `*`) only for role `cluster`, GoCluster's
+  confidence letter for role `gocluster` (also short lines with a grid before
+  it). `SpotProcessor._trusted` (Q >= `trust_quality` or `V`) ends
+  `_cw_conflict`; `_trusted_frequency` (Q, no `*`; never `V`) lets
+  `_movement` accept a move (`frequency-move-quality`). App:
+  `_collector_policy()` puts `[cluster] trust_q` into the policy, a save
+  updates the live engine; Spots menu `_trust_q_var` / `_set_trust_q`.
+  App-level `spot_trusted(app, spot)` / `feed_role` (the Telnet's
+  `collector_role` by `feed_id`) / `trust_word`: `_check_overlap` does not
+  hold a trusted CW spot in an FT window for PSK Reporter (FT8 group line
+  `not held: ...`). Tests: `tests/test_trust_quality.py`,
+  `tests/test_telnet_silent.py` (`FtWindowTrustTests`).
 - `ports_for_modes(modes, cw_port, ft8_port)`: CW/RTTY → 7000, FT8/FT4 → 7001.
   The app runs one `RBNClient` per needed port.
 
@@ -404,6 +427,7 @@ LAN/VPN-only and unauthenticated.
 | `ft8_port` | `7001` | FT8/FT4 port. |
 | `cty` | *(blank)* | Country file for EU/DX; blank = N1MM's `SupportFiles\wl_cty.dat`. |
 | `hide_beacons` | `true` | Drop beacon spots (`rbn.is_beacon`: type BEACON / NCDXF, `.../B`, or mode `BCN`). |
+| `telnet_silent_minutes` | `5` | RBN / Telnet connection with nothing received this long = hung: dropped and reconnected (`RBNClient.rx_silent_s`); 0 = off (v0.7.241). |
 
 ### `[n1mm]`
 

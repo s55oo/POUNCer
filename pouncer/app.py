@@ -7,6 +7,7 @@ import os
 import dataclasses
 import types
 import queue
+import re
 import sys
 import threading
 import time
@@ -420,6 +421,45 @@ def log_psk_timing(app) -> None:
             log.info("%s", line)
     except Exception:  # noqa: BLE001 - a log line only
         pass
+
+
+_GC_V_RE = re.compile(r"\sV\s+(?:[01]\d|2[0-3])[0-5]\dZ\s*$")
+
+
+def rx_silent_s(app) -> float:
+    """[rbn] telnet_silent_minutes in seconds (0 = off): a connection that
+    receives nothing this long is dropped and reconnected (v0.7.241)."""
+    return max(0, int(getattr(getattr(app, "cfg", None), "telnet_silent_minutes", 5) or 0)) * 60.0
+
+
+def feed_role(app, spot) -> str:
+    """The collector role of the Telnet a spot came from ('' = RBN / HTTP /
+    not a Telnet)."""
+    feed = getattr(spot, "feed_id", "") or ""
+    for c in (getattr(app, "_telnet_clients", None) or {}).values():
+        if getattr(c, "name", None) == feed:
+            return getattr(c, "collector_role", "cluster")
+    return ""
+
+
+def spot_trusted(app, spot) -> bool:
+    """[cluster] trust_q: a DXSpider spot with Q:n from that n on (from a
+    cluster-role Telnet), or a GoCluster spot rated V - its call is confirmed
+    by several skimmers (the collector's rule, for the app; v0.7.241)."""
+    need = int(getattr(getattr(app, "cfg", None), "cluster_trust_q", 3) or 0)
+    if not need:
+        return False
+    role = feed_role(app, spot)
+    if role == "cluster":
+        return int(getattr(spot, "quality", 0) or 0) >= need
+    if role == "gocluster":
+        return bool(_GC_V_RE.search(getattr(spot, "raw_line", "") or ""))
+    return False
+
+
+def trust_word(app, spot) -> str:
+    q = int(getattr(spot, "quality", 0) or 0)
+    return f"Q:{q}" if feed_role(app, spot) == "cluster" and q else "GoCluster V"
 
 
 class PouncerApp:
@@ -1335,6 +1375,12 @@ class PouncerApp:
                                 "\nclick = QSY and call")
         if self.cfg.alert_sound:
             alert_beep(self.root)
+
+    def _apply_rx_silent(self) -> None:
+        """The setting changed: every running RBN / Telnet client, at once."""
+        for group in (getattr(self, "_rbn_clients", None), getattr(self, "_telnet_clients", None)):
+            for c in (group or {}).values():
+                c.rx_silent_s = rx_silent_s(self)
 
     def _collector_policy(self) -> dict:
         """The collector's policy: [spot_processing] plus [cluster] trust_q
@@ -2503,6 +2549,7 @@ class PouncerApp:
                 on_raw=self._on_raw_spot,
             )
             client.on_reset = getattr(self, "_collector_reset", None)
+            client.rx_silent_s = rx_silent_s(self)
             client.start()
             self._rbn_clients[port] = client
             log.info("RBN client started on %s:%s", self.cfg.rbn_host, port)
@@ -2662,6 +2709,7 @@ class PouncerApp:
             tc.backup_commands = tuple(cmds)
             tc.login_call = call
             tc.status_to_light = to_light
+            tc.rx_silent_s = rx_silent_s(self)
             tc.on_line = self._relay_back if role == "cluster" else None
             tc.people = self._people_filter()     # skimmer AND people's spots
             clients[n] = tc
@@ -4434,6 +4482,12 @@ class PouncerApp:
                 return
         elif spot.mode != "CW" or not digital_mode(spot.freq_khz):
             return
+        elif spot_trusted(self, spot):
+            # Q:n / GoCluster V: that many skimmers decoded CW there - no FT
+            # false decode, so it is not held for PSK Reporter (v0.7.241)
+            traffic.digi_out("PSKR", spot, "not held: " + trust_word(self, spot)
+                             + " - skimmers decoded CW there")
+            return
         # PSK Reporter may already know (a re-spot): use that at once
         m = self.pskr.digital(spot.dxcall, spot.freq_khz)
         if m:
@@ -5700,6 +5754,8 @@ class PouncerApp:
                 self._src_last = None
             if key.startswith("cluster."):
                 self._apply_cluster_server()
+            if key == "rbn.telnet_silent_minutes":
+                self._apply_rx_silent()
             if key == "cluster.trust_q" and getattr(self, "_collector", None) is not None:
                 # live, keeping episodes and holds: only the trust threshold changes
                 self._collector.engine.config["trust_quality"] = int(self.cfg.cluster_trust_q)

@@ -133,6 +133,13 @@ SETTINGS: list[dict] = [
     {"key": "n1mm.default_radio", "attr": "default_radio", "kind": "choice",
      "choices": ["A", "B"], "live": False, "group": "SO2R / SO2V",
      "label": "Radio at start", "help": "Which radio the main window works at start."},
+    {"key": "rbn.telnet_silent_minutes", "attr": "telnet_silent_minutes", "kind": "int",
+     "min": 0, "max": 120, "live": True, "group": "RBN",
+     "label": "Reconnect a silent connection after (min)",
+     "help": "RBN or a Telnet #1 - #5 connection that receives nothing at all this many "
+             "minutes is taken for hung (a router forgot it, the node froze): POUNCer drops "
+             "it and connects again by itself. Skimmer feeds send something every few "
+             "seconds. Default 5; 0 = off. (TCP keepalive also notices a dead server.)"},
     {"key": "rbn.skimmer_quiet_minutes", "attr": "skimmer_quiet_minutes", "kind": "int",
      "min": 1, "max": 60, "live": False, "group": "RBN", "label": "Skimmer quiet warning (min)",
      "help": "Check line warns when a listed skimmer (S53WW, TK0C) has sent nothing this "
@@ -500,7 +507,8 @@ PAGES: list[tuple[str, list[tuple[str, list[str]]]]] = [
                      "rbn.serve_own_spots",
                      "rbn.backup_off",
                      "rbn.pause_on_phone",
-                     "rbn.skimmer_quiet_minutes", "rbn.http_backup", "rbn.hamqth_backup"]),
+                     "rbn.skimmer_quiet_minutes", "rbn.telnet_silent_minutes",
+                     "rbn.http_backup", "rbn.hamqth_backup"]),
         ("SSB", ["ssb.follow_radio_mode", "ssb.pskreporter"]),
         ("Spot collector", ["cluster.trust_q"]),
         ("Spotters - who heard it", ["filter.mode", "rbn.spotter", "filter.dxcc",

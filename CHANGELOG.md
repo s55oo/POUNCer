@@ -1,5 +1,27 @@
 # POUNCer — Changelog
 
+## v0.7.241 — 2026-11-21 — hung telnet reconnects; trusted CW in FT windows not held
+
+- **A hung connection reconnects** (Settings > Spots > Sources, `[rbn]
+  telnet_silent_minutes`, default 5, 0 = off) - RBN and Telnet #1 - #5
+  reconnected after the server closed the connection or a network error,
+  but a connection that stayed open with nothing coming any more (a router
+  that forgot it, a frozen node) sat there until POUNCer was restarted.
+  Nothing at all received for that many minutes now drops it and connects
+  again ("nothing received for 5 min - the connection hung, reconnecting"
+  in pouncer.log).
+- **TCP keepalive** on every RBN / Telnet socket (first probe after 60 s
+  of quiet, then every 10 s): Windows notices a dead server in about three
+  minutes, even on a quiet node. A failed connection's socket is now closed
+  at once, not only at the next connect.
+- **Trusted CW in an FT8 / FT4 window is not held** - a CW skimmer spot
+  with Q:n from `trust_q` on (a cluster-role Telnet) or rated V by
+  GoCluster goes to port 10000 at once instead of waiting up to two minutes
+  for PSK Reporter: that many skimmers decoded CW there, not an FT false
+  decode. E.g. N4OW 7050.5 Q:6 (40 m FT4 window). Traffic console FT8
+  group: "not held: Q:6 - skimmers decoded CW there". Lower Q, Q from a raw
+  RBN feed, SSB spots and trust_q = 0 are still checked.
+
 ## v0.7.240 — 2026-11-21 — Spots menu: Trust DXSpider quality Q:2+ / Q:3+ / off
 
 - **Spots > Trust DXSpider quality (Q:n) / GoCluster V** - pick *Q:2 and
