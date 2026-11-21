@@ -308,5 +308,46 @@ class ConsolePublishColorTests(unittest.TestCase):
         self.assertIn("UA1T", self.tagged("notsent"))
 
 
+@unittest.skipIf(_root is None, "no display")
+class ConsoleGroupUntickTests(unittest.TestCase):
+    """WARC unticked: an EXCL WARC / 60M line is never shown, not even for
+    SHOWN_WAIT_S - and unticking removes the ones already shown (v0.7.246)."""
+    WARC = "DX de EA8BFK-#:   10112.0  DL1ABC         CW    24 dB  28 WPM  CQ      1802Z"
+    SIXTY = "DX de EA8BFK-#:    5357.0  DL1ABC         CW    24 dB  28 WPM  CQ      1802Z"
+
+    def setUp(self) -> None:
+        from pouncer import console
+        reasons = {self.WARC: "EXCL WARC", self.SIXTY: "EXCL 60M"}
+        self.c = console.TrafficConsole(
+            _root, shown=lambda src, txt: (traffic.Excl(reasons[txt]) if txt in reasons
+                                           else (True if "DX de" in txt else None)))
+        self.c.open()
+
+    def tearDown(self) -> None:
+        self.c.close()
+
+    def body(self) -> str:
+        return self.c.text.get("1.0", "end")
+
+    def test_unticked_never_shown(self) -> None:
+        self.c.show["WARC"].set(False)
+        t = time.time()
+        self.c.add([(t, "telnet", self.WARC), (t, "telnet", self.SIXTY), (t, "telnet", LINE)])
+        self.assertNotIn("10112.0", self.body())
+        self.assertNotIn("5357.0", self.body())
+        self.assertIn("14025.0", self.body())              # a normal line stays
+
+    def test_untick_removes_lines_already_shown(self) -> None:
+        from pouncer import console
+        t = time.time()
+        self.c.add([(t, "telnet", self.WARC), (t, "telnet", LINE)])
+        self.c.recheck(now=t + console.SHOWN_WAIT_S + 1)   # now marked EXCL WARC
+        self.assertIn("EXCL WARC", self.body())
+        self.c.show["WARC"].set(False)
+        self.c._switched("WARC")
+        self.assertNotIn("10112.0", self.body())
+        self.assertIn("14025.0", self.body())
+
+
 if __name__ == "__main__":
     unittest.main()

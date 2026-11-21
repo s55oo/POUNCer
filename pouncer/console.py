@@ -392,9 +392,39 @@ class TrafficConsole:
             except tk.TclError:
                 pass
 
+    def _hidden_by_group(self, how) -> bool:
+        """An EXCL reason whose own group is unticked (EXCL WARC / 60M with
+        WARC, EXCL BCN with BEACON, EXCL FT8 ... with FT8/FT4): the line is
+        not shown at all - before v0.7.246 it showed for SHOWN_WAIT_S first."""
+        if how is None or how or not isinstance(how, str) or not str(how):
+            return False
+        group = hide_group_for(str(how))
+        var = self.show.get(group) if group else None
+        return var is not None and not var.get()
+
+    def _drop_excluded_lines(self, g: str) -> None:
+        """Group g unticked: remove the lines already shown with its EXCL
+        reason (EXCL WARC / 60M, EXCL BCN, EXCL FT8 ...)."""
+        reasons = [r for r, grp in HIDE_WITH_GROUP.items() if grp == g]
+        if g == "FT8":
+            reasons += list(FT8_EXCL_PREFIXES)
+        if not reasons:
+            return
+        line = int(self.text.index("end-1c").split(".")[0])
+        while line >= 1:
+            body = self.text.get(f"{line}.0", f"{line}.end")
+            if any(("  " + r) in body for r in reasons):
+                self.text.delete(f"{line}.0", f"{line + 1}.0")
+            line -= 1
+
     def _switched(self, g: str) -> None:
         """A source ticked on / off: say so in the view (else it looks stuck)."""
         on = self.show[g].get()
+        if not on:
+            try:
+                self._drop_excluded_lines(g)
+            except tk.TclError:
+                pass
         note = (self.notes() if self.notes else {}).get(g, "") if on else ""
         self.text.insert("end", time.strftime("%H:%M:%S ", time.gmtime())
                          + (f"--- {g} shown again" + (f" ({note})" if note else "") if on
@@ -689,6 +719,9 @@ class TrafficConsole:
             if want and want not in txt.upper() and want not in src.upper():
                 continue
             out = src.endswith(">")
+            yes = None if out else self._is_shown(src, txt)
+            if self._hidden_by_group(yes):
+                continue                   # e.g. EXCL WARC with WARC unticked: never shown
             self.text.insert("end", time.strftime("%H:%M:%S ", time.gmtime(t)), "time")
             self.text.insert("end", f"{src:<16} ", "OUT" if out else g)
             self.text.insert("end", txt + "\n")
@@ -702,7 +735,6 @@ class TrafficConsole:
                     self.text.mark_gravity(pbm, "left")
                     self._mark_not_sent(pbm)     # red by default (v0.7.225)
                     self._spot_in(pbm, key, t)
-                yes = self._is_shown(src, txt)
                 if yes is not None:
                     line = int(self.text.index("end-1c").split(".")[0]) - 1
                     mark = f"sp{id(txt)}_{t}_{shown}"

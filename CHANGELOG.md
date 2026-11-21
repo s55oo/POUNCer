@@ -1,5 +1,14 @@
 # POUNCer — Changelog
 
+## v0.7.246 — 2026-11-21 — Traffic console: an unticked WARC box hides WARC lines at once (fix)
+
+- **WARC / BEACON / FT8 unticked in the traffic console** - a line your
+  filters keep out (EXCL WARC, EXCL 60M, EXCL BCN, EXCL FT8 ...) was shown
+  first and only removed about 5 seconds later, so WARC spots kept flashing
+  up with the WARC box unticked; the lines already shown when you unticked
+  it stayed too. Now such a line is never shown while its box is unticked,
+  and unticking removes the ones already there.
+
 ## v0.7.245 — 2026-11-21 — Every person's spot to port 10000, all modes; Spots > Exclude; late self-spot fix
 
 - **Spots > Exclude: WARC, 60 m, Beacons** - three ticks in the Spots menu
