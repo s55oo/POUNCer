@@ -67,6 +67,14 @@ SETTINGS: list[dict] = [
              "A GoCluster spot rated V (Telnet role gocluster) confirms the call too, never "
              "a move. The same spot from several Telnets counts once (the highest Q, never "
              "a sum). Default 3; 0 = off (only POUNCer's own receiver count)."},
+    {"key": "cluster.people_all", "attr": "cluster_people_all", "kind": "bool", "live": True,
+     "group": "Cluster server", "label": "Send every person's spot (no -#), all modes",
+     "help": "A spot by a person (spotter without '-#') from a cluster Telnet goes to port "
+             "10000 as it is, in every mode (CW, SSB, FT8, FT4, RTTY ...): no repeat window, "
+             "no CW-conflict hold, no PSK Reporter hold, no call / frequency correction. "
+             "Your Spotters / Spotted filters, Remove WARC, beacons and your own call still "
+             "apply, and the same spot from several Telnets goes out once. Off = people's "
+             "spots go through the spot collector like the skimmers'. Default on."},
     {"key": "n1mm.listen_port", "attr": "n1mm_listen_port", "kind": "choice",
      "choices": [str(p) for p in range(12060, 12070)], "live": True, "group": "N1MM",
      "label": "POUNCer's N1MM port (UDP, in)",
@@ -188,7 +196,7 @@ SETTINGS: list[dict] = [
      "group": "Spotters", "label": "  Continents",
      "help": "EU, NA, SA, AS, AF, OC, comma separated."},
     {"key": "rbn.hide_beacons", "attr": "hide_beacons", "kind": "bool", "live": True,
-     "group": "RBN", "label": "Hide beacons",
+     "group": "RBN", "label": "Exclude beacons",
      "help": "Beacon spots are dropped as they come in - not in the list, not on port 10000 "
              "(N1MM's Telnet window): the 18 NCDXF beacons (4U1UN, W6WX, OH2B ...) when on "
              "14100 / 18110 / 21150 / 24930 / 28200 (+-0.5 kHz; the same call elsewhere is "
@@ -202,10 +210,16 @@ SETTINGS: list[dict] = [
              "every skimmer on your continent - are used too (orange in the traffic "
              "console)."},
     {"key": "rbn.hide_warc", "attr": "hide_warc", "kind": "bool", "live": True,
-     "group": "RBN", "label": "Remove WARC spots",
-     "help": "No spots on the WARC bands 60 m, 30 m, 17 m and 12 m (no contests there): "
+     "group": "RBN", "label": "Exclude WARC (30 / 17 / 12 m)",
+     "help": "No spots on the WARC bands 30 m, 17 m and 12 m (no contests there): "
              "not in the list or on the phone, not on port 10000 (N1MM's Telnet window), "
-             "not yellow in the traffic console. Off again = they show again."},
+             "EXCL WARC in the traffic console. Off again = they show again. Also the "
+             "Spots menu > Exclude. 60 m has its own switch."},
+    {"key": "rbn.hide_60m", "attr": "hide_60m", "kind": "bool", "live": True,
+     "group": "RBN", "label": "Exclude 60 m",
+     "help": "No spots on 60 m (5330 - 5410 kHz): not in the list or on the phone, not on "
+             "port 10000, EXCL 60M in the traffic console. Until v0.7.245 part of Remove "
+             "WARC spots - not set, it follows that switch. Also the Spots menu > Exclude."},
     {"key": "rbn.serve_own_spots", "attr": "serve_own_spots", "kind": "bool", "live": True,
      "group": "RBN", "label": "Allow my own spots",
      "help": "A spot of your own call is never put in the list (it still triggers the "
@@ -511,14 +525,15 @@ PAGES: list[tuple[str, list[tuple[str, list[str]]]]] = [
               "telnet5.role", "telnet5.commands"]),
     ]),
     ("Spots", [
-        ("Sources", ["rbn.sources", "rbn.history", "rbn.hide_beacons", "rbn.hide_warc",
+        ("Exclude", ["rbn.hide_warc", "rbn.hide_60m", "rbn.hide_beacons"]),
+        ("Sources", ["rbn.sources", "rbn.history",
                      "rbn.serve_own_spots",
                      "rbn.backup_off",
                      "rbn.pause_on_phone",
                      "rbn.skimmer_quiet_minutes", "rbn.telnet_silent_minutes",
                      "rbn.http_backup", "rbn.hamqth_backup"]),
         ("SSB", ["ssb.follow_radio_mode", "ssb.pskreporter"]),
-        ("Spot collector", ["cluster.trust_q"]),
+        ("Spot collector", ["cluster.trust_q", "cluster.people_all"]),
         ("Spotters - who heard it", ["filter.mode", "rbn.spotter", "filter.dxcc",
                                      "filter.zones", "filter.conts"]),
         ("Spotted - who was heard", ["spotted.mode", "spotted.calls", "spotted.dxcc",

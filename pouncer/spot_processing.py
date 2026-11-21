@@ -926,6 +926,8 @@ class SpotProcessor:
                 now - spot.observed_at > self.config['max_age_seconds'] or
                 spot.observed_at - now > self.config['future_tolerance_seconds']):
             self.counts['stale_spots'] += 1
+            self.last_evaluation = self._dropped(spot, 'too-old' if now > spot.observed_at
+                                                 else 'time-in-future')
             return []
         at = now if received_at is None else float(received_at)
         if not math.isfinite(at):
@@ -968,18 +970,29 @@ class SpotProcessor:
             # Undated observations cannot establish a move away from retained
             # dated evidence. A first undated spot still passes normally.
             self.counts['undated_frequency_conflicts'] += 1
+            self.last_evaluation = self._dropped(spot, 'undated-frequency-conflict')
             return []
-        if (spot.observed_at is not None and latest is not None and
-                latest.spot.observed_at is not None and
-                spot.observed_at < latest.spot.observed_at):
+        older = (spot.observed_at is not None and latest is not None and
+                 latest.spot.observed_at is not None and
+                 spot.observed_at < latest.spot.observed_at)
+        if older and (latest.spot.receiver_base == spot.receiver_base or
+                      abs(spot.frequency_hz - latest.spot.frequency_hz) >
+                      self.config['corroboration_tolerance_hz']):
+            # A late old frequency must not roll a station back after a move,
+            # and the same spotter's older copy adds nothing.
             self.counts['out_of_order_spots'] += 1
+            self.last_evaluation = self._dropped(spot, 'out-of-order')
             return []
+        # Another spotter's older stamp on the same frequency is no rollback: whole-minute
+        # stamps from different nodes routinely arrive out of order (a self
+        # spot via a slow cluster after a skimmer's). It is judged normally,
+        # but never replaces the newer spot as the latest (v0.7.245).
         self.last_observation = obs
         if replay:
             # Filter replay can consult existing evidence but never manufacture
             # another observation, refresh a vote or extend a pending hold.
             return self._admit_observation(obs, now, allow_hold=False) if admit else []
-        if spot.observed_at is not None:
+        if spot.observed_at is not None and not older:
             self._put(self.latest, identity, obs)
         key = (source_id, spot.origin, spot.call, spot.band, spot.mode)
         if spot.cw_skimmer and spot.observed_at is not None:
@@ -1007,6 +1020,12 @@ class SpotProcessor:
             # the original deadline still governs the subsequent timer drain.
             return []
         return self._admit_observation(obs, now, allow_hold=allow_hold)
+
+    @staticmethod
+    def _dropped(spot, reason):
+        """Why a spot was dropped before evaluation (nonPublishedSpots.log)."""
+        return {'call': spot.call, 'frequency_hz': spot.frequency_hz,
+                'frequency_basis': 'input', 'held': False, 'reason': reason}
 
     def confirm_waiting_cw(self, waiting, confirmer):
         """A filtered receiver may confirm an earlier, wanted original."""

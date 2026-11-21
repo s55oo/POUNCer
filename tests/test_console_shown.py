@@ -84,6 +84,8 @@ class ShownTests(unittest.TestCase):
         f = _app(zones=())
         f.spotter_filter.configure("ww")
         ft8 = "DX de W7O:       14074.4  JH8ESQ"            # a person, no mode, FT8 window
+        self.assertTrue(f._console_shown("telnet", ft8))         # people_all: any mode out (v0.7.245)
+        f.cfg.cluster_people_all = False
         self.assertFalse(f._console_shown("telnet", ft8))
         self.assertTrue(str(f._console_shown("telnet", ft8)).startswith("EXCL FT"))
         self.assertFalse(f._console_shown("HAMQTH", "W7O 14074.4 JH8ESQ FT8"))

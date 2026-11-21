@@ -525,7 +525,7 @@ collected. It works with the SERVER group unticked too.
 reason at its end, in grey, about 5 s after it came in: `EXCL SPOTTER` (the
 Spotters filter), `EXCL SPOTTED` (the Spotted filter), `EXCL FT8` / `EXCL FT4`
 (its mode, `(unmarked, FT8 window)` or `(PSK Reporter)` - he is on FT8
-there), `EXCL BCN` (a beacon), `EXCL WARC` (Remove WARC spots), `EXCL PEOPLE
+there), `EXCL BCN` (a beacon), `EXCL WARC` / `EXCL 60M` (Spots > Exclude), `EXCL PEOPLE
 (no Telnet on)` (a person's spot, but no Telnet ticked).
 
 **cache/nonPublishedSpots.log** (v0.7.218): the spots that passed your
@@ -914,6 +914,12 @@ the cluster server (port 10000):
   that n on counts as confirmed - never held as a CW conflict, and a move
   with it (no `*`) needs no receiver of POUNCer's own; a GoCluster `V`
   confirms the call only. Mirrors count once; 0 = off (v0.7.239).
+  **People's spots** (`[cluster] people_all`, default on; Settings > Spots >
+  Spot collector): a spot by a person (no `-#`) from a cluster Telnet goes to
+  port 10000 as it is, in every mode - past the repeat window, the CW-conflict
+  and PSK Reporter holds and the corrections (the engine still learns from
+  it). The Spotters / Spotted filters, Exclude WARC / 60 m / beacons and your own call
+  still apply; the same spot from several Telnets goes out once (v0.7.245).
   `[cluster] merge = false` bypasses the engine. Startup history bypasses
   learning; textual `sh/dx` replies use a five-second/200-row bypass which may
   also include concurrent live spots. Team slaves consume the master's
@@ -1539,7 +1545,8 @@ All options live in `config.ini` and are documented there, line by line:
 | `http_backup` | https://azure.s53m.com/cors/rbn/live | The **HTTP** source (RBN over HTTP); empty = none. |
 | `follow_modes` | CW | Modes to show (`CW`, `RTTY`, `FT8`, `FT4`). |
 | `hide_beacons` | true | Drop beacon spots as they come in - not in the list, not on port 10000: the 18 NCDXF beacons (4U1UN, W6WX, OH2B ...) on 14100 / 18110 / 21150 / 24930 / 28200 (±0.5 kHz; the same call elsewhere stays), type BEACON / NCDXF, calls ending in `/B`, or a skimmer's own `BCN` where the mode normally sits (v0.7.232). Traffic console: **BEACON**. Settings > Spots. |
-| `hide_warc` | false | **Remove WARC spots** (Settings > Spots > Sources): no spots on 60 m, 30 m, 17 m and 12 m (no contests there) - not in the list or on the phone, not on port 10000, not yellow in the traffic console. Off again = they show again (v0.7.205). |
+| `hide_warc` | false | **Exclude WARC** (Spots menu > Exclude; Settings > Spots > Exclude): no spots on 30 m, 17 m and 12 m (no contests there) - not in the list or on the phone, not on port 10000, `EXCL WARC` in the traffic console. Off again = they show again (v0.7.205; 60 m on its own since v0.7.245). |
+| `hide_60m` | as `hide_warc` | **Exclude 60 m** (Spots menu > Exclude; Settings > Spots > Exclude): the same for 60 m, `EXCL 60M` in the traffic console. Not set = follows `hide_warc`, as before v0.7.245. |
 | `serve_own_spots` | false | **Allow my own spots** (Settings > Spots > Sources): a spot of your own call is never listed - off also keeps it off port 10000 (N1MM's Telnet window, other clients), though the SPOTTED pop-up still fires; on, it goes out there too. Traffic console: EXCL SELF while off (v0.7.233). |
 | `backup_off` | false | **Disable backup spots** (Settings > Spots > Sources): only the chosen skimmers (the Spotters filter), always. Off: while they all send nothing for `backup_after_minutes`, the backup skimmers are used too (orange in the traffic console) (v0.7.206). |
 | `cty` | POUNCer's download (S53M's cty.dat) | Country file for continent / DX / mults; a path here overrides it. |

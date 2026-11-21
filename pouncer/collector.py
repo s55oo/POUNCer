@@ -36,6 +36,17 @@ class Collector:
         return "rbn" if source in ("rbn", "http", "hamqth") or source.startswith("rbn:") else "cluster"
 
     @staticmethod
+    def person(cfg, spot):
+        """A person's spot (spotter without '-#') from a cluster Telnet: sent
+        as it is, in any mode, past the collector ([cluster] people_all,
+        v0.7.245)."""
+        if not getattr(cfg, "cluster_people_all", True) or getattr(spot, "history", False):
+            return False
+        if (spot.spotter or "").endswith("-#"):
+            return False
+        return (spot.feed_id or spot.source or "") in TELNETS and             Collector.role(cfg, spot) in ("cluster", "gocluster")
+
+    @staticmethod
     def wanted(app, spot, *, check_dx=True):
         cfg = app.cfg
         mode = (spot.mode or "").upper()
@@ -45,7 +56,8 @@ class Collector:
             return False
         if skimmer and mode not in getattr(cfg, "follow_modes", ("CW",)):
             return False
-        if mode in traffic.DIGITAL and mode not in getattr(cfg, "follow_modes", ("CW",)):
+        if (mode in traffic.DIGITAL and mode not in getattr(cfg, "follow_modes", ("CW",))
+                and not Collector.person(cfg, spot)):
             return False
         filt = getattr(app, "spotter_filter", None)
         if filt is not None:
@@ -58,8 +70,8 @@ class Collector:
         from .rbn import is_beacon
         if getattr(cfg, "hide_beacons", True) and is_beacon(spot):
             return False
-        from .bands import is_warc
-        return not (getattr(cfg, "hide_warc", False) and is_warc(spot.freq_khz))
+        from .bands import band_hidden
+        return not band_hidden(cfg, spot.freq_khz)
 
     def _convert(self, spot, output):
         parsed = parse_header(output, self.engine.clock())
@@ -157,6 +169,14 @@ class Collector:
         if spot.history or not self.enabled:
             outputs = [replace(spot, collector_routed=False, collector_selected=True)] if self.wanted(app, spot) else []
             return self._remember(outputs) + self.drain(app, through=spot.arrived or spot.received)
+        if self.person(app.cfg, spot):
+            # A person's spot goes out as it is (v0.7.245); the engine still
+            # learns from it as evidence. Not "selected": the same spot from
+            # several Telnets is merged (sent once) downstream.
+            self.engine.process(source, epoch[1], self._wire(spot), admit=False,
+                                received_at=spot.arrived or spot.received)
+            outputs = [replace(spot, collector_routed=False, collector_selected=False)]                 if self.wanted(app, spot) else []
+            return outputs + self.drain(app, through=spot.arrived or spot.received)
         wire = self._wire(spot)
         header = parse_header(wire, self.engine.clock())
         key = self._template_key(source, header) if header else None

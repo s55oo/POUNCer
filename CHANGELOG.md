@@ -1,5 +1,37 @@
 # POUNCer — Changelog
 
+## v0.7.245 — 2026-11-21 — Every person's spot to port 10000, all modes; Spots > Exclude; late self-spot fix
+
+- **Spots > Exclude: WARC, 60 m, Beacons** - three ticks in the Spots menu
+  (and Settings > Spots > Exclude), each saved and applied at once: the list,
+  the phone and port 10000. 60 m is now its own switch (`[rbn] hide_60m`),
+  no longer part of WARC (30 / 17 / 12 m); not set, it follows `hide_warc`,
+  so nothing changes until you tick it. Unticking brings back the spots of
+  the last 15 minutes at once.
+
+- **People's spots, all of them** (`[cluster] people_all`, default on;
+  Settings > Spots > Spot collector) - a spot by a person (spotter without
+  `-#`) from a cluster Telnet now goes to port 10000 as it is, in every mode
+  (CW, SSB, FT8, FT4, RTTY ...): no 180 s repeat window, no CW-conflict or
+  PSK Reporter hold, no call / frequency correction - the collector still
+  learns from it. Your Spotters / Spotted filters, Remove WARC, beacons and
+  your own call still apply, and the same spot from several Telnets goes
+  out once. Skimmer spots (`-#`) are unchanged. Off = as before.
+
+- **Older time stamp, same frequency** - cluster spots carry a whole-minute
+  time, and nodes relay at different speeds: E77Z's self-spot of E77Z/P
+  (1123Z, via a slower cluster) came in after a skimmer's 1124Z spot of
+  him - which your Spotters filter kept out - and the collector dropped it
+  silently as "out of order" (nonPublishedSpots.log: "no reason noted").
+  Now another spotter's older-stamped spot within 100 Hz is judged
+  normally (a repeat if he already went out, else sent); it never replaces
+  the newer spot. A late spot on another frequency still can't roll a
+  station back after a move, and a spotter's own older copy is still
+  dropped.
+- **nonPublishedSpots.log names every drop** - "out-of-order", "too-old"
+  (older than 5 minutes), "time-in-future" and "undated-frequency-conflict"
+  instead of "no reason noted".
+
 ## v0.7.244 — 2026-11-21 — SPOTS light green on SSB while a Telnet delivers (fix)
 
 - **SPOTS light on SSB** - with every radio on SSB (or an SSB contest open)

@@ -141,7 +141,8 @@ class Config:
     cty_url: str = "https://azure.s53m.com/cors/cty.dat"
     cty_update_n1mm: bool = False    # also copy it into N1MM's SupportFiles
     hide_beacons: bool = True
-    hide_warc: bool = False        # [rbn] hide_warc: no spots on 60 / 30 / 17 / 12 m
+    hide_warc: bool = False        # [rbn] hide_warc: no spots on 30 / 17 / 12 m
+    hide_60m: bool = False         # [rbn] hide_60m: no spots on 60 m (unset: as hide_warc)
     serve_own_spots: bool = False   # [rbn] serve_own_spots: a spot of my own call on
                                     # port 10000 too (v0.7.233); off = SPOTTED pop-up only
     follow_modes: tuple[str, ...] = ("CW",)
@@ -247,6 +248,7 @@ class Config:
     cluster_relay: bool = True      # pass the real cluster through to the client (N1MM)
     cluster_merge: bool = True      # receiver-aware selection for list, team and port 10000
     cluster_trust_q: int = 3        # [cluster] trust_q: Q:n from this on = call confirmed; 0 = off
+    cluster_people_all: bool = True  # [cluster] people_all: people's spots (no -#) all out, any mode
     touch_view: bool = False  # open the phone page in the default browser at start
 
 
@@ -395,6 +397,8 @@ def load_config(path: str) -> Config:
     cfg.cty_update_n1mm = b("cty", "update_n1mm", cfg.cty_update_n1mm)
     cfg.hide_beacons = b("rbn", "hide_beacons", cfg.hide_beacons)
     cfg.hide_warc = b("rbn", "hide_warc", cfg.hide_warc)
+    # 60 m was part of "WARC" until v0.7.245: unset, it follows hide_warc
+    cfg.hide_60m = b("rbn", "hide_60m", cfg.hide_warc)
     cfg.serve_own_spots = b("rbn", "serve_own_spots", cfg.serve_own_spots)
     cfg.follow_modes = parse_modes(
         s("rbn", "follow_modes", ",".join(cfg.follow_modes))
@@ -532,6 +536,7 @@ def load_config(path: str) -> Config:
     cfg.cluster_relay = b("cluster", "relay", cfg.cluster_relay)
     cfg.cluster_merge = b("cluster", "merge", cfg.cluster_merge)
     cfg.cluster_trust_q = max(0, min(99, i("cluster", "trust_q", cfg.cluster_trust_q)))
+    cfg.cluster_people_all = b("cluster", "people_all", cfg.cluster_people_all)
     from .spot_processing import DEFAULTS, SpotProcessor
     if parser.has_section("spot_processing"):
         for key, text in parser.items("spot_processing"):

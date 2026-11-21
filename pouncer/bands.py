@@ -27,6 +27,17 @@ def is_warc(khz: float | None) -> bool:
     return band_from_khz(khz) in WARC_BANDS
 
 
+def band_hidden(cfg, khz: float | None) -> str:
+    """Spots > Exclude (v0.7.245): 'WARC' for 30 / 17 / 12 m with [rbn]
+    hide_warc, '60M' for 60 m with [rbn] hide_60m - else ''."""
+    band = band_from_khz(khz)
+    if band == "60m":
+        return "60M" if getattr(cfg, "hide_60m", getattr(cfg, "hide_warc", False)) else ""
+    if band in WARC_BANDS:
+        return "WARC" if getattr(cfg, "hide_warc", False) else ""
+    return ""
+
+
 # The contest bands offered by the band picker (no WARC / 60 m / 6 m), with
 # the frequency used when we have not been on that band yet (CW segment).
 CONTEST_BANDS = ("160m", "80m", "40m", "20m", "15m", "10m")

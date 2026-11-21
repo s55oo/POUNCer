@@ -169,7 +169,7 @@ COLORS = {"RBN": "#81c784", "TELNET": "#80cbc4", "HTTP": "#4fc3f7", "N1MM": "#ce
 GROUP_LABEL = {"FT8": "FT8/FT4"}
 # EXCL reason -> the group whose checkbox, unticked, removes that raw line
 # too (not only its own "kept out" summary line, if it has one) (v0.7.228/229)
-HIDE_WITH_GROUP = {"EXCL BCN": "BEACON", "EXCL WARC": "WARC"}
+HIDE_WITH_GROUP = {"EXCL BCN": "BEACON", "EXCL WARC": "WARC", "EXCL 60M": "WARC"}
 # EXCL FT8 / EXCL FT4 have several variants ("EXCL FT8", "EXCL FT4
 # (unmarked, FT8 window)", "EXCL FT8 (PSK Reporter)" ...) - all of them
 # mean the FT8/FT4 group (v0.7.231)

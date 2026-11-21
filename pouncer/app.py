@@ -15,7 +15,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from . import __version__
-from .bands import CONTEST_BANDS, DEFAULT_BAND_KHZ, band_from_khz, is_warc, normalize_band_view
+from .bands import CONTEST_BANDS, DEFAULT_BAND_KHZ, band_from_khz, band_hidden, is_warc, normalize_band_view
 from .config import Config
 from .flow import flow_positions
 from . import lights
@@ -266,6 +266,19 @@ def apply_unmarked_ft(app, spot) -> None:
     m = unmarked_ft(spot, phone_contest_of(app))
     if m:
         set_spot_mode(spot, m)
+
+
+def person_direct(app, spot) -> bool:
+    """A person's spot (no '-#') from a cluster Telnet: straight to port
+    10000, any mode, no PSK Reporter hold ([cluster] people_all, v0.7.245)."""
+    cfg = getattr(app, "cfg", None)
+    if cfg is None:
+        return False
+    from .collector import Collector
+    try:
+        return Collector.person(cfg, spot)
+    except Exception:  # noqa: BLE001 - a stand-in spot
+        return False
 
 
 def people_taken(app, src: str) -> bool:
@@ -1071,6 +1084,17 @@ class PouncerApp:
             trust.add_radiobutton(label=text, value=n, variable=self._trust_q_var,
                                   command=lambda: self._set_trust_q(self._trust_q_var.get()))
         spots.add_cascade(label="Trust DXSpider quality (Q:n) / GoCluster V", menu=trust)
+        # Spots > Exclude: WARC / 60 m / beacons - list, phone and port 10000 (v0.7.245)
+        excl = tk.Menu(spots, tearoff=False)
+        self._excl_vars = {}
+        for key, attr, text in (("rbn.hide_warc", "hide_warc", "WARC (30 / 17 / 12 m)"),
+                                ("rbn.hide_60m", "hide_60m", "60 m"),
+                                ("rbn.hide_beacons", "hide_beacons", "Beacons")):
+            v = tk.BooleanVar(value=bool(getattr(self.cfg, attr, False)))
+            self._excl_vars[attr] = v
+            excl.add_checkbutton(label=text, variable=v,
+                                 command=lambda k=key, var=v: self._set_exclude(k, var.get()))
+        spots.add_cascade(label="Exclude", menu=excl)
         spots.add_checkbutton(label="Hide worked (same band + mode)", accelerator="Ctrl+H",
                               variable=self.hide_worked_var, command=self._on_toggle_worked)
         spots.add_command(label="Clear spots", command=self._clear_spots, accelerator="Ctrl+L")
@@ -2079,15 +2103,14 @@ class PouncerApp:
                     + (f"FT8 / FT4 in the Spots modes ({want}): those ARE served."
                        if want else "Spots modes without FT8 / FT4: none is served."))
         if group == "WARC":
-            on = g(c, "hide_warc", False)
-            return ("WARC - WARC-band spots (v0.7.229)\n"
-                    "60 m, 30 m, 17 m, 12 m: no contests there. Unticking this box removes "
-                    "a WARC spot's raw line too (it has no separate 'kept out' summary line "
+            on, on60 = g(c, "hide_warc", False), g(c, "hide_60m", False)
+            return ("WARC - WARC-band and 60 m spots (v0.7.229)\n"
+                    "30 m, 17 m, 12 m and 60 m: no contests there. Unticking this box removes "
+                    "such a spot's raw line too (it has no separate 'kept out' summary line "
                     "of its own, unlike BEACON / FT8).\n"
-                    + ("Remove WARC spots: on ([rbn] hide_warc) - also not in the list, not "
-                       "on port 10000." if on else
-                       "Remove WARC spots is OFF ([rbn] hide_warc): WARC spots are listed "
-                       "and served."))
+                    f"Exclude WARC ([rbn] hide_warc): {'on' if on else 'OFF'}; "
+                    f"Exclude 60 m ([rbn] hide_60m): {'on' if on60 else 'OFF'} - "
+                    "excluded = not in the list, not on port 10000 (Spots > Exclude).")
         if group == "SERVER":
             dxc = g(self, "_dxc", None)
             return ("SERVER - POUNCer as a DX cluster for N1MM's Telnet window (port 10000)\n"
@@ -2989,6 +3012,12 @@ class PouncerApp:
         tv = getattr(self, "_trust_q_var", None)
         if tv is not None:
             tv.set(int(getattr(c, "cluster_trust_q", 3)))
+        for attr, var in (getattr(self, "_excl_vars", None) or {}).items():
+            var.set(bool(getattr(c, attr, False)))
+
+    def _set_exclude(self, key: str, on: bool) -> None:
+        """Spots > Exclude WARC / 60 m / beacons: saved, live."""
+        self._save_setting(key, "true" if on else "false")
 
     def _set_trust_q(self, n: int) -> None:
         """Spots > Trust DXSpider quality: Q:2+ / Q:3+ / off - saved, live
@@ -4202,7 +4231,8 @@ class PouncerApp:
                 continue                  # the same spot from another source: once
             self._note_own(spot)
             apply_unmarked_ft(self, spot)
-            self._check_overlap(spot)
+            if not person_direct(self, spot):
+                self._check_overlap(spot)     # a person's spot: no PSK Reporter hold
             self.spots[spot.key] = spot
             self._track_on_freq(spot)
             got += 1
@@ -4342,12 +4372,19 @@ class PouncerApp:
         if spf is not None and not spf.accept(call):
             return traffic.Excl("EXCL SPOTTED")              # the Spotted filter
         mode = (getattr(spot, "mode", "") or "").upper()
-        if mode in traffic.DIGITAL and mode not in self._digi_wanted():
+        direct = (not skimmer and getattr(self.cfg, "cluster_people_all", True)
+                  and src.lower() in TELNETS
+                  and getattr(self.cfg, f"telnet{1 if src.lower() == 'telnet' else src[-1]}_role",
+                              "cluster") in ("cluster", "gocluster"))
+        if mode in traffic.DIGITAL and mode not in self._digi_wanted() and not direct:
             return traffic.Excl(f"EXCL {mode}")   # FT8 / FT4 (its mode or the FT8 window): kept out
         if isinstance(spot, Spot) and getattr(self.cfg, "hide_beacons", False) and is_beacon(spot):
             return traffic.Excl("EXCL BCN")
-        if getattr(self.cfg, "hide_warc", False) and is_warc(khz):
-            return traffic.Excl("EXCL WARC")      # Remove WARC spots
+        hidden = band_hidden(self.cfg, khz)
+        if hidden:
+            return traffic.Excl(f"EXCL {hidden}")      # Spots > Exclude WARC / 60 m
+        if direct:
+            return result                 # a person's spot: out as it is, any mode (v0.7.245)
         if spot is not None and mode == "SSB":
             ft = unmarked_ft(spot, phone_contest_of(self))
             if ft and ft not in self._digi_wanted():
@@ -4427,10 +4464,11 @@ class PouncerApp:
         dxc = getattr(self, "_dxc", None)
         if dxc is None:
             return
-        if getattr(self.cfg, "hide_warc", False) and is_warc(spot.freq_khz):
-            return                    # Remove WARC spots: not to port 10000 either
+        if band_hidden(self.cfg, spot.freq_khz):
+            return                    # Exclude WARC / 60 m: not to port 10000 either
         mode = (spot.mode or "").upper()
-        if mode in traffic.DIGITAL and mode not in self._digi_wanted():
+        if (mode in traffic.DIGITAL and mode not in self._digi_wanted()
+                and not person_direct(self, spot)):     # a person's spot: any mode (v0.7.245)
             if getattr(spot, "source", "") != "n1mm" and dxc.relay():
                 traffic.digi_out("server", spot, "not served to port "
                                  f"{dxc.port}: {mode} spot (Spots modes: "
@@ -5759,6 +5797,9 @@ class PouncerApp:
                 self._restart_listener()
             if key == "rbn.telnet_silent_minutes":
                 self._apply_rx_silent()
+            if key in ("rbn.hide_warc", "rbn.hide_60m", "rbn.hide_beacons"):
+                self._dirty = True                # the list at once
+                readmit_spots(self)               # no longer excluded: back from the last 15 min
             if key == "cluster.trust_q" and getattr(self, "_collector", None) is not None:
                 # live, keeping episodes and holds: only the trust threshold changes
                 self._collector.engine.config["trust_quality"] = int(self.cfg.cluster_trust_q)
@@ -5972,7 +6013,7 @@ class PouncerApp:
                 or (every and band_from_khz(s.freq_khz) in CONTEST_BANDS))
             and s.mode.upper() in modes
             and not (self.cfg.hide_beacons and is_beacon(s))
-            and not (getattr(self.cfg, "hide_warc", False) and is_warc(s.freq_khz))
+            and not band_hidden(self.cfg, s.freq_khz)
             and (s.dxcall.upper(), band_from_khz(s.freq_khz)) not in self._removed
             and not same_station(s.dxcall, own)  # never list ourselves
         ]
