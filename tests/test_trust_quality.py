@@ -139,6 +139,17 @@ class TrustQualitySettingTests(unittest.TestCase):
             self.assertEqual(load_config(p).cluster_trust_q, 4)
         self.assertEqual(settings.place("cluster.trust_q")[0], "Spots")
 
+    def test_menu_choice_saves_and_applies_live(self):
+        import types
+        from pouncer.app import PouncerApp
+        from pouncer.collector import Collector
+        saved = []
+        fake = types.SimpleNamespace(status_label=types.SimpleNamespace(configure=lambda **k: None),
+                                     _save_setting=lambda k, v: saved.append((k, v)))
+        PouncerApp._set_trust_q(fake, 2)
+        PouncerApp._set_trust_q(fake, 0)
+        self.assertEqual(saved, [("cluster.trust_q", 2), ("cluster.trust_q", 0)])
+
     def test_app_policy(self):
         import types
         from pouncer.app import PouncerApp

@@ -1,5 +1,13 @@
 # POUNCer — Changelog
 
+## v0.7.240 — 2026-11-21 — Spots menu: Trust DXSpider quality Q:2+ / Q:3+ / off
+
+- **Spots > Trust DXSpider quality (Q:n) / GoCluster V** - pick *Q:2 and
+  up*, *Q:3 and up (default)* or *Off* straight from the menu (the same
+  `[cluster] trust_q` as Settings > Spots > Spot collector). Saved at once
+  and applied live: the running collector keeps its episodes and holds,
+  only the threshold changes.
+
 ## v0.7.239 — 2026-11-21 — trust DXSpider's Q:n and GoCluster's V
 
 - **Trust DXSpider quality** (Settings > Spots > Spot collector, `[cluster]

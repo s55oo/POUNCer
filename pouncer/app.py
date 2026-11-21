@@ -1024,6 +1024,13 @@ class PouncerApp:
         self._merge_var = tk.BooleanVar(value=bool(getattr(self.cfg, "cluster_merge", True)))
         spots.add_checkbutton(label="Receiver-aware spot collection (list, team, port 10000)",
                               variable=self._merge_var, command=lambda: self._toggle_merge())
+        # Spots > Trust DXSpider quality: Q:2+ / Q:3+ / off ([cluster] trust_q, v0.7.240)
+        trust = tk.Menu(spots, tearoff=False)
+        self._trust_q_var = tk.IntVar(value=int(getattr(self.cfg, "cluster_trust_q", 3)))
+        for n, text in ((2, "Q:2 and up"), (3, "Q:3 and up (default)"), (0, "Off")):
+            trust.add_radiobutton(label=text, value=n, variable=self._trust_q_var,
+                                  command=lambda: self._set_trust_q(self._trust_q_var.get()))
+        spots.add_cascade(label="Trust DXSpider quality (Q:n) / GoCluster V", menu=trust)
         spots.add_checkbutton(label="Hide worked (same band + mode)", accelerator="Ctrl+H",
                               variable=self.hide_worked_var, command=self._on_toggle_worked)
         spots.add_command(label="Clear spots", command=self._clear_spots, accelerator="Ctrl+L")
@@ -2931,6 +2938,18 @@ class PouncerApp:
         mv = getattr(self, "_merge_var", None)
         if mv is not None:
             mv.set(bool(getattr(c, "cluster_merge", True)))
+        tv = getattr(self, "_trust_q_var", None)
+        if tv is not None:
+            tv.set(int(getattr(c, "cluster_trust_q", 3)))
+
+    def _set_trust_q(self, n: int) -> None:
+        """Spots > Trust DXSpider quality: Q:2+ / Q:3+ / off - saved, live
+        (``_save_setting`` updates the running collector's threshold)."""
+        n = max(0, int(n))
+        self._save_setting("cluster.trust_q", n)
+        self.status_label.configure(text=(
+            f"Spot collection: a spot with Q:{n} or more (or GoCluster V) counts as confirmed"
+            if n else "Spot collection: DXSpider Q:n / GoCluster V not trusted"))
 
     def _toggle_merge(self) -> None:
         """Spots > Receiver-aware collection: on / off, saved."""
