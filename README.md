@@ -1413,6 +1413,12 @@ spots; only the brief N1MM listen below).
   the port only while it waits, frees it at once, and never takes it from
   another program. Port 0 = don't listen.
 - **Light / Dark** (top) changes its look.
+- **Minimized = in the system tray** (v0.7.242): minimize the window and it
+  leaves the taskbar for an **A** icon in the notification area (by the
+  clock; Windows may put it under the **^** arrow - drag it out to keep it in
+  sight). Click it to bring the window back; right-click: **Show** /
+  **Exit**. Your programs keep being started meanwhile. If the tray is not
+  available, minimize works as before.
 - **At Windows logon:** *More options > Start with Windows…* opens the
   Startup folder; put a shortcut to N1MMautostarter.exe in it.
 - `N1MMautostarter.exe --setup` opens the window without starting anything.

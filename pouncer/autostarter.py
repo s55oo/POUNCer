@@ -490,6 +490,7 @@ class App:
         self._apply_look()
         self._build()
         self.root.protocol("WM_DELETE_WINDOW", self._close)
+        self._setup_tray()
         if not make_plan(self.s):
             self._edit(True)
             self._status("Add your programs - N1MM Logger+ first - then Save.")
@@ -888,9 +889,72 @@ class App:
         except (AttributeError, self.tk.TclError):
             pass
 
+    # -- system tray: minimized = an icon in the notification area (v0.7.242)
+    def _setup_tray(self) -> None:
+        import queue
+        self._tray_q = queue.Queue()
+        self.tray = None
+        try:
+            from . import tray
+            if not tray.AVAILABLE:
+                return
+            icon = ""
+            if self.theme is not None:
+                icon = os.path.join(self.theme.icon_dir(), "autostarter.ico")
+            self.tray = tray.TrayIcon(icon, "N1MM Autostarter - click to show",
+                                      self._tray_q.put)
+        except Exception:  # noqa: BLE001 - no tray: the plain minimize
+            log.exception("tray")
+            self.tray = None
+            return
+        self.root.bind("<Unmap>", self._on_unmap, add="+")
+
+    def _on_unmap(self, event) -> None:
+        """Minimized: hide the window, show the tray icon instead."""
+        if event.widget is not self.root or self.tray is None:
+            return
+        try:
+            if self.root.state() != "iconic":
+                return
+        except self.tk.TclError:
+            return
+        if self.tray.show():
+            self.root.withdraw()
+            self.root.after(200, self._tray_poll)
+
+    def _tray_poll(self) -> None:
+        """The tray icon's clicks, on the Tk thread (never Tk from the tray
+        thread)."""
+        import queue
+        while True:
+            try:
+                what = self._tray_q.get_nowait()
+            except queue.Empty:
+                break
+            if what == "show":
+                self._from_tray()
+                return
+            if what == "exit":
+                self._close()
+                return
+        if self.tray is not None and self.tray.visible():
+            self.root.after(200, self._tray_poll)
+
+    def _from_tray(self) -> None:
+        if self.tray is not None:
+            self.tray.hide()
+        self.root.deiconify()
+        self.root.lift()
+        try:
+            self.root.focus_force()
+        except self.tk.TclError:
+            pass
+
     def _close(self) -> None:
         if self.runner is not None:
             self.runner.stop()
+        if getattr(self, "tray", None) is not None:
+            self.tray.hide()
         self.root.destroy()
 
     def run(self) -> None:

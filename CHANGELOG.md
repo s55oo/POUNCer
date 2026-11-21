@@ -1,5 +1,15 @@
 # POUNCer — Changelog
 
+## v0.7.242 — 2026-11-21 — N1MM Autostarter: minimized goes to the system tray
+
+- **N1MM Autostarter in the tray** - minimizing its window now takes it
+  off the taskbar and puts the **A** icon in the notification area (by the
+  clock). Click the icon to bring the window back; right-click for **Show**
+  / **Exit**. Starting your programs carries on while it is in the tray.
+  Windows only, no extra libraries (`pouncer/tray.py`, ctypes); where no
+  tray is available, minimize works as before. The icon comes back by
+  itself if Explorer restarts.
+
 ## v0.7.241 — 2026-11-21 — hung telnet reconnects; trusted CW in FT windows not held
 
 - **A hung connection reconnects** (Settings > Spots > Sources, `[rbn]
