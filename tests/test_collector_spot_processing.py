@@ -43,13 +43,13 @@ class ProcessorTests(unittest.TestCase):
         self.now += 1
         self.assertEqual(self.engine.process('two', 'cluster', line()), [line()])
 
-    def test_bounded_moves_and_stale_move(self):
+    def test_moves_and_stale_move(self):
+        # v0.7.248: every move over 500 Hz goes out at once, unbudgeted
         self.assertTrue(self.engine.process('p', 'cluster', line()))
-        for frequency in (14021, 14022):
-            self.assertFalse(self.engine.process('p', 'cluster', line(frequency=frequency, origin='A1AAA')))
-            self.assertTrue(self.engine.process('p2', 'cluster', line(frequency=frequency, origin='B1BBB')))
-        self.assertFalse(self.engine.process('p', 'cluster', line(frequency=14023)))
-        self.assertEqual(self.engine.snapshot()['frequency_change_updates'], 2)
+        for frequency in (14021, 14022, 14023):
+            self.assertTrue(self.engine.process('p', 'cluster', line(frequency=frequency, origin='A1AAA')))
+            self.assertFalse(self.engine.process('p2', 'cluster', line(frequency=frequency, origin='B1BBB')))
+        self.assertEqual(self.engine.snapshot()['frequency_change_updates'], 3)
         other = SpotProcessor(clock=lambda: self.now)
         other.process('p', 'cluster', line(stamp='1200Z'))
         self.assertFalse(other.process('p', 'cluster', line(frequency=14023, stamp='1159Z')))

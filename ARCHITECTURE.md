@@ -300,8 +300,11 @@ a contest/log switch) is throttled to `[worked] refresh_seconds`.
   (`quality`, `quality_split` for `*`) only for role `cluster`, GoCluster's
   confidence letter for role `gocluster` (also short lines with a grid before
   it). `SpotProcessor._trusted` (Q >= `trust_quality` or `V`) ends
-  `_cw_conflict`; `_trusted_frequency` (Q, no `*`; never `V`) lets
-  `_movement` accept a move (`frequency-move-quality`). App:
+  `_cw_conflict`. Moves (v0.7.248): in `_select_output` a spot more than
+  `move_tolerance_hz` from the episode's `Repeat.frequency` (and not older
+  than it) drops the episode and is selected like a first discovery
+  (reason `frequency-move`, a new `Repeat`); `_movement` /
+  `_trusted_frequency` and the `max_changes` budget are gone. App:
   `_collector_policy()` puts `[cluster] trust_q` into the policy, a save
   updates the live engine; Spots menu `_trust_q_var` / `_set_trust_q`.
   App-level `spot_trusted(app, spot)` / `feed_role` (the Telnet's
@@ -309,6 +312,45 @@ a contest/log switch) is throttled to `[worked] refresh_seconds`.
   hold a trusted CW spot in an FT window for PSK Reporter (FT8 group line
   `not held: ...`). Tests: `tests/test_trust_quality.py`,
   `tests/test_telnet_silent.py` (`FtWindowTrustTests`).
+- (v0.7.244) SPOTS light: `lights.rbn_light` - "paused" (RBN paused on SSB)
+  counts only with RBN ticked as a source (`_light_states`), and a working
+  Telnet keeps it green (`SPOTS via Telnet #n`); yellow `SPOTS on hold (SSB)`
+  only when nothing else delivers. Tests: `tests/test_lights.py`.
+- (v0.7.245) Out of order: `SpotProcessor.process` drops an older-stamped
+  spot (`out-of-order`) only when it is the same receiver or more than
+  `corroboration_tolerance_hz` from the newest; another receiver's older
+  stamp on the same frequency is judged normally but never replaces
+  `latest`. Drops before evaluation set `last_evaluation` via `_dropped`
+  (`too-old`, `time-in-future`, `undated-frequency-conflict`,
+  `out-of-order`) so `nonPublishedSpots.log` names them. Tests:
+  `tests/test_out_of_order_selfspot.py`.
+- (v0.7.245) People's spots: `Collector.person(cfg, spot)` = spotter without
+  `-#`, a Telnet feed, role `cluster` / `gocluster`, not history,
+  `[cluster] people_all` (default on). `Collector.process` lets the engine
+  learn from it (`admit=False`) and returns it unselected
+  (`collector_selected=False`, so `_merged_dup` and the server's `DUP_S`
+  merge the mirrors); `wanted` skips the FT8 / FT4 mode gate for it. App:
+  `person_direct(app, spot)` skips `_check_overlap` (no PSK Reporter hold)
+  and the digital gate in `_serve`; `_console_shown` returns shown for it
+  after the Spotters / Spotted / beacon / band checks. Tests:
+  `tests/test_people_all.py`.
+- (v0.7.245) Spots > Exclude: `bands.band_hidden(cfg, khz)` -> `WARC`
+  (30 / 17 / 12 m, `[rbn] hide_warc`) / `60M` (`[rbn] hide_60m`, unset =
+  `hide_warc`) / ''. Used by `Collector.wanted`, `_serve`, the list filter
+  and `_console_shown` (`EXCL WARC` / `EXCL 60M`; console
+  `HIDE_WITH_GROUP` puts both under WARC). Menu `_excl_vars` /
+  `_set_exclude`; a save marks the list dirty and calls `readmit_spots`.
+  Tests: `tests/test_exclude_bands.py`.
+- (v0.7.246) Traffic console: `TrafficConsole.add` asks `_is_shown` before
+  inserting; `_hidden_by_group` skips an EXCL line whose group is unticked
+  (it used to show for `SHOWN_WAIT_S` first), and `_switched` ->
+  `_drop_excluded_lines` removes the lines already shown with that group's
+  EXCL reason. Tests: `tests/test_console_shown.py`
+  (`ConsoleGroupUntickTests`).
+- (v0.7.247 / 248) Frequency moves: see Moves above - v0.7.247 let a trusted
+  Q / V confirm a move, v0.7.248 made any spot over 500 Hz away a move.
+  Tests: `tests/test_collector_corroboration.py`,
+  `tests/test_trust_quality.py`.
 - `ports_for_modes(modes, cw_port, ft8_port)`: CW/RTTY → 7000, FT8/FT4 → 7001.
   The app runs one `RBNClient` per needed port.
 

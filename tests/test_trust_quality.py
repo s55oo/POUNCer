@@ -74,17 +74,16 @@ class TrustQualityTests(unittest.TestCase):
         self.now += 30
         self.assertEqual(self.send(e, 'DO4DXA-#', '9A2G', 7008.5, '6dB Q:9+'), [])
 
-    def test_quality_confirms_a_move(self):
-        e = self.engine()
-        self.send(e, 'DF7GB-#', 'K1KT', 14015.0, '7dB Q:5')
-        self.now += 20
-        out = self.send(e, 'KM7W-#', 'K1KT', 14020.0, '7dB Q:5')
-        self.assertEqual(len(out), 1)
-        self.assertIn(b'14020', out[0])
-        e = self.engine(trust_quality=0)
-        self.send(e, 'DF7GB-#', 'K1KT', 14015.0, '7dB Q:5')
-        self.now += 20
-        self.assertEqual(self.send(e, 'KM7W-#', 'K1KT', 14020.0, '7dB Q:5'), [])
+    def test_any_spot_over_500_hz_is_a_move(self):
+        # v0.7.248 (S55OO): Q no longer matters for a move - he moved
+        for policy, tail in (({}, '7dB Q:5'), ({'trust_quality': 0}, '7dB Q:5'), ({}, '7dB')):
+            e = self.engine(**policy)
+            self.send(e, 'DF7GB-#', 'K1KT', 14015.0, tail)
+            self.now += 20
+            out = self.send(e, 'KM7W-#', 'K1KT', 14020.0, tail)
+            self.assertEqual(len(out), 1, (policy, tail))
+            self.assertIn(b'14020', out[0])
+            self.assertEqual(e.last_evaluation['reason'], 'frequency-move')
 
     def gc(self, engine, rx, call, khz, conf, wpm=True):
         stamp = time.strftime('%H%MZ', time.gmtime(self.now))
@@ -110,24 +109,17 @@ class TrustQualityTests(unittest.TestCase):
         self.occupy(e, 'G4ALD', 21031.2)
         self.assertEqual(self.gc(e, 'SE5E-#', 'F6FLU', 21031.2, 'V', wpm=False), [])
 
-    def test_star_or_gocluster_v_confirms_a_move_over_500_hz(self):
-        # v0.7.247 (S55OO): over 500 Hz away with the call confirmed = he moved
+    def test_star_or_gocluster_v_move_too(self):
         e = self.engine()
         self.send(e, 'DF7GB-#', 'K1KT', 14015.0, '7dB Q:5*')
         self.now += 20
         self.assertTrue(self.send(e, 'KM7W-#', 'K1KT', 14020.0, '7dB Q:5*'))
-        self.assertEqual(e.last_evaluation['reason'], 'frequency-move-quality')
         e = self.engine()
         self.gc(e, 'DF7GB-#', 'K1KT', 14015.0, 'V')
         self.now += 20
         self.assertTrue(self.gc(e, 'KM7W-#', 'K1KT', 14020.0, 'V'))
 
-    def test_low_q_or_within_500_hz_still_waits(self):
-        e = self.engine()
-        self.send(e, 'DF7GB-#', 'K1KT', 14015.0, '7dB Q:1*')
-        self.now += 20
-        self.assertEqual(self.send(e, 'KM7W-#', 'K1KT', 14020.0, '7dB Q:1*'), [])
-        self.assertEqual(e.last_evaluation['reason'], 'pending-corroboration')
+    def test_within_500_hz_stays_a_repeat(self):
         e = self.engine()
         self.send(e, 'DF7GB-#', 'K1KT', 14015.0, '7dB Q:5*')
         self.now += 20

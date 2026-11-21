@@ -1,5 +1,16 @@
 # POUNCer — Changelog
 
+## v0.7.248 — 2026-11-21 — A spot over 500 Hz away is a move: always sent at once
+
+- **Frequency moves, no wait and no limit** - a station already sent in
+  the last 180 s, spotted more than 500 Hz away, now goes out at once from
+  one spot, whatever its Q: he moved. Before, a move needed a second
+  skimmer (or, since v0.7.247, a confirmed Q / V), and at most two moves
+  per 180 s were allowed - DM7W on 21032.6 (`Q:4`) was held as
+  "move-budget-exhausted". The move starts its own 180 s repeat window;
+  within 500 Hz a spot stays a repeat, and an older-stamped spot never
+  moves a station. `[spot_processing] max_changes` is no longer used.
+
 ## v0.7.247 — 2026-11-21 — A confirmed spot over 500 Hz away is a move: sent at once
 
 - **Frequency moves with Q / V** - a station already sent within the last

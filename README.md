@@ -911,10 +911,11 @@ the cluster server (port 10000):
 - Advanced numeric policy is in `[spot_processing]` (restart after editing).
   **Trust DXSpider quality** (`[cluster] trust_q`, default 3; Settings >
   Spots > Spot collector): a spot with `Q:n` (n different skimmers) from
-  that n on counts as confirmed - never held as a CW conflict, and a move
-  over 500 Hz with it (also with `*`) needs no receiver of POUNCer's own: he
-  moved; a GoCluster `V` counts the same (v0.7.247). Mirrors count once;
-  0 = off (v0.7.239).
+  that n on counts as confirmed - never held as a CW conflict; a GoCluster
+  `V` counts the same. Mirrors count once; 0 = off (v0.7.239).
+  **Frequency moves** - a spot more than 500 Hz from the station's last sent
+  frequency is a move: sent at once, one spot is enough, no move limit, with
+  its own 180 s repeat window (v0.7.248). Within 500 Hz it is a repeat.
   **People's spots** (`[cluster] people_all`, default on; Settings > Spots >
   Spot collector): a spot by a person (no `-#`) from a cluster Telnet goes to
   port 10000 as it is, in every mode - past the repeat window, the CW-conflict

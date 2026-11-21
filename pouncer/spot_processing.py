@@ -762,36 +762,6 @@ class SpotProcessor:
                     return call
         return None
 
-    def _movement(self, obs, call, frequency, previous, now):
-        identity = (call, obs.spot.band, obs.spot.mode)
-        votes = [self.votes[key] for key in self.votes.keys_for('identity', identity)
-                 if self.votes.versions[key] > previous.generation]
-        groups = self._groups(votes, now, adjusted=True,
-                              window_filter=lambda frequency,observed:
-                              abs(frequency-previous.frequency) > self.config['move_tolerance_hz'] and
-                              observed >= previous.observed)
-        group = self._choose_group(groups)
-        if groups and group is None:
-            self.counts['move_conflicts'] += 1
-            return None, 'corroboration-conflict', 0, None
-        if group is None and self._trusted(obs.spot):
-            # Over move_tolerance (500 Hz) away and the call confirmed upstream
-            # (Q:n, even with '*', or GoCluster V): he moved (v0.7.247, S55OO)
-            return frequency, 'frequency-move-quality', obs.spot.quality, 'quality'
-        if group is None:
-            pending_key = (call, obs.spot.band, obs.spot.mode,
-                           int(round(frequency/self.config['corroboration_tolerance_hz'])))
-            if pending_key not in self.pending:
-                self._put(self.pending, pending_key, obs)
-                self.counts['pending_moves'] += 1
-            support = 1 if obs.spot.mode != 'UNKNOWN' and obs.spot.observed_at is not None else 0
-            return None, 'pending-corroboration', support, None
-        if abs(group['frequency']-frequency) > self.config['corroboration_tolerance_hz']:
-            # Do not render a different proposal using an unrelated triggering line.
-            self.counts['move_conflicts'] += 1
-            return None, 'corroboration-conflict', len(group['ids']), 'gocluster' if group['gc'] else 'raw'
-        return group['frequency'], 'frequency-move', len(group['ids']), 'gocluster' if group['gc'] else 'raw'
-
     def _local_call_decision(self, observation, frequency, now, before=None):
         """Return unique corroborated identity, or a reason for safe non-mutation.
 
@@ -1113,33 +1083,22 @@ class SpotProcessor:
             elif spot.mode != 'UNKNOWN' and not known and unknown in self.repeats:
                 previous = self.repeats.pop(unknown)
                 self._put(self.repeats, repeat_key, previous)
+        moved_new = False
         if previous is not None:
             moved = abs(frequency - previous.frequency) > self.config['move_tolerance_hz']
             ordered = (spot.observed_at is not None and previous.observed is not None and
                        spot.observed_at >= previous.observed)
             self.last_evaluation['anchor_hz'] = previous.frequency
-            if not moved or not ordered or previous.changes >= self.config['max_changes']:
-                self.last_evaluation['reason'] = 'move-budget-exhausted' if moved and previous.changes >= self.config['max_changes'] else 'repeat'
+            if not moved or not ordered:
+                self.last_evaluation['reason'] = 'repeat'
                 self.counts['suppressed_repeats'] += 1
                 return []
-            selected, reason, support, basis = self._movement(obs, call, frequency, previous, now)
-            self.last_evaluation.update(reason=reason,support=support,reference_basis=basis)
-            if selected is None:
-                self.counts['suppressed_repeats'] += 1
-                return []
-            frequency = selected
-            output = spot.render(frequency, call)
-            self.last_evaluation['frequency_hz'] = frequency
-            self.last_evaluation['frequency_basis'] = basis
-            previous.frequency = frequency
-            previous.observed = spot.observed_at
-            previous.changes += 1
-            previous.generation = self.votes.serial
-            self.counts['frequency_change_updates'] += 1
-            self.counts['confirmed_moves'] += 1
-            for pending_key in list(self.pending.keys_for('identity', (spot.call, spot.band, spot.mode))):
-                del self.pending[pending_key]
-        else:
+            # Over move_tolerance (500 Hz) away: he moved - a new spot, sent
+            # at once like a first discovery, its own 180 s window from now.
+            # No second receiver, no move budget (v0.7.248, S55OO).
+            moved_new = True
+            previous = None
+        if previous is None:
             if spot.cw_skimmer and call == spot.call:
                 occupant = self._cw_conflict(obs, frequency, now, reference_before)
                 if occupant is not None:
@@ -1151,7 +1110,12 @@ class SpotProcessor:
                 for key in list(self.cw_conflicts.keys_for('call', (spot.band, call))):
                     del self.cw_conflicts[key]
             self._put(self.repeats, repeat_key, Repeat(now, spot.observed_at, frequency))
-            self.last_evaluation['reason'] = 'new-or-window-expired'
+            self.last_evaluation['reason'] = 'frequency-move' if moved_new else 'new-or-window-expired'
+            if moved_new:
+                self.counts['frequency_change_updates'] += 1
+                self.counts['confirmed_moves'] += 1
+                for pending_key in list(self.pending.keys_for('identity', (spot.call, spot.band, spot.mode))):
+                    del self.pending[pending_key]
         self.counts['delivered_spots'] += 1
         return [output]
 

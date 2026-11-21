@@ -55,19 +55,18 @@ SETTINGS: list[dict] = [
     {"key": "cluster.merge", "attr": "cluster_merge", "kind": "bool", "live": True,
      "group": "Cluster server", "label": "Receiver-aware spot collection",
      "help": "For the list, team and port 10000: suppress repeats for 180 seconds; "
-             "admit up to two frequency moves above 500 Hz when two distinct receivers "
-             "agree within 100 Hz (or a spot with Q:n from Trust DXSpider quality). Align receiver frequencies when qualified evidence "
+             "a spot more than 500 Hz from the last sent frequency is a move, sent at "
+             "once with its own 180 s window. Align receiver frequencies when qualified evidence "
              "is available; guard local CW callsign corrections. First discoveries pass "
              "promptly. Mirrors never count as extra receivers."},
     {"key": "cluster.trust_q", "attr": "cluster_trust_q", "kind": "int", "min": 0, "max": 99,
      "live": True, "group": "Cluster server", "label": "Trust DXSpider quality from Q:",
      "help": "A cluster spot with Q:n (DXSpider: n different skimmers heard it) from this "
-             "number on counts as confirmed: never held as cw-conflict-unconfirmed, and a "
-             "frequency move over 500 Hz with it (also with '*') needs no second receiver "
-             "of POUNCer's own - he moved. A GoCluster spot rated V (Telnet role "
-             "gocluster) counts the same. The same spot from several Telnets counts once "
-             "(the highest Q, never a sum). Default 3; 0 = off (only POUNCer's own "
-             "receiver count)."},
+             "number on counts as confirmed: never held as cw-conflict-unconfirmed. A "
+             "GoCluster spot rated V (Telnet role gocluster) counts the same. The same spot "
+             "from several Telnets counts once (the highest Q, never a sum). Default 3; "
+             "0 = off (only POUNCer's own receiver count). A frequency move over 500 Hz is "
+             "sent at once anyway (v0.7.248)."},
     {"key": "cluster.people_all", "attr": "cluster_people_all", "kind": "bool", "live": True,
      "group": "Cluster server", "label": "Send every person's spot (no -#), all modes",
      "help": "A spot by a person (spotter without '-#') from a cluster Telnet goes to port "

@@ -22,11 +22,11 @@ class AuditedBridgeTests(unittest.TestCase):
     def test_synthetic_mirror_does_not_invent_an_independent_receiver(self):
         self.collector.process(self.app, self.spot())
         report = self.spot('W3LPL-10-#', 14020.7)
-        self.assertEqual(self.collector.process(self.app, report), [])
+        self.assertEqual(len(self.collector.process(self.app, report)), 1)   # a move (v0.7.248)
         mirror = replace(report, raw_line='', feed_id='http')
         self.assertEqual(self.collector.process(self.app, mirror), [])
-        self.assertEqual(self.collector.engine.last_evaluation['support'], 1)
-        self.assertTrue(self.collector.process(self.app, self.spot('C1CCC-#', 14020.7)))
+        self.assertEqual(self.collector.engine.last_evaluation['reason'], 'repeat')
+        self.assertEqual(self.collector.engine.counts['confirmed_moves'], 1)
 
     def test_synthetic_header_retains_receiver_call_and_frequency(self):
         report = replace(self.spot('W3LPL-10-#'),
@@ -137,9 +137,10 @@ class AuditedBridgeTests(unittest.TestCase):
         self.now += 21
         late = self.spot('C1CCC-#', 14020.7)
         late.arrived = START + 21
-        self.assertEqual(self.collector.process(self.app, early), [])
+        # v0.7.248: one spot over 500 Hz away moves at once; its copy is a repeat
+        self.assertEqual(len(self.collector.process(self.app, early)), 1)
         self.assertEqual(self.collector.process(self.app, late), [])
-        self.assertEqual(self.collector.engine.counts['confirmed_moves'], 0)
+        self.assertEqual(self.collector.engine.counts['confirmed_moves'], 1)
 
     def test_backlogged_local_cannot_use_evidence_arriving_after_hold_deadline(self):
         self._external_support()  # drop one receiver so the original call is pending
@@ -260,13 +261,14 @@ class AuditedAppTests(unittest.TestCase):
         first.feed_id = 'telnet'
         selected = app._collector.process(app, first)[0]
         app.spots[selected.key] = selected
-        bad = replace(first, freq_khz=14020.7, raw_line=first.raw_line.replace('14020.00', '14020.70'))
+        # 14020.3: within 500 Hz of the selected spot = a repeat, never restored
+        # (over 500 Hz it would be a move, sent at once since v0.7.248)
+        bad = replace(first, freq_khz=14020.3, raw_line=first.raw_line.replace('14020.00', '14020.30'))
         self.assertEqual(app._collector.process(app, bad), [])
         app._spot_memory.extend((first, bad))
         self.assertEqual(readmit_spots(app), 0)
         P._drain_spots(app)
         self.assertEqual(served, [])
-        self.assertNotIn(bad.key, app.spots)
 
     def test_filter_readmission_replays_only_the_corrected_selected_identity(self):
         from pouncer.app import readmit_spots

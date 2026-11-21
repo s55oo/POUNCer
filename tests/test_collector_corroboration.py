@@ -19,56 +19,45 @@ class FrequencyCorroborationTests(unittest.TestCase):
         raw=gc(call,frequency,origin=origin,stamp=stamp) if role=='gocluster' else line(call,frequency,origin=origin,stamp=stamp,extra=extra)
         return self.engine.process(source or role,role,raw)
 
-    def test_first_spot_prompt_then_one_outlier_cannot_move(self):
+    def test_first_spot_prompt_then_one_spot_over_500_hz_moves(self):
+        # v0.7.248 (S55OO): over 500 Hz away = he moved - sent at once, one spot
         self.assertTrue(self.send('A1AAA',7009))
         for origin in ('B1BBB','C1CCC','D1DDD'):
             self.assertFalse(self.send(origin,7009))
-        self.assertFalse(self.send('I1III',7009.7))
-        self.assertEqual(self.engine.last_evaluation['reason'],'pending-corroboration')
-        self.assertFalse(self.send('B1BBB',7009))
-        self.assertEqual(self.engine.snapshot().get('frequency_change_updates',0),0)
+        moved=self.send('I1III',7009.7)
+        self.assertEqual(len(moved),1)
+        self.assertEqual(self.engine.last_evaluation['reason'],'frequency-move')
+        self.assertEqual(parse_spot(moved[0],self.now).frequency_hz,7009700)
+        self.assertFalse(self.send('B1BBB',7009.8))           # within 500 Hz: a repeat
+        self.assertEqual(self.engine.snapshot()['frequency_change_updates'],1)
 
-    def test_two_receivers_promote_without_majority(self):
-        self.send('A1AAA',7009)
-        for origin in ('B1BBB','C1CCC','D1DDD','E1EEE'):
-            self.send(origin,7009)
-        self.assertFalse(self.send('I1III',7009.7))
-        selected=self.send('F1FFF',7009.7,'rbn')
-        self.assertEqual(len(selected),1)
-        self.assertEqual(parse_spot(selected[0],self.now).frequency_hz,7009700)
-        self.assertEqual(self.engine.last_evaluation['support'],2)
+    def test_moves_are_not_budgeted(self):
+        self.assertTrue(self.send('A1AAA',7009))
+        for index,frequency in enumerate((7009.7,7010.4,7011.1,7009)):
+            self.assertTrue(self.send('B%dBBB'%index,frequency),frequency)
+        self.assertEqual(self.engine.snapshot()['frequency_change_updates'],4)
 
-    def test_promotion_retires_old_support_even_same_receipt_clock(self):
+    def test_a_move_opens_its_own_repeat_window(self):
         self.send('A1AAA',7009)
-        self.send('B1BBB',7009)
-        self.send('C1CCC',7009.7)
-        self.assertTrue(self.send('D1DDD',7009.7))
-        self.assertFalse(self.send('A1AAA',7009))
-        self.assertTrue(self.send('B1BBB',7009))
-        self.assertEqual(self.engine.snapshot()['frequency_change_updates'],2)
-        self.send('E1EEE',7010.4)
-        self.assertFalse(self.send('F1FFF',7010.4))
-        self.assertEqual(self.engine.last_evaluation['reason'],'move-budget-exhausted')
+        self.assertTrue(self.send('B1BBB',7009.7))
+        self.now += 179
+        self.assertFalse(self.send('C1CCC',7009.7))          # 179 s after the move: repeat
+        self.now += 2
+        self.assertTrue(self.send('D1DDD',7009.7))           # its window ran out
 
-    def test_mirrors_and_unknown_numeric_aliases_cannot_confirm(self):
-        # the receiver rule itself: the payload's Q:9 would confirm the move
-        # on its own since v0.7.239 (trust_quality), so that is off here
-        self.engine = SpotProcessor({'trust_quality': 0}, clock=lambda: self.now)
+    def test_mirrors_of_a_move_are_repeats(self):
         self.send('A1AAA',7009)
-        self.send('B1BBB-1-#',7009.7,'rbn')
+        self.assertTrue(self.send('B1BBB-1-#',7009.7,'rbn'))
         self.assertFalse(self.send('B1BBB',7009.7,'gocluster'))
         self.assertFalse(self.send('B1BBB-2',7009.7,'cluster'))
-        self.assertEqual(self.engine.snapshot().get('frequency_change_updates',0),0)
-        self.assertEqual(len(self.engine.pending),1)
+        self.assertEqual(self.engine.snapshot()['frequency_change_updates'],1)
 
-    def test_candidate_exact_expiry_never_forces_release(self):
+    def test_an_older_stamp_never_moves(self):
         self.send('A1AAA',7009)
-        self.send('B1BBB',7009.7)
-        self.now += 10
-        self.engine.snapshot()
-        self.assertEqual(self.engine.snapshot()['expired_moves'],1)
-        self.assertFalse(self.send('C1CCC',7009.7))
-        self.assertEqual(self.engine.snapshot().get('confirmed_moves',0),0)
+        self.now += 30
+        old=gc('HA8LNN',7009.7,origin='B1BBB',stamp='1159Z')   # stamped before the sent spot
+        self.assertEqual(self.engine.process('gocluster','gocluster',old),[])
+        self.assertEqual(self.engine.snapshot().get('frequency_change_updates',0),0)
 
     def test_source_reset_removes_receiver_vote_authority(self):
         self.send('A1AAA',7009)
@@ -88,12 +77,11 @@ class FrequencyCorroborationTests(unittest.TestCase):
         observations.append(Observation(parse_spot(line('HA8LNN',7009.7,origin='E1EEE'),self.now),'go',self.now,'gocluster'))
         self.assertIsNone(self.engine._choose_group(self.engine._groups(observations,self.now)))
 
-    def test_move_keeps_triggering_comment_and_gc_frequency(self):
+    def test_move_keeps_its_own_comment_and_frequency(self):
         self.send('A1AAA',7009)
-        self.send('B1BBB',7009.71)
         output=self.send('C1CCC',7009.70,'rbn',extra=b'exact  comment \xff Q:7')
         self.assertEqual(len(output),1)
-        self.assertIn(b'7009.71',output[0])
+        self.assertIn(b'7009.70',output[0])
         self.assertTrue(output[0].endswith(b'exact  comment \xff Q:7 1200Z'))
 
 

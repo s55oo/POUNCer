@@ -269,7 +269,11 @@ DX de S50A:      14250.0  K1ABC        59 SSB                    1200Z
 
 Both go through the Spotters / Spotted filters. For people's spots POUNCer
 guesses the mode from the comment (SSB / USB / LSB / CW / FT8 ...), else an FT8 /
-FT4 window (0 - 3 kHz above 7074, 14074, 7047.5 ...), else the band plan. A
+FT4 window (0 - 3 kHz above 7074, 14074, 7047.5 ...), else the band plan.
+Since v0.7.245 every person's spot goes to port 10000 as it is, in every mode
+(`[cluster] people_all`): no repeat window, no CW-conflict or PSK Reporter
+hold; Spots > Exclude (WARC / 60 m / beacons) and your own call still apply,
+and the same spot from several Telnets goes out once. A
 Telnet set to the same server as RBN or an earlier Telnet is not opened (that
 one brings the same). Not on a team slave (the master passes the spots on).
 An older config.ini: #1 = `[rbn] backup_host` / `backup_port`, #2 = `[ssb]

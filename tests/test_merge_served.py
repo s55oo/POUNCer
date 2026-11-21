@@ -36,13 +36,13 @@ class CollectorBridgeTests(unittest.TestCase):
         same = self.spot('B1BBB-#')
         same.quality = 99
         self.assertEqual(self.collector.process(self.app, same), [])
-        self.assertEqual(self.collector.process(self.app, self.spot('B1BBB-#', 14020.7)), [])
+        result = self.collector.process(self.app, self.spot('B1BBB-#', 14020.7))
+        self.assertEqual(result[0].freq_khz, 14020.7)      # over 500 Hz: a move, at once
+        self.assertTrue(result[0].collector_selected)
         mirrored = self.spot('B1BBB-#', 14020.7, source='telnet2')
         self.assertEqual(self.collector.process(self.app, mirrored), [])
-        result = self.collector.process(self.app, self.spot('C1CCC-#', 14020.7))
-        self.assertEqual(result[0].freq_khz, 14020.7)
-        self.assertTrue(result[0].collector_selected)
-        self.now += 180
+        self.assertEqual(self.collector.process(self.app, self.spot('C1CCC-#', 14020.7)), [])
+        self.now += 181
         self.assertTrue(self.collector.process(self.app, self.spot()))
 
     def test_filtered_receivers_learn_without_consuming_episode(self):
